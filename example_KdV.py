@@ -21,7 +21,7 @@ import time
 '''
 Preparing grid
 
-Grid is a essentially torch.Tensor of a n-D points where n is the problem
+Grid is an essentially torch.Tensor of a n-D points where n is the problem
 dimensionality
 '''
 
@@ -54,7 +54,7 @@ Meaning c1*u*d2u/dx2 has the form
 
 None is for function without derivatives
 
-
+bval=torch.Tensor prescribed values at every point in the boundary
 '''
 
 #coefficients for BC
