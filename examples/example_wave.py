@@ -10,6 +10,9 @@ import os
 
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
     
+import sys
+sys.path.append('../')
+
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
