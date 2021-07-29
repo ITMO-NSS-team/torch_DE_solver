@@ -137,7 +137,7 @@ n=3
 legendre_poly= {
     '(1-t^2)*d2u/dt2**1':
         {
-            'coeff': c1(grid),
+            'coeff': c1(grid), #coefficient is a torch.Tensor
             'du/dt': [0, 0],
             'pow': 1
         },
@@ -155,10 +155,11 @@ legendre_poly= {
         }
 }
 
+# this one is to show that coefficients may be a function of grid as well
 legendre_poly= {
     '(1-t^2)*d2u/dt2**1':
         {
-            'coeff': c1,
+            'coeff': c1, #coefficient is a function
             'du/dt': [0, 0],
             'pow': 1
         },
