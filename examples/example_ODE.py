@@ -44,15 +44,22 @@ For every boundary we define three items
 bnd=torch.Tensor of a boundary n-D points where n is the problem
 dimensionality
 
-bop=list in form [[term1],[term2],...] -> term1+term2+...=0
+bop=dict in form {'term1':term1,'term2':term2}-> term1+term2+...=0
 
-term is a list term=[coefficient,[sterm1,sterm2],power]
+NB! dictionary keys at the current time serve only for user-frienly 
+description/comments and are not used in model directly thus order of
+items must be preserved as (coeff,op,pow)
+
+term is a dict term={coefficient:c1,[sterm1,sterm2],'pow': power}
 
 Meaning c1*u*d2u/dx2 has the form
 
-[c1,[[None],[0,0]],[1,1]]
+{'coefficient':c1,
+ 'u*d2u/dx2': [[None],[0,0]],
+ 'pow':[1,1]}
 
 None is for function without derivatives
+
 
 bval=torch.Tensor prescribed values at every point in the boundary
 """
@@ -60,8 +67,7 @@ bval=torch.Tensor prescribed values at every point in the boundary
 # point t=0
 bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64))
 
-# May be None as well
-bop1 = [[1, [None], 1]]
+bop1 = None
 
 #  So u(0)=-1/2
 bndval1 = torch.from_numpy(np.array([[-1 / 2]], dtype=np.float64))
@@ -70,7 +76,14 @@ bndval1 = torch.from_numpy(np.array([[-1 / 2]], dtype=np.float64))
 bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64))
 
 # d/dt
-bop2 = [[1, [0], 1]]
+bop2 = {
+    '1*du/dt**1':
+        {
+            'coefficient': 1,
+            'du/dt': [0],
+            'pow': 1
+        }
+}
 
 # So, du/dt |_{x=1}=3
 bndval2 = torch.from_numpy(np.array([[3]], dtype=np.float64))
@@ -83,15 +96,23 @@ Defining Legendre polynomials generating equations
 
 Operator has the form
 
-op=list in form [[term1],[term2],...] -> term1+term2+...=0
+op=dict in form {'term1':term1,'term2':term2}-> term1+term2+...=0
 
-term is a list term=[coefficient,[sterm1,sterm2],power]
+NB! dictionary keys at the current time serve only for user-frienly 
+description/comments and are not used in model directly thus order of
+items must be preserved as (coeff,op,pow)
 
-c1 may be function of grid or tensor of dimension of grid.
 
-Meaning c1*u*d2u/dt2 has the form
 
-[c1,[[None],[0,0]],[1,1]]
+term is a dict term={coefficient:c1,[sterm1,sterm2],'pow': power}
+
+c1 may be integer, function of grid or tensor of dimension of grid
+
+Meaning c1*u*d2u/dx2 has the form
+
+{'coefficient':c1,
+ 'u*d2u/dx2': [[None],[0,0]],
+ 'pow':[1,1]}
 
 None is for function without derivatives
 
@@ -109,24 +130,53 @@ def c2(grid):
     return -2 * grid
 
 
-operator = [[c1(grid), [0, 0], 1], [c2(grid), [0], 1], [6, [None], 1]]
 
-operator = [[c1, [0, 0], 1], [c2, [0], 1], [6, [None], 1]]
+n=3
 
-"""
-Let's decipher this two (both are equal)
+# operator is  (1-t^2)*d2u/dt2-2t*du/dt+n*(n-1)*u=0 (n=3)
+legendre_poly= {
+    '(1-t^2)*d2u/dt2**1':
+        {
+            'coeff': c1(grid),
+            'du/dt': [0, 0],
+            'pow': 1
+        },
+    '-2t*du/dt**1':
+        {
+            'coeff': c2(grid),
+            'u*du/dx': [0],
+            'pow':1
+        },
+    'n*(n-1)*u**1':
+        {
+            'coeff': n*(n-1),
+            'u':  [None],
+            'pow': 1
+        }
+}
 
-[c1,[0,0],1] -> c1*d2u/dt2 = (1-t^2)*d2u/dt2
+legendre_poly= {
+    '(1-t^2)*d2u/dt2**1':
+        {
+            'coeff': c1,
+            'du/dt': [0, 0],
+            'pow': 1
+        },
+    '-2t*du/dt**1':
+        {
+            'coeff': c2,
+            'u*du/dx': [0],
+            'pow':1
+        },
+    'n*(n-1)*u**1':
+        {
+            'coeff': n*(n-1),
+            'u':  [None],
+            'pow': 1
+        }
+}
 
-[c2,[0],1] -> c2*du/dt = -2t*du/dt
 
-
-[6,[None],1] -> 6*u=n*(n-1)*u (n=3)
-
-
-So, operator is  (1-t^2)*d2u/dt2-2t*du/dt+n*(n-1)*u=0 (n=3)
-
-"""
 
 for _ in range(1):
     model = torch.nn.Sequential(
@@ -139,7 +189,7 @@ for _ in range(1):
     )
 
     start = time.time()
-    model = point_sort_shift_solver(grid, model, operator, bconds, lambda_bound=10, verbose=True, learning_rate=1e-3,
+    model = point_sort_shift_solver(grid, model, legendre_poly, bconds, lambda_bound=10, verbose=True, learning_rate=1e-3,
                                     eps=0.01, tmin=1000, tmax=1e5)
     end = time.time()
 

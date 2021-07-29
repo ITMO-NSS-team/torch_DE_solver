@@ -280,9 +280,14 @@ def operator_prepare(op, grid, subset=['central'], true_grid=None, h=0.001):
         grid types
 
     """
+    if type(op)==dict:
+        op=op_dict_to_list(op)
     op1 = operator_unify(op)
     prepared_operator = apply_all_operators(op1, grid, subset=subset, true_grid=true_grid, h=h)
     return prepared_operator
+
+def op_dict_to_list(opdict):
+    return list([list(term.values()) for term in opdict.values()])
 
 
 def bndpos(grid, bnd):
@@ -371,6 +376,8 @@ def bnd_prepare(bconds, grid, h=0.001):
         if bop == [[1, [None], 1]]:
             bop = None
         if bop != None:
+            if type(bop)==dict:
+                bop=op_dict_to_list(bop)
             bop1 = operator_unify(bop)
             bop2 = apply_all_operators(bop1, grid, h=h)
         else:

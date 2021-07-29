@@ -78,34 +78,45 @@ Defining wave equation
 
 Operator has the form
 
-op=list in form [[term1],[term2],...] -> term1+term2+...=0
+op=dict in form {'term1':term1,'term2':term2}-> term1+term2+...=0
 
-term is a list term=[coefficient,[sterm1,sterm2],power]
+NB! dictionary keys at the current time serve only for user-frienly 
+description/comments and are not used in model directly thus order of
+items must be preserved as (coeff,op,pow)
 
-c1 may be function of grid or tensor of dimension of grid.
+
+
+term is a dict term={coefficient:c1,[sterm1,sterm2],'pow': power}
+
+c1 may be integer, function of grid or tensor of dimension of grid
 
 Meaning c1*u*d2u/dx2 has the form
 
-[c1,[[None],[0,0]],[1,1]]
+{'coefficient':c1,
+ 'u*d2u/dx2': [[None],[0,0]],
+ 'pow':[1,1]}
 
 None is for function without derivatives
 
 
 """
+# operator is 4*d2u/dx2-1*d2u/dt2=0
+wave_eq = {
+    '4*d2u/dx2**1':
+        {
+            'coeff': 4,
+            'd2u/dx2': [0, 0],
+            'pow': 1
+        },
+    '-d2u/dt2**1':
+        {
+            'coeff': -1,
+            'd2u/dt2': [1,1],
+            'pow':1
+        }
+}
 
-operator = [[4, [0, 0], 1], [-1, [1, 1], 1]]
 
-"""
-Let's decipher this one
-
-[4,[0,0],1] -> 4*d2u/dx2
-
-
-[-1,[1,1],1]-> -1*d2u/dt2
-
-So, operator is 4*d2u/dx2-1*d2u/dt2=0
-
-"""
 
 for _ in range(1):
     model = torch.nn.Sequential(
@@ -117,7 +128,7 @@ for _ in range(1):
     )
 
     start = time.time()
-    model = point_sort_shift_solver(grid, model, operator, bconds, lambda_bound=100, verbose=True, learning_rate=1e-3,
+    model = point_sort_shift_solver(grid, model, wave_eq , bconds, lambda_bound=100, verbose=True, learning_rate=1e-3,
                                     eps=0.01, tmin=1000, tmax=1e5)
     end = time.time()
 
