@@ -1,5 +1,5 @@
 # torch_DE_solver
-Combines power of torch, numerical methods to conquer and solve ALL {O,P}DEs
+Combines power of torch, numerical methods and math overall to conquer and solve ALL {O,P}DEs
 
 There are three examples to provide a little insight to an operator form
 
