@@ -154,36 +154,67 @@ def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10):
     crucial thing for all that stuff, so we should increase significance of the
     coundary conditions
     """
+    # l1_lambda = 0.01
+    # l1_norm = sum(p.abs().sum() for p in model.parameters())
+    # loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)+ l1_lambda * l1_norm
+    
     loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)
+    
     return loss
 
 
+def compute_operator_loss(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,h=0.001):
+    prepared_grid = grid_prepare(grid)
+    bconds = bnd_prepare(bconds, prepared_grid, h=h)
+    operator = operator_prepare(operator, prepared_grid, subset=grid_point_subset, true_grid=grid, h=h)
+    loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
+    loss=float(loss.float())
+    return loss
+
+
+import numpy as np
+
 def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
-                            verbose=False, learning_rate=1e-3, eps=0.1, tmin=1000, tmax=1e5, h=0.001):
+                            verbose=False, learning_rate=1e-3, eps=0.1, tmin=1000, tmax=1e5, h=0.001,optimizer_state=None,optimizer=None):
     nvars = model[0].in_features
 
     prepared_grid = grid_prepare(grid)
     bconds = bnd_prepare(bconds, prepared_grid, h=h)
     operator = operator_prepare(operator, prepared_grid, subset=grid_point_subset, true_grid=grid, h=h)
-
+    
     # standard NN stuff
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
-    # optimizer = torch.optim.LBFGS(model.parameters())
+    if optimizer is None:
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+        # optimizer = torch.optim.LBFGS(model.parameters())
+    if optimizer_state is not None:
+        optimizer.load_state_dict(optimizer_state)
+        tmin=100
     loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
-    t = 0
 
+    t = 0
+    
+    last_loss=np.zeros(100)+float(loss)
+    line=np.polyfit(range(100),last_loss,1)
     def closure():
         optimizer.zero_grad()
         loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
         loss.backward()
         return loss
-
-    while abs(loss.item()) > eps or t <= tmin:
+    
+    while abs(line[0]) > eps or t <= tmin:
         optimizer.step(closure)
         loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
+        
+        last_loss[t%100]=loss
+        
+        if t%100==0:
+                line=np.polyfit(range(100),last_loss,1)
+        
         if (t % 100 == 0) and verbose:
-            print(t, loss.item())
+
+            print(t, loss.item(), line)
+
             if prepared_grid.shape[1] == 2:
                 fig = plt.figure()
                 ax = fig.add_subplot(111, projection='3d')
@@ -203,4 +234,5 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
         t += 1
         if t > tmax:
             break
-    return model
+
+    return model,optimizer
