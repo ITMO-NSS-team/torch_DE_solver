@@ -218,14 +218,18 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
         loss.backward()
         return loss
     
-    while abs(line[0]) > eps or t <= tmin:
+    stop_dings=0
+    
+    while stop_dings<=5:
         optimizer.step(closure)
         loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
         
         last_loss[t%100]=loss
         
         if t%100==0:
-                line=np.polyfit(range(100),last_loss,1)
+            line=np.polyfit(range(100),last_loss,1)
+            if abs(line[0]) < eps:
+                stop_dings+=1
         
         if (t % 100 == 0) and verbose:
 

@@ -32,24 +32,25 @@ def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='
         cache_n=np.random.choice(len(files), nmodels, replace=False)
     min_loss=np.inf
     best_model=0
+    best_checkpoint={}
     for i in cache_n:
         file=files[i]
         checkpoint = torch.load(file)
         model=checkpoint['model']
         model.load_state_dict(checkpoint['model_state_dict'])
+        if model[0].in_features!=prepared_grid.shape[-1]:
+            model[0]=torch.nn.Linear(prepared_grid.shape[-1],model[0].out_features)
         model.eval()
-        model[0].in_features=prepared_grid.shape[-1]
-        print(model)
         l=point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)      
         if l<min_loss:
             min_loss=l
-            best_model=i
+            best_checkpoint['model']=model
+            best_checkpoint['model_state_dict']=model.state_dict()
+            best_checkpoint['optimizer_state_dict']=checkpoint['optimizer_state_dict']
             if verbose:
                 print('best_model_num={} , loss={}'.format(i,l))
-    best_checkpoint=torch.load(files[best_model])
-    model=best_checkpoint['model']
-    model[0].in_features=prepared_grid.shape[-1]
-    best_checkpoint['model']=model
+    # model=best_checkpoint['model']
+    # model[0].in_features=prepared_grid.shape[-1]
     return best_checkpoint,min_loss
         
 
