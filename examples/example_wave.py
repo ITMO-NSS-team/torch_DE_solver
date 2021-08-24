@@ -15,6 +15,7 @@ import sys
 sys.path.append('../')
 
 from solver import *
+from cache import *
 import time
 
 """
@@ -116,7 +117,7 @@ wave_eq = {
         }
 }
 
-import pickle
+
 
 for _ in range(1):
     model = torch.nn.Sequential(
@@ -126,26 +127,14 @@ for _ in range(1):
         torch.nn.Tanh(),
         torch.nn.Linear(100, 1)
     )
+
     
-    # optimizer=torch.load('../cache/wave_optimizer.pt')
-    # checkpoint = torch.load('../cache/wave_state.tar')
-    # model=checkpoint['model']
-    # model.load_state_dict(checkpoint['model_state_dict'])
-    # model.eval()
-    
-    l=compute_operator_loss(grid, model, wave_eq, bconds, grid_point_subset=['central'], lambda_bound=100,h=0.001)
-    
-    print('-1 {}'.format(l))
     
     start = time.time()
-    model,optimizer = point_sort_shift_solver(grid, model, wave_eq , bconds, 
+    
+    model = point_sort_shift_solver(grid, model, wave_eq , bconds, 
                                               lambda_bound=100, verbose=True, learning_rate=1e-4,
-                                    eps=1e-5, tmin=1000, tmax=1e5,optimizer=None,optimizer_state=None)
-    # model,optimizer = point_sort_shift_solver(grid, model, wave_eq , bconds, 
-    #                                           lambda_bound=100, verbose=True, learning_rate=1e-4,
-    #                                 eps=1e-5, tmin=1000, tmax=1e5,optimizer=None,optimizer_state=checkpoint['optimizer_state_dict'])
+                                    eps=1e-5, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True)
+    
     end = time.time()
-    torch.save({'model':model, 'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict()}, '../cache/wave_state.tar')
-    torch.save(optimizer,'../cache/wave_optimizer.pt')
     print('Time taken 10= ', end - start)

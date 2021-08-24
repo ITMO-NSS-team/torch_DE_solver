@@ -10,7 +10,7 @@ from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from mpl_toolkits.mplot3d import Axes3D
 from input_preprocessing import grid_prepare, bnd_prepare, operator_prepare
-
+import numpy as np
 
 def take_derivative_shift_op(model, term):
     """
@@ -154,8 +154,8 @@ def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10):
     crucial thing for all that stuff, so we should increase significance of the
     coundary conditions
     """
-    # l1_lambda = 0.01
-    # l1_norm = sum(p.abs().sum() for p in model.parameters())
+    # l1_lambda = 0.001
+    # l1_norm =sum(p.abs().sum() for p in model.parameters())
     # loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)+ l1_lambda * l1_norm
     
     loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)
@@ -172,10 +172,11 @@ def compute_operator_loss(grid, model, operator, bconds, grid_point_subset=['cen
     return loss
 
 
-import numpy as np
+from cache import *
 
 def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
-                            verbose=False, learning_rate=1e-3, eps=0.1, tmin=1000, tmax=1e5, h=0.001,optimizer_state=None,optimizer=None):
+                            verbose=False, learning_rate=1e-3, eps=0.1, tmin=1000, tmax=1e5, h=0.001,
+                            use_cache=True,cache_dir='../cache/',cache_verbose=False):
     nvars = model[0].in_features
 
     prepared_grid = grid_prepare(grid)
@@ -183,19 +184,34 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
     operator = operator_prepare(operator, prepared_grid, subset=grid_point_subset, true_grid=grid, h=h)
     
     # standard NN stuff
-    if optimizer is None:
-        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-        # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
-        # optimizer = torch.optim.LBFGS(model.parameters())
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer_state=None
+    if use_cache:
+        cache_checkpoint,min_loss=cache_lookup(prepared_grid, operator, bconds,cache_dir=cache_dir
+                                               ,nmodels=None,verbose=cache_verbose,lambda_bound=0.001)
+        model, optimizer_state= cache_retrain(model,cache_checkpoint,grid,verbose=cache_verbose)
+        
+    save_cache=False
+    
+    l = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
+    if l>0.1:
+        save_cache=True
+    # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    # optimizer = torch.optim.LBFGS(model.parameters())
     if optimizer_state is not None:
         optimizer.load_state_dict(optimizer_state)
         tmin=100
     loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
-
+    
+    if verbose:
+        print('-1 {}'.format(loss))
+    
     t = 0
     
     last_loss=np.zeros(100)+float(loss)
     line=np.polyfit(range(100),last_loss,1)
+    
     def closure():
         optimizer.zero_grad()
         loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
@@ -234,5 +250,6 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
         t += 1
         if t > tmax:
             break
-
-    return model,optimizer
+    if save_cache:
+        save_model(model,model.state_dict(),optimizer.state_dict(),cache_dir=cache_dir,name=None)
+    return model
