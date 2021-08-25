@@ -58,6 +58,8 @@ def cache_retrain(model,cache_checkpoint,grid,verbose=False):
     if cache_checkpoint==None:
         optimizer_state=None
         return model,optimizer_state
+    # print(str(cache_checkpoint['model']))
+    # print(str(model))
     if str(cache_checkpoint['model']) == str(model):
         model=cache_checkpoint['model']
         model.load_state_dict(cache_checkpoint['model_state_dict'])

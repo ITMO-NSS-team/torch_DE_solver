@@ -185,13 +185,14 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
     
     # standard NN stuff
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    optimizer_state=None
+
     if use_cache:
         cache_checkpoint,min_loss=cache_lookup(prepared_grid, operator, bconds,cache_dir=cache_dir
                                                ,nmodels=None,verbose=cache_verbose,lambda_bound=0.001)
         model, optimizer_state= cache_retrain(model,cache_checkpoint,grid,verbose=cache_verbose)
+    
         
+
     save_cache=False
     
     l = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
@@ -199,6 +200,8 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
         save_cache=True
     # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
     # optimizer = torch.optim.LBFGS(model.parameters())
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer_state=None
     if optimizer_state is not None:
         optimizer.load_state_dict(optimizer_state)
         tmin=100
