@@ -226,7 +226,10 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
     
     stop_dings=0
     
-    while stop_dings<=5:
+    line=[1,1]
+    
+    while abs(line[0]/line[1])>eps:
+    # while stop_dings<=5:
         optimizer.step(closure)
         loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
         
