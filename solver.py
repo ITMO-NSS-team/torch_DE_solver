@@ -236,7 +236,7 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
         
         if (t % 100 == 0) and verbose:
 
-            print(t, loss.item(), line)
+            print(t, loss.item(), line,line[0]/line[1])
 
             if prepared_grid.shape[1] == 2:
                 fig = plt.figure()

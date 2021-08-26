@@ -76,7 +76,7 @@ r1, r2 = [5, 5]
 Boundary x=0
 """
 
-# points
+# # points
 bnd1 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t).float()
 
 # operator a1*d2u/dx2+a2*du/dx+a3*u
@@ -101,7 +101,7 @@ bop1 = {
         }
 }
 
-
+bop1=[[a1,[0,0],1],[a2,[0],1],[a3,[None],1]]
 
 # equal to zero
 bndval1 = torch.zeros(len(bnd1))
@@ -135,7 +135,7 @@ bop2 = {
         }
 }
 
-
+bop2=[[b1,[0,0],1],[b2,[0],1],[b3,[None],1]]
 # equal to zero
 bndval2 = torch.zeros(len(bnd2))
 
@@ -161,7 +161,7 @@ bop3 = {
         }
 }
 
-
+bop3=[[r1,[0],1],[r2,[None],1]]
 
 # equal to zero
 bndval3 = torch.zeros(len(bnd3))
@@ -177,6 +177,33 @@ bop4 = None
 
 # equal to zero
 bndval4 = torch.zeros(len(bnd4))
+
+# bnd1=torch.cartesian_prod(torch.from_numpy(np.array([0],dtype=np.float64)),t).float()
+
+
+# bop1=[[1,[None],1]]
+
+# bndval1=torch.from_numpy(np.array([0., -0.0370864, -0.0679946, -0.0869588, -0.096891, -0.101156, -0.101887, -0.100256, -0.0968864, -0.0921156],dtype=np.float64))
+
+# bnd2=torch.cartesian_prod(torch.from_numpy(np.array([1],dtype=np.float64)),t).float()
+
+
+# bop2=[[1,[None],1]]
+
+# bndval2=torch.from_numpy(np.array([0., 0.0370053, 0.0373262, 0.0265625, 0.0150148, 0.00553037,-0.00180545, -0.00758799, -0.0123609, -0.0164849],dtype=np.float64))
+
+# bnd3=torch.cartesian_prod(x,torch.from_numpy(np.array([1],dtype=np.float64))).float()
+
+# bop3=[[1,[None],1]]
+
+# bndval3=torch.from_numpy(np.array([-0.0921156, -0.0733226, -0.0578285, -0.0454475, -0.0359152,-0.0288834, -0.0239469, -0.0206109, -0.0183252, -0.0164849],dtype=np.float64))
+
+# bnd4=torch.cartesian_prod(x,torch.from_numpy(np.array([0],dtype=np.float64))).float()
+
+# bop4=[[1,[None],1]]
+
+# bndval4=torch.zeros(len(bnd4))
+
 
 # Putting all bconds together
 bconds = [[bnd1, bop1, bndval1], [bnd2, bop2, bndval2], [bnd3, bop3, bndval3], [bnd4, bop4, bndval4]]
@@ -216,12 +243,12 @@ kdv = {
     '1*du/dt**1':
         {
             'coeff': 1,
-            'du/dt': [0, 0],
+            'du/dt': [1],
             'pow': 1
         },
     '6*u**1*du/dx**1':
         {
-            'coeff': 1,
+            'coeff': 6,
             'u*du/dx': [[None], [0]],
             'pow': [1,1]
         },
@@ -256,8 +283,8 @@ for _ in range(1):
     )
 
     start = time.time()
-    model = point_sort_shift_solver(grid, model, kdv, bconds, lambda_bound=1000, verbose=True, learning_rate=1e-3,
-                                    eps=1e-6, tmin=1000, tmax=1e5, h=0.01,cache_verbose=True)
+    model = point_sort_shift_solver(grid, model, kdv, bconds, lambda_bound=1000,grid_point_subset=None,verbose=True, learning_rate=1e-3,
+                                    eps=1e-6, tmin=1000, tmax=1e5, h=0.01,use_cache=True,cache_verbose=True)
     end = time.time()
 
     print('Time taken 10= ', end - start)
