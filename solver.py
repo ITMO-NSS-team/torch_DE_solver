@@ -203,7 +203,10 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     optimizer_state=None
     if optimizer_state is not None:
-        optimizer.load_state_dict(optimizer_state)
+        try:
+            optimizer.load_state_dict(optimizer_state)
+        except Exception:
+            optimizer_state=None
         tmin=100
     loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
     
