@@ -21,14 +21,20 @@ def save_model(model,state,optimizer_state,cache_dir='../cache/',name=None):
     return
 
 def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='../cache/',nmodels=None,verbose=False): 
+    # looking for all *.tar files in directory cache_dir
     files=glob.glob(cache_dir+'*.tar')
+    # if files not found
     if len(files)==0:
         best_checkpoint=None
         min_loss=np.inf
         return best_checkpoint, min_loss
+    # at some point we may want to reduce the number of models that are
+    # checked for the best in the cache
     if nmodels==None:
+        # here we take all files that are in cache
         cache_n=np.arange(len(files))
     else:
+        # here we take random nmodels from the cache
         cache_n=np.random.choice(len(files), nmodels, replace=False)
     min_loss=np.inf
     best_model=0
@@ -38,6 +44,8 @@ def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='
         checkpoint = torch.load(file)
         model=checkpoint['model']
         model.load_state_dict(checkpoint['model_state_dict'])
+        # this one for the input shape fix if needed
+        # it is taken from the grid shape
         if model[0].in_features!=prepared_grid.shape[-1]:
             model[0]=torch.nn.Linear(prepared_grid.shape[-1],model[0].out_features)
         model.eval()
@@ -49,15 +57,15 @@ def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='
             best_checkpoint['optimizer_state_dict']=checkpoint['optimizer_state_dict']
             if verbose:
                 print('best_model_num={} , loss={}'.format(i,l))
-    # model=best_checkpoint['model']
-    # model[0].in_features=prepared_grid.shape[-1]
     return best_checkpoint,min_loss
         
 
 def cache_retrain(model,cache_checkpoint,grid,verbose=False):
+    # do nothing if cache is empty
     if cache_checkpoint==None:
         optimizer_state=None
         return model,optimizer_state
+    # if models have the same structure use the cache model state
     if str(cache_checkpoint['model']) == str(model):
         model=cache_checkpoint['model']
         model.load_state_dict(cache_checkpoint['model_state_dict'])
@@ -65,6 +73,7 @@ def cache_retrain(model,cache_checkpoint,grid,verbose=False):
         optimizer_state=cache_checkpoint['optimizer_state_dict']
         if verbose:
             print('Using model from cache')
+    # else retrain the input model using the cache model 
     else:
         optimizer_state=None
         model_state=None

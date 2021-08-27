@@ -178,14 +178,16 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
                             verbose=False, learning_rate=1e-3, eps=0.1, tmin=1000, tmax=1e5, h=0.001,
                             use_cache=True,cache_dir='../cache/',cache_verbose=False):
     nvars = model[0].in_features
-
+    
+    # prepare input data to uniform format 
+    
     prepared_grid = grid_prepare(grid)
     bconds = bnd_prepare(bconds, prepared_grid, h=h)
     operator = operator_prepare(operator, prepared_grid, subset=grid_point_subset, true_grid=grid, h=h)
     
-    # standard NN stuff
+    
 
-
+    #  use cache if needed
     if use_cache:
         cache_checkpoint,min_loss=cache_lookup(prepared_grid, operator, bconds,cache_dir=cache_dir
                                                ,nmodels=None,verbose=cache_verbose,lambda_bound=0.001)
@@ -196,6 +198,7 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
     save_cache=False
     
     l = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
+    # model is not saved if cache model good enough
     if l>0.1:
         save_cache=True
     # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
@@ -210,6 +213,8 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
         tmin=100
     loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
     
+    
+    # standard NN stuff
     if verbose:
         print('-1 {}'.format(loss))
     
@@ -226,6 +231,8 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
     
     stop_dings=0
     
+    # to stop train proceduce we fit the line in the loss data
+    #if line is flat enough 5 times, we stop the procedure
     while stop_dings<=5:
         optimizer.step(closure)
         loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
