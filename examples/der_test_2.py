@@ -38,13 +38,21 @@ mat1=read_heat_csv('Data_32_points_.dat')
 r_grid=np.arange(10**(-3)*0.5,10**(-3)*0.5*(len(mat1.columns)+1),0.5*10**(-3))
 t_grid=np.arange(0,0.05*len(mat1),0.05)
 
-grad21=np.gradient(np.gradient(mat1.values,r_grid,axis=1),r_grid,axis=1)
-grad20=np.gradient(np.gradient(mat1.values,t_grid,axis=0),t_grid,axis=0)
-grad_df1=mat1.copy()
-grad_df1[:]=grad21
 
-grad_df0=mat1.copy()
-grad_df0[:]=grad20
+def heat_second_FD(mat,x_grid,y_grid):
+    grad20=np.gradient(np.gradient(mat1.values,t_grid,axis=0),t_grid,axis=0)
+    grad21=np.gradient(np.gradient(mat1.values,r_grid,axis=1),r_grid,axis=1)
+    
+    grad_df0=mat1.copy()
+    grad_df0[:]=grad20
+    
+    grad_df1=mat1.copy()
+    grad_df1[:]=grad21
+    
+
+    return grad_df0,grad_df1
+
+grad_df0,grad_df1=heat_second_FD(mat1,t_grid,r_grid)
 
 true_grid=[]
 true_val=[]
