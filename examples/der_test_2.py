@@ -27,21 +27,18 @@ def read_heat_csv(name):
     df=pd.read_csv(name,index_col=None,header=None,sep=' ')
     df=df[range(1,len(df.columns)-1)]
     rename_dict={}
-    for i in range(1,len(df.columns)+1):
-        rename_dict[i]='r'+str(5*i)
+    for i in range(0,len(df.columns)):
+        rename_dict[i+1]='r'+str(i)
     df=df.rename(columns=rename_dict)  
     return df
   
 
-mat1=read_heat_csv('Data_32_points_.dat')
 
-r_grid=np.arange(10**(-3)*0.5,10**(-3)*0.5*(len(mat1.columns)+1),0.5*10**(-3))
-t_grid=np.arange(0,0.05*len(mat1),0.05)
 
 
 def heat_second_FD(mat,x_grid,y_grid):
-    grad20=np.gradient(np.gradient(mat1.values,t_grid,axis=0),t_grid,axis=0)
-    grad21=np.gradient(np.gradient(mat1.values,r_grid,axis=1),r_grid,axis=1)
+    grad20=np.gradient(np.gradient(mat1.values,x_grid,axis=0),t_grid,axis=0)
+    grad21=np.gradient(np.gradient(mat1.values,y_grid,axis=1),r_grid,axis=1)
     
     grad_df0=mat1.copy()
     grad_df0[:]=grad20
@@ -52,67 +49,63 @@ def heat_second_FD(mat,x_grid,y_grid):
 
     return grad_df0,grad_df1
 
+
+
+
+def flatten_df_to_list(df,nx,ny,grid_x,grid_y):
+    true_grid=[]
+    true_val=[]
+    for time in range(nx):
+        for coord in range(ny):
+              true_grid.append([grid_x[time],grid_y[coord]])      
+              true_val.append(df['r'+str(coord)][time])
+    true_grid=np.array(true_grid)
+    return true_grid,true_val
+
+
+
+def plot_list(true_grid,true_val,title=None):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    # ax.set_title('Iteration = ' + str(t))
+    ax.plot_trisurf(true_grid[:, 0], true_grid[:, 1],
+                    true_val, cmap=cm.jet, linewidth=0.2, alpha=1)
+    ax.set_xlabel("t")
+    ax.set_ylabel("r")
+    ax.set_title(title)
+    plt.show()
+
+
+mat1=read_heat_csv('Data_32_points_.dat')
+
+r_grid=np.arange(10**(-3)*0.5,10**(-3)*0.5*(len(mat1.columns)+1),0.5*10**(-3))
+
+# r_grid=np.arange(0.5,0.5*(len(mat1.columns)+1),0.5)
+
+# r_grid=np.linspace(0,1,len(mat1.columns))
+t_grid=np.arange(0,0.05*len(mat1),0.05)
+# t_grid=np.linspace(0,1,len(mat1))
+true_grid,true_val=flatten_df_to_list(mat1,3000,9,t_grid,r_grid)
+        
+
 grad_df0,grad_df1=heat_second_FD(mat1,t_grid,r_grid)
 
-true_grid=[]
-true_val=[]
-true_grad_val0=[]
-true_grad_val1=[]
+_,true_grad_val0=flatten_df_to_list(grad_df0,3000,9,t_grid,r_grid)        
+_,true_grad_val1=flatten_df_to_list(grad_df1,3000,9,t_grid,r_grid)
 
-for time in range(3001):
-    for coord in range(1,10):
-        true_grid.append([time*0.05,coord*0.5*10**(-3)])
-        true_val.append(mat1['r'+str(5*coord)][time])
-        true_grad_val0.append(grad_df0['r'+str(5*coord)][time])
-        true_grad_val1.append(grad_df1['r'+str(5*coord)][time])
-        # true_val.append((time*0.05)**2+(coord*0.5)**2)
-true_grid=np.array(true_grid)
-        
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-# ax.set_title('Iteration = ' + str(t))
-ax.plot_trisurf(true_grid[:, 0], true_grid[:, 1],
-                true_val, cmap=cm.jet, linewidth=0.2, alpha=1)
-ax.set_xlabel("t")
-ax.set_ylabel("r")
-plt.show()
+plot_list(true_grid,true_val,title='Initial field')
+
+plot_list(true_grid,true_grad_val0,title='FD field d2T/dt2')
+
+plot_list(true_grid,true_grad_val1,title='FD field d2T/dr2')
 
 
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-# ax.set_title('Iteration = ' + str(t))
-ax.plot_trisurf(true_grid[:, 0], true_grid[:, 1],
-                true_grad_val1, cmap=cm.jet, linewidth=0.2, alpha=1)
-ax.set_xlabel("t")
-ax.set_ylabel("r")
-plt.show()
-
-
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-# ax.set_title('Iteration = ' + str(t))
-ax.plot_trisurf(true_grid[:, 0], true_grid[:, 1],
-                true_grad_val0, cmap=cm.jet, linewidth=0.2, alpha=1)
-ax.set_xlabel("t")
-ax.set_ylabel("r")
-plt.show()
 
 device = torch.device('cpu')
 
-grid=torch.from_numpy(np.array(true_grid)).float()
+grid=torch.from_numpy(true_grid).float()
 data=torch.from_numpy(np.array(true_val).reshape(-1,1)).float()
 
-# data_norm=(data-torch.min(data))/torch.max(data-torch.min(data))
-
-
-# fig = plt.figure()
-# ax = fig.add_subplot(111, projection='3d')
-# # ax.set_title('Iteration = ' + str(t))
-# ax.plot_trisurf(true_grid[:, 0], true_grid[:, 1],
-#                 data_norm.numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
-# ax.set_xlabel("t")
-# ax.set_ylabel("r")
-# plt.show()
 
 
 model = torch.nn.Sequential(
@@ -135,127 +128,79 @@ model = torch.nn.Sequential(
 optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
 
 
-# n_epochs = 100 # or whatever
-batch_size = 128 # or whatever
-
-
-t=0
-
-loss_mean=1000
-min_loss=np.inf
-
-
-while loss_mean>1e-5 and t<5e3:
-
-    # X is a torch Variable
-    permutation = torch.randperm(grid.size()[0])
+def train_minibatch(model,optimizer,grid,data,batch_size=128,tmax=5e3):
+    t=0
     
-    loss_list=[]
+    loss_mean=1000
+    min_loss=np.inf
     
-    for i in range(0,grid.size()[0], batch_size):
-        optimizer.zero_grad()
+    
+    while loss_mean>1e-5 and t<5e3:
+    
+        # X is a torch Variable
+        permutation = torch.randperm(grid.size()[0])
+        
+        loss_list=[]
+        
+        for i in range(0,grid.size()[0], batch_size):
+            optimizer.zero_grad()
+    
+            indices = permutation[i:i+batch_size]
+            batch_x, batch_y = grid[indices], data[indices]
+    
+            # in case you wanted a semi-full example
+            # outputs = model.forward(batch_x)
+            # l1_lambda = 0.001
+            # l1_norm =sum(p.abs().sum() for p in model.parameters())
+            # loss = torch.mean(torch.abs(batch_y-model(batch_x)))+l1_lambda*l1_norm
+            loss = torch.mean(torch.abs(batch_y-model(batch_x)))
+    
+            loss.backward()
+            optimizer.step()
+            loss_list.append(loss.item())
+        loss_mean=np.mean(loss_list)
+        if loss_mean<min_loss:
+            best_model=model
+            min_loss=loss_mean
+        print('Surface trainig t={}, loss={}'.format(t,loss_mean))
+        t+=1
+    return model
 
-        indices = permutation[i:i+batch_size]
-        batch_x, batch_y = grid[indices], data[indices]
-
-        # in case you wanted a semi-full example
-        # outputs = model.forward(batch_x)
-        # l1_lambda = 0.001
-        # l1_norm =sum(p.abs().sum() for p in model.parameters())
-        # loss = torch.mean(torch.abs(batch_y-model(batch_x)))+l1_lambda*l1_norm
-        loss = torch.mean(torch.abs(batch_y-model(batch_x)))
-
-        loss.backward()
-        optimizer.step()
-        loss_list.append(loss.item())
-    loss_mean=np.mean(loss_list)
-    if loss_mean<min_loss:
-        best_model=model
-        min_loss=loss_mean
-    print('Surface trainig t={}, loss={}'.format(t,loss_mean))
-    t+=1
-
-# model=best_model
-
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.set_title('Iteration = ' + str(t))
-ax.plot_trisurf(grid[:, 0].reshape(-1), grid[:, 1].reshape(-1),
-                model(grid).detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
-ax.set_xlabel("t")
-ax.set_ylabel("r")
-plt.show()
-
+model=train_minibatch(model,optimizer,grid,data,batch_size=128,tmax=5e3)
 
 approx_val=model(grid).detach().numpy().reshape(-1)
 
-mat1_approx=mat1.copy()
+plot_list(true_grid,approx_val,title='Approximate field')
 
 
-for i,point in enumerate(grid):
-    time=int(point[0]/5*100)
-    coord=int(point[1]/5*10*10**3)
-    mat1_approx['r'+str(5*coord)][time]=approx_val[i]
+def approx_val_to_df(field_df,approx_val,grid):
 
+    df_approx=field_df.copy()
+    
+    dt=np.unique(grid[:,0])[1]-np.unique(grid[:,0])[0]
+    dr=np.unique(grid[:,1])[1]-np.unique(grid[:,1])[0]
+    
+    for i,point in enumerate(grid):
+        time=int(point[0]/dt)
+        coord=int(point[1]/dr)
+        df_approx['r'+str(coord)][time]=approx_val[i]
+    return df_approx
 
-        # true_val.append((time*0.05)**2+(coord*0.5)**2)
-grad21_approx=np.gradient(np.gradient(mat1_approx.values,np.arange(10**(-3)*0.5,10**(-3)*0.5*(len(mat1.columns)+1),0.5*10**(-3)),axis=1),np.arange(10**(-3)*0.5,10**(-3)*0.5*(len(mat1.columns)+1),0.5*10**(-3)),axis=1)
-grad20_approx=np.gradient(np.gradient(mat1_approx.values,np.arange(0,0.05*len(mat1),0.05),axis=0),np.arange(0,0.05*len(mat1),0.05),axis=0)
+mat1_approx=approx_val_to_df(mat1,approx_val,grid)
 
-grad_df1_approx=mat1.copy()
-grad_df1_approx[:]=grad21_approx
+grad_df0_approx,grad_df1_approx=heat_second_FD(mat1_approx,t_grid,r_grid)
 
-grad_df0_approx=mat1.copy()
-grad_df0_approx[:]=grad20_approx
+_,true_val_approx=flatten_df_to_list(mat1_approx,3000,9,t_grid,r_grid)
 
-true_grid=[]
-true_val_approx=[]
-true_grad_val0_approx=[]
-true_grad_val1_approx=[]
+_,true_grad_val0_approx=flatten_df_to_list(grad_df0_approx,3000,9,t_grid,r_grid)        
+_,true_grad_val1_approx=flatten_df_to_list(grad_df1_approx,3000,9,t_grid,r_grid)
 
-for time in range(3001):
-    for coord in range(1,10):
-        true_grid.append([time*0.05,coord*0.5*10**(-3)])
-        true_val_approx.append(mat1_approx['r'+str(5*coord)][time])
-        true_grad_val0_approx.append(grad_df0_approx['r'+str(5*coord)][time])
-        true_grad_val1_approx.append(grad_df1_approx['r'+str(5*coord)][time])
-        # true_val.append((time*0.05)**2+(coord*0.5)**2)
-true_grid=np.array(true_grid)
-        
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-# ax.set_title('Iteration = ' + str(t))
-ax.plot_trisurf(true_grid[:, 0], true_grid[:, 1],
-                true_val_approx, cmap=cm.jet, linewidth=0.2, alpha=1)
-ax.set_xlabel("t")
-ax.set_ylabel("r")
-plt.show()
+plot_list(true_grid,true_val_approx,title='Approx field')
 
+plot_list(true_grid,true_grad_val0_approx,title='FD approx field d2T/dt2')
 
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-# ax.set_title('Iteration = ' + str(t))
-ax.plot_trisurf(true_grid[:, 0], true_grid[:, 1],
-                true_grad_val1_approx, cmap=cm.jet, linewidth=0.2, alpha=1)
-ax.set_xlabel("t")
-ax.set_ylabel("r")
-plt.show()
+plot_list(true_grid,true_grad_val1_approx,title='FD approx field d2T/dr2')
 
-
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-# ax.set_title('Iteration = ' + str(t))
-ax.plot_trisurf(true_grid[:, 0], true_grid[:, 1],
-                true_grad_val0_approx, cmap=cm.jet, linewidth=0.2, alpha=1)
-ax.set_xlabel("t")
-ax.set_ylabel("r")
-plt.show()
-
-
-
-
-
-true_grid=np.array(true_grid)
 
 
 prepared_grid = grid_prepare(grid)
@@ -269,31 +214,13 @@ operator = {
         }
 }
 
-operator = operator_prepare(operator, prepared_grid, subset=None, true_grid=grid, h=10**(-1))
+operator = operator_prepare(operator, prepared_grid, subset=None, true_grid=grid, h=0.001)
 
 
 op_clean = apply_operator_set(model, operator)
 
-grad20_array=np.array(true_grad_val0)
+nn_op_field=op_clean.detach().numpy().reshape(-1)
 
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.set_title('Iteration = ' + str(t))
-ax.plot_trisurf(true_grid[:, 0], true_grid[:, 1],
-                grad20_array, cmap=cm.jet, linewidth=0.2, alpha=1)
-ax.set_xlabel("t")
-ax.set_ylabel("r")
-plt.show()
-
-
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.set_title('Iteration = ' + str(t))
-ax.plot_trisurf(prepared_grid[:, 0].reshape(-1), prepared_grid[:, 1].reshape(-1),
-                op_clean.detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
-ax.set_xlabel("t")
-ax.set_ylabel("r")
-plt.show()
-
+plot_list(prepared_grid,nn_op_field,title='NN derivative field d2T/dt2')
 
 diff_results['clean']=op_clean
