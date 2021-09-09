@@ -78,13 +78,13 @@ def plot_list(true_grid,true_val,title=None):
 
 mat1=read_heat_csv('Data_32_points_.dat')
 
-r_grid=np.arange(10**(-3)*0.5,10**(-3)*0.5*(len(mat1.columns)+1),0.5*10**(-3))
+# r_grid=np.arange(10**(-3)*0.5,10**(-3)*0.5*(len(mat1.columns)+1),0.5*10**(-3))
 
 # r_grid=np.arange(0.5,0.5*(len(mat1.columns)+1),0.5)
 
-# r_grid=np.linspace(0,1,len(mat1.columns))
-t_grid=np.arange(0,0.05*len(mat1),0.05)
-# t_grid=np.linspace(0,1,len(mat1))
+r_grid=np.linspace(0,1,len(mat1.columns))
+# t_grid=np.arange(0,0.05*len(mat1),0.05)
+t_grid=np.linspace(0,1,len(mat1))
 true_grid,true_val=flatten_df_to_list(mat1,3000,9,t_grid,r_grid)
         
 
@@ -164,7 +164,7 @@ def train_minibatch(model,optimizer,grid,data,batch_size=128,tmax=5e3):
             min_loss=loss_mean
         print('Surface trainig t={}, loss={}'.format(t,loss_mean))
         t+=1
-    return model
+    return best_model
 
 model=train_minibatch(model,optimizer,grid,data,batch_size=128,tmax=5e3)
 
@@ -182,7 +182,7 @@ def approx_val_to_df(field_df,approx_val,grid):
     
     for i,point in enumerate(grid):
         time=int(point[0]/dt)
-        coord=int(point[1]/dr)
+        coord=int(point[1]/dr)-int(torch.min(grid[:,1])/dr)
         df_approx['r'+str(coord)][time]=approx_val[i]
     return df_approx
 
@@ -195,7 +195,6 @@ _,true_val_approx=flatten_df_to_list(mat1_approx,3000,9,t_grid,r_grid)
 _,true_grad_val0_approx=flatten_df_to_list(grad_df0_approx,3000,9,t_grid,r_grid)        
 _,true_grad_val1_approx=flatten_df_to_list(grad_df1_approx,3000,9,t_grid,r_grid)
 
-plot_list(true_grid,true_val_approx,title='Approx field')
 
 plot_list(true_grid,true_grad_val0_approx,title='FD approx field d2T/dt2')
 
@@ -204,6 +203,54 @@ plot_list(true_grid,true_grad_val1_approx,title='FD approx field d2T/dr2')
 
 
 prepared_grid = grid_prepare(grid)
+for h_step in [0.0001,0.0005,0.001,0.005,0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.2,0.5,1]:
+    operator = {
+        '1*d2u/dx2**1':
+            {
+                'coeff': 1,
+                'd2u/dx2': [0,0],
+                'pow': 1
+            }
+    }
+    
+    operator = operator_prepare(operator, prepared_grid, subset=None, true_grid=grid, h=h_step)
+    
+    
+    op_clean = apply_operator_set(model, operator)
+    
+    nn_op_field=op_clean.detach().numpy().reshape(-1)
+    
+    plot_list(prepared_grid,nn_op_field,title='NN derivative field d2T/dt2 h={}'.format(h_step))
+    
+    diff_results['clean']=op_clean
+    
+    # error=torch.mean((torch.tensor(true_grad_val0).reshape(-1,1)-op_clean)**2)
+    # print('d2T/dt2 h={}, error={}'.format(h_step,error))
+
+
+for h_step in [5e-4,6e-4,7e-4,8e-4,9e-4,1e-3,5e-3,0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1,0.2,0.5,1]:
+    operator = {
+        '1*d2u/dx2**1':
+            {
+                'coeff': 1,
+                'd2u/dx2': [1,1],
+                'pow': 1
+            }
+    }
+    
+    operator = operator_prepare(operator, prepared_grid, subset=None, true_grid=grid, h=h_step)
+    
+    
+    op_clean = apply_operator_set(model, operator)
+    
+    nn_op_field=op_clean.detach().numpy().reshape(-1)
+    
+    plot_list(prepared_grid,nn_op_field,title='NN derivative field d2T/dr2 h={}'.format(h_step))
+    
+    diff_results['clean']=op_clean
+    
+    # error=torch.mean((torch.tensor(true_grad_val1).reshape(-1,1)-op_clean)**2)
+    # print('d2T/dr2 h={}, error={}'.format(h_step,error))
 
 operator = {
     '1*d2u/dx2**1':
@@ -214,13 +261,16 @@ operator = {
         }
 }
 
-operator = operator_prepare(operator, prepared_grid, subset=None, true_grid=grid, h=0.001)
+operator = operator_prepare(operator, prepared_grid, subset=None, true_grid=grid, h=8.333333e-05)
 
 
 op_clean = apply_operator_set(model, operator)
 
 nn_op_field=op_clean.detach().numpy().reshape(-1)
 
-plot_list(prepared_grid,nn_op_field,title='NN derivative field d2T/dt2')
+plot_list(prepared_grid,nn_op_field,title='NN derivative field d2T/dt2 h={}'.format(8.333333e-05))
 
 diff_results['clean']=op_clean
+
+# error=torch.mean((torch.tensor(true_grad_val0).reshape(-1,1)-op_clean)**2)
+# print('d2T/dt2 h={}, error={}'.format(h_step,error))
