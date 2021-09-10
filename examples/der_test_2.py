@@ -78,6 +78,8 @@ def plot_list(true_grid,true_val,title=None):
 
 mat1=read_heat_csv('Data_32_points_.dat')
 
+mat1=mat1/np.max(mat1.values)
+
 # r_grid=np.arange(10**(-3)*0.5,10**(-3)*0.5*(len(mat1.columns)+1),0.5*10**(-3))
 
 # r_grid=np.arange(0.5,0.5*(len(mat1.columns)+1),0.5)
@@ -86,7 +88,9 @@ r_grid=np.linspace(0,1,len(mat1.columns))
 # t_grid=np.arange(0,0.05*len(mat1),0.05)
 t_grid=np.linspace(0,1,len(mat1))
 true_grid,true_val=flatten_df_to_list(mat1,3000,9,t_grid,r_grid)
-        
+
+true_grid[:,0]=true_grid[:,0]/np.max(true_grid[:,0])
+true_grid[:,1]=true_grid[:,1]/np.max(true_grid[:,1])     
 
 grad_df0,grad_df1=heat_second_FD(mat1,t_grid,r_grid)
 
@@ -124,18 +128,31 @@ model = torch.nn.Sequential(
 )
 
 
+# model = torch.nn.Sequential(
+#     torch.nn.Linear(2, 1024),
+#     torch.nn.ReLU(),
+#     torch.nn.Linear(1024, 1024),
+#     torch.nn.ReLU(),
+#     torch.nn.Linear(1024, 1024),
+#     torch.nn.ReLU(),
+#     torch.nn.Linear(1024, 1024),
+#     torch.nn.ReLU(),
+#     torch.nn.Linear(1024, 1)
+# )
+
+
 
 optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
 
 
-def train_minibatch(model,optimizer,grid,data,batch_size=128,tmax=5e3):
+def train_minibatch(model,optimizer,grid,data,batch_size=64,tmax=5e3):
     t=0
     
     loss_mean=1000
     min_loss=np.inf
     
     
-    while loss_mean>1e-5 and t<5e3:
+    while loss_mean>1e-5 and t<tmax:
     
         # X is a torch Variable
         permutation = torch.randperm(grid.size()[0])
@@ -252,25 +269,3 @@ for h_step in [5e-4,6e-4,7e-4,8e-4,9e-4,1e-3,5e-3,0.01,0.02,0.03,0.04,0.05,0.06,
     # error=torch.mean((torch.tensor(true_grad_val1).reshape(-1,1)-op_clean)**2)
     # print('d2T/dr2 h={}, error={}'.format(h_step,error))
 
-operator = {
-    '1*d2u/dx2**1':
-        {
-            'coeff': 1,
-            'd2u/dx2': [0,0],
-            'pow': 1
-        }
-}
-
-operator = operator_prepare(operator, prepared_grid, subset=None, true_grid=grid, h=8.333333e-05)
-
-
-op_clean = apply_operator_set(model, operator)
-
-nn_op_field=op_clean.detach().numpy().reshape(-1)
-
-plot_list(prepared_grid,nn_op_field,title='NN derivative field d2T/dt2 h={}'.format(8.333333e-05))
-
-diff_results['clean']=op_clean
-
-# error=torch.mean((torch.tensor(true_grad_val0).reshape(-1,1)-op_clean)**2)
-# print('d2T/dt2 h={}, error={}'.format(h_step,error))
