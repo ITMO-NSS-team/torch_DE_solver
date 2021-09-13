@@ -172,6 +172,23 @@ def compute_operator_loss(grid, model, operator, bconds, grid_point_subset=['cen
     return loss
 
 
+def solution_print(prepared_grid,model,title=None):
+    if prepared_grid.shape[1] == 2:
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        if title!=None:
+            ax.set_title(title)
+        ax.plot_trisurf(prepared_grid[:, 0].reshape(-1), prepared_grid[:, 1].reshape(-1),
+                        model(prepared_grid).detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
+        ax.set_xlabel("x1")
+        ax.set_ylabel("x2")
+        plt.show()
+    if prepared_grid.shape[1] == 1:
+        fig = plt.figure()
+        plt.scatter(prepared_grid.reshape(-1), model(prepared_grid).detach().numpy().reshape(-1))
+        plt.show()
+
+
 from cache import *
 
 def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
@@ -204,13 +221,13 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
     # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
     # optimizer = torch.optim.LBFGS(model.parameters())
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    optimizer_state=None
-    if optimizer_state is not None:
-        try:
-            optimizer.load_state_dict(optimizer_state)
-        except Exception:
-            optimizer_state=None
-        tmin=100
+    
+    # if optimizer_state is not None:
+    #     try:
+    #         optimizer.load_state_dict(optimizer_state)
+    #     except Exception:
+    #         optimizer_state=None
+    #     tmin=100
     loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
     
     
@@ -247,20 +264,8 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
         if (t % 100 == 0) and verbose:
 
             print(t, loss.item(), line,line[0]/line[1])
+            solution_print(prepared_grid,model,title='Iteration = ' + str(t))
 
-            if prepared_grid.shape[1] == 2:
-                fig = plt.figure()
-                ax = fig.add_subplot(111, projection='3d')
-                ax.set_title('Iteration = ' + str(t))
-                ax.plot_trisurf(prepared_grid[:, 0].reshape(-1), prepared_grid[:, 1].reshape(-1),
-                                model(prepared_grid).detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
-                ax.set_xlabel("x1")
-                ax.set_ylabel("x2")
-                plt.show()
-            if prepared_grid.shape[1] == 1:
-                fig = plt.figure()
-                plt.scatter(prepared_grid.reshape(-1), model(prepared_grid).detach().numpy().reshape(-1))
-                plt.show()
         # optimizer.zero_grad()
         # loss.backward()
         # optimizer.step()
