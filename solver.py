@@ -340,13 +340,14 @@ def point_sort_shift_train_minibatch(grid, model, operator, bconds, grid_point_s
         for i in range(0,grid.size()[0], batch_size):
             optimizer.zero_grad()
             indices = permutation[i:i+batch_size]
+            if len(indices)<batch_size/2:
+                continue
             batch= grid[indices]
-        
+
             batch_grid = grid_prepare(batch)
             batch_bconds=batch_bconds_transform(batch_grid,bconds)
             batch_bconds = bnd_prepare(batch_bconds, batch_grid, h=h)
-            if len(batch_bconds)==0:
-                continue
+
             batch_operator = operator_prepare(operator, batch_grid, subset=None, true_grid=batch, h=h)
             
             
