@@ -385,3 +385,38 @@ def bnd_prepare(bconds, grid, h=0.001):
         prepared_bnd.append([bpos, bop2, bval])
 
     return prepared_bnd
+
+
+def grid_intersect(t1, t2):
+    t1=list(t1.cpu().numpy())
+    t2=list(t2.cpu().numpy())    
+    t1_set=[]
+    t2_set=[]
+    for item in t1:
+        t1_set.append(tuple(item))
+    for item in t2:
+        t2_set.append(tuple(item))
+    t1_set=set(t1_set)
+    t2_set=set(t2_set)
+    intersect=t1_set.intersection(t2_set)
+    intersect=list(intersect)
+    for i in range(len(intersect)):
+        intersect[i]=list(intersect[i])
+    intersect=torch.Tensor(intersect)
+    return intersect
+
+    
+def batch_bconds_transform(batch_grid,bconds):
+    batch_bconds=[]
+    bconds = bnd_unify(bconds)
+    batch_bconds=[]
+    for bcond in bconds:
+        b_coord = bcond[0]
+        bop = bcond[1]
+        bval = bcond[2]
+        grid_proj=grid_intersect(b_coord, batch_grid)
+        if len(grid_proj)>0:
+            proj_pos=bndpos(b_coord, grid_proj)
+            bval=bval[proj_pos]
+            batch_bconds.append([grid_proj,bop,bval])
+    return batch_bconds

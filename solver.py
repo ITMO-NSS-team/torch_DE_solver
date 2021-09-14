@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from mpl_toolkits.mplot3d import Axes3D
-from input_preprocessing import grid_prepare, bnd_prepare, operator_prepare
+from input_preprocessing import grid_prepare, bnd_prepare, operator_prepare,batch_bconds_transform
 import numpy as np
 
 def take_derivative_shift_op(model, term):
@@ -275,3 +275,100 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
     if save_cache:
         save_model(model,model.state_dict(),optimizer.state_dict(),cache_dir=cache_dir,name=None)
     return model
+
+def point_sort_shift_train_minibatch(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
+                            verbose=False, learning_rate=0.0001, eps=0.1, tmin=1000, tmax=1e5, h=0.001,
+                            use_cache=True,cache_dir='../cache/',cache_verbose=False,batch_size=32,save_always=False):
+    nvars = model[0].in_features
+    
+    # prepare input data to uniform format 
+    
+    prepared_grid = grid_prepare(grid)
+    prepared_bconds = bnd_prepare(bconds, prepared_grid, h=h)
+    full_prepared_operator = operator_prepare(operator, prepared_grid, subset=grid_point_subset, true_grid=grid, h=h)
+    
+    
+
+    #  use cache if needed
+    if use_cache:
+        cache_checkpoint,min_loss=cache_lookup(prepared_grid, full_prepared_operator, prepared_bconds,cache_dir=cache_dir
+                                               ,nmodels=None,verbose=cache_verbose,lambda_bound=0.001)
+        model, optimizer_state= cache_retrain(model,cache_checkpoint,grid,verbose=cache_verbose)
+        
+
+    
+    
+
+    # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    # optimizer = torch.optim.LBFGS(model.parameters())
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    
+    # if optimizer_state is not None:
+    #     try:
+    #         optimizer.load_state_dict(optimizer_state)
+    #     except Exception:
+    #         optimizer_state=None
+    #     tmin=100
+    loss = point_sort_shift_loss(model, prepared_grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound)
+    
+    
+    save_cache=False
+    
+    if loss>0.1 or save_always:
+        save_cache=True
+    
+    
+    # standard NN stuff
+    if verbose:
+        print('-1 {}'.format(loss))
+    
+    t = 0
+    
+    last_loss=np.zeros(100)+float(loss)
+    line=np.polyfit(range(100),last_loss,1)
+
+    stop_dings=0
+    
+    # to stop train proceduce we fit the line in the loss data
+    #if line is flat enough 5 times, we stop the procedure
+    while stop_dings<=5:
+        
+        loss_list=[]
+        
+        permutation = torch.randperm(grid.size()[0])
+    
+        for i in range(0,grid.size()[0], batch_size):
+            optimizer.zero_grad()
+            indices = permutation[i:i+batch_size]
+            batch= grid[indices]
+        
+            batch_grid = grid_prepare(batch)
+            batch_bconds=batch_bconds_transform(batch_grid,bconds)
+            batch_bconds = bnd_prepare(batch_bconds, batch_grid, h=h)
+            batch_operator = operator_prepare(operator, batch_grid, subset=None, true_grid=batch, h=h)
+            
+            loss = point_sort_shift_loss(model, batch_grid, batch_operator, batch_bconds, lambda_bound=lambda_bound)
+            
+            loss.backward()
+            optimizer.step()
+            loss_list.append(loss.item())
+        
+        last_loss[t%100]=np.mean(loss_list)
+        
+        if t%100==0:
+            line=np.polyfit(range(100),last_loss,1)
+            if abs(line[0]) < eps:
+                stop_dings+=1
+        
+        if (t % 100 == 0) and verbose:
+
+            print(t, np.mean(loss_list), line,line[0]/line[1])
+            solution_print(prepared_grid,model,title='Iteration = ' + str(t))
+        
+        t+=1
+        if t > tmax:
+            break
+    if save_cache:
+        save_model(model,model.state_dict(),optimizer.state_dict(),cache_dir=cache_dir,name=None)
+    return model
+

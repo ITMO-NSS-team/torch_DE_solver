@@ -117,20 +117,8 @@ wave_eq = {
         }
 }
 
+from input_preprocessing import grid_prepare, bnd_prepare, operator_prepare,batch_bconds_transform
 
-    
-def batch_bconds_transform(batch_grid,bconds):
-    batch_bconds=[]
-    bconds = bnd_unify(bconds)
-    for bcond in bconds:
-        b_coord = bcond[0]
-        bop = bcond[1]
-        bval = bcond[2]
-    for point in bcoords:
-        pos = int(torch.where(torch.all(torch.isclose(grid, point), dim=1))[0])
-        bndposlist.append(pos)
-    
-    return batch_bconds
 
 for _ in range(1):
     model = torch.nn.Sequential(
@@ -169,10 +157,11 @@ for _ in range(1):
         indices = permutation[i:i+batch_size]
         batch= grid[indices]
     
-        prepared_grid = grid_prepare(batch)
-        bconds = bnd_prepare(bconds, prepared_grid, h=0.001)
-        operator = operator_prepare(wave_eq, prepared_grid, subset=None, true_grid=batch, h=0.001)
+        batch_grid = grid_prepare(batch)
+        batch_bconds=batch_bconds_transform(batch_grid,bconds)
+        batch_bconds = bnd_prepare(batch_bconds, batch_grid, h=0.001)
+        operator = operator_prepare(wave_eq, batch_grid, subset=None, true_grid=batch, h=0.001)
         
-        loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=1000)
+        loss = point_sort_shift_loss(model, batch_grid, operator, batch_bconds, lambda_bound=1000)
 
         print(loss)
