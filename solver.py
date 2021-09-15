@@ -107,6 +107,9 @@ flatten_list = lambda t: [item for sublist in t for item in sublist]
 
 
 def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10):
+    if bconds==None:
+        print('No bconds is not possible, returning ifinite loss')
+        return np.inf
     op = apply_operator_set(model, operator_set)
     true_b_val_list = []
     b_val_list = []
@@ -195,7 +198,7 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
                             verbose=False, learning_rate=1e-3, eps=0.1, tmin=1000, tmax=1e5, h=0.001,
                             use_cache=True,cache_dir='../cache/',cache_verbose=False):
     nvars = model[0].in_features
-    
+
     # prepare input data to uniform format 
     
     prepared_grid = grid_prepare(grid)
@@ -340,7 +343,7 @@ def point_sort_shift_train_minibatch(grid, model, operator, bconds, grid_point_s
         for i in range(0,grid.size()[0], batch_size):
             optimizer.zero_grad()
             indices = permutation[i:i+batch_size]
-            if len(indices)<batch_size/2:
+            if len(indices)<5:
                 continue
             batch= grid[indices]
 
@@ -352,7 +355,8 @@ def point_sort_shift_train_minibatch(grid, model, operator, bconds, grid_point_s
             
             
             loss = point_sort_shift_loss(model, batch_grid, batch_operator, batch_bconds, lambda_bound=lambda_bound)
-            
+            if loss==np.inf:
+                continue
             loss.backward()
             optimizer.step()
             loss_list.append(loss.item())

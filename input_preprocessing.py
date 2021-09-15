@@ -337,6 +337,8 @@ def bnd_unify(bconds):
         boundary in input-friendly form
 
     """
+    if bconds==None:
+        return None
     unified_bconds = []
     for bcond in bconds:
         if len(bcond) == 2:
@@ -367,6 +369,8 @@ def bnd_prepare(bconds, grid, h=0.001):
 
     """
     bconds = bnd_unify(bconds)
+    if bconds==None:
+        return None
     prepared_bnd = []
     for bcond in bconds:
         b_coord = bcond[0]
@@ -407,7 +411,6 @@ def grid_intersect(t1, t2):
 
     
 def batch_bconds_transform(batch_grid,bconds):
-    batch_bconds=[]
     bconds = bnd_unify(bconds)
     batch_bconds=[]
     for bcond in bconds:
@@ -419,4 +422,6 @@ def batch_bconds_transform(batch_grid,bconds):
             proj_pos=bndpos(b_coord, grid_proj)
             bval=bval[proj_pos]
             batch_bconds.append([grid_proj,bop,bval])
+    if len(batch_bconds)==0:
+        batch_bconds=None
     return batch_bconds
