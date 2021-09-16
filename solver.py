@@ -195,8 +195,21 @@ def solution_print(prepared_grid,model,title=None):
 from cache import *
 
 def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
+                            verbose=False, learning_rate=1e-4, eps=0.1, tmin=1000, tmax=1e5, h=0.001,
+                            use_cache=True,cache_dir='../cache/',cache_verbose=False,batch_size=None,save_always=False):
+    if batch_size==None:
+        model=point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset=grid_point_subset, lambda_bound=lambda_bound,
+                            verbose=verbose, learning_rate=learning_rate, eps=eps, tmin=tmin, tmax=tmax, h=h,
+                            use_cache=use_cache,cache_dir=cache_dir,cache_verbose=cache_verbose,save_always=save_always)
+    else:
+        model=point_sort_shift_train_minibatch(grid, model, operator, bconds, grid_point_subset=grid_point_subset, lambda_bound=lambda_bound,
+                            verbose=verbose, learning_rate=learning_rate, eps=eps, tmin=tmin, tmax=tmax, h=h,
+                            use_cache=use_cache,cache_dir=cache_dir,cache_verbose=cache_verbose,save_always=save_always,batch_size=batch_size)
+    return model
+
+def point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
                             verbose=False, learning_rate=1e-3, eps=0.1, tmin=1000, tmax=1e5, h=0.001,
-                            use_cache=True,cache_dir='../cache/',cache_verbose=False):
+                            use_cache=True,cache_dir='../cache/',cache_verbose=False,save_always=False):
     nvars = model[0].in_features
 
     # prepare input data to uniform format 
@@ -214,13 +227,8 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
         model, optimizer_state= cache_retrain(model,cache_checkpoint,grid,verbose=cache_verbose)
     
         
-
-    save_cache=False
-    
-    l = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
     # model is not saved if cache model good enough
-    if l>0.1:
-        save_cache=True
+
     # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
     # optimizer = torch.optim.LBFGS(model.parameters())
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -232,6 +240,11 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
     #         optimizer_state=None
     #     tmin=100
     loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
+    
+    save_cache=False
+    
+    if loss>0.1 or save_always:
+        save_cache=True
     
     
     # standard NN stuff
@@ -351,7 +364,7 @@ def point_sort_shift_train_minibatch(grid, model, operator, bconds, grid_point_s
             batch_bconds=batch_bconds_transform(batch_grid,bconds)
             batch_bconds = bnd_prepare(batch_bconds, batch_grid, h=h)
 
-            batch_operator = operator_prepare(operator, batch_grid, subset=None, true_grid=batch, h=h)
+            batch_operator = operator_prepare(operator, batch_grid, subset=grid_point_subset, true_grid=batch, h=h)
             
             
             loss = point_sort_shift_loss(model, batch_grid, batch_operator, batch_bconds, lambda_bound=lambda_bound)
