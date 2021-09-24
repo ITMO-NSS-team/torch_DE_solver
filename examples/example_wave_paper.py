@@ -27,7 +27,9 @@ dimensionality
 
 device = torch.device('cpu')
 
-for grid_res in range(10,60,10):
+exp_dict_list=[]
+
+for grid_res in range(10,110,10):
     x = torch.from_numpy(np.linspace(0, 1, grid_res+1))
     t = torch.from_numpy(np.linspace(0, 1, grid_res+1))
     
@@ -119,8 +121,15 @@ for grid_res in range(10,60,10):
     }
     
     
-    
+  
     for _ in range(10):
+        
+        sln=np.genfromtxt('wolfram_sln/wave_sln_'+str(grid_res)+'.csv',delimiter=',')
+        sln_torch=torch.from_numpy(sln)
+        sln_torch1=sln_torch.reshape(-1,1)
+        
+                
+        
         model = torch.nn.Sequential(
             torch.nn.Linear(2, 100),
             torch.nn.Tanh(),
@@ -135,8 +144,14 @@ for grid_res in range(10,60,10):
         
         model = point_sort_shift_solver(grid, model, wave_eq , bconds, 
                                                   lambda_bound=100, verbose=False, learning_rate=1e-4,
-                                        eps=1e-5, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
-                                        batch_size=None, save_always=False)
+                                        eps=1e-5, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=False,
+                                        batch_size=None, save_always=True)
     
         end = time.time()
+        
+        error_rmse=torch.sqrt(torch.mean((sln_torch1-model(grid))**2))
+        
+        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse,'type':'wave_eqn'})
+        
         print('Time taken {}= {}'.format(grid_res, end - start))
+        print('RMSE {}= {}'.format(grid_res, error_rmse))
