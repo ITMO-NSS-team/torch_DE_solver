@@ -79,6 +79,8 @@ wave_eq1 = operator_unify(wave_eq)
 
 model=grid[0]**3*grid[1]**2
 
+
+
 def derivative(u_tensor, h_tensor, axis, scheme_order=1, boundary_order=1):
 
     u_tensor = torch.transpose(u_tensor, 0, axis)
@@ -198,6 +200,7 @@ bndval4 = torch.from_numpy(np.zeros(len(bnd4), dtype=np.float64))
 bconds = [[bnd1, bndval1], [bnd2, bndval2], [bnd3, bndval3], [bnd4, bndval4]]
 
 def bnd_prepare_matrix(bconds,grid):
+    prepared_bconds=[]
     for bnd in bconds:
         if len(bnd)==2:
             bpts=bnd[0]
@@ -207,13 +210,22 @@ def bnd_prepare_matrix(bconds,grid):
             bpts=bnd[0]
             bop=bnd[1]
             bval=bnd[2]
+        bpos=[]
         for pt in bpts:
-            t1=torch.isclose(bnd1[1][1],grid[1].float())
-            t0=torch.isclose(bnd1[1][0],grid[0].float())
-            torch.where(t0*t1==True)
-        return prepared_bconds
+            prod=(torch.zeros_like(grid[0])+1).bool()
+            for axis in range(grid.shape[0]):
+                axis_intersect=torch.isclose(pt[axis],grid[axis].float())
+                prod*=axis_intersect
+            point_pos=torch.where(prod==True)
+            bpos.append(point_pos)
+        prepared_bconds.append([bpos,bop,bval])
+    return prepared_bconds
 
-def apply_matrix_bcond_operator(model,grid,bconds):
+b_prepared=bnd_prepare_matrix(bconds,grid)
+
+
+
+def apply_matrix_bcond_operator(model,grid,b_prepared):
     true_b_val_list = []
     b_val_list = []
     b_pos_list = []
@@ -221,36 +233,89 @@ def apply_matrix_bcond_operator(model,grid,bconds):
     # we apply no  boundary conditions operators if they are all None
 
     simpleform = False
-    for bcond in bconds:
+    for bcond in b_prepared:
         if bcond[1] == None:
             simpleform = True
         if bcond[1] != None:
             simpleform = False
             break
     if simpleform:
-        for bcond in bconds:
-            b_pos_list.append(bcond[0])
-            true_boundary_val = bcond[2].reshape(-1, 1)
+        for bcond in b_prepared:
+            b_pos = bcond[0]
+            true_boundary_val = bcond[2]
+            for position in b_pos:
+                b_val_list.append(model[position])
             true_b_val_list.append(true_boundary_val)
-        # print(flatten_list(b_pos_list))
-        # b_pos=torch.cat(b_pos_list)
-        true_b_val = torch.cat(true_b_val_list)
-        b_op_val = model(grid)
-        b_val = b_op_val[flatten_list(b_pos_list)]
+        b_val=torch.cat(b_val_list)
+        true_b_val=torch.cat(true_b_val_list)
     # or apply differential operatorn first to compute corresponding field and
     else:
-        for bcond in bconds:
+        for bcond in b_prepared:
             b_pos = bcond[0]
             b_cond_operator = bcond[1]
-            true_boundary_val = bcond[2].reshape(-1, 1)
-            true_b_val_list.append(true_boundary_val)
+            true_boundary_val = bcond[2]
             if b_cond_operator == None or b_cond_operator == [[1, [None], 1]]:
-                b_op_val = model(grid)
+                b_op_val = model
             else:
-                b_op_val = apply_operator_set(model, b_cond_operator)
+                b_op_val = aapply_matrix_diff_operator(model,grid,b_cond_operator)
             # take boundary values
-            b_val_list.append(b_op_val[b_pos])
-        true_b_val = torch.cat(true_b_val_list)
-        b_val = torch.cat(b_val_list)
+            for position in b_pos:
+                b_val_list.append(b_op_val[position])
+            true_b_val_list.append(true_boundary_val)
+        b_val=torch.cat(b_val_list)
+        true_b_val=torch.cat(true_b_val_list)
+    return b_val,true_b_val
+
+b_val,true_b_val=apply_matrix_bcond_operator(model,grid,b_prepared)
+
+
+def matrix_loss(model, grid, operator, bconds, lambda_bound=10):
+    if bconds==None:
+        print('No bconds is not possible, returning ifinite loss')
+        return np.inf
     
-    return bcond_val,true_val
+    op=apply_matrix_diff_operator(model,grid,operator)
+    
+    # we apply no  boundary conditions operators if they are all None
+
+   
+    b_val,true_b_val=apply_matrix_bcond_operator(model,grid,bconds)
+    """
+    actually, we can use L2 norm for the operator and L1 for boundary
+    since L2>L1 and thus, boundary values become not so signifnicant, 
+    so the NN converges faster. On the other hand - boundary conditions is the
+    crucial thing for all that stuff, so we should increase significance of the
+    coundary conditions
+    """
+    # l1_lambda = 0.001
+    # l1_norm =sum(p.abs().sum() for p in model.parameters())
+    # loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)+ l1_lambda * l1_norm
+    
+    loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)
+    
+    return loss
+
+
+loss=matrix_loss(model, grid, wave_eq1, b_prepared, lambda_bound=10)
+
+optimizer = torch.optim.Adam([model], lr=0.001)
+
+def closure():
+    optimizer.zero_grad()
+    loss = matrix_loss(model, grid, wave_eq1, b_prepared, lambda_bound=10)
+    loss.backward()
+    return loss
+
+t=0
+
+
+while True:
+    optimizer.step(closure)
+    loss = matrix_loss(model, grid, wave_eq1, b_prepared, lambda_bound=10)
+
+    
+    if t%100==0:
+        print(loss)
+    if t>1e3:
+        break
+
