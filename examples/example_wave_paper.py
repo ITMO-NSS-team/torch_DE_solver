@@ -143,7 +143,7 @@ for grid_res in range(10,110,10):
         start = time.time()
         
         model = point_sort_shift_solver(grid, model, wave_eq , bconds, 
-                                                  lambda_bound=100, verbose=False, learning_rate=1e-4,
+                                                  lambda_bound=100, verbose=1, learning_rate=1e-4,
                                         eps=1e-5, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=False,
                                         batch_size=None, save_always=True)
     
@@ -151,7 +151,13 @@ for grid_res in range(10,110,10):
         
         error_rmse=torch.sqrt(torch.mean((sln_torch1-model(grid))**2))
         
-        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse,'type':'wave_eqn'})
+        prepared_grid = grid_prepare(grid)
+        
+        prepared_bconds = bnd_prepare(bconds, prepared_grid, h=0.001)
+        prepared_operator = operator_prepare(wave_eq, prepared_grid, subset=['central'], true_grid=grid, h=0.001)
+        end_loss = point_sort_shift_loss(model, prepared_grid, prepared_operator, prepared_bconds, lambda_bound=100)
+        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'wave_eqn'})
         
         print('Time taken {}= {}'.format(grid_res, end - start))
         print('RMSE {}= {}'.format(grid_res, error_rmse))
+        print('loss {}= {}'.format(grid_res, end_loss))

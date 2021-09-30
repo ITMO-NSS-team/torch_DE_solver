@@ -227,8 +227,7 @@ def point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset
         model, optimizer_state= cache_retrain(model,cache_checkpoint,grid,verbose=cache_verbose)
     
         
-    # model is not saved if cache model good enough
-
+   
     # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
     # optimizer = torch.optim.LBFGS(model.parameters())
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -241,6 +240,8 @@ def point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset
     #     tmin=100
     loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
     
+    
+     # model is not saved if cache model good enough
     save_cache=False
     
     if loss>0.1 or save_always:
@@ -248,7 +249,7 @@ def point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset
     
     
     # standard NN stuff
-    if verbose:
+    if verbose>1:
         print('-1 {}'.format(loss))
     
     t = 0
@@ -277,7 +278,7 @@ def point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset
             if abs(line[0]) < eps:
                 stop_dings+=1
         
-        if (t % 100 == 0) and verbose:
+        if (t % 100 == 0) and verbose>1:
 
             print(t, loss.item(), line,line[0]/line[1])
             solution_print(prepared_grid,model,title='Iteration = ' + str(t))
@@ -288,6 +289,8 @@ def point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset
         t += 1
         if t > tmax:
             break
+    if verbose>0:
+        solution_print(prepared_grid,model,title='Iteration = ' + str(t))
     if save_cache:
         save_model(model,model.state_dict(),optimizer.state_dict(),cache_dir=cache_dir,name=None)
     return model
@@ -381,7 +384,7 @@ def point_sort_shift_train_minibatch(grid, model, operator, bconds, grid_point_s
             if abs(line[0]) < eps:
                 stop_dings+=1
         
-        if (t % 100 == 0) and verbose:
+        if (t % 100 == 0) and verbose>1:
 
             print(t, np.mean(loss_list), line,line[0]/line[1])
             solution_print(prepared_grid,model,title='Iteration = ' + str(t))
@@ -389,6 +392,8 @@ def point_sort_shift_train_minibatch(grid, model, operator, bconds, grid_point_s
         t+=1
         if t > tmax:
             break
+    if verbose>0:
+        solution_print(prepared_grid,model,title='Iteration = ' + str(t))
     if save_cache:
         save_model(model,model.state_dict(),optimizer.state_dict(),cache_dir=cache_dir,name=None)
     return model

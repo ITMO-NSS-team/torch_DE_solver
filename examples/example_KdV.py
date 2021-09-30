@@ -28,7 +28,7 @@ Grid is an essentially torch.Tensor of a n-D points where n is the problem
 dimensionality
 """
 
-device = torch.device('cpu')
+device = torch.device('cuda')
 
 x = torch.from_numpy(np.linspace(0, 1, 11))
 t = torch.from_numpy(np.linspace(0, 1, 11))
@@ -257,8 +257,8 @@ for _ in range(1):
     )
 
     start = time.time()
-    model = point_sort_shift_solver(grid, model, kdv, bconds, lambda_bound=1000,verbose=True, learning_rate=1e-4,
-                                    eps=1e-7, tmin=1000, tmax=1e5, h=0.01,use_cache=True,cache_verbose=True,
+    model = point_sort_shift_solver(grid, model, kdv, bconds, lambda_bound=100,verbose=2, learning_rate=1e-4,
+                                    eps=1e-7, tmin=1000, tmax=1e5, h=0.01,use_cache=False,cache_verbose=True,
                                 batch_size=None, save_always=True)
     # model = point_sort_shift_solver(grid, model, kdv, bconds, lambda_bound=1000,verbose=True, learning_rate=1e-4,
     #                                 eps=1e-6, tmin=1000, tmax=1e5, h=0.01,use_cache=True,cache_verbose=True,
