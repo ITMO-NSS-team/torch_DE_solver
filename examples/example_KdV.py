@@ -30,7 +30,7 @@ dimensionality
 
 
 
-device = torch.device('cuda')
+device = torch.device('cpu')
 
 exp_dict_list=[]
 
