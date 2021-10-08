@@ -131,7 +131,7 @@ def p1_c1(grid):
 
 n=3
 
-# P_I operator is  d2u/dt2-6*u-t=0 
+# P_I operator is  d2u/dt2-6*u^2-t=0 
 p_1= {
     '1*d2u/dt2**1':
         {
@@ -139,11 +139,11 @@ p_1= {
             'du/dt': [0, 0],
             'pow': 1
         },
-    '-6*u**1':
+    '-6*u**2':
         {
             'coeff': -6,
             'u':  [None],
-            'pow': 1
+            'pow': 2
         },
     '-t':
         {
@@ -168,10 +168,171 @@ for _ in range(1):
     )
 
     start = time.time()
-    model = point_sort_shift_solver(grid, model, p_1, bconds, lambda_bound=100, verbose=2, learning_rate=1e-4,
+    model = point_sort_shift_solver(grid, model, p_1, bconds, lambda_bound=100, verbose=1, learning_rate=1e-4,
                                     eps=1e-7, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True
                                     ,batch_size=None, save_always=False)
     end = time.time()
 
-    print('Time taken 10= ', end - start)
+    print('Time taken P_I= ', end - start)
 
+a=1
+# P_II operator is  d2u/dt2-2*u^3-tu-a=0 
+p_2= {
+    '1*d2u/dt2**1':
+        {
+            'coeff': 1, #coefficient is a torch.Tensor
+            'du/dt': [0, 0],
+            'pow': 1
+        },
+    '-6*u**2':
+        {
+            'coeff': -2,
+            'u':  [None],
+            'pow': 3
+        },
+    '-t u':
+        {
+            'coeff': p1_c1(grid),
+            'u':  [None],
+            'pow': 1
+        },
+    '-a':
+        {
+            'coeff': -a,
+            'u':  [None],
+            'pow': 0
+        }
+}
+
+
+
+for _ in range(1):
+    model = torch.nn.Sequential(
+        torch.nn.Linear(1, 100),
+        torch.nn.Tanh(),
+        torch.nn.Linear(100, 100),
+        torch.nn.Tanh(),
+        torch.nn.Linear(100, 100),
+        torch.nn.Tanh(),
+        torch.nn.Linear(100, 1)
+        # torch.nn.Tanh()
+    )
+
+    start = time.time()
+    model = point_sort_shift_solver(grid, model, p_2, bconds, lambda_bound=100, verbose=1, learning_rate=1e-4,
+                                    eps=1e-7, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True
+                                    ,batch_size=None, save_always=False)
+    end = time.time()
+
+    print('Time taken P_II= ', end - start)
+
+t = torch.from_numpy(np.linspace(1/4, 9/4, 100))
+
+grid = t.reshape(-1, 1).float()
+
+grid.to(device)
+
+
+# point t=0
+bnd1 = torch.from_numpy(np.array([[1]], dtype=np.float64))
+
+bop1 = None
+
+#  So u(0)=-1/2
+bndval1 = torch.from_numpy(np.array([[1]], dtype=np.float64))
+
+# point t=1
+bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64))
+
+# d/dt
+bop2 ={
+        '1*du/dt**1':
+            {
+                'coeff': 1,
+                'du/dt': [0],
+                'pow': 1
+                }
+            
+    }
+    
+    
+
+# So, du/dt |_{x=1}=3
+bndval2 = torch.from_numpy(np.array([[0]], dtype=np.float64))
+
+# Putting all bconds together
+bconds = [[bnd1, bop1, bndval1], [bnd2, bop2, bndval2]]
+
+
+b=1
+g=1
+d=1
+
+# P_III operator is  t*u*d2u/dt2-t*(du/dt)^2+u*du/dt-d*t-b*u-a*u^3-g*t*u^4=0 
+p_3= {
+    't*u*d2u/dt2**1':
+        {
+            'coeff': p1_c1(grid), #coefficient is a torch.Tensor
+            'du/dt': [[None],[0, 0]],
+            'pow': [1,1]
+        },
+    '-t*(du/dt)^2':
+        {
+            'coeff': -p1_c1(grid),
+            'u':  [0, 0],
+            'pow': 2
+        },
+    'u*du/dt':
+        {
+            'coeff': 1,
+            'u':  [[None],[0, 0]],
+            'pow': [1,1]
+        },
+    '-d*t':
+        {
+            'coeff': -d*p1_c1(grid),
+            'u':  [None],
+            'pow': 0
+        },
+    '-b*u':
+        {
+            'coeff': -b,
+            'u':  [None],
+            'pow': 1
+        },
+    '-a*u^3':
+        {
+            'coeff': -a,
+            'u':  [None],
+            'pow': 3
+        },
+    '-g*t*u^4':
+        {
+            'coeff': -g*p1_c1(grid),
+            'u':  [None],
+            'pow': 4
+        }
+        
+}
+
+
+
+for _ in range(1):
+    model = torch.nn.Sequential(
+        torch.nn.Linear(1, 100),
+        torch.nn.Tanh(),
+        torch.nn.Linear(100, 100),
+        torch.nn.Tanh(),
+        torch.nn.Linear(100, 100),
+        torch.nn.Tanh(),
+        torch.nn.Linear(100, 1)
+        # torch.nn.Tanh()
+    )
+
+    start = time.time()
+    model = point_sort_shift_solver(grid, model, p_3, bconds, lambda_bound=100, verbose=2, learning_rate=1e-4,
+                                    eps=1e-7, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True
+                                    ,batch_size=None, save_always=False)
+    end = time.time()
+
+    print('Time taken P_III= ', end - start)

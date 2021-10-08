@@ -315,7 +315,18 @@ def bndpos(grid, bnd):
     else:
         bnd = bnd.double()
     for point in bnd:
-        pos = int(torch.where(torch.all(torch.isclose(grid, point), dim=1))[0])
+        atol=1e-08
+        pos=None
+        while pos==None:
+            if atol>0.1:
+                print('Something went wrong, we werent able to find the \
+                      boundary point within 0.1-vicinity of every grid point')
+                break
+            try:
+                pos = int(torch.where(torch.all(torch.isclose(grid, point,atol=atol), dim=1))[0])
+            except Exception:
+                atol*=10
+                continue
         bndposlist.append(pos)
     return bndposlist
 
