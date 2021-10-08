@@ -286,7 +286,7 @@ for grid_res in [10,20,30]:
         prepared_bconds = bnd_prepare(bconds, prepared_grid, h=0.001)
         prepared_operator = operator_prepare(kdv, prepared_grid, subset=['central'], true_grid=grid, h=0.001)
         end_loss = point_sort_shift_loss(model, prepared_grid, prepared_operator, prepared_bconds, lambda_bound=100)
-        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'wave_eqn'})
+        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'kdv_eqn'})
         
         print('Time taken {}= {}'.format(grid_res, end - start))
         print('RMSE {}= {}'.format(grid_res, error_rmse))

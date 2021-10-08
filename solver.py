@@ -106,11 +106,7 @@ def apply_operator_set(model, operator_set):
 flatten_list = lambda t: [item for sublist in t for item in sublist]
 
 
-def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10):
-    if bconds==None:
-        print('No bconds is not possible, returning ifinite loss')
-        return np.inf
-    op = apply_operator_set(model, operator_set)
+def apply_boundary_op(model,grid,bconds):
     true_b_val_list = []
     b_val_list = []
     b_pos_list = []
@@ -149,6 +145,16 @@ def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10):
             b_val_list.append(b_op_val[b_pos])
         true_b_val = torch.cat(true_b_val_list)
         b_val = torch.cat(b_val_list)
+    return b_val, true_b_val
+
+
+def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10):
+    if bconds==None:
+        print('No bconds is not possible, returning ifinite loss')
+        return np.inf
+    op = apply_operator_set(model, operator_set)
+    
+    b_val, true_b_val=apply_boundary_op(model,grid,bconds)
 
     """
     actually, we can use L2 norm for the operator and L1 for boundary
@@ -174,23 +180,40 @@ def compute_operator_loss(grid, model, operator, bconds, grid_point_subset=['cen
     loss=float(loss.float())
     return loss
 
-
-def solution_print(prepared_grid,model,title=None):
-    if prepared_grid.shape[1] == 2:
+def print_3d_data(grid,data,title=None):
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         if title!=None:
             ax.set_title(title)
-        ax.plot_trisurf(prepared_grid[:, 0].reshape(-1), prepared_grid[:, 1].reshape(-1),
-                        model(prepared_grid).detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
+        ax.plot_trisurf(grid[:, 0].reshape(-1), grid[:, 1].reshape(-1),data
+                        , cmap=cm.jet, linewidth=0.2, alpha=1)
         ax.set_xlabel("x1")
         ax.set_ylabel("x2")
         plt.show()
-    if prepared_grid.shape[1] == 1:
+
+
+def print_2d_data(grid,data,title=None):
         fig = plt.figure()
-        plt.scatter(prepared_grid.reshape(-1), model(prepared_grid).detach().numpy().reshape(-1))
+        ax = fig.add_subplot(111)
+        if title!=None:
+            ax.set_title(title)
+        ax.scatter(grid.reshape(-1), data)
+        ax.set_xlabel("t")
+        ax.set_ylabel("x(t)")
         plt.show()
 
+
+
+def solution_print(prepared_grid,model,title=None,verbose_operator=None):
+    if verbose_operator!=None:
+        data = apply_operator_set(model, verbose_operator).detach().numpy().reshape(-1)
+        print(data.shape)
+    else:
+        data=model(prepared_grid).detach().numpy().reshape(-1)
+    if prepared_grid.shape[1] == 2:
+        print_3d_data(prepared_grid,data,title=title)
+    if prepared_grid.shape[1] == 1:
+        print_2d_data(prepared_grid,data,title=title)
 
 from cache import *
 
@@ -218,26 +241,29 @@ def point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset
     bconds = bnd_prepare(bconds, prepared_grid, h=h)
     operator = operator_prepare(operator, prepared_grid, subset=grid_point_subset, true_grid=grid, h=h)
     
+    # verbose_op={
+    #     '1*du/dt**1':
+    #         {
+    #             'coeff': 1,
+    #             'du/dt': [0],
+    #             'pow': 1
+    #             }
+            
+    # }
+        
+    # verbose_operator = operator_prepare(verbose_op, prepared_grid, subset=None, true_grid=grid, h=h)
     
-
+    verbose_operator=None
+    
     #  use cache if needed
     if use_cache:
         cache_checkpoint,min_loss=cache_lookup(prepared_grid, operator, bconds,cache_dir=cache_dir
                                                ,nmodels=None,verbose=cache_verbose,lambda_bound=0.001)
         model, optimizer_state= cache_retrain(model,cache_checkpoint,grid,verbose=cache_verbose)
     
-        
-   
-    # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
-    # optimizer = torch.optim.LBFGS(model.parameters())
+    
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     
-    # if optimizer_state is not None:
-    #     try:
-    #         optimizer.load_state_dict(optimizer_state)
-    #     except Exception:
-    #         optimizer_state=None
-    #     tmin=100
     loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
     
     
@@ -281,7 +307,7 @@ def point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset
         if (t % 100 == 0) and verbose>1:
 
             print(t, loss.item(), line,line[0]/line[1])
-            solution_print(prepared_grid,model,title='Iteration = ' + str(t))
+            solution_print(prepared_grid,model,title='Iteration = ' + str(t), verbose_operator=verbose_operator)
 
         # optimizer.zero_grad()
         # loss.backward()
@@ -318,16 +344,8 @@ def point_sort_shift_train_minibatch(grid, model, operator, bconds, grid_point_s
     
     
 
-    # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
-    # optimizer = torch.optim.LBFGS(model.parameters())
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     
-    # if optimizer_state is not None:
-    #     try:
-    #         optimizer.load_state_dict(optimizer_state)
-    #     except Exception:
-    #         optimizer_state=None
-    #     tmin=100
     loss = point_sort_shift_loss(model, prepared_grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound)
     
     
