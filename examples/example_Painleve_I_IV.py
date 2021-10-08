@@ -73,7 +73,7 @@ bop1 = None
 bndval1 = torch.from_numpy(np.array([[0]], dtype=np.float64))
 
 # point t=1
-bnd2 = torch.from_numpy(np.array([[0]], dtype=np.float64))
+bnd2 = torch.from_numpy(np.array([[float(t[0])]], dtype=np.float64))
 
 # d/dt
 bop2 ={
@@ -161,6 +161,8 @@ for _ in range(1):
         torch.nn.Tanh(),
         torch.nn.Linear(100, 100),
         torch.nn.Tanh(),
+        torch.nn.Linear(100, 100),
+        torch.nn.Tanh(),
         torch.nn.Linear(100, 1)
         # torch.nn.Tanh()
     )
@@ -173,6 +175,3 @@ for _ in range(1):
 
     print('Time taken 10= ', end - start)
 
-    fig = plt.figure()
-    plt.scatter(grid.reshape(-1), model(grid).detach().numpy().reshape(-1))
-    plt.show()

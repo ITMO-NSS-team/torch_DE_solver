@@ -73,7 +73,7 @@ def operator_unify(operator):
     return unified_operator
 
 
-def operator_to_type_op(unified_operator, nvars, axes_scheme_type, h=1 / 2, boundary_order=2):
+def operator_to_type_op(unified_operator, nvars, axes_scheme_type, h=1 / 2, boundary_order=1):
     """
     Function serves applying different schemes to a different point types for
     entire operator

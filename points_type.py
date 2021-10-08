@@ -87,7 +87,10 @@ def point_typization(grid):
                 else:
                     p_type += 'b'
                 j += 2
-            point_type[point] = p_type
+            if grid.shape[-1]==1:
+                point_type[point] = 'central'
+            else:
+                point_type[point] = p_type
     return point_type
 
 
