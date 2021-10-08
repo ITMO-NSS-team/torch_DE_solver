@@ -73,7 +73,7 @@ bop1 = None
 bndval1 = torch.from_numpy(np.array([[0]], dtype=np.float64))
 
 # point t=1
-bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64))
+bnd2 = torch.from_numpy(np.array([[0]], dtype=np.float64))
 
 # d/dt
 bop2 ={
@@ -89,7 +89,7 @@ bop2 ={
     
 
 # So, du/dt |_{x=1}=3
-bndval2 = torch.from_numpy(np.array([[0.805731]], dtype=np.float64))
+bndval2 = torch.from_numpy(np.array([[0]], dtype=np.float64))
 
 # Putting all bconds together
 bconds = [[bnd1, bop1, bndval1], [bnd2, bop2, bndval2]]
