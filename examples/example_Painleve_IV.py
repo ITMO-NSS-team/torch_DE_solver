@@ -37,7 +37,7 @@ def chebgrid(a,b,n):
     grid=np.flip(grid)
     return grid
 
-t = torch.from_numpy(chebgrid(1/4, 7/4,200).copy())
+t = torch.from_numpy(chebgrid(1/4, 7/4,500).copy())
 
 # t = torch.from_numpy(np.linspace(1/4, 7/4, 100))
 
@@ -182,7 +182,7 @@ for lr in [1e-4]:
 
     start = time.time()
 
-    model = point_sort_shift_solver(grid, model, p_4, bconds, lambda_bound=100, verbose=2, learning_rate=lr,
+    model = point_sort_shift_solver(grid, model, p_4, bconds, lambda_bound=100, verbose=2,h=0.01, learning_rate=lr,
                                     eps=1e-7, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True
                                     ,batch_size=None, save_always=False)
     end = time.time()
