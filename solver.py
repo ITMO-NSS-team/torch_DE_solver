@@ -149,25 +149,26 @@ def apply_boundary_op(model,grid,bconds):
 
 
 def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10):
-    if bconds==None:
-        print('No bconds is not possible, returning ifinite loss')
-        return np.inf
+    
     op = apply_operator_set(model, operator_set)
     
-    b_val, true_b_val=apply_boundary_op(model,grid,bconds)
-
-    """
-    actually, we can use L2 norm for the operator and L1 for boundary
-    since L2>L1 and thus, boundary values become not so signifnicant, 
-    so the NN converges faster. On the other hand - boundary conditions is the
-    crucial thing for all that stuff, so we should increase significance of the
-    coundary conditions
-    """
-    # l1_lambda = 0.001
-    # l1_norm =sum(p.abs().sum() for p in model.parameters())
-    # loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)+ l1_lambda * l1_norm
-    loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)
-
+    
+    if bconds==None:
+        loss = torch.mean((op) ** 2)
+    else:
+        """
+        actually, we can use L2 norm for the operator and L1 for boundary
+        since L2>L1 and thus, boundary values become not so signifnicant, 
+        so the NN converges faster. On the other hand - boundary conditions is the
+        crucial thing for all that stuff, so we should increase significance of the
+        coundary conditions
+        """
+        # l1_lambda = 0.001
+        # l1_norm =sum(p.abs().sum() for p in model.parameters())
+        # loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)+ l1_lambda * l1_norm
+    
+        b_val, true_b_val=apply_boundary_op(model,grid,bconds)  
+        loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)
     return loss
 
 
