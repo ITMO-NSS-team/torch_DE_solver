@@ -166,9 +166,8 @@ def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10):
     # l1_lambda = 0.001
     # l1_norm =sum(p.abs().sum() for p in model.parameters())
     # loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)+ l1_lambda * l1_norm
-    
     loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)
-    
+
     return loss
 
 
@@ -207,7 +206,6 @@ def print_2d_data(grid,data,title=None):
 def solution_print(prepared_grid,model,title=None,verbose_operator=None):
     if verbose_operator!=None:
         data = apply_operator_set(model, verbose_operator).detach().numpy().reshape(-1)
-        print(data.shape)
     else:
         data=model(prepared_grid).detach().numpy().reshape(-1)
     if prepared_grid.shape[1] == 2:
