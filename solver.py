@@ -181,6 +181,9 @@ def solution_print(prepared_grid,model,title=None):
         ax = fig.add_subplot(111, projection='3d')
         if title!=None:
             ax.set_title(title)
+        print(prepared_grid[:, 0].reshape(-1))
+        print(prepared_grid[:, 1].reshape(-1))
+        print(model(prepared_grid).detach().numpy().reshape(-1))
         ax.plot_trisurf(prepared_grid[:, 0].reshape(-1), prepared_grid[:, 1].reshape(-1),
                         model(prepared_grid).detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
         ax.set_xlabel("x1")
@@ -257,9 +260,11 @@ def point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset
     line=np.polyfit(range(100),last_loss,1)
     
     def closure():
+        global cur_loss
         optimizer.zero_grad()
         loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
         loss.backward()
+        cur_loss = loss.item()
         return loss
     
     stop_dings=0
@@ -268,9 +273,9 @@ def point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset
     #if line is flat enough 5 times, we stop the procedure
     while stop_dings<=5:
         optimizer.step(closure)
-        loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
+        # loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
         
-        last_loss[t%100]=loss
+        last_loss[t%100]=cur_loss
         
         if t%100==0:
             line=np.polyfit(range(100),last_loss,1)
@@ -279,7 +284,7 @@ def point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset
         
         if (t % 100 == 0) and verbose:
 
-            print(t, loss.item(), line,line[0]/line[1])
+            print(t, cur_loss, line,line[0]/line[1])
             solution_print(prepared_grid,model,title='Iteration = ' + str(t))
 
         # optimizer.zero_grad()
@@ -365,8 +370,7 @@ def point_sort_shift_train_minibatch(grid, model, operator, bconds, grid_point_s
             batch_bconds = bnd_prepare(batch_bconds, batch_grid, h=h)
 
             batch_operator = operator_prepare(operator, batch_grid, subset=grid_point_subset, true_grid=batch, h=h)
-            
-            
+
             loss = point_sort_shift_loss(model, batch_grid, batch_operator, batch_bconds, lambda_bound=lambda_bound)
             if loss==np.inf:
                 continue
