@@ -26,6 +26,9 @@ def solution_print(prepared_grid,model,title=None):
         ax = fig.add_subplot(111, projection='3d')
         if title!=None:
             ax.set_title(title)
+        print(prepared_grid[:, 0].reshape(-1))
+        print(prepared_grid[:, 1].reshape(-1))
+        print(model(prepared_grid).detach().numpy().reshape(-1))
         ax.plot_trisurf(prepared_grid[:, 0].reshape(-1), prepared_grid[:, 1].reshape(-1),
                         model(prepared_grid).detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
         ax.set_xlabel("x1")
@@ -97,16 +100,20 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
     last_loss=np.zeros(loss_oscillation_window)+float(min_loss)
     line=np.polyfit(range(loss_oscillation_window),last_loss,1)
     
-    # def closure():
-    #     optimizer.zero_grad()
-    #     loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
-    #     loss.backward()
-    #     return loss
+
+    def closure():
+        global cur_loss
+        optimizer.zero_grad()
+        loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
+        loss.backward()
+        cur_loss = loss.item()
+        return loss
     
     stop_dings=0
     t_imp_start=0
     # to stop train proceduce we fit the line in the loss data
     #if line is flat enough 5 times, we stop the procedure
+
     while stop_dings<=patience:
         optimizer.zero_grad()
         if batch_size==None:
@@ -148,5 +155,4 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
     if (save_cache and use_cache) or save_always:
         save_model(model,model.state_dict(),optimizer.state_dict(),cache_dir=cache_dir,name=None)
     return model
-
 
