@@ -144,7 +144,7 @@ for grid_res in range(10,110,10):
         
         model = point_sort_shift_solver(grid, model, wave_eq , bconds, 
                                                   lambda_bound=100, verbose=1, learning_rate=1e-4,
-                                        eps=1e-5, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=False,
+                                        eps=1e-5, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=False,
                                         batch_size=None, save_always=True)
     
         end = time.time()
