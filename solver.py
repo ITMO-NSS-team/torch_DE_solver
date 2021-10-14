@@ -10,6 +10,7 @@ from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from mpl_toolkits.mplot3d import Axes3D
 from input_preprocessing import grid_prepare, bnd_prepare, operator_prepare,batch_bconds_transform
+from points_type import grid_sort
 import numpy as np
 
 def take_derivative_shift_op(model, term):
@@ -107,10 +108,13 @@ flatten_list = lambda t: [item for sublist in t for item in sublist]
 
 
 def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10):
-    if bconds==None:
-        print('No bconds is not possible, returning ifinite loss')
-        return np.inf
+
     op = apply_operator_set(model, operator_set)
+    
+    if bconds==None:
+        loss = torch.mean((op) ** 2)
+        return loss
+    
     true_b_val_list = []
     b_val_list = []
     b_pos_list = []
@@ -210,13 +214,11 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
 def point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
                             verbose=False, learning_rate=1e-3, eps=0.1, tmin=1000, tmax=1e5, h=0.001,
                             use_cache=True,cache_dir='../cache/',cache_verbose=False,save_always=False):
-    nvars = model[0].in_features
-
     # prepare input data to uniform format 
     
-    prepared_grid = grid_prepare(grid)
+    prepared_grid,grid_dict,point_type = grid_prepare(grid)
     bconds = bnd_prepare(bconds, prepared_grid, h=h)
-    operator = operator_prepare(operator, prepared_grid, subset=grid_point_subset, true_grid=grid, h=h)
+    operator = operator_prepare(operator, grid_dict, subset=grid_point_subset, true_grid=grid, h=h)
     
     
 
@@ -267,10 +269,9 @@ def point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset
     # to stop train proceduce we fit the line in the loss data
     #if line is flat enough 5 times, we stop the procedure
     while stop_dings<=5:
-        optimizer.step(closure)
-        loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
+        loss =optimizer.step(closure)
         
-        last_loss[t%100]=loss
+        last_loss[t%100]=loss.item()
         
         if t%100==0:
             line=np.polyfit(range(100),last_loss,1)
@@ -295,13 +296,12 @@ def point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset
 def point_sort_shift_train_minibatch(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
                             verbose=False, learning_rate=0.0001, eps=0.1, tmin=1000, tmax=1e5, h=0.001,
                             use_cache=True,cache_dir='../cache/',cache_verbose=False,batch_size=32,save_always=False):
-    nvars = model[0].in_features
     
     # prepare input data to uniform format 
     
-    prepared_grid = grid_prepare(grid)
+    prepared_grid,grid_dict,point_type = grid_prepare(grid)
     prepared_bconds = bnd_prepare(bconds, prepared_grid, h=h)
-    full_prepared_operator = operator_prepare(operator, prepared_grid, subset=grid_point_subset, true_grid=grid, h=h)
+    full_prepared_operator = operator_prepare(operator, grid_dict, subset=grid_point_subset, true_grid=grid, h=h)
     
     
 
@@ -349,32 +349,41 @@ def point_sort_shift_train_minibatch(grid, model, operator, bconds, grid_point_s
     #if line is flat enough 5 times, we stop the procedure
     while stop_dings<=5:
         
-        loss_list=[]
+        # loss_list=[]
         
         permutation = torch.randperm(grid.size()[0])
-    
+        loss=0
+        batch_num=0
         for i in range(0,grid.size()[0], batch_size):
             optimizer.zero_grad()
             indices = permutation[i:i+batch_size]
             if len(indices)<5:
                 continue
-            batch= grid[indices]
+            # batch= grid[indices]
+            
+            # batch_grid = grid_prepare(batch)
+            batch_grid=prepared_grid[indices]
 
-            batch_grid = grid_prepare(batch)
+
+            batch_types=np.array(list(point_type.values()))[indices.tolist()]
+            
+            batch_type=dict(zip(batch_grid, batch_types))
+            
+            batch_dict=grid_sort(batch_type)
             batch_bconds=batch_bconds_transform(batch_grid,bconds)
             batch_bconds = bnd_prepare(batch_bconds, batch_grid, h=h)
 
-            batch_operator = operator_prepare(operator, batch_grid, subset=grid_point_subset, true_grid=batch, h=h)
+            batch_operator = operator_prepare(operator, batch_dict, subset=grid_point_subset, true_grid=prepared_grid[indices], h=h)
             
             
-            loss = point_sort_shift_loss(model, batch_grid, batch_operator, batch_bconds, lambda_bound=lambda_bound)
-            if loss==np.inf:
-                continue
-            loss.backward()
-            optimizer.step()
-            loss_list.append(loss.item())
+            loss+= point_sort_shift_loss(model, batch_grid, batch_operator, batch_bconds, lambda_bound=lambda_bound)
+            batch_num+=1
+        loss=1/batch_num*loss
+        loss.backward()
+        optimizer.step()
+        # loss_list.append(loss.item())
         
-        last_loss[t%100]=np.mean(loss_list)
+        last_loss[t%100]=loss.item()
         
         if t%100==0:
             line=np.polyfit(range(100),last_loss,1)
@@ -383,7 +392,7 @@ def point_sort_shift_train_minibatch(grid, model, operator, bconds, grid_point_s
         
         if (t % 100 == 0) and verbose:
 
-            print(t, np.mean(loss_list), line,line[0]/line[1])
+            print(t, loss.item(), line,line[0]/line[1])
             solution_print(prepared_grid,model,title='Iteration = ' + str(t))
         
         t+=1

@@ -11,7 +11,7 @@ import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 import sys
-
+# import torch_rbf as rbf
 # sys.path.append('../')
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
@@ -146,14 +146,18 @@ for _ in range(1):
         torch.nn.Linear(100, 1)
     )
 
-    
+    # model = torch.nn.Sequential(
+    # torch.nn.Linear(2, 100),
+    # rbf.RBF(100,100,rbf.gaussian),
+    # torch.nn.Linear(100, 1)
+    # )
     
     start = time.time()
     
     model = point_sort_shift_solver(grid, model, wave_eq , bconds, 
-                                              lambda_bound=100, verbose=True, learning_rate=1e-4,
+                                              lambda_bound=1000, verbose=1, learning_rate=1e-4,
                                     eps=1e-5, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True,
-                                    batch_size=None, save_always=False)
+                                    batch_size=None, save_always=True)
 
     end = time.time()
     print('Time taken 10= ', end - start)
