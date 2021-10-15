@@ -169,6 +169,36 @@ def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10):
     
     return loss
 
+def point_sort_shift_loss_batch(model, prepared_grid, point_type, operator, bconds,subset=['central'], lambda_bound=10,batch_size=32,h=0.001):
+    permutation = torch.randperm(prepared_grid.size()[0])
+    loss=0
+    batch_num=0
+    for i in range(0,prepared_grid.size()[0], batch_size):
+        indices = permutation[i:i+batch_size]
+        if len(indices)<5:
+            continue
+        # batch= grid[indices]
+        
+        # batch_grid = grid_prepare(batch)
+        batch_grid=prepared_grid[indices]
+
+
+        batch_types=np.array(list(point_type.values()))[indices.tolist()]
+        
+        batch_type=dict(zip(batch_grid, batch_types))
+        
+        batch_dict=grid_sort(batch_type)
+        batch_bconds=batch_bconds_transform(batch_grid,bconds)
+        batch_bconds = bnd_prepare(batch_bconds, batch_grid, h=h)
+
+        batch_operator = operator_prepare(operator, batch_dict, subset=subset, true_grid=prepared_grid[indices], h=h)
+        
+        
+        loss+= point_sort_shift_loss(model, batch_grid, batch_operator, batch_bconds, lambda_bound=lambda_bound)
+        batch_num+=1
+    loss=1/batch_num*loss
+    return loss
+
 
 def compute_operator_loss(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,h=0.001):
     prepared_grid = grid_prepare(grid)
@@ -198,33 +228,33 @@ def solution_print(prepared_grid,model,title=None):
 
 from cache import *
 
+# def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
+#                             verbose=False, learning_rate=1e-4, eps=0.1, tmin=1000, tmax=1e5, h=0.001,
+#                             use_cache=True,cache_dir='../cache/',cache_verbose=False,batch_size=None,save_always=False):
+#     if batch_size==None:
+#         model=point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset=grid_point_subset, lambda_bound=lambda_bound,
+#                             verbose=verbose, learning_rate=learning_rate, eps=eps, tmin=tmin, tmax=tmax, h=h,
+#                             use_cache=use_cache,cache_dir=cache_dir,cache_verbose=cache_verbose,save_always=save_always)
+#     else:
+#         model=point_sort_shift_train_minibatch(grid, model, operator, bconds, grid_point_subset=grid_point_subset, lambda_bound=lambda_bound,
+#                             verbose=verbose, learning_rate=learning_rate, eps=eps, tmin=tmin, tmax=tmax, h=h,
+#                             use_cache=use_cache,cache_dir=cache_dir,cache_verbose=cache_verbose,save_always=save_always,batch_size=batch_size)
+#     return model
+
 def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
                             verbose=False, learning_rate=1e-4, eps=0.1, tmin=1000, tmax=1e5, h=0.001,
                             use_cache=True,cache_dir='../cache/',cache_verbose=False,batch_size=None,save_always=False):
-    if batch_size==None:
-        model=point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset=grid_point_subset, lambda_bound=lambda_bound,
-                            verbose=verbose, learning_rate=learning_rate, eps=eps, tmin=tmin, tmax=tmax, h=h,
-                            use_cache=use_cache,cache_dir=cache_dir,cache_verbose=cache_verbose,save_always=save_always)
-    else:
-        model=point_sort_shift_train_minibatch(grid, model, operator, bconds, grid_point_subset=grid_point_subset, lambda_bound=lambda_bound,
-                            verbose=verbose, learning_rate=learning_rate, eps=eps, tmin=tmin, tmax=tmax, h=h,
-                            use_cache=use_cache,cache_dir=cache_dir,cache_verbose=cache_verbose,save_always=save_always,batch_size=batch_size)
-    return model
-
-def point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
-                            verbose=False, learning_rate=1e-3, eps=0.1, tmin=1000, tmax=1e5, h=0.001,
-                            use_cache=True,cache_dir='../cache/',cache_verbose=False,save_always=False):
     # prepare input data to uniform format 
     
     prepared_grid,grid_dict,point_type = grid_prepare(grid)
-    bconds = bnd_prepare(bconds, prepared_grid, h=h)
-    operator = operator_prepare(operator, grid_dict, subset=grid_point_subset, true_grid=grid, h=h)
+    prepared_bconds = bnd_prepare(bconds, prepared_grid, h=h)
+    full_prepared_operator = operator_prepare(operator, grid_dict, subset=grid_point_subset, true_grid=grid, h=h)
     
     
 
     #  use cache if needed
     if use_cache:
-        cache_checkpoint,min_loss=cache_lookup(prepared_grid, operator, bconds,cache_dir=cache_dir
+        cache_checkpoint,min_loss=cache_lookup(prepared_grid, full_prepared_operator, prepared_bconds,cache_dir=cache_dir
                                                ,nmodels=None,verbose=cache_verbose,lambda_bound=0.001)
         model, optimizer_state= cache_retrain(model,cache_checkpoint,grid,verbose=cache_verbose)
     
@@ -241,7 +271,7 @@ def point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset
     #     except Exception:
     #         optimizer_state=None
     #     tmin=100
-    loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
+    loss = point_sort_shift_loss(model, prepared_grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound)
     
     save_cache=False
     
@@ -258,19 +288,22 @@ def point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset
     last_loss=np.zeros(100)+float(loss)
     line=np.polyfit(range(100),last_loss,1)
     
-    def closure():
-        optimizer.zero_grad()
-        loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
-        loss.backward()
-        return loss
+    # def closure():
+    #     optimizer.zero_grad()
+    #     loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
+    #     loss.backward()
+    #     return loss
     
     stop_dings=0
     
     # to stop train proceduce we fit the line in the loss data
     #if line is flat enough 5 times, we stop the procedure
     while stop_dings<=5:
-        loss =optimizer.step(closure)
-        
+        optimizer.zero_grad()
+        if batch_size==None:
+            loss = point_sort_shift_loss(model, prepared_grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound)
+        else:
+            loss=point_sort_shift_loss_batch(model, prepared_grid, point_type, operator, bconds,subset=grid_point_subset, lambda_bound=lambda_bound,batch_size=batch_size,h=h)
         last_loss[t%100]=loss.item()
         
         if t%100==0:
@@ -284,8 +317,8 @@ def point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset
             solution_print(prepared_grid,model,title='Iteration = ' + str(t))
 
         # optimizer.zero_grad()
-        # loss.backward()
-        # optimizer.step()
+        loss.backward()
+        optimizer.step()
         t += 1
         if t > tmax:
             break
@@ -293,112 +326,199 @@ def point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset
         save_model(model,model.state_dict(),optimizer.state_dict(),cache_dir=cache_dir,name=None)
     return model
 
-def point_sort_shift_train_minibatch(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
-                            verbose=False, learning_rate=0.0001, eps=0.1, tmin=1000, tmax=1e5, h=0.001,
-                            use_cache=True,cache_dir='../cache/',cache_verbose=False,batch_size=32,save_always=False):
+
+
+
+# def point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
+#                             verbose=False, learning_rate=1e-3, eps=0.1, tmin=1000, tmax=1e5, h=0.001,
+#                             use_cache=True,cache_dir='../cache/',cache_verbose=False,save_always=False):
+#     # prepare input data to uniform format 
     
-    # prepare input data to uniform format 
-    
-    prepared_grid,grid_dict,point_type = grid_prepare(grid)
-    prepared_bconds = bnd_prepare(bconds, prepared_grid, h=h)
-    full_prepared_operator = operator_prepare(operator, grid_dict, subset=grid_point_subset, true_grid=grid, h=h)
+#     prepared_grid,grid_dict,point_type = grid_prepare(grid)
+#     prepared_bconds = bnd_prepare(bconds, prepared_grid, h=h)
+#     full_prepared_operator = operator_prepare(operator, grid_dict, subset=grid_point_subset, true_grid=grid, h=h)
     
     
 
-    #  use cache if needed
-    if use_cache:
-        cache_checkpoint,min_loss=cache_lookup(prepared_grid, full_prepared_operator, prepared_bconds,cache_dir=cache_dir
-                                               ,nmodels=None,verbose=cache_verbose,lambda_bound=0.001)
-        model, optimizer_state= cache_retrain(model,cache_checkpoint,grid,verbose=cache_verbose)
+#     #  use cache if needed
+#     if use_cache:
+#         cache_checkpoint,min_loss=cache_lookup(prepared_grid, full_prepared_operator, prepared_bconds,cache_dir=cache_dir
+#                                                ,nmodels=None,verbose=cache_verbose,lambda_bound=0.001)
+#         model, optimizer_state= cache_retrain(model,cache_checkpoint,grid,verbose=cache_verbose)
+    
+        
+#     # model is not saved if cache model good enough
+
+#     # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+#     # optimizer = torch.optim.LBFGS(model.parameters())
+#     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    
+#     # if optimizer_state is not None:
+#     #     try:
+#     #         optimizer.load_state_dict(optimizer_state)
+#     #     except Exception:
+#     #         optimizer_state=None
+#     #     tmin=100
+#     loss = point_sort_shift_loss(model, prepared_grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound)
+    
+#     save_cache=False
+    
+#     if loss>0.1 or save_always:
+#         save_cache=True
+    
+    
+#     # standard NN stuff
+#     if verbose:
+#         print('-1 {}'.format(loss))
+    
+#     t = 0
+    
+#     last_loss=np.zeros(100)+float(loss)
+#     line=np.polyfit(range(100),last_loss,1)
+    
+#     # def closure():
+#     #     optimizer.zero_grad()
+#     #     loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
+#     #     loss.backward()
+#     #     return loss
+    
+#     stop_dings=0
+    
+#     # to stop train proceduce we fit the line in the loss data
+#     #if line is flat enough 5 times, we stop the procedure
+#     while stop_dings<=5:
+#         optimizer.zero_grad()
+#         loss = point_sort_shift_loss(model, prepared_grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound)
+        
+#         last_loss[t%100]=loss.item()
+        
+#         if t%100==0:
+#             line=np.polyfit(range(100),last_loss,1)
+#             if abs(line[0]) < eps:
+#                 stop_dings+=1
+        
+#         if (t % 100 == 0) and verbose:
+
+#             print(t, loss.item(), line,line[0]/line[1])
+#             solution_print(prepared_grid,model,title='Iteration = ' + str(t))
+
+#         # optimizer.zero_grad()
+#         loss.backward()
+#         optimizer.step()
+#         t += 1
+#         if t > tmax:
+#             break
+#     if save_cache:
+#         save_model(model,model.state_dict(),optimizer.state_dict(),cache_dir=cache_dir,name=None)
+#     return model
+
+# def point_sort_shift_train_minibatch(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
+#                             verbose=False, learning_rate=0.0001, eps=0.1, tmin=1000, tmax=1e5, h=0.001,
+#                             use_cache=True,cache_dir='../cache/',cache_verbose=False,batch_size=32,save_always=False):
+    
+#     # prepare input data to uniform format 
+    
+#     prepared_grid,grid_dict,point_type = grid_prepare(grid)
+#     prepared_bconds = bnd_prepare(bconds, prepared_grid, h=h)
+#     full_prepared_operator = operator_prepare(operator, grid_dict, subset=grid_point_subset, true_grid=grid, h=h)
+    
+    
+
+#     #  use cache if needed
+#     if use_cache:
+#         cache_checkpoint,min_loss=cache_lookup(prepared_grid, full_prepared_operator, prepared_bconds,cache_dir=cache_dir
+#                                                ,nmodels=None,verbose=cache_verbose,lambda_bound=0.001)
+#         model, optimizer_state= cache_retrain(model,cache_checkpoint,grid,verbose=cache_verbose)
         
 
     
     
 
-    # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
-    # optimizer = torch.optim.LBFGS(model.parameters())
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+#     # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+#     # optimizer = torch.optim.LBFGS(model.parameters())
+#     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     
-    # if optimizer_state is not None:
-    #     try:
-    #         optimizer.load_state_dict(optimizer_state)
-    #     except Exception:
-    #         optimizer_state=None
-    #     tmin=100
-    loss = point_sort_shift_loss(model, prepared_grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound)
-    
-    
-    save_cache=False
-    
-    if loss>0.1 or save_always:
-        save_cache=True
+#     # if optimizer_state is not None:
+#     #     try:
+#     #         optimizer.load_state_dict(optimizer_state)
+#     #     except Exception:
+#     #         optimizer_state=None
+#     #     tmin=100
+#     loss = point_sort_shift_loss(model, prepared_grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound)
     
     
-    # standard NN stuff
-    if verbose:
-        print('-1 {}'.format(loss))
+#     save_cache=False
     
-    t = 0
+#     if loss>0.1 or save_always:
+#         save_cache=True
     
-    last_loss=np.zeros(100)+float(loss)
-    line=np.polyfit(range(100),last_loss,1)
+    
+#     # standard NN stuff
+#     if verbose:
+#         print('-1 {}'.format(loss))
+    
+#     t = 0
+    
+#     last_loss=np.zeros(100)+float(loss)
+#     line=np.polyfit(range(100),last_loss,1)
 
-    stop_dings=0
+#     stop_dings=0
     
-    # to stop train proceduce we fit the line in the loss data
-    #if line is flat enough 5 times, we stop the procedure
-    while stop_dings<=5:
+#     # to stop train proceduce we fit the line in the loss data
+#     #if line is flat enough 5 times, we stop the procedure
+#     while stop_dings<=5:
+#         optimizer.zero_grad()
+#         # loss_list=[]
         
-        # loss_list=[]
-        
-        permutation = torch.randperm(grid.size()[0])
-        loss=0
-        batch_num=0
-        for i in range(0,grid.size()[0], batch_size):
-            optimizer.zero_grad()
-            indices = permutation[i:i+batch_size]
-            if len(indices)<5:
-                continue
-            # batch= grid[indices]
+#         # permutation = torch.randperm(prepared_grid.size()[0])
+#         # loss=0
+#         # batch_num=0
+#         # for i in range(0,grid.size()[0], batch_size):
+#         #     optimizer.zero_grad()
+#         #     indices = permutation[i:i+batch_size]
+#         #     if len(indices)<5:
+#         #         continue
+#         #     # batch= grid[indices]
             
-            # batch_grid = grid_prepare(batch)
-            batch_grid=prepared_grid[indices]
+#         #     # batch_grid = grid_prepare(batch)
+#         #     batch_grid=prepared_grid[indices]
 
 
-            batch_types=np.array(list(point_type.values()))[indices.tolist()]
+#         #     batch_types=np.array(list(point_type.values()))[indices.tolist()]
             
-            batch_type=dict(zip(batch_grid, batch_types))
+#         #     batch_type=dict(zip(batch_grid, batch_types))
             
-            batch_dict=grid_sort(batch_type)
-            batch_bconds=batch_bconds_transform(batch_grid,bconds)
-            batch_bconds = bnd_prepare(batch_bconds, batch_grid, h=h)
+#         #     batch_dict=grid_sort(batch_type)
+#         #     batch_bconds=batch_bconds_transform(batch_grid,bconds)
+#         #     batch_bconds = bnd_prepare(batch_bconds, batch_grid, h=h)
 
-            batch_operator = operator_prepare(operator, batch_dict, subset=grid_point_subset, true_grid=prepared_grid[indices], h=h)
+#         #     batch_operator = operator_prepare(operator, batch_dict, subset=grid_point_subset, true_grid=prepared_grid[indices], h=h)
             
             
-            loss+= point_sort_shift_loss(model, batch_grid, batch_operator, batch_bconds, lambda_bound=lambda_bound)
-            batch_num+=1
-        loss=1/batch_num*loss
-        loss.backward()
-        optimizer.step()
-        # loss_list.append(loss.item())
+#         #     loss+= point_sort_shift_loss(model, batch_grid, batch_operator, batch_bconds, lambda_bound=lambda_bound)
+#         #     batch_num+=1
+#         # loss=1/batch_num*loss
+#         loss=point_sort_shift_loss_batch(model, prepared_grid, point_type, operator, bconds,subset=grid_point_subset, lambda_bound=lambda_bound,batch_size=batch_size,h=h)
+#         loss.backward()
+#         optimizer.step()
+#         # loss_list.append(loss.item())
         
-        last_loss[t%100]=loss.item()
+#         last_loss[t%100]=loss.item()
         
-        if t%100==0:
-            line=np.polyfit(range(100),last_loss,1)
-            if abs(line[0]) < eps:
-                stop_dings+=1
+#         if t%100==0:
+#             line=np.polyfit(range(100),last_loss,1)
+#             if abs(line[0]) < eps:
+#                 stop_dings+=1
         
-        if (t % 100 == 0) and verbose:
+#         if (t % 100 == 0) and verbose:
 
-            print(t, loss.item(), line,line[0]/line[1])
-            solution_print(prepared_grid,model,title='Iteration = ' + str(t))
+#             print(t, loss.item(), line,line[0]/line[1])
+#             solution_print(prepared_grid,model,title='Iteration = ' + str(t))
         
-        t+=1
-        if t > tmax:
-            break
-    if save_cache:
-        save_model(model,model.state_dict(),optimizer.state_dict(),cache_dir=cache_dir,name=None)
-    return model
+#         t+=1
+#         if t > tmax:
+#             break
+#     if save_cache:
+#         save_model(model,model.state_dict(),optimizer.state_dict(),cache_dir=cache_dir,name=None)
+#     return model
 

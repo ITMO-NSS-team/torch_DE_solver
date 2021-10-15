@@ -146,18 +146,13 @@ for _ in range(1):
         torch.nn.Linear(100, 1)
     )
 
-    # model = torch.nn.Sequential(
-    # torch.nn.Linear(2, 100),
-    # rbf.RBF(100,100,rbf.gaussian),
-    # torch.nn.Linear(100, 1)
-    # )
     
     start = time.time()
     
     model = point_sort_shift_solver(grid, model, wave_eq , bconds, 
                                               lambda_bound=1000, verbose=1, learning_rate=1e-4,
-                                    eps=1e-5, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True,
-                                    batch_size=None, save_always=True)
+                                    eps=1e-5, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
+                                    batch_size=64, save_always=True)
 
     end = time.time()
     print('Time taken 10= ', end - start)
