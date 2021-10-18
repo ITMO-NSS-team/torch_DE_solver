@@ -9,8 +9,8 @@ import datetime
 import torch
 import os 
 import glob
-from solver import *
 import numpy as np
+from metrics import point_sort_shift_loss
 
 
 def save_model(model,state,optimizer_state,cache_dir='../cache/',name=None):
