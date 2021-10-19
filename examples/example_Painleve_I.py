@@ -24,7 +24,7 @@ device = torch.device('cpu')
 
 exp_dict_list=[]
 
-for grid_res in range(10,110,10):
+for grid_res in range(100,501,100):
     t = torch.from_numpy(np.linspace(0, 1, grid_res+1))
     
     grid = t.reshape(-1, 1).float()
@@ -170,21 +170,22 @@ for grid_res in range(10,110,10):
         )
 
         start = time.time()
-        model = point_sort_shift_solver(grid, model, p_1, bconds, lambda_bound=100, verbose=1, learning_rate=1e-4,
+        model = point_sort_shift_solver(grid, model, p_1, bconds, lambda_bound=100, verbose=0, learning_rate=1e-4,
                                         eps=1e-7, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True
                                         ,batch_size=None, save_always=False)
         end = time.time()
-    
-        print('Time taken P_I= ', end - start)
+
             
         error_rmse=torch.sqrt(torch.mean((sln_torch1-model(grid))**2))
         
-        prepared_grid = grid_prepare(grid)
+  
         
-        prepared_bconds = bnd_prepare(bconds, prepared_grid, h=0.001)
-        prepared_operator = operator_prepare(p_1, prepared_grid, subset=['central'], true_grid=grid, h=0.001)
+        prepared_grid,grid_dict,point_type = grid_prepare(grid)
+        
+        prepared_bconds = bnd_prepare(bconds, prepared_grid,grid_dict, h=0.0001)
+        prepared_operator = operator_prepare(p_1, grid_dict, subset=['central'], true_grid=grid, h=0.001)
         end_loss = point_sort_shift_loss(model, prepared_grid, prepared_operator, prepared_bconds, lambda_bound=100)
-        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'wave_eqn'})
+        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'PI'})
         
         print('Time taken {}= {}'.format(grid_res, end - start))
         print('RMSE {}= {}'.format(grid_res, error_rmse))

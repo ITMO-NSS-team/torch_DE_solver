@@ -354,7 +354,7 @@ def bnd_unify(bconds):
     return unified_bconds
 
 
-def bnd_prepare(bconds, grid, h=0.001):
+def bnd_prepare(bconds,grid,grid_dict, h=0.001):
     """
     
 
@@ -389,7 +389,7 @@ def bnd_prepare(bconds, grid, h=0.001):
             if type(bop)==dict:
                 bop=op_dict_to_list(bop)
             bop1 = operator_unify(bop)
-            bop2 = apply_all_operators(bop1, grid, h=h)
+            bop2 = apply_all_operators(bop1, grid_dict, h=h)
         else:
             bop2 = None
         prepared_bnd.append([bpos, bop2, bval])
