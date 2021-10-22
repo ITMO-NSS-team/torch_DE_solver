@@ -22,9 +22,11 @@ import time
 
 device = torch.device('cpu')
 
-exp_dict_list=[]
 
-for grid_res in range(100,501,100):
+def p_I_exp(grid_res,nruns):
+    
+    exp_dict_list=[]
+    
     t = torch.from_numpy(np.linspace(0, 1, grid_res+1))
     
     grid = t.reshape(-1, 1).float()
@@ -150,7 +152,7 @@ for grid_res in range(100,501,100):
     
     
   
-    for _ in range(10):
+    for _ in range(nruns):
         
         sln=np.genfromtxt('wolfram_sln/P_I_sln_'+str(grid_res)+'.csv',delimiter=',')
         sln_torch=torch.from_numpy(sln)
@@ -190,3 +192,24 @@ for grid_res in range(100,501,100):
         print('Time taken {}= {}'.format(grid_res, end - start))
         print('RMSE {}= {}'.format(grid_res, error_rmse))
         print('loss {}= {}'.format(grid_res, end_loss))
+    return exp_dict_list
+
+
+nruns=10
+
+exp_dict_list=[]
+
+
+for grid_res in range(10,100,10):
+    exp_dict_list.append(p_I_exp(grid_res, nruns))
+
+
+for grid_res in range(100,501,100):
+    exp_dict_list.append(p_I_exp(grid_res, nruns))
+
+
+import pandas as pd
+
+exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+df=pd.DataFrame(exp_dict_list_flatten)
+df.to_csv('PI_experiment_10_500.csv')

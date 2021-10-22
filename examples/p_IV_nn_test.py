@@ -4,9 +4,20 @@ Created on Mon Oct 11 18:07:37 2021
 
 @author: user
 """
+import os
+
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
+import sys
+
+# sys.path.append('../')
+sys.path.pop()
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
+
+
 import numpy as np
 import torch
-
+import torch_rbf as rbf
 
 device = torch.device('cpu')
 
@@ -20,26 +31,26 @@ data=torch.from_numpy(np.array(p_4_dat).reshape(-1,1)).float()
 grid.to(device)
 data.to(device)
 
-# model = torch.nn.Sequential(
-#     torch.nn.Linear(1, 256),
-#     torch.nn.Tanh(),
-#     # torch.nn.Dropout(0.1),
-#     # torch.nn.ReLU(),
-#     torch.nn.Linear(256, 64),
-#     # # torch.nn.Dropout(0.1),
-#     torch.nn.Tanh(),
-#     torch.nn.Linear(64, 1024),
-#     # torch.nn.Dropout(0.1),
-#     torch.nn.Tanh(),
-#     torch.nn.Linear(1024, 64),
-#     torch.nn.Tanh(),
-#     torch.nn.Linear(64, 256),
-#     torch.nn.Tanh(),
-#     torch.nn.Linear(256, 1)
-#     # torch.nn.Tanh()
-# )
+model1 = torch.nn.Sequential(
+    torch.nn.Linear(1, 256),
+    torch.nn.Tanh(),
+    # torch.nn.Dropout(0.1),
+    # torch.nn.ReLU(),
+    torch.nn.Linear(256, 64),
+    # # torch.nn.Dropout(0.1),
+    torch.nn.Tanh(),
+    torch.nn.Linear(64, 1024),
+    # torch.nn.Dropout(0.1),
+    torch.nn.Tanh(),
+    torch.nn.Linear(1024, 64),
+    torch.nn.Tanh(),
+    torch.nn.Linear(64, 256),
+    torch.nn.Tanh(),
+    torch.nn.Linear(256, 1)
+    # torch.nn.Tanh()
+)
 
-model = torch.nn.Sequential(
+model2 = torch.nn.Sequential(
     torch.nn.Linear(1, 100),
     torch.nn.Tanh(),
     torch.nn.Linear(100, 100),
@@ -49,7 +60,21 @@ model = torch.nn.Sequential(
     torch.nn.Linear(100, 1)
     )
 
-optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
+
+model3 = torch.nn.Sequential(
+    torch.nn.Linear(1, 100),
+    torch.nn.Tanh(),
+    torch.nn.Linear(100, 100),
+    torch.nn.Tanh(),
+    torch.nn.Linear(100, 100),
+    torch.nn.Tanh(),
+    torch.nn.Linear(100, 1)
+    )
+
+params = list(model1.parameters()) +  list(model2.parameters())+ list(model3.parameters()) 
+
+
+optimizer = torch.optim.Adam(params, lr=0.0001)
 
 # l1_lambda = 0.001
 # l1_norm =sum(p.abs().sum() for p in model.parameters())
@@ -81,14 +106,14 @@ while loss_mean>1e-5 and t<1e5:
 
         # in case you wanted a semi-full example
         # outputs = model.forward(batch_x)
-        loss = torch.mean(torch.abs(batch_y-model(batch_x)))
+        loss = torch.mean(torch.abs(batch_y-model1(batch_x)-model2(batch_x)/model3(batch_x)))
 
         loss.backward()
         optimizer.step()
         loss_list.append(loss.item())
     loss_mean=np.mean(loss_list)
     if loss_mean<min_loss:
-        best_model=model
+        best_model=model1
         min_loss=loss_mean
     print('Surface trainig t={}, loss={}'.format(t,loss_mean))
     t+=1
