@@ -20,7 +20,7 @@ def save_model(model,state,optimizer_state,cache_dir='../cache/',name=None):
                 'optimizer_state_dict': optimizer_state}, cache_dir+name+'.tar')
     return
 
-def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='../cache/',nmodels=None,verbose=False): 
+def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='../cache/',nmodels=None,verbose=False,norm=None): 
     # looking for all *.tar files in directory cache_dir
     files=glob.glob(cache_dir+'*.tar')
     # if files not found
@@ -49,7 +49,7 @@ def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='
         if model[0].in_features!=prepared_grid.shape[-1]:
             model[0]=torch.nn.Linear(prepared_grid.shape[-1],model[0].out_features)
         model.eval()
-        l=point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)      
+        l=point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound,norm=norm)      
         if l<min_loss:
             min_loss=l
             best_checkpoint['model']=model

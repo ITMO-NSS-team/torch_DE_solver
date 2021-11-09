@@ -212,7 +212,7 @@ def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10,nor
     
     return loss
 
-def point_sort_shift_loss_batch(model, prepared_grid, point_type, operator, bconds,subset=['central'], lambda_bound=10,batch_size=32,h=0.001):
+def point_sort_shift_loss_batch(model, prepared_grid, point_type, operator, bconds,subset=['central'], lambda_bound=10,batch_size=32,h=0.001,norm=None):
     permutation = torch.randperm(prepared_grid.size()[0])
     loss=0
     batch_num=0
@@ -232,12 +232,12 @@ def point_sort_shift_loss_batch(model, prepared_grid, point_type, operator, bcon
         
         batch_dict=grid_sort(batch_type)
         batch_bconds=batch_bconds_transform(batch_grid,bconds)
-        batch_bconds = bnd_prepare(batch_bconds, batch_grid, h=h)
+        batch_bconds = bnd_prepare(batch_bconds, batch_grid,batch_dict, h=h)
 
         batch_operator = operator_prepare(operator, batch_dict, subset=subset, true_grid=prepared_grid[indices], h=h)
         
         
-        loss+= point_sort_shift_loss(model, batch_grid, batch_operator, batch_bconds, lambda_bound=lambda_bound)
+        loss+= point_sort_shift_loss(model, batch_grid, batch_operator, batch_bconds, lambda_bound=lambda_bound,norm=norm)
         batch_num+=1
     loss=1/batch_num*loss
     return loss
