@@ -96,8 +96,41 @@ def apply_operator_set(model, operator_set):
 
 flatten_list = lambda t: [item for sublist in t for item in sublist]
 
+def lp_norm(*arg,p=2,normalized=False,weighted=False):
+    if weighted==True and len(arg)==1:
+        print('No grid is passed, using non-weighted norm')
+        weighted=False
+    if len(arg)==2:
+        grid=arg[0]
+        mat=arg[1]
+    elif len(arg)==1:
+        mat=arg[0]
+        grid=None
+    else:
+        print('Something went wrong, passed more than two arguments')
+        return
+    grid_prod=1
+    if weighted:
+        for i in range(grid.shape[-1]):
+            grid_prod*=grid[:,i]
+    if p>1: 
+        if not weighted and not normalized:
+             norm=torch.mean((mat) ** p)
+        elif not weighted and normalized:
+            norm=torch.pow(torch.mean((mat) ** p),1/p)
+        elif weighted and not normalized:
+            norm=torch.mean(grid_prod*(mat) ** p)
+        elif weighted and normalized:
+            norm=torch.pow(torch.mean(grid_prod*(mat) ** p),1/p)
+    elif p==1:
+        if not weighted:
+             norm=torch.mean(torch.abs(mat))
+        elif weighted:
+            norm=torch.mean(grid_prod*torch.abs(mat))  
+    return norm
 
-def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10):
+
+def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10,norm=None):
 
     op = apply_operator_set(model, operator_set)
     
@@ -132,6 +165,7 @@ def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10):
     else:
         for bcond in bconds:
             b_pos = bcond[0]
+            b_pos_list.append(bcond[0])
             b_cond_operator = bcond[1]
             true_boundary_val = bcond[2].reshape(-1, 1)
             true_b_val_list.append(true_boundary_val)
@@ -155,7 +189,26 @@ def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10):
     # l1_norm =sum(p.abs().sum() for p in model.parameters())
     # loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)+ l1_lambda * l1_norm
     
-    loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)
+    
+    # loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)
+    
+    if norm==None:
+        op_weigthed=False
+        op_normalized=False
+        op_p=2
+        b_weigthed=False
+        b_normalized=False
+        b_p=2
+    else:
+        op_weigthed=norm['operator_weighted']
+        op_normalized=norm['operator_normalized']
+        op_p=norm['operator_p']
+        b_weigthed=norm['boundary_weighted']
+        b_normalized=norm['boundary_weighted']
+        b_p=norm['boundary_p']
+    
+    loss = lp_norm(grid[:len(op)],op,weighted=op_weigthed,normalized=op_normalized,p=op_p) + \
+    lambda_bound * lp_norm(grid[flatten_list(b_pos_list)],b_val - true_b_val,p=b_p,weighted=b_weigthed,normalized=b_normalized)
     
     return loss
 

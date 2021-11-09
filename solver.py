@@ -40,7 +40,8 @@ def solution_print(prepared_grid,model,title=None):
 
 def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
                             verbose=False, learning_rate=1e-4, eps=0.1, tmin=1000, tmax=1e5, h=0.001,
-                            use_cache=True,cache_dir='../cache/',cache_verbose=False,batch_size=None,save_always=False):
+                            use_cache=True,cache_dir='../cache/',cache_verbose=False,
+                            batch_size=None,save_always=False,lp_par=None):
     # prepare input data to uniform format 
     
     prepared_grid,grid_dict,point_type = grid_prepare(grid)
@@ -98,7 +99,7 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
     while stop_dings<=5:
         optimizer.zero_grad()
         if batch_size==None:
-            loss = point_sort_shift_loss(model, prepared_grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound)
+            loss = point_sort_shift_loss(model, prepared_grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound,norm=lp_par)
         else:
             loss=point_sort_shift_loss_batch(model, prepared_grid, point_type, operator, bconds,subset=grid_point_subset, lambda_bound=lambda_bound,batch_size=batch_size,h=h)
         last_loss[t%100]=loss.item()
