@@ -11,8 +11,11 @@ import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 import sys
+# import torch_rbf as rbf
+# sys.path.append('../')
+sys.path.pop()
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-sys.path.append('../')
 
 from solver import *
 from cache import *
@@ -25,10 +28,13 @@ Grid is an essentially torch.Tensor  of a n-D points where n is the problem
 dimensionality
 """
 
-device = torch.device('cpu')
+device = torch.device('cuda')
 
-x = torch.from_numpy(np.array([0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]))
-t = torch.from_numpy(np.array([0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]))
+x_grid=np.linspace(0,1,21)
+t_grid=np.linspace(0,1,21)
+
+x = torch.from_numpy(x_grid)
+t = torch.from_numpy(t_grid)
 
 grid = torch.cartesian_prod(x, t).float()
 
@@ -47,29 +53,39 @@ bval=torch.Tensor prescribed values at every point in the boundary
 
 """
 
+A = 2
+C = 10
+
+def func(grid):
+    x, t = grid[:,0],grid[:,1]
+    return torch.sin(np.pi * x) * torch.cos(C * np.pi * t) + torch.sin(A * np.pi * x) * torch.cos(
+        A * C * np.pi * t
+    )
+
+
 # Initial conditions at t=0
 bnd1 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
 
 # u(0,x)=sin(pi*x)
-bndval1 = torch.sin(np.pi * bnd1[:, 0])
+bndval1 = func(bnd1)
 
 # Initial conditions at t=1
 bnd2 = torch.cartesian_prod(x, torch.from_numpy(np.array([1], dtype=np.float64))).float()
 
 # u(1,x)=sin(pi*x)
-bndval2 = torch.sin(np.pi * bnd2[:, 0])
+bndval2 = func(bnd2)
 
 # Boundary conditions at x=0
 bnd3 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t).float()
 
 # u(0,t)=0
-bndval3 = torch.from_numpy(np.zeros(len(bnd3), dtype=np.float64))
+bndval3 = func(bnd3)
 
 # Boundary conditions at x=1
 bnd4 = torch.cartesian_prod(torch.from_numpy(np.array([1], dtype=np.float64)), t).float()
 
 # u(1,t)=0
-bndval4 = torch.from_numpy(np.zeros(len(bnd4), dtype=np.float64))
+bndval4 = func(bnd4)
 
 # Putting all bconds together
 bconds = [[bnd1, bndval1], [bnd2, bndval2], [bnd3, bndval3], [bnd4, bndval4]]
@@ -103,17 +119,17 @@ None is for function without derivatives
 """
 # operator is 4*d2u/dx2-1*d2u/dt2=0
 wave_eq = {
-    '4*d2u/dx2**1':
+    'd2u/dt2**1':
         {
-            'coeff': 4,
-            'd2u/dx2': [0, 0],
-            'pow': 1
-        },
-    '-d2u/dt2**1':
-        {
-            'coeff': -1,
+            'coeff': 1,
             'd2u/dt2': [1,1],
             'pow':1
+        },
+        '-C*d2u/dx2**1':
+        {
+            'coeff': -C,
+            'd2u/dx2': [0, 0],
+            'pow': 1
         }
 }
 
@@ -125,24 +141,18 @@ for _ in range(1):
         torch.nn.Tanh(),
         torch.nn.Linear(100, 100),
         torch.nn.Tanh(),
+        torch.nn.Linear(100, 100),
+        torch.nn.Tanh(),
         torch.nn.Linear(100, 1)
     )
 
     
-    
     start = time.time()
     
-    lp_par={'operator_p':2,
-            'operator_weighted':True,
-            'operator_normalized':True,
-            'boundary_p':1,
-            'boundary_weighted':True,
-            'boundary_normalized':True}
-    
     model = point_sort_shift_solver(grid, model, wave_eq , bconds, 
-                                              lambda_bound=100, verbose=True, learning_rate=1e-4,
-                                    eps=1e-5, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True,
-                                    batch_size=None, save_always=False,lp_par=lp_par)
+                                              lambda_bound=1000, verbose=1, learning_rate=1e-4,
+                                    eps=1e-5, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
+                                    batch_size=32, save_always=True)
 
     end = time.time()
     print('Time taken 10= ', end - start)

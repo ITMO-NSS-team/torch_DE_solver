@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Jun 28 22:25:22 2021
+Created on Thu Oct 14 15:20:47 2021
 
-@author: Sashka
+@author: user
 """
 import numpy as np
 import torch
@@ -41,6 +41,8 @@ def in_hull(p, hull):
         upbound = torch.max(hull)
         lowbound = torch.min(hull)
         return np.array(((p <= upbound) & (p >= lowbound)).reshape(-1))
+
+
 
 
 def point_typization(grid):
@@ -87,11 +89,9 @@ def point_typization(grid):
                 else:
                     p_type += 'b'
                 j += 2
-            if grid.shape[-1]==1:
-                point_type[point] = 'central'
-            else:
-                point_type[point] = p_type
+            point_type[point] = p_type
     return point_type
+
 
 
 def grid_sort(point_type):
@@ -126,3 +126,35 @@ def grid_sort(point_type):
     for p_type in point_types:
         grid_dict[p_type] = torch.stack(grid_dict[p_type])
     return grid_dict
+
+device = torch.device('cuda')
+
+x_grid=np.linspace(0,1,21)
+t_grid=np.linspace(0,1,21)
+
+x = torch.from_numpy(x_grid)
+t = torch.from_numpy(t_grid)
+
+grid = torch.cartesian_prod(x, t).float()
+
+grid.to(device)
+
+point_type=point_typization(grid)
+
+permutation = torch.randperm(grid.size()[0])
+indices = permutation[0:32]
+
+
+
+grid_dict = grid_sort(point_type)
+
+sorted_grid = torch.cat(list(grid_dict.values()))
+
+batch_grid=sorted_grid[indices]
+
+
+batch_types=np.array(list(point_type.values()))[indices.tolist()]
+
+batch_type=dict(zip(batch_grid, batch_types))
+
+batch_dict=grid_sort(batch_type)

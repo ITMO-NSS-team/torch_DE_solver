@@ -41,8 +41,9 @@ def grid_prepare(grid):
     grid_dict = grid_sort(point_type)
 
     sorted_grid = torch.cat(list(grid_dict.values()))
-
-    return sorted_grid
+    
+    
+    return sorted_grid,grid_dict,point_type
 
 
 def operator_unify(operator):
@@ -73,7 +74,7 @@ def operator_unify(operator):
     return unified_operator
 
 
-def operator_to_type_op(unified_operator, nvars, axes_scheme_type, h=1 / 2, boundary_order=1):
+def operator_to_type_op(unified_operator, nvars, axes_scheme_type, h=1 / 2,inner_order=1, boundary_order=1):
     """
     Function serves applying different schemes to a different point types for
     entire operator
@@ -111,8 +112,12 @@ def operator_to_type_op(unified_operator, nvars, axes_scheme_type, h=1 / 2, boun
             # None is for case where we need the fuction without derivatives
             if term != [None]:
                 if axes_scheme_type == 'central':
-                    scheme, direction_list = scheme_build(term, nvars, 'central')
-                    s_order = sign_order(len(term), 'central', h=h)
+                    if inner_order==1:
+                        scheme, direction_list = scheme_build(term, nvars, 'central')
+                        s_order = sign_order(len(term), 'central', h=h)
+                    elif inner_order==2:
+                        scheme, direction_list = second_order_scheme_build(term, nvars, 'central')
+                        s_order = second_order_sign_order(len(term), 'central', h=h)
                 else:
                     if boundary_order == 1:
                         scheme, direction_list = scheme_build(term, nvars, axes_scheme_type)
@@ -220,7 +225,7 @@ def type_op_to_grid_shift_op(fin_diff_op, grid, h=0.001, true_grid=None):
     return shift_grid_op
 
 
-def apply_all_operators(operator, grid, h=0.001, subset=None, true_grid=None):
+def apply_all_operators(operator, grid_dict, h=0.001, subset=None, true_grid=None):
     """
     
 
@@ -245,9 +250,10 @@ def apply_all_operators(operator, grid, h=0.001, subset=None, true_grid=None):
 
     """
     operator_list = []
-    nvars = grid.shape[1]
-    point_type = point_typization(grid)
-    grid_dict = grid_sort(point_type)
+    # nvars = grid.shape[1]
+    # point_type = point_typization(grid)
+    # grid_dict = grid_sort(point_type)
+    nvars =list(grid_dict.values())[0].shape[-1]
     a = operator_unify(operator)
     for operator_type in list(grid_dict.keys()):
         if subset == None or operator_type in subset:
@@ -257,7 +263,7 @@ def apply_all_operators(operator, grid, h=0.001, subset=None, true_grid=None):
     return operator_list
 
 
-def operator_prepare(op, grid, subset=['central'], true_grid=None, h=0.001):
+def operator_prepare(op, grid_dict, subset=['central'], true_grid=None, h=0.001):
     """
     Changes the operator in conventional form to the input one
     
@@ -283,11 +289,23 @@ def operator_prepare(op, grid, subset=['central'], true_grid=None, h=0.001):
     if type(op)==dict:
         op=op_dict_to_list(op)
     op1 = operator_unify(op)
-    prepared_operator = apply_all_operators(op1, grid, subset=subset, true_grid=true_grid, h=h)
+    prepared_operator = apply_all_operators(op1, grid_dict, subset=subset, true_grid=true_grid, h=h)
     return prepared_operator
 
 def op_dict_to_list(opdict):
     return list([list(term.values()) for term in opdict.values()])
+
+def closest_point(grid,target_point):
+    min_dist=np.inf
+    pos=0
+    min_pos=0
+    for point in grid:
+        dist=torch.linalg.norm(point-target_point)
+        if dist<min_dist:
+            min_dist=dist
+            min_pos=pos
+        pos+=1
+    return min_pos
 
 
 def bndpos(grid, bnd):
@@ -315,7 +333,10 @@ def bndpos(grid, bnd):
     else:
         bnd = bnd.double()
     for point in bnd:
-        pos = int(torch.where(torch.all(torch.isclose(grid, point), dim=1))[0])
+        try:
+            pos = int(torch.where(torch.all(torch.isclose(grid, point), dim=1))[0])
+        except Exception:
+            pos=closest_point(grid,point)
         bndposlist.append(pos)
     return bndposlist
 
@@ -348,7 +369,7 @@ def bnd_unify(bconds):
     return unified_bconds
 
 
-def bnd_prepare(bconds, grid, h=0.001):
+def bnd_prepare(bconds,grid,grid_dict, h=0.001):
     """
     
 
@@ -383,7 +404,7 @@ def bnd_prepare(bconds, grid, h=0.001):
             if type(bop)==dict:
                 bop=op_dict_to_list(bop)
             bop1 = operator_unify(bop)
-            bop2 = apply_all_operators(bop1, grid, h=h)
+            bop2 = apply_all_operators(bop1, grid_dict, h=h)
         else:
             bop2 = None
         prepared_bnd.append([bpos, bop2, bval])
