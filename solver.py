@@ -53,7 +53,7 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
     #  use cache if needed
     if use_cache:
         cache_checkpoint,min_loss=cache_lookup(prepared_grid, full_prepared_operator, prepared_bconds,cache_dir=cache_dir
-                                               ,nmodels=None,verbose=cache_verbose,lambda_bound=0.001)
+                                               ,nmodels=None,verbose=cache_verbose,lambda_bound=0.001,norm=lp_par)
         model, optimizer_state= cache_retrain(model,cache_checkpoint,grid,verbose=cache_verbose)
     
         
@@ -101,7 +101,7 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
         if batch_size==None:
             loss = point_sort_shift_loss(model, prepared_grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound,norm=lp_par)
         else:
-            loss=point_sort_shift_loss_batch(model, prepared_grid, point_type, operator, bconds,subset=grid_point_subset, lambda_bound=lambda_bound,batch_size=batch_size,h=h)
+            loss=point_sort_shift_loss_batch(model, prepared_grid, point_type, operator, bconds,subset=grid_point_subset, lambda_bound=lambda_bound,batch_size=batch_size,h=h,norm=lp_par)
         last_loss[t%100]=loss.item()
         
         if t%100==0:
