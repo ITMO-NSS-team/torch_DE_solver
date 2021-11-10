@@ -37,9 +37,9 @@ def chebgrid(a,b,n):
     grid=np.flip(grid)
     return grid
 
-t = torch.from_numpy(chebgrid(1/4, 7/4,500).copy())
+# t = torch.from_numpy(chebgrid(1/4, 7/4,500).copy())
 
-# t = torch.from_numpy(np.linspace(1/4, 7/4, 100))
+t = torch.from_numpy(np.linspace(1/4, 7/4, 100))
 
 
 
@@ -158,33 +158,40 @@ p_4= {
 
 
 
-for lr in [1e-4]:
-    # model = torch.nn.Sequential(
-    #     torch.nn.Linear(1, 100),
-    #     torch.nn.LayerNorm(100,100),
-    #     torch.nn.Mish(),
-    #     torch.nn.Linear(100, 100),
-    #     torch.nn.Mish(),
-    #     torch.nn.Linear(100, 100),
-    #     torch.nn.Mish(),
-    #     torch.nn.Linear(100, 1)
-    # )
-    
-    model = torch.nn.Sequential(
-    torch.nn.Linear(1, 100),
-    torch.nn.Tanh(),
-    torch.nn.Linear(100, 100),
-    torch.nn.Tanh(),
-    torch.nn.Linear(100, 100),
-    torch.nn.Tanh(),
-    torch.nn.Linear(100, 1)
-    )
 
-    start = time.time()
+# model = torch.nn.Sequential(
+#     torch.nn.Linear(1, 100),
+#     torch.nn.LayerNorm(100,100),
+#     torch.nn.Mish(),
+#     torch.nn.Linear(100, 100),
+#     torch.nn.Mish(),
+#     torch.nn.Linear(100, 100),
+#     torch.nn.Mish(),
+#     torch.nn.Linear(100, 1)
+# )
 
-    model = point_sort_shift_solver(grid, model, p_4, bconds, lambda_bound=100, verbose=2,h=0.01, learning_rate=lr,
-                                    eps=1e-7, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True
-                                    ,batch_size=None, save_always=False)
-    end = time.time()
+model = torch.nn.Sequential(
+torch.nn.Linear(1, 100),
+torch.nn.Tanh(),
+torch.nn.Linear(100, 100),
+torch.nn.Tanh(),
+torch.nn.Linear(100, 100),
+torch.nn.Tanh(),
+torch.nn.Linear(100, 1)
+)
 
-    print('Time taken P_IV= ', end - start)
+lp_par={'operator_p':2,
+    'operator_weighted':True,
+    'operator_normalized':True,
+    'boundary_p':2,
+    'boundary_weighted':True,
+    'boundary_normalized':True}
+
+start = time.time()
+
+model = point_sort_shift_solver(grid, model, p_4, bconds, lambda_bound=100, verbose=2,h=0.01, learning_rate=1e-4,
+                                eps=1e-7, tmin=1000, tmax=5e5,use_cache=True,cache_dir='../cache/',cache_verbose=True
+                                ,batch_size=None, save_always=True,lp_par=lp_par)
+end = time.time()
+
+print('Time taken P_IV= ', end - start)

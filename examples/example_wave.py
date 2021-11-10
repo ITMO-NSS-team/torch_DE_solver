@@ -142,7 +142,7 @@ for _ in range(1):
     model = point_sort_shift_solver(grid, model, wave_eq , bconds, 
                                               lambda_bound=100, verbose=True, learning_rate=1e-4,
                                     eps=1e-5, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True,
-                                    batch_size=None, save_always=False,lp_par=lp_par)
+                                    batch_size=None, save_always=True,lp_par=lp_par)
 
     end = time.time()
     print('Time taken 10= ', end - start)
