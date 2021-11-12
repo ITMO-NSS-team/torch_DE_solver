@@ -39,7 +39,7 @@ def chebgrid(a,b,n):
 
 # t = torch.from_numpy(chebgrid(1/4, 7/4,500).copy())
 
-t = torch.from_numpy(np.linspace(1/4, 7/4, 100))
+t = torch.from_numpy(np.linspace(0.9, 1.2, 100))
 
 
 
@@ -49,31 +49,22 @@ grid.to(device)
 
 
 # point t=0
-bnd1 = torch.from_numpy(np.array([[1]], dtype=np.float64))
+bnd1 = torch.from_numpy(np.array([[0.9]], dtype=np.float64))
 
 bop1 = None
 
 #  So u(0)=-1/2
-bndval1 = torch.from_numpy(np.array([[1]], dtype=np.float64))
+bndval1 = torch.from_numpy(np.array([[2.979325765542575]], dtype=np.float64))
 
-# point t=1
-bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64))
+# point t=0
+bnd2 = torch.from_numpy(np.array([[1.2]], dtype=np.float64))
 
-# d/dt
-bop2 ={
-        '1*du/dt**1':
-            {
-                'coeff': 1,
-                'du/dt': [0],
-                'pow': 1
-                }
-            
-    }
-    
-    
+bop2 = None
 
-# So, du/dt |_{x=1}=3
-bndval2 = torch.from_numpy(np.array([[0]], dtype=np.float64))
+#  So u(0)=-1/2
+bndval2 = torch.from_numpy(np.array([[4.117945909429169]], dtype=np.float64))
+
+
 
 
 # # point t=0
@@ -105,55 +96,98 @@ b=1
 g=1
 d=1
 
+
+
+# t^2
+def p5_c1(grid):
+    return grid**2
+
+# 2*(a+3b+t(g-td))
+def p5_c2(grid):
+    return 2*(a+3*b+grid*(g-d*grid))
+
+# 2*(3a+3+t(g-td))
+def p5_c3(grid):
+    return -2*(3*a+b+grid*(g+d*grid))
+
 # t
-def p4_c1(grid):
+def p5_c4(grid):
     return grid
 
-
-# t^2-a
-def p4_c2(grid):
-    return grid**2-a
-
-
-# P_IV operator is  u*d2u/dt2-1/2 (du/dt)^2-b-2*(t^2-a)*u^2-4t*u^3-3/2*u^4
-p_4= {
-    'u*d2u/dt2**1':
+# P_V operator is  u*d2u/dt2-1/2 (du/dt)^2-b-2*(t^2-a)*u^2-4t*u^3-3/2*u^4
+p_5= {
+    '-2*t^2*u*d2u/dt2**1':
         {
-            'coeff': 1,
+            'coeff': -2*p5_c1(grid),
             'du/dt': [[None],[0, 0]],
             'pow': [1,1]
         },
-    '-1/2 (du/dt)^2':
+    '2*t^2*u**2*d2u/dt2**1':
         {
-            'coeff': -1/2,
-            'u':  [0],
-            'pow': 2
+            'coeff': 2*p5_c1(grid),
+            'du/dt': [[None],[0, 0]],
+            'pow': [2,1]
         },
-    '-b':
+    '2*b':
         {
-            'coeff': -b,
+            'coeff': 2*b,
             'u':  [None],
             'pow': 0
         },
-    '-2*(t^2-a)*u^2':
+    '-6*b*u':
         {
-            'coeff': -2*p4_c2(grid),
+            'coeff': -6*b,
+            'u':  [None],
+            'pow': 1
+        },
+    '2*(a+3b+t(g-td))*u**2':
+        {
+            'coeff': p5_c2(grid),
             'u':  [None],
             'pow': 2
         },
-    '-4t*u^3':
+    '-2*(3a+b+t(g+td))*u**3':
         {
-            'coeff': -4*p4_c1(grid),
+            'coeff': p5_c3(grid),
             'u':  [None],
             'pow': 3
         },
-    '-3/2*u^4':
+    '6*a*u**4':
         {
-            'coeff': -3/2,
+            'coeff': 6*a,
             'u':  [None],
             'pow': 4
+        },
+    '-2*a*u**5':
+        {
+            'coeff': -2*a,
+            'u':  [None],
+            'pow': 5
+        },
+    '-2*t*u*du/dt':
+        {
+            'coeff': -2*p5_c4(grid),
+            'du/dt': [[None],[0]],
+            'pow': [1,1]
+        }, 
+    '2*t*u**2*du/dt':
+        {
+            'coeff': 2*p5_c4(grid),
+            'du/dt': [[None],[0]],
+            'pow': [2,1]
+        }, 
+    't**2*du/dt**2':
+        {
+            'coeff': p5_c1(grid),
+            'du/dt': [0],
+            'pow': 2
+        }, 
+    '-3*t**2*u*du/dt**2':
+        {
+            'coeff': -3*p5_c1(grid),
+            'du/dt': [[None],[0]],
+            'pow': [1,2]
         }
-        
 }
 
 
@@ -180,6 +214,14 @@ torch.nn.Tanh(),
 torch.nn.Linear(100, 1)
 )
 
+# lp_par={'operator_p':2,
+#     'operator_weighted':False,
+#     'operator_normalized':False,
+#     'boundary_p':2,
+#     'boundary_weighted':False,
+#     'boundary_normalized':False}
+
+
 lp_par={'operator_p':2,
     'operator_weighted':True,
     'operator_normalized':True,
@@ -189,9 +231,9 @@ lp_par={'operator_p':2,
 
 start = time.time()
 
-model = point_sort_shift_solver(grid, model, p_4, bconds, lambda_bound=100, verbose=2,h=abs((t[1]-t[0]).item()), learning_rate=1e-4,
+model = point_sort_shift_solver(grid, model, p_5, bconds, lambda_bound=1000, verbose=2,h=abs((t[1]-t[0]).item()), learning_rate=1e-5,
                                 eps=1e-7, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True
                                 ,batch_size=None, save_always=True,lp_par=lp_par)
 end = time.time()
 
-print('Time taken P_IV= ', end - start)
+print('Time taken P_V= ', end - start)
