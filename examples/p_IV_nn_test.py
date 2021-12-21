@@ -203,7 +203,14 @@ for _ in range(10):
 exp_list_new=[]
 
 for exp in exp_list:
-    exp_list_new.append({'type':exp['type'],'l2_norm':exp['l2_norm'].item()})
+    exp_list_new.append({'type':exp['type'],'l2_norm':exp['l2_norm']})
+
+import pandas as pd
+    
+df=pd.DataFrame(exp_list_new)
+
+df.boxplot(by='type',column='l2_norm',showfliers=False)
+
 # fig = plt.figure()
 # plt.scatter(grid.reshape(-1), best_model(grid).detach().numpy().reshape(-1))
 # # analytical sln is 1/2*(-1 + 3*t**2)
