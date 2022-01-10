@@ -127,11 +127,13 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-#cache
-/cache/*.tar
+
 
 # pycharm
 .idea/
 # vscode
 .vscode/
 .vs/
+
+# Temporary cache
+*.tar
