@@ -1,7 +1,7 @@
 import torch
 import numpy as np
-from input_preprocessing import grid_prepare, bnd_prepare, operator_prepare,batch_bconds_transform
-from points_type import grid_sort
+from TEDEouS.input_preprocessing import grid_prepare, bnd_prepare, operator_prepare,batch_bconds_transform
+from TEDEouS.points_type import grid_sort
 
 def take_derivative_shift_op(model, term):
     """

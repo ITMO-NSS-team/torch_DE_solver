@@ -16,8 +16,8 @@ import sys
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from solver import *
-from cache import *
+from TEDEouS.solver import *
+from TEDEouS.cache import *
 import time
 
 device = torch.device('cpu')

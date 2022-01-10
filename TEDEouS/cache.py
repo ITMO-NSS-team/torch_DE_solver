@@ -10,18 +10,13 @@ import torch
 import os 
 import glob
 import numpy as np
-from metrics import point_sort_shift_loss,autograd_loss
+from TEDEouS.metrics import point_sort_shift_loss
 
 
 def save_model(model,state,optimizer_state,cache_dir='../cache/',name=None):
     if name==None:
         name=str(datetime.datetime.now().timestamp())
-    if os.path.isdir(cache_dir):
-        torch.save({'model':model, 'model_state_dict': state,
-                'optimizer_state_dict': optimizer_state}, cache_dir+name+'.tar')
-    else:
-        os.mkdir(cache_dir)
-        torch.save({'model':model, 'model_state_dict': state,
+    torch.save({'model':model, 'model_state_dict': state,
                 'optimizer_state_dict': optimizer_state}, cache_dir+name+'.tar')
     return
 
@@ -41,20 +36,9 @@ def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='
     else:
         # here we take random nmodels from the cache
         cache_n=np.random.choice(len(files), nmodels, replace=False)
-    cache_same_architecture=[]
     min_loss=np.inf
     best_model=0
     best_checkpoint={}
-    var = []
-    n_vars = []
-    for op in operator:
-        for term in op:
-            var.append(term[4])
-    for elt in var:
-        nrm = np.sqrt((np.array([-1]) - elt) ** 2)
-        for elem in nrm:
-            n_vars.append(elem)
-    n_vars = int(max(n_vars))
     for i in cache_n:
         file=files[i]
         checkpoint = torch.load(file)
@@ -62,15 +46,9 @@ def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='
         model.load_state_dict(checkpoint['model_state_dict'])
         # this one for the input shape fix if needed
         # it is taken from the grid shape
-        if model[0].in_features != prepared_grid.shape[-1]:
-            continue
-        try:
-            if model[-1].out_features != n_vars:
-                continue
-        except Exception:
-            continue
-        # model[0] = torch.nn.Linear(prepared_grid.shape[-1], model[0].out_features)
-        # model.eval()
+        if model[0].in_features!=prepared_grid.shape[-1]:
+            model[0]=torch.nn.Linear(prepared_grid.shape[-1],model[0].out_features)
+        model.eval()
         l=point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound,norm=norm)      
         if l<min_loss:
             min_loss=l
@@ -79,57 +57,8 @@ def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='
             best_checkpoint['optimizer_state_dict']=checkpoint['optimizer_state_dict']
             if verbose:
                 print('best_model_num={} , loss={}'.format(i,l))
-    if best_checkpoint=={}:
-        best_checkpoint=None
-        min_loss=np.inf
     return best_checkpoint,min_loss
         
-
-def cache_lookup_autograd(grid, operator, bconds, lambda_bound=0.001,cache_dir='../cache/',nmodels=None,verbose=False): 
-    # looking for all *.tar files in directory cache_dir
-    files=glob.glob(cache_dir+'*.tar')
-    # if files not found
-    if len(files)==0:
-        best_checkpoint=None
-        min_loss=np.inf
-        return best_checkpoint, min_loss
-    # at some point we may want to reduce the number of models that are
-    # checked for the best in the cache
-    if nmodels==None:
-        # here we take all files that are in cache
-        cache_n=np.arange(len(files))
-    else:
-        # here we take random nmodels from the cache
-        cache_n=np.random.choice(len(files), nmodels, replace=False)
-    cache_same_architecture=[]
-    min_loss=np.inf
-    best_model=0
-    best_checkpoint={}
-    for i in cache_n:
-        file=files[i]
-        checkpoint = torch.load(file)
-        model=checkpoint['model']
-        model.load_state_dict(checkpoint['model_state_dict'])
-        # this one for the input shape fix if needed
-        # it is taken from the grid shape
-        if model[0].in_features!=grid.shape[-1]:
-            continue
-        #     model[0]=torch.nn.Linear(prepared_grid.shape[-1],model[0].out_features)
-        # model.eval()
-        l=autograd_loss(model, grid, operator, bconds, lambda_bound=lambda_bound)     
-        if l<min_loss:
-            min_loss=l
-            best_checkpoint['model']=model
-            best_checkpoint['model_state_dict']=model.state_dict()
-            best_checkpoint['optimizer_state_dict']=checkpoint['optimizer_state_dict']
-            if verbose:
-                print('best_model_num={} , loss={}'.format(i,l))
-    if best_checkpoint=={}:
-        best_checkpoint=None
-        min_loss=np.inf
-    return best_checkpoint,min_loss
-        
-
 
 def cache_retrain(model,cache_checkpoint,grid,verbose=False):
     # do nothing if cache is empty

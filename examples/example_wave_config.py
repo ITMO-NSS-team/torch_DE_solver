@@ -12,13 +12,10 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 import sys
 
-sys.path.pop()
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 sys.path.append('../')
 
-from solver import *
-# from cache import *
-from config import Config
+from TEDEouS.solver import *
+from TEDEouS.cache import *
 import time
 
 """
@@ -33,11 +30,9 @@ device = torch.device('cpu')
 x = torch.from_numpy(np.array([0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]))
 t = torch.from_numpy(np.array([0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]))
 
-coord_list=[x,t]
+grid = torch.cartesian_prod(x, t).float()
 
-# grid = torch.cartesian_prod(*coord_list).float()
-
-# grid.to(device)
+grid.to(device)
 
 """
 Preparing boundary conditions (BC)
@@ -122,9 +117,8 @@ wave_eq = {
         }
 }
 
-#default config used
-config=Config()
-    
+
+
 for _ in range(1):
     model = torch.nn.Sequential(
         torch.nn.Linear(2, 100),
@@ -139,16 +133,16 @@ for _ in range(1):
     start = time.time()
     
     lp_par={'operator_p':2,
-            'operator_weighted':False,
-            'operator_normalized':False,
-            'boundary_p':2,
-            'boundary_weighted':False,
-            'boundary_normalized':False}
+            'operator_weighted':True,
+            'operator_normalized':True,
+            'boundary_p':1,
+            'boundary_weighted':True,
+            'boundary_normalized':True}
     
-    # model = point_sort_shift_solver(grid, model, wave_eq , bconds, 
-    #                                           lambda_bound=100, verbose=True, learning_rate=1e-4,
-    #                                 eps=1e-5, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
-    #                                 batch_size=None, save_always=True,lp_par=lp_par)
-    model=optimization_solver(coord_list, model, wave_eq,bconds,config,mode='NN')
+    model = point_sort_shift_solver(grid, model, wave_eq , bconds, 
+                                              lambda_bound=100, verbose=True, learning_rate=1e-4,
+                                    eps=1e-5, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True,
+                                    batch_size=None, save_always=False,lp_par=lp_par)
+
     end = time.time()
     print('Time taken 10= ', end - start)

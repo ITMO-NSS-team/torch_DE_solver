@@ -6,26 +6,27 @@ Created on Mon May 31 12:33:44 2021
 """
 import torch
 import numpy as np
+import os
+
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
+import sys
+
+sys.path.append('../')
+
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from mpl_toolkits.mplot3d import Axes3D
-import scipy
-
-import os
-import sys
-
-
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-sys.path.pop()
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
-sys.path.append('../')
-
-
-from solver import *
+from TEDEouS.solver import *
 import time
 
+"""
+Preparing grid
+
+Grid is an essentially torch.Tensor of a n-D points where n is the problem
+dimensionality
+"""
 
 
 
@@ -35,15 +36,7 @@ exp_dict_list=[]
 
 
 for grid_res in [10,20,30]:
-    
-    """
-    Preparing grid
 
-    Grid is an essentially torch.Tensor of a n-D points where n is the problem
-    dimensionality
-    """
-
-    
     x = torch.from_numpy(np.linspace(0, 1, grid_res+1))
     t = torch.from_numpy(np.linspace(0, 1, grid_res+1))
     
@@ -99,26 +92,23 @@ for grid_res in [10,20,30]:
             {
                 'a1': a1,
                 'd2u/dx2': [0, 0],
-                'pow': 1,
-                'var': 0
+                'pow': 1
             },
         'a2*du/dx':
             {
                 'a2': a2,
                 'du/dx': [0],
-                'pow': 1,
-                'var': 0
+                'pow': 1
             },
         'a3*u':
             {
                 'a3': a3,
                 'u': [None],
-                'pow': 1,
-                'var': 0
+                'pow': 1
             }
     }
     
-    # bop1=[[a1,[0,0],1],[a2,[0],1],[a3,[None],1]]
+    bop1=[[a1,[0,0],1],[a2,[0],1],[a3,[None],1]]
     
     # equal to zero
     bndval1 = torch.zeros(len(bnd1))
@@ -136,26 +126,23 @@ for grid_res in [10,20,30]:
             {
                 'a1': b1,
                 'd2u/dx2': [0, 0],
-                'pow': 1,
-                'var': 0 
+                'pow': 1
             },
         'b2*du/dx':
             {
                 'a2': b2,
                 'du/dx': [0],
-                'pow': 1,
-                'var': 0
+                'pow': 1
             },
         'b3*u':
             {
                 'a3': b3,
                 'u': [None],
-                'pow': 1,
-                'var':0
+                'pow': 1
             }
     }
     
-    # bop2=[[b1,[0,0],1],[b2,[0],1],[b3,[None],1]]
+    bop2=[[b1,[0,0],1],[b2,[0],1],[b3,[None],1]]
     # equal to zero
     bndval2 = torch.zeros(len(bnd2))
     
@@ -171,19 +158,17 @@ for grid_res in [10,20,30]:
             {
                 'r1': r1,
                 'du/dx': [0],
-                'pow': 1,
-                'var':0
+                'pow': 1
             },
         'r2*u':
             {
                 'r2': r2,
                 'u': [None],
-                'pow': 1,
-                'var': 0
+                'pow': 1
             }
     }
     
-    # bop3=[[r1,[0],1],[r2,[None],1]]
+    bop3=[[r1,[0],1],[r2,[None],1]]
     
     # equal to zero
     bndval3 = torch.zeros(len(bnd3))
@@ -240,29 +225,25 @@ for grid_res in [10,20,30]:
             {
                 'coeff': 1,
                 'du/dt': [1],
-                'pow': 1,
-                'var': 0
+                'pow': 1
             },
         '6*u**1*du/dx**1':
             {
                 'coeff': 6,
                 'u*du/dx': [[None], [0]],
-                'pow': [1,1],
-                'var':[0,0]
+                'pow': [1,1]
             },
         'd3u/dx3**1':
             {
                 'coeff': 1,
                 'd3u/dx3': [0, 0, 0],
-                'pow': 1,
-                'var':0
+                'pow': 1
             },
         '-sin(x)cos(t)':
             {
                 '-sin(x)cos(t)': c1,
                 'u': [None],
-                'pow': 0,
-                'var':0
+                'pow': 0
             }
     }
     
@@ -272,7 +253,8 @@ for grid_res in [10,20,30]:
     Solving equation
     """
     for _ in range(10):
-        sln=np.genfromtxt(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'wolfram_sln/KdV_sln_'+str(grid_res)+'.csv')),delimiter=',')
+        
+        sln=np.genfromtxt('wolfram_sln/KdV_sln_'+str(grid_res)+'.csv',delimiter=',')
         sln_torch=torch.from_numpy(sln)
         sln_torch1=sln_torch.reshape(-1,1)
         
@@ -288,9 +270,9 @@ for grid_res in [10,20,30]:
         )
     
         start = time.time()
-        model = point_sort_shift_solver(grid, model, kdv, bconds, lambda_bound=100,verbose=1, learning_rate=1e-4,h=0.01,
-                                        eps=1e-5, tmin=1000, tmax=1e5,use_cache=True,cache_verbose=True,
-                                    batch_size=None, save_always=True,print_every=None,model_randomize_parameter=1e-6,optimizer='Adam',no_improvement_patience=None)
+        model = point_sort_shift_solver(grid, model, kdv, bconds, lambda_bound=100,verbose=1, learning_rate=1e-4,
+                                        eps=1e-7, tmin=1000, tmax=1e5, h=0.01,use_cache=True,cache_verbose=True,
+                                    batch_size=None, save_always=True)
         # model = point_sort_shift_solver(grid, model, kdv, bconds, lambda_bound=1000,verbose=True, learning_rate=1e-4,
         #                                 eps=1e-6, tmin=1000, tmax=1e5, h=0.01,use_cache=True,cache_verbose=True,
         #                             batch_size=64, save_always=True)
@@ -299,30 +281,13 @@ for grid_res in [10,20,30]:
     
         error_rmse=torch.sqrt(torch.mean((sln_torch1-model(grid))**2))
         
-
-        prepared_grid,grid_dict,point_type = grid_prepare(grid)
-        prepared_bconds = bnd_prepare(bconds, prepared_grid,grid_dict, h=0.001)
-        prepared_operator = operator_prepare(kdv, grid_dict, true_grid=grid, h=0.001)
-    
+        prepared_grid = grid_prepare(grid)
         
+        prepared_bconds = bnd_prepare(bconds, prepared_grid, h=0.001)
+        prepared_operator = operator_prepare(kdv, prepared_grid, subset=['central'], true_grid=grid, h=0.001)
         end_loss = point_sort_shift_loss(model, prepared_grid, prepared_operator, prepared_bconds, lambda_bound=100)
-    
-        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'kdv_eqn','cache':True})
+        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'kdv_eqn'})
         
         print('Time taken {}= {}'.format(grid_res, end - start))
         print('RMSE {}= {}'.format(grid_res, error_rmse))
         print('loss {}= {}'.format(grid_res, end_loss))
-
-
-CACHE=True
-
-import pandas as pd
-
-result_assessment=pd.DataFrame(exp_dict_list)
-
-result_assessment.boxplot(by='grid_res',column='time',showfliers=False,figsize=(20,10),fontsize=42)
-
-result_assessment.boxplot(by='grid_res',column='RMSE',figsize=(20,10),fontsize=42)
-
-result_assessment.to_csv('benchmarking_data/kdv_experiment_10_30_cache={}.csv'.format(str(CACHE)))
-

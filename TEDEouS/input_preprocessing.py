@@ -6,12 +6,12 @@ Created on Thu Jul 22 21:31:03 2021
 """
 import torch
 
-from points_type import point_typization
-from points_type import grid_sort
-from finite_diffs import scheme_build
-from finite_diffs import sign_order
-from finite_diffs import second_order_scheme_build
-from finite_diffs import second_order_sign_order
+from TEDEouS.points_type import point_typization
+from TEDEouS.points_type import grid_sort
+from TEDEouS.finite_diffs import scheme_build
+from TEDEouS.finite_diffs import sign_order
+from TEDEouS.finite_diffs import second_order_scheme_build
+from TEDEouS.finite_diffs import second_order_sign_order
 import numpy as np
 
 """
