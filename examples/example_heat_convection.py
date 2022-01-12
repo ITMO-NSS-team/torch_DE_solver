@@ -27,11 +27,18 @@ from scipy import interpolate
 
 device = torch.device('cuda')
 
-dat=np.load('diffusion.npy')
+dat=np.load('convection_.npy')
+
+dat=np.transpose(dat)
+
+conv_velocity=np.load('conv_velocity.npy')
+
+conv_velocity=np.transpose(conv_velocity)
+
 
 train_data=torch.from_numpy(dat.reshape(-1,1))
 
-r = torch.from_numpy(np.array([0.007, 0.012, 0.017, 0.022, 0.027]))
+r = torch.from_numpy(np.array([0.012, 0.017, 0.022]))
 
 
 
@@ -96,7 +103,14 @@ r = torch.from_numpy(np.array([0.007, 0.012, 0.017, 0.022, 0.027]))
 
 dat1=dat[:,0:15000:75]
 
-t = torch.from_numpy(np.arange(0,1,1/dat1.shape[1]))
+conv_velocity1=conv_velocity[:,0:15000:75]
+
+t_dat=np.array([0+0.002*i for i in range(15000)])
+
+t =torch.from_numpy(t_dat[0:15000:75])
+
+
+conv_velocity_interp=interpolate.interp2d(r,t,np.transpose(conv_velocity1))
 
 data_grid = torch.cartesian_prod(r, t).float()
 
@@ -110,8 +124,12 @@ interpr0 = interpolate.interp1d(t, dat1[0,:])
 interpr1 = interpolate.interp1d(t, dat1[-1,:])
 
 
-r = torch.from_numpy(np.arange(0.007,0.027,0.02/100))
-t = torch.from_numpy(np.arange(0,1,1/100))
+r = torch.from_numpy(np.arange(0.012, 0.022,0.01/100))
+t = t[0:-1:int(len(t)/100)]
+
+conv_velocity_new=np.transpose(conv_velocity_interp(r,t))
+
+conv_velocity_new_1=conv_velocity_new.reshape(-1)
 
 grid = torch.cartesian_prod(r, t).float()
 
@@ -162,6 +180,9 @@ def c1(grid):
     return 1/grid[:,0]
 
 
+def c2(grid):
+    return 1/grid[:,1]
+
 # P_VI operator is  
 heat= {
     'du/dt':
@@ -170,17 +191,29 @@ heat= {
             'du/dt':  [1],
             'pow': 1
         },
-    'l/r*du/dr':
+    'l/t*du/dr':
         {
-            'coeff': -3.44e-8*c1(grid),
+            'coeff': -6.25e-8*c1(grid),
             'du/dr':  [0],
             'pow': 1
         },
     'l*d2u/dr2':
         {
-            'coeff': -9.21e-8,
+            'coeff': -5.79e-8,
             'du/dr':  [0,0],
             'pow': 1
+        },
+    'v*crl*d2u/dr2':
+        {
+            'coeff': 0.98*conv_velocity_new_1,
+            'du/dr':  [0],
+            'pow': 1
+        },
+    '0.0125':
+        {
+            'coeff': 0.0125,
+            'du/dr':  [None],
+            'pow': 0
         }
 }
 
@@ -230,15 +263,13 @@ model = point_sort_shift_solver(grid, model, heat, bconds, lambda_bound=1000, ve
                                 ,batch_size=None, save_always=True,lp_par=lp_par)
 end = time.time()
 
-
-
 fig = plt.figure(figsize=(20,10))
 ax = fig.add_subplot(111, projection='3d')
 ax.plot_trisurf(data_grid[:, 0].reshape(-1), data_grid[:, 1].reshape(-1),
                 model(data_grid).detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
 ax.set_xlabel("r")
 ax.set_ylabel("t")
-ax.set_title('Diffusion equation solution')
+ax.set_title('Convection equation solution')
 plt.show()
 
 fig = plt.figure(figsize=(20,10))
@@ -247,7 +278,7 @@ ax.plot_trisurf(data_grid[:, 0].reshape(-1), data_grid[:, 1].reshape(-1),
                 dat1.reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
 ax.set_xlabel("r")
 ax.set_ylabel("t")
-ax.set_title('Diffusion data')
+ax.set_title('Convection data')
 plt.show()
 
 

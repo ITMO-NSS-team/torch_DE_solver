@@ -271,7 +271,7 @@ for grid_res in [10,20,30]:
     
         start = time.time()
         model = point_sort_shift_solver(grid, model, kdv, bconds, lambda_bound=100,verbose=1, learning_rate=1e-4,
-                                        eps=1e-7, tmin=1000, tmax=1e5, h=0.01,use_cache=True,cache_verbose=True,
+                                        eps=1e-6, tmin=1000, tmax=1e5, h=0.01,use_cache=True,cache_verbose=True,
                                     batch_size=None, save_always=True)
         # model = point_sort_shift_solver(grid, model, kdv, bconds, lambda_bound=1000,verbose=True, learning_rate=1e-4,
         #                                 eps=1e-6, tmin=1000, tmax=1e5, h=0.01,use_cache=True,cache_verbose=True,
@@ -281,11 +281,14 @@ for grid_res in [10,20,30]:
     
         error_rmse=torch.sqrt(torch.mean((sln_torch1-model(grid))**2))
         
-        prepared_grid = grid_prepare(grid)
+
+        prepared_grid,grid_dict,point_type = grid_prepare(grid)
+        prepared_bconds = bnd_prepare(bconds, prepared_grid,grid_dict, h=0.001)
+        prepared_operator = operator_prepare(kdv, grid_dict, true_grid=grid, h=0.001)
+    
         
-        prepared_bconds = bnd_prepare(bconds, prepared_grid, h=0.001)
-        prepared_operator = operator_prepare(kdv, prepared_grid, subset=['central'], true_grid=grid, h=0.001)
         end_loss = point_sort_shift_loss(model, prepared_grid, prepared_operator, prepared_bconds, lambda_bound=100)
+    
         exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'kdv_eqn'})
         
         print('Time taken {}= {}'.format(grid_res, end - start))
