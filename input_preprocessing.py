@@ -12,8 +12,6 @@ from finite_diffs import scheme_build
 from finite_diffs import sign_order
 from finite_diffs import second_order_scheme_build
 from finite_diffs import second_order_sign_order
-from finite_diffs import third_order_scheme_build
-from finite_diffs import third_order_sign_order
 import numpy as np
 
 """
@@ -76,7 +74,7 @@ def operator_unify(operator):
     return unified_operator
 
 
-def operator_to_type_op(unified_operator, nvars, axes_scheme_type, h=1 / 2,inner_order=3, boundary_order=3):
+def operator_to_type_op(unified_operator, nvars, axes_scheme_type, h=1 / 2,inner_order=1, boundary_order=1):
     """
     Function serves applying different schemes to a different point types for
     entire operator
@@ -120,9 +118,6 @@ def operator_to_type_op(unified_operator, nvars, axes_scheme_type, h=1 / 2,inner
                     elif inner_order==2:
                         scheme, direction_list = second_order_scheme_build(term, nvars, 'central')
                         s_order = second_order_sign_order(len(term), 'central', h=h)
-                    elif inner_order==3:
-                        scheme, direction_list = third_order_scheme_build(term, nvars, 'central')
-                        s_order = third_order_sign_order(len(term), 'central', h=h)
                 else:
                     if boundary_order == 1:
                         scheme, direction_list = scheme_build(term, nvars, axes_scheme_type)
@@ -130,9 +125,6 @@ def operator_to_type_op(unified_operator, nvars, axes_scheme_type, h=1 / 2,inner
                     elif boundary_order == 2:
                         scheme, direction_list = second_order_scheme_build(term, nvars, axes_scheme_type)
                         s_order = second_order_sign_order(len(term), direction_list, h=h)
-                    elif boundary_order == 3:
-                        scheme, direction_list = third_order_scheme_build(term, nvars, axes_scheme_type)
-                        s_order = third_order_sign_order(len(term), direction_list, h=h)
             else:
                 scheme = [None]
                 s_order = [1]
