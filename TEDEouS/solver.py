@@ -9,7 +9,12 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from mpl_toolkits.mplot3d import Axes3D
+<<<<<<< HEAD
+from TEDEouS.input_preprocessing import grid_prepare, bnd_prepare, operator_prepare,batch_bconds_transform
+from TEDEouS.cache import *
+=======
 from TEDEouS.input_preprocessing import grid_prepare, bnd_prepare, operator_prepare
+>>>>>>> 1c578ad4e89106be726290f46924c41522a503e7
 from TEDEouS.metrics import point_sort_shift_loss,point_sort_shift_loss_batch
 import numpy as np
 from TEDEouS.cache import cache_lookup,cache_retrain,save_model
@@ -41,7 +46,11 @@ def solution_print(prepared_grid,model,title=None):
 def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
                             verbose=False, learning_rate=1e-4, eps=0.1, tmin=1000, tmax=1e5, h=0.001,
                             use_cache=True,cache_dir='../cache/',cache_verbose=False,
+<<<<<<< HEAD
+                            batch_size=None,save_always=False,lp_par=None,print_every=100):
+=======
                             batch_size=None,save_always=False,lp_par=None):
+>>>>>>> 1c578ad4e89106be726290f46924c41522a503e7
     # prepare input data to uniform format 
     
     prepared_grid,grid_dict,point_type = grid_prepare(grid)
@@ -106,12 +115,21 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
         
         if t%100==0:
             line=np.polyfit(range(100),last_loss,1)
+<<<<<<< HEAD
+            if abs(line[0]/loss.item()) < eps:
+                stop_dings+=1
+        
+        if (t % print_every == 0) and verbose:
+
+            print(t, loss.item(), line,line[0]/loss.item(), stop_dings)
+=======
             if abs(line[0]) < eps:
                 stop_dings+=1
         
         if (t % 100 == 0) and verbose:
 
             print(t, loss.item(), line,line[0]/line[1])
+>>>>>>> 1c578ad4e89106be726290f46924c41522a503e7
             solution_print(prepared_grid,model,title='Iteration = ' + str(t))
 
         # optimizer.zero_grad()

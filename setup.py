@@ -17,7 +17,7 @@ here = pathlib.Path(__file__).parent.resolve()
 long_description = (here / 'README.md').read_text(encoding='utf-8')
 
 name = 'TEDEouS' # Add name
-version= '0.0.3' # Add version
+version= '0.0.4' # Add version
 description = 'TEDEouS - Torch Exhaustive Differential Equations Solver. Differential equation solver, based on pytorch library'
 author = 'Alexander Hvatov'
 author_email = 'itmo.nss.team@gmail.com' # add email

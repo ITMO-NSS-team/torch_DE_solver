@@ -18,7 +18,11 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from mpl_toolkits.mplot3d import Axes3D
+<<<<<<< HEAD
+from torch_DE_solver.solver import *
+=======
 from TEDEouS.solver import *
+>>>>>>> 1c578ad4e89106be726290f46924c41522a503e7
 import time
 
 device = torch.device('cpu')

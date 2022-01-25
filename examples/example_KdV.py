@@ -18,7 +18,11 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from mpl_toolkits.mplot3d import Axes3D
+<<<<<<< HEAD
+from torch_DE_solver.solver import *
+=======
 from TEDEouS.solver import *
+>>>>>>> 1c578ad4e89106be726290f46924c41522a503e7
 import time
 
 """
@@ -35,7 +39,19 @@ device = torch.device('cpu')
 exp_dict_list=[]
 
 
+<<<<<<< HEAD
+    start = time.time()
+    model = point_sort_shift_solver(grid, model, kdv, bconds, lambda_bound=1000,verbose=False, learning_rate=1e-4,
+                                    eps=1e-6, tmin=1000, tmax=1e5, h=0.01,use_cache=True,cache_verbose=True,
+                                batch_size=None, save_always=True)
+    # model = point_sort_shift_solver(grid, model, kdv, bconds, lambda_bound=1000,verbose=True, learning_rate=1e-4,
+    #                                 eps=1e-6, tmin=1000, tmax=1e5, h=0.01,use_cache=True,cache_verbose=True,
+    #                             batch_size=64, save_always=True)
+    
+    end = time.time()
+=======
 for grid_res in [10,20,30]:
+>>>>>>> 1c578ad4e89106be726290f46924c41522a503e7
 
     x = torch.from_numpy(np.linspace(0, 1, grid_res+1))
     t = torch.from_numpy(np.linspace(0, 1, grid_res+1))

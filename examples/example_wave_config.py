@@ -14,8 +14,13 @@ import sys
 
 sys.path.append('../')
 
+<<<<<<< HEAD
+from torch_DE_solver.solver import *
+from cache import *
+=======
 from TEDEouS.solver import *
 from TEDEouS.cache import *
+>>>>>>> 1c578ad4e89106be726290f46924c41522a503e7
 import time
 
 """
