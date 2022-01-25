@@ -41,7 +41,7 @@ def solution_print(prepared_grid,model,title=None):
 def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
                             verbose=False, learning_rate=1e-4, eps=0.1, tmin=1000, tmax=1e5, h=0.001,
                             use_cache=True,cache_dir='../cache/',cache_verbose=False,
-                            batch_size=None,save_always=False,lp_par=None):
+                            batch_size=None,save_always=False,lp_par=None,print_every=100):
     # prepare input data to uniform format 
     
     prepared_grid,grid_dict,point_type = grid_prepare(grid)
@@ -109,7 +109,7 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
             if abs(line[0]/loss.item()) < eps:
                 stop_dings+=1
         
-        if (t % 100 == 0) and verbose:
+        if (t % print_every == 0) and verbose:
 
             print(t, loss.item(), line,line[0]/loss.item(), stop_dings)
             solution_print(prepared_grid,model,title='Iteration = ' + str(t))

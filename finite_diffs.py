@@ -263,15 +263,19 @@ def second_order_shift(diff, axis, mode):
     diff_1 = copy(diff)
     diff_2 = copy(diff)
     diff_3 = copy(diff)
+    diff_4 = copy(diff)
     if mode == 'f':
         diff_3[axis] = diff_3[axis] + 2
         diff_2[axis] = diff_2[axis] + 1
     elif mode == 'b':
         diff_3[axis] = diff_3[axis] - 2
         diff_2[axis] = diff_2[axis] - 1
-    else:
-        print('Wrong mode')
-    return [diff_3, diff_2, diff_1]
+    elif mode=='central':
+        diff_4[axis] = diff_4[axis] + 2
+        diff_3[axis] = diff_3[axis] + 1
+        diff_2[axis] = diff_2[axis] - 1
+        diff_1[axis] = diff_1[axis] - 2
+    return [diff_4,diff_3, diff_2, diff_1]
 
 
 def second_order_scheme_build(axes, varn, axes_mode):
@@ -288,7 +292,10 @@ def second_order_scheme_build(axes, varn, axes_mode):
         diff_list = []
         for diff in finite_diff:
             # we use [0,0]->[[1,0],[-1,0]] rule for the axis
-            f_diff = second_order_shift(diff, axes[i], axes_mode[axes[i]])
+            if axes_mode == 'central':
+                f_diff = second_order_shift(diff, axes[i], 'central')
+            else:
+                f_diff = second_order_shift(diff, axes[i], axes_mode[axes[i]])
             if len(diff_list) == 0:
                 # and put it to the pool of differentials if it is empty
                 diff_list = f_diff
@@ -307,9 +314,11 @@ def second_order_sign_order(order, mode, h=1 / 2):
     for i in range(order):
         start_list = []
         for sign in sign_list:
-            if mode[i] == 'f':
-                start_list.append([3 * (1 / (2 * h)) * sign, -4 * (1 / (2 * h)) * sign, (1 / (2 * h)) * sign])
-            elif mode[i] == 'b':
-                start_list.append([-3 * (1 / (2 * h)) * sign, 4 * (1 / (2 * h)) * sign, -(1 / (2 * h)) * sign])
+            if mode == 'f':
+                start_list.append([0,3 * (1 / (2 * h)) * sign, -4 * (1 / (2 * h)) * sign, (1 / (2 * h)) * sign])
+            elif mode == 'b':
+                start_list.append([0,-3 * (1 / (2 * h)) * sign, 4 * (1 / (2 * h)) * sign, -(1 / (2 * h)) * sign])
+            elif mode=='central':
+                start_list.append([3 * (1 / (4 * h)) * sign, -4 * (1 / (4 * h)) * sign,4 * (1 / (4 * h)) * sign, (-3)*(1 / (4 * h)) * sign])
         sign_list = flatten_list(start_list)
     return sign_list
