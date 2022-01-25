@@ -31,10 +31,7 @@ def take_derivative_shift_op(model, term):
     power = term[3]
     # initially it is an ones field
     der_term = torch.zeros_like(model(shift_grid_list[0][0])) + 1
-<<<<<<< HEAD
     
-=======
->>>>>>> 1c578ad4e89106be726290f46924c41522a503e7
     for j, scheme in enumerate(shift_grid_list):
         # every shift in grid we should add with correspoiding sign, so we start
         # from zeros
@@ -253,8 +250,4 @@ def compute_operator_loss(grid, model, operator, bconds, grid_point_subset=['cen
     operator = operator_prepare(operator, prepared_grid, subset=grid_point_subset, true_grid=grid, h=h)
     loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
     loss=float(loss.float())
-<<<<<<< HEAD
     return loss
-=======
-    return loss
->>>>>>> 1c578ad4e89106be726290f46924c41522a503e7

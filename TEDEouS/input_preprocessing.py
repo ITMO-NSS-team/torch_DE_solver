@@ -12,11 +12,6 @@ from TEDEouS.finite_diffs import scheme_build
 from TEDEouS.finite_diffs import sign_order
 from TEDEouS.finite_diffs import second_order_scheme_build
 from TEDEouS.finite_diffs import second_order_sign_order
-<<<<<<< HEAD:TEDEouS/input_preprocessing.py
-from TEDEouS.finite_diffs import third_order_scheme_build
-from TEDEouS.finite_diffs import third_order_sign_order
-=======
->>>>>>> 1c578ad4e89106be726290f46924c41522a503e7:input_preprocessing.py
 import numpy as np
 
 """
@@ -79,11 +74,7 @@ def operator_unify(operator):
     return unified_operator
 
 
-<<<<<<< HEAD:TEDEouS/input_preprocessing.py
 def operator_to_type_op(unified_operator, nvars, axes_scheme_type, h=1 / 2,inner_order=1, boundary_order=2):
-=======
-def operator_to_type_op(unified_operator, nvars, axes_scheme_type, h=1 / 2,inner_order=1, boundary_order=1):
->>>>>>> 1c578ad4e89106be726290f46924c41522a503e7:input_preprocessing.py
     """
     Function serves applying different schemes to a different point types for
     entire operator

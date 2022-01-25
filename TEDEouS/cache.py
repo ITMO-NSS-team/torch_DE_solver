@@ -9,14 +9,8 @@ import datetime
 import torch
 import os 
 import glob
-<<<<<<< HEAD:TEDEouS/cache.py
-import TEDEouS.solver as solver
-import numpy as np
-from metrics import point_sort_shift_loss
-=======
 import numpy as np
 from TEDEouS.metrics import point_sort_shift_loss
->>>>>>> 1c578ad4e89106be726290f46924c41522a503e7:cache.py
 
 
 def save_model(model,state,optimizer_state,cache_dir='../cache/',name=None):
@@ -26,12 +20,7 @@ def save_model(model,state,optimizer_state,cache_dir='../cache/',name=None):
                 'optimizer_state_dict': optimizer_state}, cache_dir+name+'.tar')
     return
 
-<<<<<<< HEAD:TEDEouS/cache.py
-def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001, cache_dir='../cache/',
-		 nmodels=None, verbose=False, norm = None): 
-=======
 def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='../cache/',nmodels=None,verbose=False,norm=None): 
->>>>>>> 1c578ad4e89106be726290f46924c41522a503e7:cache.py
     # looking for all *.tar files in directory cache_dir
     files=glob.glob(cache_dir+'*.tar')
     # if files not found
@@ -60,11 +49,7 @@ def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='
         if model[0].in_features!=prepared_grid.shape[-1]:
             model[0]=torch.nn.Linear(prepared_grid.shape[-1],model[0].out_features)
         model.eval()
-<<<<<<< HEAD:TEDEouS/cache.py
-        l=solver.point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound, norm=norm)      
-=======
         l=point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound,norm=norm)      
->>>>>>> 1c578ad4e89106be726290f46924c41522a503e7:cache.py
         if l<min_loss:
             min_loss=l
             best_checkpoint['model']=model
