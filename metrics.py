@@ -31,6 +31,7 @@ def take_derivative_shift_op(model, term):
     power = term[3]
     # initially it is an ones field
     der_term = torch.zeros_like(model(shift_grid_list[0][0])) + 1
+    
     for j, scheme in enumerate(shift_grid_list):
         # every shift in grid we should add with correspoiding sign, so we start
         # from zeros

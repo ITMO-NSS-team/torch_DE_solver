@@ -263,19 +263,15 @@ def second_order_shift(diff, axis, mode):
     diff_1 = copy(diff)
     diff_2 = copy(diff)
     diff_3 = copy(diff)
-    diff_4 = copy(diff)
     if mode == 'f':
         diff_3[axis] = diff_3[axis] + 2
         diff_2[axis] = diff_2[axis] + 1
     elif mode == 'b':
         diff_3[axis] = diff_3[axis] - 2
         diff_2[axis] = diff_2[axis] - 1
-    elif mode=='central':
-        diff_4[axis] = diff_4[axis] + 2
-        diff_3[axis] = diff_3[axis] + 1
-        diff_2[axis] = diff_2[axis] - 1
-        diff_1[axis] = diff_1[axis] - 2
-    return [diff_4,diff_3, diff_2, diff_1]
+    else:
+        print('Wrong mode')
+    return [diff_3, diff_2, diff_1]
 
 
 def second_order_scheme_build(axes, varn, axes_mode):
@@ -309,16 +305,16 @@ def second_order_scheme_build(axes, varn, axes_mode):
     return finite_diff, direction_list
 
 
+
+
 def second_order_sign_order(order, mode, h=1 / 2):
     sign_list = [1]
     for i in range(order):
         start_list = []
         for sign in sign_list:
-            if mode == 'f':
-                start_list.append([0,3 * (1 / (2 * h)) * sign, -4 * (1 / (2 * h)) * sign, (1 / (2 * h)) * sign])
-            elif mode == 'b':
-                start_list.append([0,-3 * (1 / (2 * h)) * sign, 4 * (1 / (2 * h)) * sign, -(1 / (2 * h)) * sign])
-            elif mode=='central':
-                start_list.append([3 * (1 / (4 * h)) * sign, -4 * (1 / (4 * h)) * sign,4 * (1 / (4 * h)) * sign, (-3)*(1 / (4 * h)) * sign])
+            if mode[i] == 'f':
+                start_list.append([3 * (1 / (2 * h)) * sign, -4 * (1 / (2 * h)) * sign, (1 / (2 * h)) * sign])
+            elif mode[i] == 'b':
+                start_list.append([-3 * (1 / (2 * h)) * sign, 4 * (1 / (2 * h)) * sign, -(1 / (2 * h)) * sign])
         sign_list = flatten_list(start_list)
     return sign_list
