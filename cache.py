@@ -16,7 +16,12 @@ from metrics import point_sort_shift_loss
 def save_model(model,state,optimizer_state,cache_dir='../cache/',name=None):
     if name==None:
         name=str(datetime.datetime.now().timestamp())
-    torch.save({'model':model, 'model_state_dict': state,
+    if os.path.isdir(cache_dir):
+        torch.save({'model':model, 'model_state_dict': state,
+                'optimizer_state_dict': optimizer_state}, cache_dir+name+'.tar')
+    else:
+        os.mkdir(cache_dir)
+        torch.save({'model':model, 'model_state_dict': state,
                 'optimizer_state_dict': optimizer_state}, cache_dir+name+'.tar')
     return
 

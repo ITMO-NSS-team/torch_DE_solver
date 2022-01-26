@@ -69,21 +69,21 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
     #     except Exception:
     #         optimizer_state=None
     #     tmin=100
-    loss = point_sort_shift_loss(model, prepared_grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound)
+    min_loss = point_sort_shift_loss(model, prepared_grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound)
     
     save_cache=False
     
-    if loss>0.1 or save_always:
+    if min_loss>0.1 or save_always:
         save_cache=True
     
     
     # standard NN stuff
     if verbose:
-        print('-1 {}'.format(loss))
+        print('-1 {}'.format(min_loss))
     
     t = 0
     
-    last_loss=np.zeros(100)+float(loss)
+    last_loss=np.zeros(100)+float(min_loss)
     line=np.polyfit(range(100),last_loss,1)
     
     # def closure():
@@ -93,7 +93,7 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
     #     return loss
     
     stop_dings=0
-    
+    t_imp_start=0
     # to stop train proceduce we fit the line in the loss data
     #if line is flat enough 5 times, we stop the procedure
     while stop_dings<=5:
@@ -104,6 +104,9 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
             loss=point_sort_shift_loss_batch(model, prepared_grid, point_type, operator, bconds,subset=grid_point_subset, lambda_bound=lambda_bound,batch_size=batch_size,h=h,norm=lp_par)
         last_loss[t%100]=loss.item()
         
+        if loss.item()<min_loss:
+            min_loss=loss.item()
+            t_imp_start=t
         if t%100==0:
             line=np.polyfit(range(100),last_loss,1)
             if abs(line[0]/loss.item()) < eps:
@@ -112,6 +115,13 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
                     print(t, loss.item(), line,line[0]/loss.item(), stop_dings)
                     solution_print(prepared_grid,model,title='Iteration = ' + str(t))
         
+        if t-t_imp_start==1000:
+            print('No improvemet in 1000 steps')
+            t_imp_start=t
+            stop_dings+=1
+            print(t, loss.item(), line,line[0]/loss.item(), stop_dings)
+            solution_print(prepared_grid,model,title='Iteration = ' + str(t))
+            
         if print_every!=None and (t % print_every == 0) and verbose:
 
             print(t, loss.item(), line,line[0]/loss.item(), stop_dings)
@@ -123,7 +133,7 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
         t += 1
         if t > tmax:
             break
-    if save_cache:
+    if save_cache and use_cache:
         save_model(model,model.state_dict(),optimizer.state_dict(),cache_dir=cache_dir,name=None)
     return model
 
