@@ -108,8 +108,11 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
             line=np.polyfit(range(100),last_loss,1)
             if abs(line[0]/loss.item()) < eps:
                 stop_dings+=1
+                if verbose:
+                    print(t, loss.item(), line,line[0]/loss.item(), stop_dings)
+                    solution_print(prepared_grid,model,title='Iteration = ' + str(t))
         
-        if (t % print_every == 0) and verbose:
+        if print_every!=None and (t % print_every == 0) and verbose:
 
             print(t, loss.item(), line,line[0]/loss.item(), stop_dings)
             solution_print(prepared_grid,model,title='Iteration = ' + str(t))
