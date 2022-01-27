@@ -39,9 +39,10 @@ def solution_print(prepared_grid,model,title=None):
 
 
 def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
-                            verbose=False, learning_rate=1e-4, eps=0.1, tmin=1000, tmax=1e5, h=0.001,
+                            verbose=False, learning_rate=1e-4, eps=1e-5, tmin=1000, tmax=1e5, h=0.001,
                             use_cache=True,cache_dir='../cache/',cache_verbose=False,
-                            batch_size=None,save_always=False,lp_par=None,print_every=100):
+                            batch_size=None,save_always=False,lp_par=None,print_every=100,
+                            patience=5,loss_oscillation_window=100,no_improvement_patience=1000):
     # prepare input data to uniform format 
     
     prepared_grid,grid_dict,point_type = grid_prepare(grid)
@@ -83,8 +84,8 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
     
     t = 0
     
-    last_loss=np.zeros(100)+float(min_loss)
-    line=np.polyfit(range(100),last_loss,1)
+    last_loss=np.zeros(loss_oscillation_window)+float(min_loss)
+    line=np.polyfit(range(loss_oscillation_window),last_loss,1)
     
     # def closure():
     #     optimizer.zero_grad()
@@ -96,34 +97,34 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
     t_imp_start=0
     # to stop train proceduce we fit the line in the loss data
     #if line is flat enough 5 times, we stop the procedure
-    while stop_dings<=5:
+    while stop_dings<=patience:
         optimizer.zero_grad()
         if batch_size==None:
             loss = point_sort_shift_loss(model, prepared_grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound,norm=lp_par)
         else:
             loss=point_sort_shift_loss_batch(model, prepared_grid, point_type, operator, bconds,subset=grid_point_subset, lambda_bound=lambda_bound,batch_size=batch_size,h=h,norm=lp_par)
-        last_loss[t%100]=loss.item()
+        last_loss[t%loss_oscillation_window]=loss.item()
         
         if loss.item()<min_loss:
             min_loss=loss.item()
             t_imp_start=t
-        if t%100==0:
-            line=np.polyfit(range(100),last_loss,1)
+        if t%loss_oscillation_window==0:
+            line=np.polyfit(range(loss_oscillation_window),last_loss,1)
             if abs(line[0]/loss.item()) < eps:
                 stop_dings+=1
                 if verbose:
+                    print('Oscillation near the same loss')
                     print(t, loss.item(), line,line[0]/loss.item(), stop_dings)
                     solution_print(prepared_grid,model,title='Iteration = ' + str(t))
         
-        if t-t_imp_start==1000:
-            print('No improvemet in 1000 steps')
+        if t-t_imp_start==no_improvement_patience:
+            print('No improvement in '+no_improvement_patience+' steps')
             t_imp_start=t
             stop_dings+=1
             print(t, loss.item(), line,line[0]/loss.item(), stop_dings)
             solution_print(prepared_grid,model,title='Iteration = ' + str(t))
             
         if print_every!=None and (t % print_every == 0) and verbose:
-
             print(t, loss.item(), line,line[0]/loss.item(), stop_dings)
             solution_print(prepared_grid,model,title='Iteration = ' + str(t))
 
