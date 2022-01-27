@@ -20,7 +20,7 @@ from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from mpl_toolkits.mplot3d import Axes3D
 from solver import *
 import time
-
+from scipy.special import legendre
 device = torch.device('cpu')
 
 """
@@ -35,6 +35,11 @@ t = torch.from_numpy(np.linspace(0, 1, 100))
 grid = t.reshape(-1, 1).float()
 
 grid.to(device)
+
+
+
+n=3
+
 
 """
 Preparing boundary conditions (BC)
@@ -70,7 +75,7 @@ bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64))
 bop1 = None
 
 #  So u(0)=-1/2
-bndval1 = torch.from_numpy(np.array([[-1 / 2]], dtype=np.float64))
+bndval1 = legendre(n)(bnd1)
 
 # point t=1
 bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64))
@@ -86,7 +91,7 @@ bop2 = {
 }
 
 # So, du/dt |_{x=1}=3
-bndval2 = torch.from_numpy(np.array([[3]], dtype=np.float64))
+bndval2 = torch.from_numpy(legendre(2).deriv(1)(bnd2))
 
 # Putting all bconds together
 bconds = [[bnd1, bop1, bndval1], [bnd2, bop2, bndval2]]
@@ -131,7 +136,7 @@ def c2(grid):
 
 
 
-n=3
+
 
 # operator is  (1-t^2)*d2u/dt2-2t*du/dt+n*(n-1)*u=0 (n=3)
 legendre_poly= {
@@ -171,7 +176,7 @@ legendre_poly= {
         },
     'n*(n-1)*u**1':
         {
-            'coeff': n*(n-1),
+            'coeff': n*(n+1),
             'u':  [None],
             'pow': 1
         }
@@ -192,7 +197,7 @@ for _ in range(1):
     start = time.time()
     model = point_sort_shift_solver(grid, model, legendre_poly, bconds, lambda_bound=10, verbose=True, learning_rate=1e-4,
                                     eps=1e-5, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True
-                                    ,batch_size=None, save_always=False)
+                                    ,batch_size=None, save_always=False,print_every=None)
     end = time.time()
 
     print('Time taken 10= ', end - start)
@@ -200,5 +205,5 @@ for _ in range(1):
     fig = plt.figure()
     plt.scatter(grid.reshape(-1), model(grid).detach().numpy().reshape(-1))
     # analytical sln is 1/2*(-1 + 3*t**2)
-    plt.scatter(grid.reshape(-1), 1 / 2 * (-1 + 3 * grid ** 2).reshape(-1))
+    plt.scatter(grid.reshape(-1), legendre(n)(grid).reshape(-1))
     plt.show()
