@@ -296,3 +296,12 @@ for grid_res in [10,20,30]:
         print('Time taken {}= {}'.format(grid_res, end - start))
         print('RMSE {}= {}'.format(grid_res, error_rmse))
         print('loss {}= {}'.format(grid_res, end_loss))
+
+
+import pandas as pd
+
+result_assessment=pd.DataFrame(exp_dict_list)
+
+result_assessment.boxplot(by='grid_res',column='time',showfliers=False,figsize=(20,10),fontsize=42)
+
+result_assessment.boxplot(by='grid_res',column='RMSE',figsize=(20,10),fontsize=42)
