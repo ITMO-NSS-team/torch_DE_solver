@@ -39,7 +39,7 @@ grid.to(device)
 
 exp_dict_list=[]
 
-# n=5
+CACHE=True
 
 for n in range(2,11):  
     """
@@ -197,7 +197,7 @@ for n in range(2,11):
     
         start = time.time()
         model = point_sort_shift_solver(grid, model, legendre_poly, bconds, lambda_bound=10, verbose=True, learning_rate=1e-4,
-                                        eps=1e-5, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True
+                                        eps=1e-5, tmin=1000, tmax=1e5,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
                                         ,batch_size=None, save_always=False,print_every=None)
         end = time.time()
     
@@ -213,4 +213,9 @@ for n in range(2,11):
         print('RMSE {}= {}'.format(n, error_rmse))
         
         exp_dict_list.append({'grid_res':100,'time':end - start,'RMSE':error_rmse.detach().numpy(),'type':'Legendre '+str(n)})
-            
+
+import pandas as pd
+df=pd.DataFrame(exp_dict_list)
+df.boxplot(by='type',column='RMSE',figsize=(20,10),fontsize=42)
+df.boxplot(by='type',column='time',figsize=(20,10),fontsize=42)
+df.to_csv('legendre_poly_exp_cache='+str(CACHE)+'.csv')
