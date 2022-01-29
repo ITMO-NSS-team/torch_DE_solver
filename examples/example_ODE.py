@@ -41,7 +41,7 @@ exp_dict_list=[]
 
 CACHE=True
 
-for n in range(2,11):  
+for n in range(3,11):  
     """
     Preparing boundary conditions (BC)
     
@@ -155,7 +155,7 @@ for n in range(2,11):
             },
         'n*(n-1)*u**1':
             {
-                'coeff': n*(n-1),
+                'coeff': n*(n+1),
                 'u':  [None],
                 'pow': 1
             }
@@ -196,12 +196,12 @@ for n in range(2,11):
         )
     
         start = time.time()
-        model = point_sort_shift_solver(grid, model, legendre_poly, bconds, lambda_bound=10, verbose=True, learning_rate=1e-4,
+        model = point_sort_shift_solver(grid, model, legendre_poly, bconds, lambda_bound=10, verbose=True, learning_rate=1e-3,
                                         eps=1e-5, tmin=1000, tmax=1e5,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
                                         ,batch_size=None, save_always=False,print_every=None)
         end = time.time()
     
-        print('Time taken 10= ', end - start)
+        print('Time taken {} = {}'.format(n,  end - start))
     
         fig = plt.figure()
         plt.scatter(grid.reshape(-1), model(grid).detach().numpy().reshape(-1))
