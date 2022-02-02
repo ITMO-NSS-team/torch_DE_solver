@@ -18,8 +18,7 @@ Grid is an essentially torch.Tensor of a n-D points where n is the problem
 dimensionality
 """
 
-t = torch.from_numpy(np.linspace(0, 1, 100))
-
+t = torch.from_numpy(np.linspace(0, 1, 10))
 grid = t.reshape(-1, 1).float()
 
 grid.to(device)
@@ -138,7 +137,7 @@ legendre_poly= {
         },
     'n*(n-1)*u**1':
         {
-            'coeff': c3(n),
+            'coeff': 6,
             'u':  [None],
             'pow': 1
         }
@@ -160,7 +159,7 @@ legendre_poly= {
         },
     'n*(n-1)*u**1':
         {
-            'coeff': c3(n),
+            'coeff': 6,
             'u':  [None],
             'pow': 1
         }
@@ -169,11 +168,24 @@ legendre_poly= {
 
 
 for _ in range(1):
-    model = torch.ones(grid.shape)
-    solution_print(grid, model)
+    model = torch.rand(grid.shape)
+
+    # initial_approximation = []
+    # with open('initial_approximation_ODE.txt', 'r') as f:
+    #     for line in f:
+    #         for val in line.split():
+    #             initial_approximation.append(float(val))
+    #
+    # model = torch.tensor(initial_approximation)
 
     start = time.time()
-    model = lbfgs_solution(model, grid, legendre_poly, 10, bconds)
+    model = lbfgs_solution(model, grid, legendre_poly, 1, bconds)
     end = time.time()
 
+    fig = plt.figure()
+    plt.scatter(grid.reshape(-1), model.reshape(-1))
+    plt.scatter(grid.reshape(-1), 1 / 2 * (-1 + 3 * grid ** 2).reshape(-1))
+    plt.show()
+
     print('Time taken 10= ', end - start)
+    print(model)
