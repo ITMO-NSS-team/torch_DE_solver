@@ -216,6 +216,6 @@ for n in range(3,11):
 
 import pandas as pd
 df=pd.DataFrame(exp_dict_list)
-df.boxplot(by='type',column='RMSE',figsize=(20,10),fontsize=42)
-df.boxplot(by='type',column='time',figsize=(20,10),fontsize=42)
+df.boxplot(by='type',column='RMSE',figsize=(20,10),fontsize=42,showfliers=False)
+df.boxplot(by='type',column='time',figsize=(20,10),fontsize=42,showfliers=False)
 df.to_csv('legendre_poly_exp_cache='+str(CACHE)+'.csv')

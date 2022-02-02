@@ -27,6 +27,9 @@ import time
 
 device = torch.device('cpu')
 
+CACHE=True
+
+
 def p_II_exp(grid_res,nruns):
     
     exp_dict_list=[]
@@ -157,8 +160,8 @@ def p_II_exp(grid_res,nruns):
 
         start = time.time()
         model = point_sort_shift_solver(grid, model, p_2, bconds, lambda_bound=100, verbose=0, learning_rate=1e-4,
-                                        eps=1e-7, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True
-                                        ,batch_size=None, save_always=False)
+                                        eps=1e-7, tmin=1000, tmax=1e5,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
+                                        ,batch_size=None, save_always=False,print_every=None)
         end = time.time()
 
             
@@ -196,4 +199,6 @@ import pandas as pd
 
 exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df=pd.DataFrame(exp_dict_list_flatten)
-df.to_csv('PII_experiment_10_500.csv')
+df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
+df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
+df.to_csv('PII_experiment_10_500_cache={}.csv'.format(str(CACHE)))
