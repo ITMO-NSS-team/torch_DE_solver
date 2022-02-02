@@ -7,28 +7,35 @@ from matplotlib import cm
 sys.path.append('../')
 
 def derivative(u_tensor, h_tensor, axis, scheme_order=1, boundary_order=1):
+    if u_tensor.dim() == 1:
+        u_tensor = torch.flatten(u_tensor)
+        h_tensor = torch.flatten(h_tensor)
 
-    u_tensor = torch.transpose(u_tensor, 0, axis)
-    h_tensor = torch.transpose(h_tensor, 0, axis)
+        du_forward = (-torch.roll(u_tensor, -1) + u_tensor) / \
+                     (-torch.roll(h_tensor, -1) + h_tensor)
+        du_backward = (torch.roll(u_tensor, 1) - u_tensor) / \
+                      (torch.roll(h_tensor, 1) - h_tensor)
 
-    du_forward = (-torch.roll(u_tensor, -1) + u_tensor) / \
-                 (-torch.roll(h_tensor, -1) + h_tensor)
-    du_backward = (torch.roll(u_tensor, 1) - u_tensor) / \
-                  (torch.roll(h_tensor, 1) - h_tensor)
+        du = (1/2) * (du_forward + du_backward)
 
-    du = (1/2) * (du_forward + du_backward)
+        du[0] = du_forward[0]
+        du[-1] = du_backward[-1]
 
-    # ind = torch.zeros(du.shape, dtype=torch.long, device=device)
-    # values = torch.gather(du_forward, 1, ind)
-    du[:, 0] = du_forward[:, 0]
-    # du = du.scatter_(1, ind, values)
+    else:
+        u_tensor = torch.transpose(u_tensor, 0, axis)
+        h_tensor = torch.transpose(h_tensor, 0, axis)
 
-    # ind = (du.shape[axis] - 1) * torch.ones(du.shape, dtype=torch.long, device=device)
-    # values = torch.gather(du_backward, 1, ind)
-    # du = du.scatter_(1, ind, values)
-    du[:, -1] = du_backward[:, -1]
+        du_forward = (-torch.roll(u_tensor, -1) + u_tensor) / \
+                     (-torch.roll(h_tensor, -1) + h_tensor)
+        du_backward = (torch.roll(u_tensor, 1) - u_tensor) / \
+                      (torch.roll(h_tensor, 1) - h_tensor)
 
-    du = torch.transpose(du, 0, axis)
+        du = (1 / 2) * (du_forward + du_backward)
+
+        du[:, 0] = du_forward[:, 0]
+        du[:, -1] = du_backward[:, -1]
+
+        du = torch.transpose(du, 0, axis)
 
     return du
 
@@ -59,18 +66,20 @@ def take_matrix_diff_term(model, grid, term):
     power = term[2]
     # initially it is an ones field
     der_term = torch.zeros_like(model) + 1
+    h = grid
     for j, scheme in enumerate(operator_product):
         prod=model
         if scheme!=None:
             for axis in scheme:
                 if axis is None:
                     continue
-                h = grid[axis]
+                if grid.dim() != 1:
+                    h = grid[axis]
                 prod=derivative(prod, h, axis, scheme_order=1, boundary_order=1)
         der_term = der_term * prod ** power[j]
 
     if callable(coeff) is True:
-        der_term = coeff(grid) * der_term
+        der_term = coeff(h) * der_term
     else:
         der_term = coeff * der_term
     return der_term
@@ -112,13 +121,20 @@ def bnd_prepare_matrix(bconds,grid):
             bop=bnd[1]
             bval=bnd[2]
         bpos=[]
+
         for pt in bpts:
-            prod=(torch.zeros_like(grid[0])+1).bool()
-            for axis in range(min(grid.shape)):
-                axis_intersect=torch.isclose(pt[axis].float(),grid[axis].float())
-                prod*=axis_intersect
-            point_pos=torch.where(prod==True)
-            bpos.append(point_pos)
+            if grid.dim() == 1:
+                if pt[0] == grid[0]:
+                    bpos.append(0)
+                else:
+                    bpos.append(max(grid.shape)-1)
+            else:
+                prod=(torch.zeros_like(grid[0])+1).bool()
+                for axis in range(min(grid.shape)):
+                    axis_intersect=torch.isclose(pt[axis].float(),grid[axis].float())
+                    prod*=axis_intersect
+                point_pos=torch.where(prod==True)
+                bpos.append(point_pos)
         prepared_bconds.append([bpos,bop,bval])
     return prepared_bconds
 
@@ -142,8 +158,13 @@ def apply_matrix_bcond_operator(model,grid,b_prepared):
             for position in b_pos:
                 b_val_list.append(model[position])
             true_b_val_list.append(true_boundary_val)
-        b_val=torch.cat(b_val_list)
-        true_b_val=torch.cat(true_b_val_list)
+
+        if model.dim() != 1:
+            b_val=torch.cat(b_val_list)
+            true_b_val=torch.cat(true_b_val_list)
+        else:
+            b_val = b_val_list
+            true_b_val = true_b_val_list
     # or apply differential operatorn first to compute corresponding field and
     else:
         for bcond in b_prepared:
@@ -157,9 +178,16 @@ def apply_matrix_bcond_operator(model,grid,b_prepared):
             # take boundary values
             for position in b_pos:
                 b_val_list.append(b_op_val[position])
+                # print(b_op_val)
             true_b_val_list.append(true_boundary_val)
-        b_val=torch.cat(b_val_list)
-        true_b_val=torch.cat(true_b_val_list)
+        # print(b_val_list)
+
+        if model.dim() != 1:
+            b_val=torch.cat(b_val_list)
+            true_b_val=torch.cat(true_b_val_list)
+        else:
+            b_val = torch.tensor(b_val_list)
+            true_b_val = torch.tensor(true_b_val_list)
     return b_val,true_b_val
 
 
@@ -194,19 +222,26 @@ def lbfgs_solution(model, grid, operator, norm_lambda, bcond):
         operator = op_dict_to_list(operator)
     unified_operator = operator_unify(operator)
 
+    if min(grid.shape) == 1 or grid.dim() == 1:
+        grid = torch.flatten(grid)
+        model = torch.flatten(model)
+
     b_prepared = bnd_prepare_matrix(bcond, grid)
+
 
     optimizer = torch.optim.LBFGS([model.requires_grad_()], lr=0.001)
     def closure():
         nonlocal cur_loss
         optimizer.zero_grad()
+
         loss = matrix_loss(model, grid, unified_operator, b_prepared, lambda_bound=norm_lambda)
         loss.backward()
         cur_loss = loss.item()
+
         return loss
 
     cur_loss = float('inf')
-    tol = 1e-10
+    tol = 1e-16
 
     for i in range(50000):
         past_loss = cur_loss
@@ -214,15 +249,17 @@ def lbfgs_solution(model, grid, operator, norm_lambda, bcond):
         optimizer.step(closure)
 
         if abs(cur_loss - past_loss) / abs(cur_loss) < tol:
-            print('sosholsya ura')
+            # print("sosholsya")
             break
 
-    solution_print(grid, model)
-
-    return model.detach().numpy()
+    return model.detach()
 
 def solution_print(prepared_grid,model,title=None):
-    if min(prepared_grid.shape) == 2:
+    if model.dim() == 1:
+        fig = plt.figure()
+        plt.scatter(prepared_grid.reshape(-1), model.detach().numpy().reshape(-1))
+        plt.show()
+    else:
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         if title!=None:
@@ -231,8 +268,4 @@ def solution_print(prepared_grid,model,title=None):
                         model.reshape(-1).detach().numpy(), cmap=cm.jet, linewidth=0.2, alpha=1)
         ax.set_xlabel("x1")
         ax.set_ylabel("x2")
-        plt.show()
-    if min(prepared_grid.shape) == 1:
-        fig = plt.figure()
-        plt.scatter(prepared_grid.reshape(-1), model.detach().numpy().reshape(-1))
         plt.show()
