@@ -121,27 +121,27 @@ def c3(n):
 
 n=3
 
-# operator is  (1-t^2)*d2u/dt2-2t*du/dt+n*(n-1)*u=0 (n=3)
-legendre_poly= {
-    '(1-t^2)*d2u/dt2**1':
-        {
-            'coeff': c1(grid), #coefficient is a torch.Tensor
-            'du/dt': [0, 0],
-            'pow': 1
-        },
-    '-2t*du/dt**1':
-        {
-            'coeff': c2(grid),
-            'u*du/dx': [0],
-            'pow':1
-        },
-    'n*(n-1)*u**1':
-        {
-            'coeff': 6,
-            'u':  [None],
-            'pow': 1
-        }
-}
+# # operator is  (1-t^2)*d2u/dt2-2t*du/dt+n*(n-1)*u=0 (n=3)
+# legendre_poly= {
+#     '(1-t^2)*d2u/dt2**1':
+#         {
+#             'coeff': c1(grid), #coefficient is a torch.Tensor
+#             'du/dt': [0, 0],
+#             'pow': 1
+#         },
+#     '-2t*du/dt**1':
+#         {
+#             'coeff': c2(grid),
+#             'u*du/dx': [0],
+#             'pow':1
+#         },
+#     'n*(n-1)*u**1':
+#         {
+#             'coeff': 6,
+#             'u':  [None],
+#             'pow': 1
+#         }
+# }
 
 # this one is to show that coefficients may be a function of grid as well
 legendre_poly= {

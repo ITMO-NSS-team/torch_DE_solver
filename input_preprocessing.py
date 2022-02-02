@@ -290,6 +290,48 @@ def op_dict_to_list(opdict):
     return list([list(term.values()) for term in opdict.values()])
 
 
+# def bndpos(grid, bnd):
+#     """
+    
+#     Returns the position of the boundary points on the grid
+    
+#     Parameters
+#     ----------
+#     grid : torch.Tensor
+#         grid for coefficient in form of torch.Tensor mapping
+#     bnd : torch.Tensor
+#         boundary
+
+#     Returns
+#     -------
+#     bndposlist : list (int)
+#         positions of boundaty points in grid
+
+#     """
+#     bndposlist = []
+#     grid = grid.double()
+#     if type(bnd) == np.array:
+#         bnd = torch.from_numpy(bnd).double()
+#     else:
+#         bnd = bnd.double()
+#     for point in bnd:
+#         pos = int(torch.where(torch.all(torch.isclose(grid, point), dim=1))[0])
+#         bndposlist.append(pos)
+#     return bndposlist
+
+def closest_point(grid,target_point):
+    min_dist=np.inf
+    pos=0
+    min_pos=0
+    for point in grid:
+        dist=torch.linalg.norm(point-target_point)
+        if dist<min_dist:
+            min_dist=dist
+            min_pos=pos
+        pos+=1
+    return min_pos
+
+
 def bndpos(grid, bnd):
     """
     
@@ -301,12 +343,10 @@ def bndpos(grid, bnd):
         grid for coefficient in form of torch.Tensor mapping
     bnd : torch.Tensor
         boundary
-
     Returns
     -------
     bndposlist : list (int)
         positions of boundaty points in grid
-
     """
     bndposlist = []
     grid = grid.double()
@@ -315,9 +355,13 @@ def bndpos(grid, bnd):
     else:
         bnd = bnd.double()
     for point in bnd:
-        pos = int(torch.where(torch.all(torch.isclose(grid, point), dim=1))[0])
+        try:
+            pos = int(torch.where(torch.all(torch.isclose(grid, point), dim=1))[0])
+        except Exception:
+            pos=closest_point(grid,point)
         bndposlist.append(pos)
     return bndposlist
+
 
 
 def bnd_unify(bconds):

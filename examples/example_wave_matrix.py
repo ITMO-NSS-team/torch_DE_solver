@@ -16,6 +16,14 @@ grid.append(t)
 grid = np.meshgrid(*grid)
 grid = torch.tensor(grid, device=device)
 
+# x = torch.from_numpy(np.array([0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]))
+# t = torch.from_numpy(np.array([0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]))
+
+# grid = torch.cartesian_prod(x, t).float()
+
+# grid.to(device)
+
+
 # Initial conditions at t=0
 bnd1 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float().to(device)
 
