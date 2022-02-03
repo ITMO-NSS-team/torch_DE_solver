@@ -117,7 +117,7 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
                     print(t, loss.item(), line,line[0]/loss.item(), stop_dings)
                     solution_print(prepared_grid,model,title='Iteration = ' + str(t))
         
-        if t-t_imp_start==no_improvement_patience:
+        if t-t_imp_start==no_improvement_patience and verbose:
             print('No improvement in '+str(no_improvement_patience)+' steps')
             t_imp_start=t
             stop_dings+=1
