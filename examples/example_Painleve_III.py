@@ -210,7 +210,8 @@ def p_III_exp(grid_res):
     start = time.time()
     model = point_sort_shift_solver(grid, model, p_3, bconds, lambda_bound=100, verbose=1, learning_rate=1e-4,h=(2.1-0.25)/grid_res,
                                     eps=1e-7, tmin=1000, tmax=1e5,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
-                                    ,batch_size=None, save_always=False,print_every=None)
+                                    ,batch_size=None, save_always=False,print_every=None,
+                                    model_randomize_parameter=1e-6)
     end = time.time()
 
         
@@ -240,7 +241,7 @@ exp_dict_list=[]
 #     exp_dict_list.append(p_III_exp(grid_res, nruns))
 
 
-for grid_res in range(500,501,100):
+for grid_res in range(100,501,100):
     for _ in range(nruns):
         exp_dict_list.append(p_III_exp(grid_res))
 
