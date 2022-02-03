@@ -15,12 +15,10 @@ from input_preprocessing import *
 
 device = torch.device('cpu')
 
-x = torch.from_numpy(np.array([0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]))
 t = torch.from_numpy(np.array([0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]))
 
 new_grid = []
 
-new_grid.append(x)
 new_grid.append(t)
 
 grid = np.meshgrid(*new_grid)
@@ -28,8 +26,10 @@ grid = torch.tensor(grid, device=device)
 
 grid.to(device)
 
+
+
 """
-Defining wave equation
+Defining Legendre polynomials generating equations
 
 Operator has the form
 
@@ -55,29 +55,52 @@ None is for function without derivatives
 
 
 """
-# operator is 4*d2u/dx2-1*d2u/dt2=0
-wave_eq = {
-    '4*d2u/dx2**1':
+
+
+# 1-t^2
+def c1(grid):
+    return 1 - grid ** 2
+
+
+# -2t
+def c2(grid):
+    return -2 * grid
+
+def c3(n):
+    return n*(n-1)
+
+n=3
+
+# operator is  (1-t^2)*d2u/dt2-2t*du/dt+n*(n-1)*u=0 (n=3)
+legendre_poly= {
+    '(1-t^2)*d2u/dt2**1':
         {
-            'coeff': 4,
-            'd2u/dx2': [0, 0],
+            'coeff': c1(grid), #coefficient is a torch.Tensor
+            'du/dt': [0, 0],
             'pow': 1
-        },
-    '-d2u/dt2**1':
+        }
+        ,
+    '-2t*du/dt**1':
         {
-            'coeff': -1,
-            'd2u/dt2': [1,1],
+            'coeff': c2(grid),
+            'u*du/dx': [0],
             'pow':1
+        },
+    'n*(n-1)*u**1':
+        {
+            'coeff': 6,
+            'u':  [None],
+            'pow': 1
         }
 }
     
     
-if type(wave_eq)==dict:
-    wave_eq=op_dict_to_list(wave_eq)
-wave_eq1 = operator_unify(wave_eq)
+if type(legendre_poly)==dict:
+    legendre_poly=op_dict_to_list(legendre_poly)
+legendre_poly1 = operator_unify(legendre_poly)
 
 
-model=grid[0]**3*grid[1]**2
+model=grid**3
 
 
 
@@ -88,9 +111,9 @@ def derivative(u_tensor, h_tensor, axis, scheme_order=1, boundary_order=1):
 
     du_forward = (-torch.roll(u_tensor, -1) + u_tensor) / \
                  (-torch.roll(h_tensor, -1) + h_tensor)
+   
     du_backward = (torch.roll(u_tensor, 1) - u_tensor) / \
                   (torch.roll(h_tensor, 1) - h_tensor)
-
     du = (1/2) * (du_forward + du_backward)
 
     # ind = torch.zeros(du.shape, dtype=torch.long, device=device)
@@ -169,35 +192,36 @@ def apply_matrix_diff_operator(model,grid, operator):
             total = dif
     return total
 
-applied_op=apply_matrix_diff_operator(model,grid,wave_eq1)
+applied_op=apply_matrix_diff_operator(model,grid,legendre_poly1)
 
+control= (1-grid**2)*6*grid
 
-# Initial conditions at t=0
-bnd1 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
+# point t=0
+bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64))
 
-# u(0,x)=sin(pi*x)
-bndval1 = torch.sin(np.pi * bnd1[:, 0])
+bop1 = None
 
-# Initial conditions at t=1
-bnd2 = torch.cartesian_prod(x, torch.from_numpy(np.array([1], dtype=np.float64))).float()
+#  So u(0)=-1/2
+bndval1 = torch.from_numpy(np.array([[-1 / 2]], dtype=np.float64))
 
-# u(1,x)=sin(pi*x)
-bndval2 = torch.sin(np.pi * bnd2[:, 0])
+# point t=1
+bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64))
 
-# Boundary conditions at x=0
-bnd3 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t).float()
+# d/dt
+bop2 = {
+    '1*du/dt**1':
+        {
+            'coefficient': 1,
+            'du/dt': [0],
+            'pow': 1
+        }
+}
 
-# u(0,t)=0
-bndval3 = torch.from_numpy(np.zeros(len(bnd3), dtype=np.float64))
-
-# Boundary conditions at x=1
-bnd4 = torch.cartesian_prod(torch.from_numpy(np.array([1], dtype=np.float64)), t).float()
-
-# u(1,t)=0
-bndval4 = torch.from_numpy(np.zeros(len(bnd4), dtype=np.float64))
+# So, du/dt |_{x=1}=3
+bndval2 = torch.from_numpy(np.array([[3]], dtype=np.float64))
 
 # Putting all bconds together
-bconds = [[bnd1, bndval1], [bnd2, bndval2], [bnd3, bndval3], [bnd4, bndval4]]
+bconds = [[bnd1, bop1, bndval1], [bnd2, bop2, bndval2]]
 
 def bnd_prepare_matrix(bconds,grid):
     prepared_bconds=[]
@@ -300,13 +324,13 @@ def matrix_loss(model, grid, operator, bconds, lambda_bound=10):
     return loss
 
 
-loss=matrix_loss(model, grid, wave_eq1, b_prepared, lambda_bound=10)
+loss=matrix_loss(model, grid, legendre_poly1, b_prepared, lambda_bound=10)
 
 optimizer = torch.optim.Adam([model.requires_grad_()], lr=0.001)
 
 def closure():
     optimizer.zero_grad()
-    loss = matrix_loss(model, grid, wave_eq1, b_prepared, lambda_bound=10)
+    loss = matrix_loss(model, grid, legendre_poly1, b_prepared, lambda_bound=10)
     loss.backward()
     return loss
 
@@ -315,11 +339,18 @@ t=0
 
 while True:
     optimizer.step(closure)
-    loss = matrix_loss(model, grid, wave_eq1, b_prepared, lambda_bound=10)
+    loss = matrix_loss(model, grid, legendre_poly1, b_prepared, lambda_bound=10)
 
     
     if t%1000==0:
         print('i={} loss={}'.format(t,loss))
-    if t>1e5:
+    if t>1e4:
         break
     t+=1
+
+import matplotlib.pyplot as plt
+
+fig = plt.figure()
+plt.scatter(grid.reshape(-1), model.detach().reshape(-1))
+plt.scatter(grid.reshape(-1), 1 / 2 * (-1 + 3 * grid ** 2).reshape(-1))
+plt.show()
