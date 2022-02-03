@@ -182,16 +182,16 @@ torch.nn.Linear(100, 1)
 
 lp_par={'operator_p':2,
     'operator_weighted':True,
-    'operator_normalized':True,
-    'boundary_p':2,
+    'operator_normalized':False,
+    'boundary_p':1,
     'boundary_weighted':True,
-    'boundary_normalized':True}
+    'boundary_normalized':False}
 
 start = time.time()
 
 model = point_sort_shift_solver(grid, model, p_4, bconds, lambda_bound=100, verbose=2,h=abs((t[1]-t[0]).item()), learning_rate=1e-4,
-                                eps=1e-7, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True
-                                ,batch_size=None, save_always=True,lp_par=lp_par)
+                                eps=1e-7, tmin=1000, tmax=1e6,use_cache=True,cache_dir='../cache/',cache_verbose=True
+                                ,batch_size=None, save_always=True,lp_par=lp_par, print_every=1000,no_improvement_patience=10000)
 end = time.time()
 
 print('Time taken P_IV= ', end - start)
