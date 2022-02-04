@@ -24,18 +24,9 @@ from mpl_toolkits.mplot3d import Axes3D
 from solver import *
 import time
 
-device = torch.device('cpu')
 
 
 
-def chebgrid(a,b,n):
-    k=np.arange(n)+1
-    k1=2*k-1
-    n1=2*n
-    cos_vec=np.cos(k1/n1*np.pi)
-    grid=(a+b)/2+(b-a)/2*cos_vec
-    grid=np.flip(grid)
-    return grid
 
 CACHE=True
 
@@ -252,4 +243,4 @@ exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df=pd.DataFrame(exp_dict_list_flatten)
 df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
 df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
-# df.to_csv('PIII_experiment_100_1000_cache={}.csv'.format(str(CACHE)))
+df.to_csv('PIII_experiment_100_500_cache={}.csv'.format(str(CACHE)))
