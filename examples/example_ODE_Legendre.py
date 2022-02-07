@@ -218,7 +218,7 @@ import pandas as pd
 df=pd.DataFrame(exp_dict_list)
 df.boxplot(by='type',column='RMSE',figsize=(20,10),fontsize=42,showfliers=False)
 df.boxplot(by='type',column='time',figsize=(20,10),fontsize=42,showfliers=False)
-df.to_csv('legendre_poly_exp_cache='+str(CACHE)+'.csv')
+df.to_csv('benchmarking_data/legendre_poly_exp_cache='+str(CACHE)+'.csv')
 
 #full paper plot
 
@@ -227,8 +227,8 @@ df.to_csv('legendre_poly_exp_cache='+str(CACHE)+'.csv')
 # sns.set(rc={'figure.figsize':(11.7,8.27)},font_scale=2)
 
 
-# df1=pd.read_csv('legendre_poly_exp_cache=False.csv',index_col=0)
-# df2=pd.read_csv('legendre_poly_exp_cache=True.csv',index_col=0)
+# df1=pd.read_csv('benchmarking_data/legendre_poly_exp_cache=False.csv',index_col=0)
+# df2=pd.read_csv('benchmarking_data/legendre_poly_exp_cache=True.csv',index_col=0)
 # df=pd.concat((df1,df2))
 
 # sns.boxplot(x='type', y='RMSE', data=df, showfliers=False, hue='cache')
