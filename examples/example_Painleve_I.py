@@ -22,9 +22,9 @@ import time
 
 device = torch.device('cpu')
 
-CACHE=True
 
-def p_I_exp(grid_res,nruns):
+
+def p_I_exp(grid_res,nruns,CACHE):
     
     exp_dict_list=[]
     
@@ -175,7 +175,7 @@ def p_I_exp(grid_res,nruns):
         start = time.time()
         model = point_sort_shift_solver(grid, model, p_1, bconds, lambda_bound=100, verbose=0, learning_rate=1e-4,
                                         eps=1e-7, tmin=1000, tmax=1e5,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
-                                        ,batch_size=None, save_always=False,print_every=None)
+                                        ,batch_size=None, save_always=False,print_every=None,model_randomize_parameter=1e-6)
         end = time.time()
 
             
@@ -188,7 +188,7 @@ def p_I_exp(grid_res,nruns):
         prepared_bconds = bnd_prepare(bconds, prepared_grid,grid_dict, h=0.0001)
         prepared_operator = operator_prepare(p_1, grid_dict, subset=['central'], true_grid=grid, h=0.001)
         end_loss = point_sort_shift_loss(model, prepared_grid, prepared_operator, prepared_bconds, lambda_bound=100)
-        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'PI'})
+        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'PI','cache':CACHE})
         
         print('Time taken {}= {}'.format(grid_res, end - start))
         print('RMSE {}= {}'.format(grid_res, error_rmse))
@@ -200,13 +200,15 @@ nruns=10
 
 exp_dict_list=[]
 
+CACHE=False
+
 
 for grid_res in range(10,100,10):
-    exp_dict_list.append(p_I_exp(grid_res, nruns))
+    exp_dict_list.append(p_I_exp(grid_res, nruns,CACHE))
 
 
 for grid_res in range(100,501,100):
-    exp_dict_list.append(p_I_exp(grid_res, nruns))
+    exp_dict_list.append(p_I_exp(grid_res, nruns,CACHE))
 
 
 import pandas as pd
@@ -216,3 +218,41 @@ df=pd.DataFrame(exp_dict_list_flatten)
 df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
 df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
 df.to_csv('PI_experiment_10_500_cache={}.csv'.format(str(CACHE)))
+
+
+exp_dict_list=[]
+
+CACHE=True
+
+
+for grid_res in range(10,100,10):
+    exp_dict_list.append(p_I_exp(grid_res, nruns,CACHE))
+
+
+for grid_res in range(100,501,100):
+    exp_dict_list.append(p_I_exp(grid_res, nruns,CACHE))
+
+
+import pandas as pd
+
+exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+df=pd.DataFrame(exp_dict_list_flatten)
+df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
+df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
+df.to_csv('PI_experiment_10_500_cache={}.csv'.format(str(CACHE)))
+
+
+# import seaborn as sns
+
+# sns.set(rc={'figure.figsize':(11.7,8.27)},font_scale=2)
+
+
+# df1=pd.read_csv('PI_experiment_10_500_cache=False.csv',index_col=0)
+# df2=pd.read_csv('PI_experiment_10_500_cache=True.csv',index_col=0)
+# df=pd.concat((df1,df2))
+
+# sns.boxplot(x='grid_res', y='RMSE', data=df, showfliers=False, hue='cache')
+
+# plt.figure()
+
+# sns.boxplot(x='grid_res', y='time', data=df, showfliers=False, hue='cache')

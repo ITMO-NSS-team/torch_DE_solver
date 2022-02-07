@@ -198,7 +198,7 @@ for n in range(3,11):
         start = time.time()
         model = point_sort_shift_solver(grid, model, legendre_poly, bconds, lambda_bound=10, verbose=True, learning_rate=1e-3,
                                         eps=1e-5, tmin=1000, tmax=1e5,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
-                                        ,batch_size=None, save_always=False,print_every=None)
+                                        ,batch_size=None, save_always=False,print_every=None,model_randomize_parameter=1e-6)
         end = time.time()
     
         print('Time taken {} = {}'.format(n,  end - start))
@@ -212,10 +212,27 @@ for n in range(3,11):
         error_rmse=torch.sqrt(torch.mean((legendre(n)(grid)-model(grid))**2))
         print('RMSE {}= {}'.format(n, error_rmse))
         
-        exp_dict_list.append({'grid_res':100,'time':end - start,'RMSE':error_rmse.detach().numpy(),'type':'Legendre '+str(n)})
+        exp_dict_list.append({'grid_res':100,'time':end - start,'RMSE':error_rmse.detach().numpy(),'type':'L'+str(n),'cache':str(CACHE)})
 
 import pandas as pd
 df=pd.DataFrame(exp_dict_list)
 df.boxplot(by='type',column='RMSE',figsize=(20,10),fontsize=42,showfliers=False)
 df.boxplot(by='type',column='time',figsize=(20,10),fontsize=42,showfliers=False)
 df.to_csv('legendre_poly_exp_cache='+str(CACHE)+'.csv')
+
+#full paper plot
+
+# import seaborn as sns
+
+# sns.set(rc={'figure.figsize':(11.7,8.27)},font_scale=2)
+
+
+# df1=pd.read_csv('legendre_poly_exp_cache=False.csv',index_col=0)
+# df2=pd.read_csv('legendre_poly_exp_cache=True.csv',index_col=0)
+# df=pd.concat((df1,df2))
+
+# sns.boxplot(x='type', y='RMSE', data=df, showfliers=False, hue='cache')
+
+# plt.figure()
+
+# sns.boxplot(x='type', y='time', data=df, showfliers=False, hue='cache')
