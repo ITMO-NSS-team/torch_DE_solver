@@ -36,19 +36,24 @@ def solution_print(prepared_grid,model,title=None):
 
 
 
-
+def create_random_fn(eps):
+    def randomize_params(m):
+      if type(m)==torch.nn.Linear or type(m)==torch.nn.Conv2d:
+        m.weight.data=m.weight.data+(2*torch.randn(m.weight.size())-1)*eps#Random weight initialisation
+        m.bias.data=m.bias.data+(2*torch.randn(m.bias.size())-1)*eps
+    return randomize_params
 
 def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
                             verbose=False, learning_rate=1e-4, eps=1e-5, tmin=1000, tmax=1e5, h=0.001,
                             use_cache=True,cache_dir='../cache/',cache_verbose=False,
                             batch_size=None,save_always=False,lp_par=None,print_every=100,
-                            patience=5,loss_oscillation_window=100,no_improvement_patience=1000):
+                            patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
+                            model_randomize_parameter=0):
     # prepare input data to uniform format 
     
     prepared_grid,grid_dict,point_type = grid_prepare(grid)
     prepared_bconds = bnd_prepare(bconds, prepared_grid,grid_dict, h=h)
     full_prepared_operator = operator_prepare(operator, grid_dict, subset=grid_point_subset, true_grid=grid, h=h)
-    
     
 
     #  use cache if needed
@@ -56,8 +61,9 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
         cache_checkpoint,min_loss=cache_lookup(prepared_grid, full_prepared_operator, prepared_bconds,cache_dir=cache_dir
                                                ,nmodels=None,verbose=cache_verbose,lambda_bound=0.001,norm=lp_par)
         model, optimizer_state= cache_retrain(model,cache_checkpoint,grid,verbose=cache_verbose)
-    
-        
+        if model_randomize_parameter>0:
+            r=create_random_fn(model_randomize_parameter)     
+            model.apply(r)
     # model is not saved if cache model good enough
 
     # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
