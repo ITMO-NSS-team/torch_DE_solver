@@ -233,8 +233,6 @@ for grid_res in range(100,501,100):
     exp_dict_list.append(p_I_exp(grid_res, nruns,CACHE))
 
 
-import pandas as pd
-
 exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df=pd.DataFrame(exp_dict_list_flatten)
 df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
