@@ -27,10 +27,8 @@ import time
 
 device = torch.device('cpu')
 
-CACHE=True
 
-
-def p_II_exp(grid_res,nruns):
+def p_II_exp(grid_res,nruns,CACHE):
     
     exp_dict_list=[]
     
@@ -174,7 +172,7 @@ def p_II_exp(grid_res,nruns):
         prepared_bconds = bnd_prepare(bconds, prepared_grid,grid_dict, h=0.0001)
         prepared_operator = operator_prepare(p_2, grid_dict, subset=['central'], true_grid=grid, h=0.001)
         end_loss = point_sort_shift_loss(model, prepared_grid, prepared_operator, prepared_bconds, lambda_bound=100)
-        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'PI'})
+        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'PII','cache':CACHE})
         
         print('Time taken {}= {}'.format(grid_res, end - start))
         print('RMSE {}= {}'.format(grid_res, error_rmse))
@@ -187,12 +185,14 @@ nruns=10
 exp_dict_list=[]
 
 
+CACHE=False
+
 for grid_res in range(10,100,10):
-    exp_dict_list.append(p_II_exp(grid_res, nruns))
+    exp_dict_list.append(p_II_exp(grid_res, nruns,CACHE))
 
 
 for grid_res in range(100,501,100):
-    exp_dict_list.append(p_II_exp(grid_res, nruns))
+    exp_dict_list.append(p_II_exp(grid_res, nruns, CACHE))
 
 
 import pandas as pd
@@ -201,4 +201,24 @@ exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df=pd.DataFrame(exp_dict_list_flatten)
 df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
 df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
-df.to_csv('PII_experiment_10_500_cache={}.csv'.format(str(CACHE)))
+df.to_csv('benckmarking_data/PII_experiment_10_500_cache={}.csv'.format(str(CACHE)))
+
+
+
+CACHE=True
+
+for grid_res in range(10,100,10):
+    exp_dict_list.append(p_II_exp(grid_res, nruns,CACHE))
+
+
+for grid_res in range(100,501,100):
+    exp_dict_list.append(p_II_exp(grid_res, nruns, CACHE))
+
+
+import pandas as pd
+
+exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+df=pd.DataFrame(exp_dict_list_flatten)
+df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
+df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
+df.to_csv('benckmarking_data/PII_experiment_10_500_cache={}.csv'.format(str(CACHE)))
