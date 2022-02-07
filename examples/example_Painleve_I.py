@@ -217,7 +217,7 @@ exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df=pd.DataFrame(exp_dict_list_flatten)
 df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
 df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
-df.to_csv('PI_experiment_10_500_cache={}.csv'.format(str(CACHE)))
+df.to_csv('benchmarking_data/PI_experiment_10_500_cache={}.csv'.format(str(CACHE)))
 
 
 exp_dict_list=[]
@@ -237,7 +237,7 @@ exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df=pd.DataFrame(exp_dict_list_flatten)
 df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
 df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
-df.to_csv('PI_experiment_10_500_cache={}.csv'.format(str(CACHE)))
+df.to_csv('benchmarking_data/PI_experiment_10_500_cache={}.csv'.format(str(CACHE)))
 
 
 # import seaborn as sns
@@ -245,8 +245,8 @@ df.to_csv('PI_experiment_10_500_cache={}.csv'.format(str(CACHE)))
 # sns.set(rc={'figure.figsize':(11.7,8.27)},font_scale=2)
 
 
-# df1=pd.read_csv('PI_experiment_10_500_cache=False.csv',index_col=0)
-# df2=pd.read_csv('PI_experiment_10_500_cache=True.csv',index_col=0)
+# df1=pd.read_csv('benchmarking_data/PI_experiment_10_500_cache=False.csv',index_col=0)
+# df2=pd.read_csv('benchmarking_data/PI_experiment_10_500_cache=True.csv',index_col=0)
 # df=pd.concat((df1,df2))
 
 # sns.boxplot(x='grid_res', y='RMSE', data=df, showfliers=False, hue='cache')
