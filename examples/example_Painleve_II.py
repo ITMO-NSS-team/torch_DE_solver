@@ -201,7 +201,7 @@ exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df=pd.DataFrame(exp_dict_list_flatten)
 df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
 df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
-df.to_csv('benckmarking_data/PII_experiment_10_500_cache={}.csv'.format(str(CACHE)))
+df.to_csv('benchmarking_data/PII_experiment_10_500_cache={}.csv'.format(str(CACHE)))
 
 
 
@@ -221,4 +221,4 @@ exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df=pd.DataFrame(exp_dict_list_flatten)
 df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
 df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
-df.to_csv('benckmarking_data/PII_experiment_10_500_cache={}.csv'.format(str(CACHE)))
+df.to_csv('benchmarking_data/PII_experiment_10_500_cache={}.csv'.format(str(CACHE)))
