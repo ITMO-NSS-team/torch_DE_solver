@@ -230,23 +230,24 @@ exp_dict_list=[]
 # for grid_res in range(10,100,10):
 #     exp_dict_list.append(p_III_exp(grid_res, nruns))
 
+# CACHE=False
+
+# for grid_res in range(100,501,100):
+#     for _ in range(nruns):
+#         exp_dict_list.append(p_III_exp(grid_res,CACHE))
+
+
+# import pandas as pd
+
+# exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+# df=pd.DataFrame(exp_dict_list_flatten)
+# df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
+# df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
+# df.to_csv('benchmarking_data/PIII_experiment_100_500_cache={}.csv'.format(str(CACHE)))
+
+exp_dict_list=[]
+
 CACHE=True
-
-for grid_res in range(100,501,100):
-    for _ in range(nruns):
-        exp_dict_list.append(p_III_exp(grid_res,CACHE))
-
-
-import pandas as pd
-
-exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-df=pd.DataFrame(exp_dict_list_flatten)
-df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
-df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
-df.to_csv('benchmarking_data/PIII_experiment_100_500_cache={}.csv'.format(str(CACHE)))
-
-
-CACHE=False
 
 for grid_res in range(100,501,100):
     for _ in range(nruns):
