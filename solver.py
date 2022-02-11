@@ -59,14 +59,13 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
     prepared_bconds = bnd_prepare(bconds, prepared_grid,grid_dict, h=h)
     full_prepared_operator = operator_prepare(operator, grid_dict, subset=grid_point_subset, true_grid=grid, h=h)
     
-
+    r=create_random_fn(model_randomize_parameter)   
     #  use cache if needed
     if use_cache:
         cache_checkpoint,min_loss=cache_lookup(prepared_grid, full_prepared_operator, prepared_bconds,cache_dir=cache_dir
                                                ,nmodels=None,verbose=cache_verbose,lambda_bound=lambda_bound,norm=lp_par)
         model, optimizer_state= cache_retrain(model,cache_checkpoint,grid,verbose=cache_verbose)
-
-        r=create_random_fn(model_randomize_parameter)     
+  
         model.apply(r)
     # model is not saved if cache model good enough
 

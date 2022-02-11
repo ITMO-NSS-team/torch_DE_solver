@@ -173,7 +173,7 @@ def wave_experiment(grid_res,CACHE):
     
     model = point_sort_shift_solver(grid, model, wave_eq, bconds, lambda_bound=100, verbose=2, learning_rate=1e-3,h=abs((t[1]-t[0]).item()),
                                     eps=1e-7, tmin=1000, tmax=1e6,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
-                                    ,batch_size=None, save_always=True,lp_par=lp_par,no_improvement_patience=None,print_every=10000,
+                                    ,batch_size=None, save_always=True,lp_par=lp_par,no_improvement_patience=10000,print_every=10000,
                                     model_randomize_parameter=1e-6,grid_point_subset=None)
     end = time.time()
         
@@ -198,9 +198,9 @@ nruns=10
 
 exp_dict_list=[]
 
-CACHE=True
+CACHE=False
 
-for grid_res in range(10,51,10):
+for grid_res in range(10,11,10):
     for _ in range(nruns):
         exp_dict_list.append(wave_experiment(grid_res,CACHE))
    
