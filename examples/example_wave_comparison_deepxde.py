@@ -30,8 +30,8 @@ dimensionality
 
 device = torch.device('cuda')
 
-x_grid=np.linspace(0,1,21)
-t_grid=np.linspace(0,1,21)
+x_grid=np.linspace(0,1,11)
+t_grid=np.linspace(0,1,11)
 
 x = torch.from_numpy(x_grid)
 t = torch.from_numpy(t_grid)
@@ -150,9 +150,9 @@ for _ in range(1):
     start = time.time()
     
     model = point_sort_shift_solver(grid, model, wave_eq , bconds, 
-                                              lambda_bound=1000, verbose=1, learning_rate=1e-4,
-                                    eps=1e-5, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
-                                    batch_size=32, save_always=True)
+                                              lambda_bound=1000, verbose=1, learning_rate=1e-3,
+                                    eps=1e-6, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True,
+                                    batch_size=32, save_always=True,no_improvement_patience=None)
 
     end = time.time()
     print('Time taken 10= ', end - start)
