@@ -145,7 +145,7 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
         t += 1
         if t > tmax:
             break
-    if save_cache and use_cache:
+    if (save_cache and use_cache) or save_always:
         save_model(model,model.state_dict(),optimizer.state_dict(),cache_dir=cache_dir,name=None)
     return model
 
