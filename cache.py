@@ -43,7 +43,7 @@ def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='
         cache_n=np.random.choice(len(files), nmodels, replace=False)
     min_loss=np.inf
     best_model=0
-    best_checkpoint={}
+    best_checkpoint=None
     for i in cache_n:
         file=files[i]
         checkpoint = torch.load(file)
@@ -72,6 +72,7 @@ def cache_retrain(model,cache_checkpoint,grid,verbose=False):
         optimizer_state=None
         return model,optimizer_state
     # if models have the same structure use the cache model state
+    print(cache_checkpoint)
     if str(cache_checkpoint['model']) == str(model):
         model=cache_checkpoint['model']
         model.load_state_dict(cache_checkpoint['model_state_dict'])
