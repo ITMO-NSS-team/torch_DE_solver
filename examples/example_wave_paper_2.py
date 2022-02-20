@@ -121,20 +121,23 @@ def wave_experiment(grid_res,CACHE):
     """
     # operator is 4*d2u/dx2-1*d2u/dt2=0
     wave_eq = {
-        'd2u/dt2**1':
+        '4*d2u/dx2**1':
             {
-                'coeff': 1,
-                'd2u/dt2': [1,1],
-                'pow':1
-            },
-            '-C*d2u/dx2**1':
-            {
-                'coeff': -C**2,
+                'coeff': 4,
                 'd2u/dx2': [0, 0],
                 'pow': 1
+            },
+        '-d2u/dt2**1':
+            {
+                'coeff': -1,
+                'd2u/dt2': [1,1],
+                'pow':1
             }
     }
 
+    sln=np.genfromtxt('wolfram_sln/wave_sln_'+str(grid_res)+'.csv',delimiter=',')
+    sln_torch=torch.from_numpy(sln)
+    sln_torch1=sln_torch.reshape(-1,1)
 
     # model = torch.nn.Sequential(
     #     torch.nn.Linear(2, 100),
@@ -171,12 +174,12 @@ def wave_experiment(grid_res,CACHE):
     start = time.time()
     
     model = point_sort_shift_solver(grid, model, wave_eq, bconds, lambda_bound=10, verbose=2, learning_rate=1e-4, h=abs((t[1]-t[0]).item()),
-                                    eps=1e-8, tmin=1000, tmax=1e6,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
-                                    ,batch_size=None, save_always=True,lp_par=lp_par,no_improvement_patience=10000,print_every=None,
+                                    eps=1e-6, tmin=1000, tmax=1e6,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
+                                    ,batch_size=None, save_always=True,lp_par=lp_par,print_every=None,
                                     model_randomize_parameter=1e-6)
     end = time.time()
         
-    error_rmse=torch.sqrt(torch.mean((func(grid)-model(grid))**2))
+    error_rmse=torch.sqrt(torch.mean((sln_torch1-model(grid))**2))
     
   
     
@@ -211,4 +214,4 @@ exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df=pd.DataFrame(exp_dict_list_flatten)
 df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
 df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
-df.to_csv('benchmarking_data/wave_experiment_2_10_50_cache={}.csv'.format(str(CACHE)))
+df.to_csv('benchmarking_data/wave_experiment_2_10_100_cache={}.csv'.format(str(CACHE)))
