@@ -18,10 +18,11 @@ Grid is an essentially torch.Tensor of a n-D points where n is the problem
 dimensionality
 """
 
-t = torch.from_numpy(np.linspace(0, 1, 10))
-grid = t.reshape(-1, 1).float()
+t = torch.from_numpy(np.array([0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]))
 
-grid.to(device)
+grid = [t]
+grid = np.meshgrid(*grid)
+grid = torch.tensor(grid, device=device)
 
 """
 Preparing boundary conditions (BC)
@@ -144,26 +145,26 @@ legendre_poly= {
 }
 
 # this one is to show that coefficients may be a function of grid as well
-legendre_poly= {
-    '(1-t^2)*d2u/dt2**1':
-        {
-            'coeff': c1, #coefficient is a function
-            'du/dt': [0, 0],
-            'pow': 1
-        },
-    '-2t*du/dt**1':
-        {
-            'coeff': c2,
-            'u*du/dx': [0],
-            'pow':1
-        },
-    'n*(n-1)*u**1':
-        {
-            'coeff': 6,
-            'u':  [None],
-            'pow': 1
-        }
-}
+# legendre_poly= {
+#     '(1-t^2)*d2u/dt2**1':
+#         {
+#             'coeff': c1, #coefficient is a function
+#             'du/dt': [0, 0],
+#             'pow': 1
+#         },
+#     '-2t*du/dt**1':
+#         {
+#             'coeff': c2,
+#             'u*du/dx': [0],
+#             'pow':1
+#         },
+#     'n*(n-1)*u**1':
+#         {
+#             'coeff': 6,
+#             'u':  [None],
+#             'pow': 1
+#         }
+# }
 
 
 
@@ -179,7 +180,7 @@ for _ in range(1):
     # model = torch.tensor(initial_approximation)
 
     start = time.time()
-    model = lbfgs_solution(model, grid, legendre_poly, 1, bconds)
+    model = lbfgs_solution(model, grid, legendre_poly, 100, bconds)
     end = time.time()
 
     fig = plt.figure()
