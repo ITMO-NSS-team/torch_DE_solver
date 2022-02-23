@@ -162,7 +162,7 @@ def c1(grid):
     return 1/grid[:,0]
 
 
-# P_VI operator is  
+# heat operator is  
 heat= {
     'du/dt':
         {
@@ -172,13 +172,13 @@ heat= {
         },
     'l/r*du/dr':
         {
-            'coeff': 3.44e-8*c1(grid),
+            'coeff': -3.44e-8*c1(grid),
             'du/dr':  [0],
             'pow': 1
         },
     'l*d2u/dr2':
         {
-            'coeff': 9.21e-8,
+            'coeff': -9.21e-8,
             'du/dr':  [0,0],
             'pow': 1
         }
