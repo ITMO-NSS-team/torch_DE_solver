@@ -194,7 +194,7 @@ def heat_experiment(grid_res,CACHE):
     
     model = point_sort_shift_solver(grid, model, wave_eq, bconds, lambda_bound=10, verbose=2, learning_rate=1e-4, h=abs((t[1]-t[0]).item()),
                                     eps=1e-6, tmin=1000, tmax=1e6,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
-                                    ,batch_size=None, save_always=True,lp_par=lp_par,no_improvement_patience=10000,print_every=None,
+                                    ,batch_size=None, save_always=True,lp_par=lp_par,print_every=None,
                                     model_randomize_parameter=1e-6)
     end = time.time()
         
