@@ -153,9 +153,9 @@ def wave_experiment(grid_res,CACHE):
 
     model = torch.nn.Sequential(
         torch.nn.Linear(2, 100),
-        torch.nn.ReLU(),
+        torch.nn.Tanh(),
         torch.nn.Linear(100, 100),
-        torch.nn.ReLU(),
+        torch.nn.Tanh(),
         # torch.nn.Linear(100, 100),
         # torch.nn.ReLU(),
         # torch.nn.Linear(100, 100),
@@ -174,7 +174,7 @@ def wave_experiment(grid_res,CACHE):
     start = time.time()
     
     model = point_sort_shift_solver(grid, model, wave_eq, bconds, lambda_bound=10, verbose=2, learning_rate=1e-4, h=abs((t[1]-t[0]).item()),
-                                    eps=1e-6, tmin=1000, tmax=1e6,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
+                                    eps=1e-7, tmin=1000, tmax=1e6,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
                                     ,batch_size=None, save_always=True,lp_par=lp_par,print_every=None,
                                     model_randomize_parameter=1e-6)
     end = time.time()
@@ -205,13 +205,13 @@ CACHE=True
 for grid_res in range(10,101,10):
     for _ in range(nruns):
         exp_dict_list.append(wave_experiment(grid_res,CACHE))
+        import pandas as pd
+
+        exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+        df=pd.DataFrame(exp_dict_list_flatten)
+        df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
+        df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
+        df.to_csv('benchmarking_data/wave_experiment_2_{}_cache={}.csv'.format(grid_res,str(CACHE)))
    
 
         
-import pandas as pd
-
-exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-df=pd.DataFrame(exp_dict_list_flatten)
-df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
-df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
-df.to_csv('benchmarking_data/wave_experiment_2_10_100_cache={}.csv'.format(str(CACHE)))
