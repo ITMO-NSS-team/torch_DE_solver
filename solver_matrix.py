@@ -9,34 +9,7 @@ sys.path.append('../')
 
 
 def derivative(u_tensor, h_tensor, axis, scheme_order=1, boundary_order=1):
-    if min(u_tensor.shape) == 1 or u_tensor.dim() == 1:
-        u_tensor = torch.transpose(u_tensor, 0, axis)
-    else:
-        u_tensor = torch.transpose(u_tensor, 0, axis-1)
-
-    h_tensor = torch.transpose(h_tensor, 0, axis)
-
-    du_forward = (-torch.roll(u_tensor, -1) + u_tensor) / \
-                 (-torch.roll(h_tensor, -1) + h_tensor)
-
-    du_backward = (torch.roll(u_tensor, 1) - u_tensor) / \
-                  (torch.roll(h_tensor, 1) - h_tensor)
-    du = (1 / 2) * (du_forward + du_backward)
-
-    du[:, 0] = du_forward[:, 0]
-    du[:, -1] = du_backward[:, -1]
-
-    if min(u_tensor.shape) == 1 or u_tensor.dim() == 1:
-        du = torch.transpose(du, 0, axis)
-    else:
-        du = torch.transpose(du, 0, axis - 1)
-
-    return du
-
-def bond_derivative(u_tensor, h_tensor, axis, scheme_order=1, boundary_order=1):
-
     u_tensor = torch.transpose(u_tensor, 0, axis)
-
     h_tensor = torch.transpose(h_tensor, 0, axis)
 
     du_forward = (-torch.roll(u_tensor, -1) + u_tensor) / \
@@ -52,6 +25,7 @@ def bond_derivative(u_tensor, h_tensor, axis, scheme_order=1, boundary_order=1):
     du = torch.transpose(du, 0, axis)
 
     return du
+
 
 def take_matrix_diff_term(model, grid, term):
     """
@@ -79,17 +53,18 @@ def take_matrix_diff_term(model, grid, term):
     power = term[2]
     # initially it is an ones field
     der_term = torch.zeros_like(model) + 1
-    h = grid
     for j, scheme in enumerate(operator_product):
         prod=model
         if scheme!=[None]:
             for axis in scheme:
+                if axis is None:
+                    continue
                 h = grid[axis]
                 prod=derivative(prod, h, axis, scheme_order=1, boundary_order=1)
         der_term = der_term * prod ** power[j]
 
     if callable(coeff) is True:
-        der_term = coeff(h) * der_term
+        der_term = coeff(grid) * der_term
     else:
         der_term = coeff * der_term
     return der_term
@@ -179,7 +154,10 @@ def apply_matrix_bcond_operator(model,grid,b_prepared):
                 b_op_val = apply_matrix_diff_operator(model,grid,b_cond_operator)
             # take boundary values
             for position in b_pos:
-                b_val_list.append(b_op_val[position])
+                if grid.dim() == 1 or min(grid.shape) == 1:
+                    b_val_list.append(b_op_val[:, position])
+                else:
+                    b_val_list.append(b_op_val[position])
             true_b_val_list.append(true_boundary_val)
         b_val=torch.cat(b_val_list)
         true_b_val=torch.cat(true_b_val_list)
@@ -231,7 +209,7 @@ def lbfgs_solution(model, grid, operator, norm_lambda, bcond):
         return loss
 
     cur_loss = float('inf')
-    tol = 1e-16
+    tol = 1e-20
 
     for i in range(10000):
         past_loss = cur_loss
