@@ -19,25 +19,25 @@ grid = np.meshgrid(*grid)
 grid = torch.tensor(grid, device=device)
 
 # Initial conditions at t=0
-bnd1 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), x).float()
+bnd1 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
 
 # u(0,x)=sin(pi*x)
-bndval1 = torch.sin(np.pi * bnd1[:, 1])
+bndval1 = torch.sin(np.pi * bnd1[:, 0])
 
 # Initial conditions at t=1
-bnd2 = torch.cartesian_prod(torch.from_numpy(np.array([1], dtype=np.float64)), x).float()
+bnd2 = torch.cartesian_prod(x, torch.from_numpy(np.array([1], dtype=np.float64))).float()
 
 # u(1,x)=sin(pi*x)
-bndval2 = torch.sin(np.pi * bnd2[:, 1])
+bndval2 = torch.sin(np.pi * bnd2[:, 0])
 
 # Boundary conditions at x=0
-bnd3 = torch.cartesian_prod(t, torch.from_numpy(np.array([0], dtype=np.float64))).float()
+bnd3 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t).float()
 
 # u(0,t)=0
 bndval3 = torch.from_numpy(np.zeros(len(bnd3), dtype=np.float64))
 
 # Boundary conditions at x=1
-bnd4 = torch.cartesian_prod(t, torch.from_numpy(np.array([1], dtype=np.float64))).float()
+bnd4 = torch.cartesian_prod(torch.from_numpy(np.array([1], dtype=np.float64)), t).float()
 
 # u(1,t)=0
 bndval4 = torch.from_numpy(np.zeros(len(bnd4), dtype=np.float64))
@@ -63,20 +63,14 @@ wave_eq = {
 for _ in range(1):
     model = grid[0]**2 + grid[1]**2
 
-    wolfram_sln = np.genfromtxt('wave_sln_10.csv', delimiter=',')
-
-    # solution_print(grid, torch.from_numpy(wolfram_sln))
     start = time.time()
 
     model = lbfgs_solution(model, grid, wave_eq, 10, bconds)
 
     end = time.time()
 
-    error = mean_squared_error(model.numpy().reshape(-1), wolfram_sln.reshape(-1))
-    mae = np.mean(np.abs(model.numpy().reshape(-1) - wolfram_sln.reshape(-1)))
+    model = torch.transpose(model, 0, 1)
 
-    print('rmse', error)
-    print('mae', mae)
     print('Solution\n', model)
     print('Time taken = ', end - start)
 

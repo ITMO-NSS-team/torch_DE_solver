@@ -4,6 +4,7 @@ sys.path.append('../')
 
 from solver_matrix import *
 import time
+from sklearn.metrics import mean_squared_error
 
 """
 Preparing grid
@@ -222,7 +223,7 @@ kdv = {
         },
     '-sin(x)cos(t)':
         {
-            '-sin(x)cos(t)': c1,
+            '-sin(x)cos(t)': c1(grid),
             'u': [None],
             'pow': 0
         }
@@ -238,4 +239,9 @@ for _ in range(1):
     model = lbfgs_solution(model, grid, kdv, 10, bconds)
     end = time.time()
 
-    print('Time taken 10= ', end - start)
+    model = torch.transpose(model, 0, 1)
+
+    print('Solution\n', model)
+    print('Time taken = ', end - start)
+
+    solution_print(grid, model)
