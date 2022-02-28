@@ -280,8 +280,8 @@ for grid_res in [20,30]:
         print('RMSE {}= {}'.format(grid_res, error_rmse))
         print('loss {}= {}'.format(grid_res, end_loss))
 
-        result_assessment=pd.DataFrame(exp_dict_list)
-        result_assessment.to_csv('results_kdv_matrix')
+result_assessment=pd.DataFrame(exp_dict_list)
+result_assessment.to_csv('results_kdv_matrix.csv')
 
 result_assessment.boxplot(by='grid_res',column='time',showfliers=False,figsize=(20,10),fontsize=42)
 
