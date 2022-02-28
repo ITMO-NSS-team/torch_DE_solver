@@ -189,7 +189,7 @@ def matrix_loss(model, grid, operator, bconds, lambda_bound=10):
 
     return loss
 
-def lbfgs_solution(model, grid, operator, norm_lambda, bcond):
+def lbfgs_solution(model, grid, operator, norm_lambda, bcond, tol=1e-6,nsteps=10000):
 
     if type(operator) == dict:
         operator = op_dict_to_list(operator)
@@ -209,9 +209,9 @@ def lbfgs_solution(model, grid, operator, norm_lambda, bcond):
         return loss
 
     cur_loss = float('inf')
-    tol = 1e-20
+    # tol = 1e-20
 
-    for i in range(10000):
+    for i in range(nsteps):
         past_loss = cur_loss
 
         optimizer.step(closure)

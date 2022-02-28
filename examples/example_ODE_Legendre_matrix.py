@@ -189,7 +189,7 @@ for n in range(3,11):
         model = torch.rand(grid.shape)
     
         start = time.time()
-        model = lbfgs_solution(model, grid, legendre_poly, 100, bconds, 1e-8)
+        model = lbfgs_solution(model, grid, legendre_poly, 100, bconds, tol=1e-6,nsteps=10000)
         end = time.time()
     
         print('Time taken {} = {}'.format(n,  end - start))
@@ -209,7 +209,7 @@ import pandas as pd
 df=pd.DataFrame(exp_dict_list)
 df.boxplot(by='type',column='RMSE',figsize=(20,10),fontsize=42,showfliers=False)
 df.boxplot(by='type',column='time',figsize=(20,10),fontsize=42,showfliers=False)
-df.to_csv('benchmarking_data/legendre_poly_exp_cache='+str(CACHE)+'.csv')
+df.to_csv('benchmarking_data/legendre_poly_exp_martix.csv')
 
 #full paper plot
 
