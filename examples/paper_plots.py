@@ -14,6 +14,20 @@ import seaborn as sns
 sns.set(rc={'figure.figsize':(11.7,8.27)},font_scale=3)
 sns.set_style("whitegrid")
 
+df1=pd.read_csv('benchmarking_data/legendre_poly_exp_cache=False.csv',index_col=0)
+df2=pd.read_csv('benchmarking_data/legendre_poly_exp_cache=True.csv',index_col=0)
+df_L=pd.concat((df1,df2))
+
+
+plt.figure()
+sns.boxplot(x='type', y='RMSE', data=df_L, showfliers=False, hue='cache')
+
+
+plt.figure()
+sns.boxplot(x='type', y='time', data=df_L, showfliers=False, hue='cache')
+
+
+
 
 fig, axes = plt.subplots(2, 3, figsize=(60,30))
 
@@ -118,3 +132,35 @@ plt.figure()
 ax=sns.lineplot(x='grid_res', y='mean_time', data=df_compare, hue='type')
 ax.set(xlabel='grid_res', ylabel='log(time)')
 plt.show()
+
+
+fig, axes = plt.subplots(2, 3, figsize=(60,30))
+
+wave_df=pd.read_csv('benchmarking_data/wave_experiment_2_20_100_cache=True.csv',index_col=0)
+
+
+
+
+sns.boxplot(ax=axes[0,0],x='grid_res', y='RMSE', data=wave_df, showfliers=False,hue='cache')
+axes[0,0].set_title('WE Error')
+sns.boxplot(ax=axes[1,0],x='grid_res', y='time', data=wave_df, showfliers=False,hue='cache')
+axes[1,0].set_title('WE Time')
+
+heat_df=pd.read_csv('benchmarking_data/heat_experiment_10_100_cache=True.csv',index_col=0)
+
+sns.boxplot(ax=axes[0,1],x='grid_res', y='RMSE', data=heat_df, showfliers=False,hue='cache')
+axes[0,1].set_title('HE Error')
+sns.boxplot(ax=axes[1,1],x='grid_res', y='time', data=heat_df, showfliers=False,hue='cache')
+axes[1,1].set_title('HE Time')
+
+
+kdv_df=pd.read_csv('benchmarking_data/kdv_experiment_10_30_cache=True.csv',index_col=0)
+
+# kdv_df['cache']=True
+
+sns.boxplot(ax=axes[0,2],x='grid_res', y='RMSE', data=kdv_df, showfliers=False,hue='cache')
+axes[0,2].set_title('KdV Error')
+sns.boxplot(ax=axes[1,2],x='grid_res', y='time', data=kdv_df, showfliers=False,hue='cache')
+axes[1,2].set_title('KdV Time')
+
+plt.savefig('PDE_exps.eps', format='eps',bbox_inches='tight')

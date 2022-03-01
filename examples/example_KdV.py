@@ -274,7 +274,7 @@ for grid_res in [10,20,30]:
         start = time.time()
         model = point_sort_shift_solver(grid, model, kdv, bconds, lambda_bound=100,verbose=1, learning_rate=1e-4,h=0.01,
                                         eps=1e-5, tmin=1000, tmax=1e5,use_cache=True,cache_verbose=True,
-                                    batch_size=None, save_always=True,print_every=None)
+                                    batch_size=None, save_always=True,print_every=None,model_randomize_parameter=1e-6)
         # model = point_sort_shift_solver(grid, model, kdv, bconds, lambda_bound=1000,verbose=True, learning_rate=1e-4,
         #                                 eps=1e-6, tmin=1000, tmax=1e5, h=0.01,use_cache=True,cache_verbose=True,
         #                             batch_size=64, save_always=True)
@@ -291,12 +291,14 @@ for grid_res in [10,20,30]:
         
         end_loss = point_sort_shift_loss(model, prepared_grid, prepared_operator, prepared_bconds, lambda_bound=100)
     
-        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'kdv_eqn'})
+        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'kdv_eqn','cache':True})
         
         print('Time taken {}= {}'.format(grid_res, end - start))
         print('RMSE {}= {}'.format(grid_res, error_rmse))
         print('loss {}= {}'.format(grid_res, end_loss))
 
+
+CACHE=True
 
 import pandas as pd
 
@@ -305,3 +307,6 @@ result_assessment=pd.DataFrame(exp_dict_list)
 result_assessment.boxplot(by='grid_res',column='time',showfliers=False,figsize=(20,10),fontsize=42)
 
 result_assessment.boxplot(by='grid_res',column='RMSE',figsize=(20,10),fontsize=42)
+
+result_assessment.to_csv('benchmarking_data/kdv_experiment_10_30_cache={}.csv'.format(str(CACHE)))
+

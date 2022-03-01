@@ -142,7 +142,7 @@ def heat_experiment(grid_res,CACHE):
     
     """
     # operator is 4*d2u/dx2-1*d2u/dt2=0
-    wave_eq = {
+    heat_eq = {
         'du/dt**1':
             {
                 'coeff': 1,
@@ -192,20 +192,29 @@ def heat_experiment(grid_res,CACHE):
     
     start = time.time()
     
-    model = point_sort_shift_solver(grid, model, wave_eq, bconds, lambda_bound=10, verbose=2, learning_rate=1e-4, h=abs((t[1]-t[0]).item()),
+    model = point_sort_shift_solver(grid, model, heat_eq, bconds, lambda_bound=10, verbose=2, learning_rate=1e-4, h=abs((t[1]-t[0]).item()),
                                     eps=1e-6, tmin=1000, tmax=1e6,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
                                     ,batch_size=None, save_always=True,lp_par=lp_par,print_every=None,
                                     model_randomize_parameter=1e-6)
     end = time.time()
-        
-    error_rmse=torch.sqrt(torch.mean((func(grid)-model(grid))**2))
+    
+    
+    rmse_x_grid=np.linspace(0,1,grid_res+1)
+    rmse_t_grid=np.linspace(0.1,1,grid_res+1)
+
+    rmse_x = torch.from_numpy(rmse_x_grid)
+    rmse_t = torch.from_numpy(rmse_t_grid)
+
+    rmse_grid = torch.cartesian_prod(rmse_x, rmse_t).float()
+    
+    error_rmse=torch.sqrt(torch.mean(((func(rmse_grid)-model(rmse_grid))/500)**2))
     
   
     
     prepared_grid,grid_dict,point_type = grid_prepare(grid)
     
     prepared_bconds = bnd_prepare(bconds, prepared_grid,grid_dict, h=abs((t[1]-t[0]).item()))
-    prepared_operator = operator_prepare(wave_eq, grid_dict, subset=['central'], true_grid=grid, h=abs((t[1]-t[0]).item()))
+    prepared_operator = operator_prepare(heat_eq, grid_dict, subset=['central'], true_grid=grid, h=abs((t[1]-t[0]).item()))
     end_loss = point_sort_shift_loss(model, prepared_grid, prepared_operator, prepared_bconds, lambda_bound=100)
     exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'wave_eqn','cache':CACHE})
     
@@ -234,3 +243,6 @@ df=pd.DataFrame(exp_dict_list_flatten)
 df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
 df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
 df.to_csv('benchmarking_data/heat_experiment_10_100_cache={}.csv'.format(str(CACHE)))
+
+
+
