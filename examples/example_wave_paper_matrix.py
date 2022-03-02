@@ -16,7 +16,7 @@ sys.path.append('../')
 
 from solver_matrix import *
 import time
-
+import pandas as pd
 """
 Preparing grid
 
@@ -28,7 +28,7 @@ device = torch.device('cpu')
 
 exp_dict_list=[]
 
-for grid_res in range(10, 110, 10):
+for grid_res in range(40, 110, 10):
     x = torch.from_numpy(np.linspace(0, 1, grid_res+1))
     t = torch.from_numpy(np.linspace(0, 1, grid_res+1))
 
@@ -132,7 +132,7 @@ for grid_res in range(10, 110, 10):
         
         start = time.time()
         
-        model = lbfgs_solution(model, grid, wave_eq, 100, bconds)
+        model = lbfgs_solution(model, grid, wave_eq, 100, bconds,nsteps=int(5e5),rtol=10**(-9),atol=0.01)
     
         end = time.time()
 
@@ -153,3 +153,14 @@ for grid_res in range(10, 110, 10):
         print('Time taken {}= {}'.format(grid_res, end - start))
         print('RMSE {}= {}'.format(grid_res, error_rmse))
         print('loss {}= {}'.format(grid_res, end_loss))
+        result_assessment=pd.DataFrame(exp_dict_list)
+        result_assessment.to_csv('results_wave_matrix_{}.csv'.format(grid_res))
+
+
+
+result_assessment=pd.DataFrame(exp_dict_list)
+result_assessment.to_csv('results_wave_matrix_.csv')
+
+result_assessment.boxplot(by='grid_res',column='time',showfliers=False,figsize=(20,10),fontsize=42)
+
+result_assessment.boxplot(by='grid_res',column='RMSE',figsize=(20,10),fontsize=42)

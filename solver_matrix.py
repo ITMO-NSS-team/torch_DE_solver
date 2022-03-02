@@ -189,7 +189,7 @@ def matrix_loss(model, grid, operator, bconds, lambda_bound=10):
 
     return loss
 
-def lbfgs_solution(model, grid, operator, norm_lambda, bcond, tol=1e-6,nsteps=10000):
+def lbfgs_solution(model, grid, operator, norm_lambda, bcond, rtol=1e-6,atol=0.01,nsteps=10000):
 
     if type(operator) == dict:
         operator = op_dict_to_list(operator)
@@ -197,29 +197,43 @@ def lbfgs_solution(model, grid, operator, norm_lambda, bcond, tol=1e-6,nsteps=10
 
     b_prepared = bnd_prepare_matrix(bcond, grid)
 
-    optimizer = torch.optim.LBFGS([model.requires_grad_()], lr=0.001)
-    def closure():
-        nonlocal cur_loss
-        optimizer.zero_grad()
+    optimizer = torch.optim.Adam([model.requires_grad_()], lr=1e-4)
+    
+   
+    
+    # def closure():
+    #     nonlocal cur_loss
+    #     optimizer.zero_grad()
 
-        loss = matrix_loss(model, grid, unified_operator, b_prepared, lambda_bound=norm_lambda)
-        loss.backward()
-        cur_loss = loss.item()
+    #     loss = matrix_loss(model, grid, unified_operator, b_prepared, lambda_bound=norm_lambda)
+    #     loss.backward()
+    #     cur_loss = loss.item()
 
-        return loss
+    #     return loss
 
     cur_loss = float('inf')
     # tol = 1e-20
 
     for i in range(nsteps):
+        optimizer.zero_grad()
         past_loss = cur_loss
-
-        optimizer.step(closure)
-
+        
+        loss = matrix_loss(model, grid, unified_operator, b_prepared, lambda_bound=norm_lambda)
+        
+        
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        cur_loss = loss.item()
+        
+        
         if i % 1000 == 0:
             print('i={} loss={}'.format(i, cur_loss))
 
-        if abs(cur_loss - past_loss) / abs(cur_loss) < tol:
+        if abs(cur_loss - past_loss) / abs(cur_loss) < rtol:
+        #     # print("sosholsya")
+            break
+        if abs(cur_loss) < atol:
         #     # print("sosholsya")
             break
 
