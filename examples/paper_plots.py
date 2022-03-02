@@ -34,6 +34,7 @@ df2['method']='NN'
 df_mat_compare=pd.concat((df2,df_L_mat))
 
 sns.boxplot(x='type', y='time', data=df_mat_compare, showfliers=False, hue='method')
+plt.figure()
 sns.boxplot(x='type', y='RMSE', data=df_mat_compare, showfliers=False, hue='method')
 
 plt.figure()
