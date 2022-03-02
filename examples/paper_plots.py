@@ -27,6 +27,22 @@ plt.figure()
 sns.boxplot(x='type', y='time', data=df_L, showfliers=False, hue='cache')
 
 
+plt.figure()
+df_L_mat=pd.read_csv('benchmarking_data/legendre_poly_exp_martix.csv',index_col=0)
+df_L_mat['method']='matrix'
+df2['method']='NN'
+df_mat_compare=pd.concat((df2,df_L_mat))
+
+sns.boxplot(x='type', y='time', data=df_mat_compare, showfliers=False, hue='method')
+sns.boxplot(x='type', y='RMSE', data=df_mat_compare, showfliers=False, hue='method')
+
+plt.figure()
+sns.boxplot(x='type', y='RMSE', data=df_L, showfliers=False, hue='cache')
+
+
+plt.figure()
+sns.boxplot(x='type', y='time', data=df_L, showfliers=False, hue='cache')
+
 
 
 fig, axes = plt.subplots(2, 3, figsize=(60,30))
