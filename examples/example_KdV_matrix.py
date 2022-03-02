@@ -258,7 +258,7 @@ for grid_res in [20,30]:
         model = torch.rand(grid[0].shape)
     
         start = time.time()
-        model = lbfgs_solution(model, grid, kdv, 100, bconds, tol=1e-6, n_steps=100000)
+        model = lbfgs_solution(model, grid, kdv, 100, bconds, tol=1e-6, nsteps=100000)
         end = time.time()
 
         model = torch.transpose(model, 0, 1)
