@@ -41,7 +41,7 @@ exp_dict_list=[]
 
 CACHE=True
 
-for n in range(3,11):  
+for n in range(3,10):  
     """
     Preparing boundary conditions (BC)
     
@@ -189,7 +189,7 @@ for n in range(3,11):
         model = torch.rand(grid.shape)
     
         start = time.time()
-        model = lbfgs_solution(model, grid, legendre_poly, 100, bconds,nsteps=int(5e5),rtol=1e-20,atol=0.01)
+        model = lbfgs_solution(model, grid, legendre_poly, 100, bconds,nsteps=int(5e5),rtol=1e-6,atol=0.01)
         end = time.time()
     
         print('Time taken {} = {}'.format(n,  end - start))

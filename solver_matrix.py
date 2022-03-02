@@ -197,19 +197,19 @@ def lbfgs_solution(model, grid, operator, norm_lambda, bcond, rtol=1e-6,atol=0.0
 
     b_prepared = bnd_prepare_matrix(bcond, grid)
 
-    optimizer = torch.optim.Adam([model.requires_grad_()], lr=1e-4)
-    
+    # optimizer = torch.optim.Adam([model.requires_grad_()], lr=1e-4)
+    optimizer = torch.optim.LBFGS([model.requires_grad_()], lr=1e-3)
    
     
-    # def closure():
-    #     nonlocal cur_loss
-    #     optimizer.zero_grad()
+    def closure():
+        nonlocal cur_loss
+        optimizer.zero_grad()
 
-    #     loss = matrix_loss(model, grid, unified_operator, b_prepared, lambda_bound=norm_lambda)
-    #     loss.backward()
-    #     cur_loss = loss.item()
+        loss = matrix_loss(model, grid, unified_operator, b_prepared, lambda_bound=norm_lambda)
+        loss.backward()
+        cur_loss = loss.item()
 
-    #     return loss
+        return loss
 
     cur_loss = float('inf')
     # tol = 1e-20
@@ -218,13 +218,13 @@ def lbfgs_solution(model, grid, operator, norm_lambda, bcond, rtol=1e-6,atol=0.0
         optimizer.zero_grad()
         past_loss = cur_loss
         
-        loss = matrix_loss(model, grid, unified_operator, b_prepared, lambda_bound=norm_lambda)
+        # loss = matrix_loss(model, grid, unified_operator, b_prepared, lambda_bound=norm_lambda)
+        optimizer.step(closure)
         
-        
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        cur_loss = loss.item()
+        # optimizer.zero_grad()
+        # loss.backward()
+        # optimizer.step()
+        # cur_loss = loss.item()
         
         
         if i % 1000 == 0:
