@@ -196,12 +196,12 @@ legendre_poly= {
 
 
 
-for _ in range(1):
+for _ in range(10):
     model = torch.rand(grid.shape)
 
     start = time.time()
     # model = lbfgs_solution(model, grid, legendre_poly, 100, bconds,nsteps=int(5e5),rtol=1e-6,atol=0.01)
-    model = matrix_optimizer(grid, model, legendre_poly, bconds,verbose=True,print_every=None,learning_rate=1e-3,optimizer='LBFGS',eps=1e-5)
+    model = matrix_optimizer(grid, model, legendre_poly, bconds,verbose=True,print_every=None,learning_rate=1e-3,optimizer='LBFGS',eps=1e-4,lambda_bound=100)
     end = time.time()
 
     print('Time taken {} = {}'.format(n,  end - start))
