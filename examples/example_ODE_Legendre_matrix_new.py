@@ -18,9 +18,9 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from mpl_toolkits.mplot3d import Axes3D
-from solver import *
+from solver import lbfgs_solution,matrix_optimizer
 import time
-
+from scipy.special import legendre
 device = torch.device('cpu')
 
 """
@@ -30,12 +30,29 @@ Grid is an essentially torch.Tensor of a n-D points where n is the problem
 dimensionality
 """
 
-t = torch.from_numpy(np.linspace(0, 1, 100))
+t = np.linspace(0, 1, 100)
+coord_list = [t]
 
-grid = t.reshape(-1, 1).float()
 
-grid.to(device)
+def grid_format_prepare(coord_list, mode='NN'):
+    if type(coord_list)==torch.Tensor:
+        print('Grid is a tensor, assuming old format, no action performed')
+        return coord_list
+    if mode=='NN':
+        grid=torch.cartesian_prod(*coord_list).float()
+    elif mode=='mat':
+        grid = np.meshgrid(*coord_list)
+        grid = torch.tensor(grid, device=device)
+    return grid
 
+
+grid=grid_format_prepare(coord_list,mode='mat')
+
+exp_dict_list=[]
+
+CACHE=True
+
+n=3  
 """
 Preparing boundary conditions (BC)
 
@@ -70,7 +87,7 @@ bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64))
 bop1 = None
 
 #  So u(0)=-1/2
-bndval1 = torch.from_numpy(np.array([[-1 / 2]], dtype=np.float64))
+bndval1 = legendre(n)(bnd1)
 
 # point t=1
 bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64))
@@ -86,7 +103,7 @@ bop2 = {
 }
 
 # So, du/dt |_{x=1}=3
-bndval2 = torch.from_numpy(np.array([[3]], dtype=np.float64))
+bndval2 = torch.from_numpy(legendre(n).deriv(1)(bnd2))
 
 # Putting all bconds together
 bconds = [[bnd1, bop1, bndval1], [bnd2, bop2, bndval2]]
@@ -131,7 +148,7 @@ def c2(grid):
 
 
 
-n=3
+
 
 # operator is  (1-t^2)*d2u/dt2-2t*du/dt+n*(n-1)*u=0 (n=3)
 legendre_poly= {
@@ -149,7 +166,7 @@ legendre_poly= {
         },
     'n*(n-1)*u**1':
         {
-            'coeff': n*(n-1),
+            'coeff': n*(n+1),
             'u':  [None],
             'pow': 1
         }
@@ -171,7 +188,7 @@ legendre_poly= {
         },
     'n*(n-1)*u**1':
         {
-            'coeff': n*(n-1),
+            'coeff': n*(n+1),
             'u':  [None],
             'pow': 1
         }
@@ -179,26 +196,42 @@ legendre_poly= {
 
 
 
-for _ in range(1):
-    model = torch.nn.Sequential(
-        torch.nn.Linear(1, 100),
-        torch.nn.Tanh(),
-        torch.nn.Linear(100, 100),
-        torch.nn.Tanh(),
-        torch.nn.Linear(100, 1),
-        torch.nn.Tanh()
-    )
+for _ in range(10):
+    model = torch.rand(grid.shape)
 
     start = time.time()
-    model = point_sort_shift_solver(grid, model, legendre_poly, bconds, lambda_bound=10, verbose=True, learning_rate=1e-3,
-                                    eps=1e-5, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True
-                                    ,batch_size=None, save_always=False)
+    # model = lbfgs_solution(model, grid, legendre_poly, 100, bconds,nsteps=int(5e5),rtol=1e-6,atol=0.01)
+    model = matrix_optimizer(grid, model, legendre_poly, bconds,verbose=True,print_every=None,learning_rate=1e-3,optimizer='LBFGS',eps=1e-4,lambda_bound=100)
     end = time.time()
 
-    print('Time taken 10= ', end - start)
+    print('Time taken {} = {}'.format(n,  end - start))
 
     fig = plt.figure()
-    plt.scatter(grid.reshape(-1), model(grid).detach().numpy().reshape(-1))
+    plt.scatter(grid.numpy().reshape(-1), model.detach().numpy().reshape(-1))
     # analytical sln is 1/2*(-1 + 3*t**2)
-    plt.scatter(grid.reshape(-1), 1 / 2 * (-1 + 3 * grid ** 2).reshape(-1))
+    plt.scatter(grid.reshape(-1), legendre(n)(grid).reshape(-1))
     plt.show()
+    
+    error_rmse=torch.sqrt(torch.mean((legendre(n)(grid)-model)**2))
+    print('RMSE {}= {}'.format(n, error_rmse))
+    
+    exp_dict_list.append({'grid_res':100,'time':end - start,'RMSE':error_rmse.detach().numpy(),'type':'L'+str(n),'cache':str(CACHE)})
+
+
+
+#full paper plot
+
+# import seaborn as sns
+
+# sns.set(rc={'figure.figsize':(11.7,8.27)},font_scale=2)
+
+
+# df1=pd.read_csv('benchmarking_data/legendre_poly_exp_cache=False.csv',index_col=0)
+# df2=pd.read_csv('benchmarking_data/legendre_poly_exp_cache=True.csv',index_col=0)
+# df=pd.concat((df1,df2))
+
+# sns.boxplot(x='type', y='RMSE', data=df, showfliers=False, hue='cache')
+
+# plt.figure()
+
+# sns.boxplot(x='type', y='time', data=df, showfliers=False, hue='cache')

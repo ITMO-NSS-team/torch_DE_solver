@@ -9,170 +9,17 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from mpl_toolkits.mplot3d import Axes3D
-from input_preprocessing import grid_prepare, bnd_prepare, operator_prepare,batch_bconds_transform
+from input_preprocessing import grid_prepare, bnd_prepare, operator_prepare
+from metrics import point_sort_shift_loss,point_sort_shift_loss_batch
+from input_preprocessing import bnd_prepare_matrix,operator_prepare_matrix
+from metrics import matrix_loss
 import numpy as np
-
-def take_derivative_shift_op(model, term):
-    """
-    Axiluary function serves for single differential operator resulting field
-    derivation
-
-    Parameters
-    ----------
-    model : torch.Sequential
-        Neural network.
-    term : TYPE
-        differential operator in conventional form.
-
-    Returns
-    -------
-    der_term : torch.Tensor
-        resulting field, computed on a grid.
-
-    """
-    # it is may be int, function of grid or torch.Tensor
-    coeff = term[0]
-    # this one contains shifted grids (see input_preprocessing module)
-    shift_grid_list = term[1]
-    # signs corresponding to a grid
-    s_order_norm_list = term[2]
-    # float that represents power of the differential term
-    power = term[3]
-    # initially it is an ones field
-    der_term = torch.zeros_like(model(shift_grid_list[0][0])) + 1
-    for j, scheme in enumerate(shift_grid_list):
-        # every shift in grid we should add with correspoiding sign, so we start
-        # from zeros
-        grid_sum = torch.zeros_like(model(scheme[0]))
-        for k, grid in enumerate(scheme):
-            # and add grid sequentially
-            grid_sum += model(grid) * s_order_norm_list[j][k]
-        # Here we want to apply differential operators for every term in the product
-        der_term = der_term * grid_sum ** power[j]
-    der_term = coeff * der_term
-    return der_term
+from cache import cache_lookup,cache_retrain,save_model
 
 
-def apply_const_shift_operator(model, operator):
-    """
-    Deciphers equation in a single grid subset to a field.
-
-    Parameters
-    ----------
-    model : torch.Sequential
-        Neural network.
-    operator : list
-        Single (len(subset)==1) operator in input form. See 
-        input_preprocessing.operator_prepare()
-
-    Returns
-    -------
-    total : torch.Tensor
-
-    """
-    for term in operator:
-        dif = take_derivative_shift_op(model, term)
-        try:
-            total += dif
-        except NameError:
-            total = dif
-    return total
 
 
-def apply_operator_set(model, operator_set):
-    """
-    Deciphers equation in a whole grid to a field.
 
-    Parameters
-    ----------
-    model : torch.Sequential
-        Neural network.
-    operator : list
-        Multiple (len(subset)>=1) operators in input form. See 
-        input_preprocessing.operator_prepare()
-
-    Returns
-    -------
-    total : torch.Tensor
-
-    """
-    field_part = []
-    for operator in operator_set:
-        field_part.append(apply_const_shift_operator(model, operator))
-    field_part = torch.cat(field_part)
-    return field_part
-
-
-flatten_list = lambda t: [item for sublist in t for item in sublist]
-
-
-def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10):
-    if bconds==None:
-        print('No bconds is not possible, returning ifinite loss')
-        return np.inf
-    op = apply_operator_set(model, operator_set)
-    true_b_val_list = []
-    b_val_list = []
-    b_pos_list = []
-
-    # we apply no  boundary conditions operators if they are all None
-
-    simpleform = False
-    for bcond in bconds:
-        if bcond[1] == None:
-            simpleform = True
-        if bcond[1] != None:
-            simpleform = False
-            break
-    if simpleform:
-        for bcond in bconds:
-            b_pos_list.append(bcond[0])
-            true_boundary_val = bcond[2].reshape(-1, 1)
-            true_b_val_list.append(true_boundary_val)
-        # print(flatten_list(b_pos_list))
-        # b_pos=torch.cat(b_pos_list)
-        true_b_val = torch.cat(true_b_val_list)
-        b_op_val = model(grid)
-        b_val = b_op_val[flatten_list(b_pos_list)]
-    # or apply differential operatorn first to compute corresponding field and
-    else:
-        for bcond in bconds:
-            b_pos = bcond[0]
-            b_cond_operator = bcond[1]
-            true_boundary_val = bcond[2].reshape(-1, 1)
-            true_b_val_list.append(true_boundary_val)
-            if b_cond_operator == None or b_cond_operator == [[1, [None], 1]]:
-                b_op_val = model(grid)
-            else:
-                b_op_val = apply_operator_set(model, b_cond_operator)
-            # take boundary values
-            b_val_list.append(b_op_val[b_pos])
-        true_b_val = torch.cat(true_b_val_list)
-        b_val = torch.cat(b_val_list)
-
-    """
-    actually, we can use L2 norm for the operator and L1 for boundary
-    since L2>L1 and thus, boundary values become not so signifnicant, 
-    so the NN converges faster. On the other hand - boundary conditions is the
-    crucial thing for all that stuff, so we should increase significance of the
-    coundary conditions
-    """
-    # l1_lambda = 0.001
-    # l1_norm =sum(p.abs().sum() for p in model.parameters())
-    # loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)+ l1_lambda * l1_norm
-    
-    loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)
-    
-    return loss
-
-
-def compute_operator_loss(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,h=0.001):
-    prepared_grid = grid_prepare(grid)
-    bconds = bnd_prepare(bconds, prepared_grid, h=h)
-    operator = operator_prepare(operator, prepared_grid, subset=grid_point_subset, true_grid=grid, h=h)
-    loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
-    loss=float(loss.float())
-    return loss
 
 
 def solution_print(prepared_grid,model,title=None):
@@ -195,205 +42,413 @@ def solution_print(prepared_grid,model,title=None):
         plt.show()
 
 
-from cache import *
+def solution_print_mat(grid,model,title=None):
+    if grid.shape[0] == 1:
+        fig = plt.figure()
+        plt.scatter(grid.reshape(-1), model.detach().numpy().reshape(-1))
+        plt.show()
+    if grid.shape[0] == 2:
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        if title!=None:
+            ax.set_title(title)
+        ax.plot_trisurf(grid[0].reshape(-1), grid[1].reshape(-1),
+                        model.reshape(-1).detach().numpy(), cmap=cm.jet, linewidth=0.2, alpha=1)
+        ax.set_xlabel("x1")
+        ax.set_ylabel("x2")
+        plt.show()
+
+
+
+def create_random_fn(eps):
+    def randomize_params(m):
+      if type(m)==torch.nn.Linear or type(m)==torch.nn.Conv2d:
+        m.weight.data=m.weight.data+(2*torch.randn(m.weight.size())-1)*eps#Random weight initialisation
+        m.bias.data=m.bias.data+(2*torch.randn(m.bias.size())-1)*eps
+    return randomize_params
+
+
+
 
 def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
-                            verbose=False, learning_rate=1e-4, eps=0.1, tmin=1000, tmax=1e5, h=0.001,
-                            use_cache=True,cache_dir='../cache/',cache_verbose=False,batch_size=None,save_always=False):
-    if batch_size==None:
-        model=point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset=grid_point_subset, lambda_bound=lambda_bound,
-                            verbose=verbose, learning_rate=learning_rate, eps=eps, tmin=tmin, tmax=tmax, h=h,
-                            use_cache=use_cache,cache_dir=cache_dir,cache_verbose=cache_verbose,save_always=save_always)
-    else:
-        model=point_sort_shift_train_minibatch(grid, model, operator, bconds, grid_point_subset=grid_point_subset, lambda_bound=lambda_bound,
-                            verbose=verbose, learning_rate=learning_rate, eps=eps, tmin=tmin, tmax=tmax, h=h,
-                            use_cache=use_cache,cache_dir=cache_dir,cache_verbose=cache_verbose,save_always=save_always,batch_size=batch_size)
-    return model
-
-def point_sort_shift_train_full(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
-                            verbose=False, learning_rate=1e-3, eps=0.1, tmin=1000, tmax=1e5, h=0.001,
-                            use_cache=True,cache_dir='../cache/',cache_verbose=False,save_always=False):
-    nvars = model[0].in_features
-
+                            verbose=False, learning_rate=1e-4, eps=1e-5, tmin=1000, tmax=1e5, h=0.001,
+                            use_cache=True,cache_dir='../cache/',cache_verbose=False,
+                            batch_size=None,save_always=False,lp_par=None,print_every=100,
+                            patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
+                            model_randomize_parameter=0,optimizer='Adam'):
     # prepare input data to uniform format 
     
-    prepared_grid = grid_prepare(grid)
-    bconds = bnd_prepare(bconds, prepared_grid, h=h)
-    operator = operator_prepare(operator, prepared_grid, subset=grid_point_subset, true_grid=grid, h=h)
+    prepared_grid,grid_dict,point_type = grid_prepare(grid)
+    prepared_bconds = bnd_prepare(bconds, prepared_grid,grid_dict, h=h)
+    full_prepared_operator = operator_prepare(operator, grid_dict, subset=grid_point_subset, true_grid=grid, h=h)
     
-    
-
+    r=create_random_fn(model_randomize_parameter)   
     #  use cache if needed
     if use_cache:
-        cache_checkpoint,min_loss=cache_lookup(prepared_grid, operator, bconds,cache_dir=cache_dir
-                                               ,nmodels=None,verbose=cache_verbose,lambda_bound=0.001)
+        cache_checkpoint,min_loss=cache_lookup(prepared_grid, full_prepared_operator, prepared_bconds,cache_dir=cache_dir
+                                               ,nmodels=None,verbose=cache_verbose,lambda_bound=lambda_bound,norm=lp_par)
         model, optimizer_state= cache_retrain(model,cache_checkpoint,grid,verbose=cache_verbose)
-    
-        
-    # model is not saved if cache model good enough
+  
+        model.apply(r)
 
-    # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
-    # optimizer = torch.optim.LBFGS(model.parameters())
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    if optimizer=='Adam':
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    elif optimizer=='SGD':
+        optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    elif optimizer=='LBFGS':
+        optimizer = torch.optim.LBFGS(model.parameters(), lr=learning_rate)
+    else:
+        print('Wrong optimizer chosen, optimization was not performed')
+        return model
     
-    # if optimizer_state is not None:
-    #     try:
-    #         optimizer.load_state_dict(optimizer_state)
-    #     except Exception:
-    #         optimizer_state=None
-    #     tmin=100
-    loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
+
+    if not use_cache:
+        min_loss = point_sort_shift_loss(model, prepared_grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound)
     
     save_cache=False
     
-    if loss>0.1 or save_always:
+    if min_loss>0.1 or save_always:
         save_cache=True
     
     
     # standard NN stuff
     if verbose:
-        print('-1 {}'.format(loss))
+        print('-1 {}'.format(min_loss))
     
     t = 0
     
-    last_loss=np.zeros(100)+float(loss)
-    line=np.polyfit(range(100),last_loss,1)
+    last_loss=np.zeros(loss_oscillation_window)+float(min_loss)
+    line=np.polyfit(range(loss_oscillation_window),last_loss,1)
     
+
     def closure():
-        global cur_loss
+        nonlocal cur_loss
         optimizer.zero_grad()
-        loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
+        if batch_size==None:
+            loss = point_sort_shift_loss(model, prepared_grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound,norm=lp_par)
+        else:
+            loss=point_sort_shift_loss_batch(model, prepared_grid, point_type, operator, bconds,subset=grid_point_subset, lambda_bound=lambda_bound,batch_size=batch_size,h=h,norm=lp_par)
         loss.backward()
         cur_loss = loss.item()
         return loss
     
     stop_dings=0
-    
+    t_imp_start=0
     # to stop train proceduce we fit the line in the loss data
     #if line is flat enough 5 times, we stop the procedure
-    while stop_dings<=5:
+    cur_loss=min_loss
+    while stop_dings<=patience:
         optimizer.step(closure)
-        # loss = point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)
-        
-        last_loss[t%100]=cur_loss
-        
-        if t%100==0:
-            line=np.polyfit(range(100),last_loss,1)
-            if abs(line[0]) < eps:
-                stop_dings+=1
-        
-        if (t % 100 == 0) and verbose:
 
-            print(t, cur_loss, line,line[0]/line[1])
+        last_loss[t%loss_oscillation_window]=cur_loss
+
+        
+        if cur_loss<min_loss:
+            min_loss=cur_loss
+            t_imp_start=t
+        if t%loss_oscillation_window==0:
+            line=np.polyfit(range(loss_oscillation_window),last_loss,1)
+            if abs(line[0]/cur_loss) < eps and t>0:
+                stop_dings+=1
+                model.apply(r)
+                if verbose:
+                    print('Oscillation near the same loss')
+                    print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
+                    solution_print(prepared_grid,model,title='Iteration = ' + str(t))
+        
+
+        if (t-t_imp_start==no_improvement_patience) and verbose:
+            print('No improvement in '+str(no_improvement_patience)+' steps')
+            t_imp_start=t
+            stop_dings+=1
+            print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
+            solution_print(prepared_grid,model,title='Iteration = ' + str(t))
+            
+        if print_every!=None and (t % print_every == 0) and verbose:
+            print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
             solution_print(prepared_grid,model,title='Iteration = ' + str(t))
 
-        # optimizer.zero_grad()
-        # loss.backward()
-        # optimizer.step()
         t += 1
         if t > tmax:
             break
-    if save_cache:
+    if (save_cache and use_cache) or save_always:
         save_model(model,model.state_dict(),optimizer.state_dict(),cache_dir=cache_dir,name=None)
     return model
 
-def point_sort_shift_train_minibatch(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
-                            verbose=False, learning_rate=0.0001, eps=0.1, tmin=1000, tmax=1e5, h=0.001,
-                            use_cache=True,cache_dir='../cache/',cache_verbose=False,batch_size=32,save_always=False):
-    nvars = model[0].in_features
-    
+
+def nn_optimizer(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
+                            verbose=False, learning_rate=1e-4, eps=1e-5, tmin=1000, tmax=1e5, h=0.001,
+                            use_cache=True,cache_dir='../cache/',cache_verbose=False,
+                            batch_size=None,save_always=False,lp_par=None,print_every=100,
+                            patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
+                            model_randomize_parameter=0,optimizer='Adam'):
     # prepare input data to uniform format 
     
-    prepared_grid = grid_prepare(grid)
-    prepared_bconds = bnd_prepare(bconds, prepared_grid, h=h)
-    full_prepared_operator = operator_prepare(operator, prepared_grid, subset=grid_point_subset, true_grid=grid, h=h)
+    prepared_grid,grid_dict,point_type = grid_prepare(grid)
+    prepared_bconds = bnd_prepare(bconds, prepared_grid,grid_dict, h=h)
+    full_prepared_operator = operator_prepare(operator, grid_dict, subset=grid_point_subset, true_grid=grid, h=h)
     
-    
-
+    r=create_random_fn(model_randomize_parameter)   
     #  use cache if needed
     if use_cache:
         cache_checkpoint,min_loss=cache_lookup(prepared_grid, full_prepared_operator, prepared_bconds,cache_dir=cache_dir
-                                               ,nmodels=None,verbose=cache_verbose,lambda_bound=0.001)
+                                               ,nmodels=None,verbose=cache_verbose,lambda_bound=lambda_bound,norm=lp_par)
         model, optimizer_state= cache_retrain(model,cache_checkpoint,grid,verbose=cache_verbose)
-        
+  
+        model.apply(r)
 
-    
+    if optimizer=='Adam':
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    elif optimizer=='SGD':
+        optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    elif optimizer=='LBFGS':
+        optimizer = torch.optim.LBFGS(model.parameters(), lr=learning_rate)
+    else:
+        print('Wrong optimizer chosen, optimization was not performed')
+        return model
     
 
-    # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
-    # optimizer = torch.optim.LBFGS(model.parameters())
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    
-    # if optimizer_state is not None:
-    #     try:
-    #         optimizer.load_state_dict(optimizer_state)
-    #     except Exception:
-    #         optimizer_state=None
-    #     tmin=100
-    loss = point_sort_shift_loss(model, prepared_grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound)
-    
+    if not use_cache:
+        min_loss = point_sort_shift_loss(model, prepared_grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound)
     
     save_cache=False
     
-    if loss>0.1 or save_always:
+    if min_loss>0.1 or save_always:
         save_cache=True
     
     
     # standard NN stuff
     if verbose:
-        print('-1 {}'.format(loss))
+        print('-1 {}'.format(min_loss))
     
     t = 0
     
-    last_loss=np.zeros(100)+float(loss)
-    line=np.polyfit(range(100),last_loss,1)
-
-    stop_dings=0
+    last_loss=np.zeros(loss_oscillation_window)+float(min_loss)
+    line=np.polyfit(range(loss_oscillation_window),last_loss,1)
     
+
+    def closure():
+        nonlocal cur_loss
+        optimizer.zero_grad()
+        if batch_size==None:
+            loss = point_sort_shift_loss(model, prepared_grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound,norm=lp_par)
+        else:
+            loss=point_sort_shift_loss_batch(model, prepared_grid, point_type, operator, bconds,subset=grid_point_subset, lambda_bound=lambda_bound,batch_size=batch_size,h=h,norm=lp_par)
+        loss.backward()
+        cur_loss = loss.item()
+        return loss
+    
+    stop_dings=0
+    t_imp_start=0
     # to stop train proceduce we fit the line in the loss data
     #if line is flat enough 5 times, we stop the procedure
-    while stop_dings<=5:
-        
-        loss_list=[]
-        
-        permutation = torch.randperm(grid.size()[0])
-    
-        for i in range(0,grid.size()[0], batch_size):
-            optimizer.zero_grad()
-            indices = permutation[i:i+batch_size]
-            if len(indices)<5:
-                continue
-            batch= grid[indices]
+    cur_loss=min_loss
+    while stop_dings<=patience:
+        optimizer.step(closure)
 
-            batch_grid = grid_prepare(batch)
-            batch_bconds=batch_bconds_transform(batch_grid,bconds)
-            batch_bconds = bnd_prepare(batch_bconds, batch_grid, h=h)
-
-            batch_operator = operator_prepare(operator, batch_grid, subset=grid_point_subset, true_grid=batch, h=h)
-
-            loss = point_sort_shift_loss(model, batch_grid, batch_operator, batch_bconds, lambda_bound=lambda_bound)
-            if loss==np.inf:
-                continue
-            loss.backward()
-            optimizer.step()
-            loss_list.append(loss.item())
+        last_loss[t%loss_oscillation_window]=cur_loss
         
-        last_loss[t%100]=np.mean(loss_list)
-        
-        if t%100==0:
-            line=np.polyfit(range(100),last_loss,1)
-            if abs(line[0]) < eps:
+        if cur_loss<min_loss:
+            min_loss=cur_loss
+            t_imp_start=t
+        if t%loss_oscillation_window==0:
+            line=np.polyfit(range(loss_oscillation_window),last_loss,1)
+            if abs(line[0]/cur_loss) < eps and t>0:
                 stop_dings+=1
+                model.apply(r)
+                if verbose:
+                    print('Oscillation near the same loss')
+                    print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
+                    solution_print(prepared_grid,model,title='Iteration = ' + str(t))
         
-        if (t % 100 == 0) and verbose:
-
-            print(t, np.mean(loss_list), line,line[0]/line[1])
+        if (t-t_imp_start==no_improvement_patience) and verbose:
+            print('No improvement in '+str(no_improvement_patience)+' steps')
+            t_imp_start=t
+            stop_dings+=1
+            print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
             solution_print(prepared_grid,model,title='Iteration = ' + str(t))
-        
-        t+=1
+            
+        if print_every!=None and (t % print_every == 0) and verbose:
+            print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
+            solution_print(prepared_grid,model,title='Iteration = ' + str(t))
+
+        t += 1
         if t > tmax:
             break
-    if save_cache:
+    if (save_cache and use_cache) or save_always:
         save_model(model,model.state_dict(),optimizer.state_dict(),cache_dir=cache_dir,name=None)
     return model
 
+
+
+
+
+def lbfgs_solution(model, grid, operator, norm_lambda, bcond, rtol=1e-6,atol=0.01,nsteps=10000):
+    
+    unified_operator = operator_prepare_matrix(operator)
+
+    b_prepared = bnd_prepare_matrix(bcond, grid)
+
+    # optimizer = torch.optim.Adam([model.requires_grad_()], lr=1e-4)
+    optimizer = torch.optim.LBFGS([model.requires_grad_()], lr=1e-3)
+   
+    
+    def closure():
+        nonlocal cur_loss
+        optimizer.zero_grad()
+
+        loss = matrix_loss(model, grid, unified_operator, b_prepared, lambda_bound=norm_lambda)
+        loss.backward()
+        cur_loss = loss.item()
+
+        return loss
+
+    cur_loss = float('inf')
+    # tol = 1e-20
+
+    for i in range(nsteps):
+        optimizer.zero_grad()
+        past_loss = cur_loss
+        
+        # loss = matrix_loss(model, grid, unified_operator, b_prepared, lambda_bound=norm_lambda)
+        optimizer.step(closure)
+        
+        # optimizer.zero_grad()
+        # loss.backward()
+        # optimizer.step()
+        # cur_loss = loss.item()
+        
+        
+        if i % 1000 == 0:
+            print('i={} loss={}'.format(i, cur_loss))
+
+        if abs(cur_loss - past_loss) / abs(cur_loss) < rtol:
+        #     # print("sosholsya")
+            break
+        if abs(cur_loss) < atol:
+        #     # print("sosholsya")
+            break
+
+    return model.detach()
+
+def matrix_optimizer(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
+                            verbose=False, learning_rate=1e-4, eps=1e-5, tmin=1000, tmax=1e5, h=0.001,
+                            use_cache=True,cache_dir='../cache/',cache_verbose=False,
+                            batch_size=None,save_always=False,lp_par=None,print_every=100,
+                            patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
+                            model_randomize_parameter=0,optimizer='LBFGS'):
+    # prepare input data to uniform format 
+    
+    unified_operator = operator_prepare_matrix(operator)
+
+    b_prepared = bnd_prepare_matrix(bconds, grid)
+
+    if optimizer=='Adam':
+        optimizer = torch.optim.Adam([model.requires_grad_()], lr=learning_rate)
+    elif optimizer=='SGD':
+        optimizer = torch.optim.SGD([model.requires_grad_()], lr=learning_rate)
+    elif optimizer=='LBFGS':
+        optimizer = torch.optim.LBFGS([model.requires_grad_()], lr=learning_rate)
+    else:
+        print('Wrong optimizer chosen, optimization was not performed')
+        return model
+    
+    min_loss = matrix_loss(model, grid, unified_operator, b_prepared, lambda_bound=lambda_bound)
+    
+    
+    # standard NN stuff
+    if verbose:
+        print('-1 {}'.format(min_loss))
+    
+    t = 0
+    
+    last_loss=np.zeros(loss_oscillation_window)+float(min_loss)
+    line=np.polyfit(range(loss_oscillation_window),last_loss,1)
+    
+
+    def closure():
+        nonlocal cur_loss
+        optimizer.zero_grad()
+        loss =matrix_loss(model, grid, unified_operator, b_prepared, lambda_bound=lambda_bound)
+        loss.backward()
+        cur_loss = loss.item()
+        return loss
+    
+    stop_dings=0
+    t_imp_start=0
+    # to stop train proceduce we fit the line in the loss data
+    #if line is flat enough 5 times, we stop the procedure
+    cur_loss=min_loss
+    while stop_dings<=patience:
+        optimizer.step(closure)
+
+        last_loss[t%loss_oscillation_window]=cur_loss
+        
+        if cur_loss<min_loss:
+            min_loss=cur_loss
+            t_imp_start=t
+        if t%loss_oscillation_window==0:
+            line=np.polyfit(range(loss_oscillation_window),last_loss,1)
+            if abs(line[0]/cur_loss) < eps and t>0:
+                stop_dings+=1
+                if verbose:
+                    print('Oscillation near the same loss')
+                    print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
+                    solution_print_mat(grid,model,title='Iteration = ' + str(t))
+        
+        if (t-t_imp_start==no_improvement_patience) and verbose:
+            print('No improvement in '+str(no_improvement_patience)+' steps')
+            t_imp_start=t
+            stop_dings+=1
+            print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
+            solution_print_mat(grid,model,title='Iteration = ' + str(t))
+            
+        if print_every!=None and (t % print_every == 0) and verbose:
+            print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
+            solution_print_mat(grid,model,title='Iteration = ' + str(t))
+
+        t += 1
+        if t > tmax:
+            break
+    return model
+
+
+
+def grid_format_prepare(coord_list, mode='NN'):
+    if type(coord_list)==torch.Tensor:
+        print('Grid is a tensor, assuming old format, no action performed')
+        return coord_list
+    if mode=='NN':
+        grid=torch.cartesian_prod(*coord_list).float()
+    elif mode=='mat':
+        grid = np.meshgrid(*coord_list)
+        grid = torch.tensor(grid)
+    return grid
+
+
+
+def optimization_solver(coord_list, model, operator,bconds,config,mode='NN'):
+    grid=grid_format_prepare(coord_list, mode=mode)
+    if mode=='NN':
+        model=point_sort_shift_solver(grid, model, operator, bconds,
+            learning_rate=config['Optimizer']['learning_rate'],
+            lambda_bound=config['Optimizer']['lambda_bound'],
+            optimizer=config['Optimizer']['optimizer'],
+            grid_point_subset=config['NN']['grid_point_subset'],
+            h=config['NN']['h'],
+            use_cache=config['NN']['use_cache'],
+            cache_dir=config['NN']['cache_dir'],
+            cache_verbose=config['NN']['cache_verbose'],
+            model_randomize_parameter=config['NN']['model_randomize_parameter'],
+            batch_size=config['NN']['batch_size'],
+            save_always=config['NN']['save_always'],
+            lp_par=config['NN']['lp_par'],
+            verbose=config['Verbose']['verbose'],
+            print_every=config['Verbose']['print_every'],
+            eps=config['StopCriterion']['eps'], 
+            tmin=config['StopCriterion']['tmin'], 
+            tmax=config['StopCriterion']['tmax'], 
+            patience=config['StopCriterion']['patience'],
+            loss_oscillation_window=config['StopCriterion']['loss_oscillation_window'],
+            no_improvement_patience=config['StopCriterion']['no_improvement_patience'])
+    return model

@@ -18,8 +18,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from mpl_toolkits.mplot3d import Axes3D
-from solver import lbfgs_solution
-
+from solver import *
 import time
 from scipy.special import legendre
 device = torch.device('cpu')
@@ -31,31 +30,18 @@ Grid is an essentially torch.Tensor of a n-D points where n is the problem
 dimensionality
 """
 
-t = np.linspace(0, 1, 100)
+t = torch.from_numpy(np.linspace(0, 1, 100))
 
-coord_list = [t]
+grid = t.reshape(-1, 1).float()
 
-
-def grid_format_prepare(coord_list, mode='NN'):
-    if type(coord_list)==torch.Tensor:
-        print('Grid is a tensor, assuming old format, no action performed')
-        return coord_list
-    if mode=='NN':
-        grid=torch.cartesian_prod(*coord_list).float()
-    elif mode=='mat':
-        grid = np.meshgrid(*coord_list)
-        grid = torch.tensor(grid, device=device)
-    return grid
-
-
-grid=grid_format_prepare(coord_list,mode='mat')
+grid.to(device)
 
 
 exp_dict_list=[]
 
 CACHE=True
 
-for n in range(3,10):  
+for n in range(3,11):  
     """
     Preparing boundary conditions (BC)
     
@@ -200,21 +186,30 @@ for n in range(3,10):
     
     
     for _ in range(10):
-        model = torch.rand(grid.shape)
+        model = torch.nn.Sequential(
+            torch.nn.Linear(1, 100),
+            torch.nn.Tanh(),
+            torch.nn.Linear(100, 100),
+            torch.nn.Tanh(),
+            torch.nn.Linear(100, 1),
+            torch.nn.Tanh()
+        )
     
         start = time.time()
-        model = lbfgs_solution(model, grid, legendre_poly, 100, bconds,nsteps=int(5e5),rtol=1e-6,atol=0.01)
+        model = point_sort_shift_solver(grid, model, legendre_poly, bconds, lambda_bound=10, verbose=True, learning_rate=1e-3,
+                                        eps=1e-5, tmin=1000, tmax=1e5,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
+                                        ,batch_size=None, save_always=False,print_every=None,model_randomize_parameter=1e-6)
         end = time.time()
     
         print('Time taken {} = {}'.format(n,  end - start))
     
         fig = plt.figure()
-        plt.scatter(grid.reshape(-1), model.detach().numpy().reshape(-1))
+        plt.scatter(grid.reshape(-1), model(grid).detach().numpy().reshape(-1))
         # analytical sln is 1/2*(-1 + 3*t**2)
         plt.scatter(grid.reshape(-1), legendre(n)(grid).reshape(-1))
         plt.show()
         
-        error_rmse=torch.sqrt(torch.mean((legendre(n)(grid)-model)**2))
+        error_rmse=torch.sqrt(torch.mean((legendre(n)(grid)-model(grid))**2))
         print('RMSE {}= {}'.format(n, error_rmse))
         
         exp_dict_list.append({'grid_res':100,'time':end - start,'RMSE':error_rmse.detach().numpy(),'type':'L'+str(n),'cache':str(CACHE)})
@@ -223,7 +218,7 @@ import pandas as pd
 df=pd.DataFrame(exp_dict_list)
 df.boxplot(by='type',column='RMSE',figsize=(20,10),fontsize=42,showfliers=False)
 df.boxplot(by='type',column='time',figsize=(20,10),fontsize=42,showfliers=False)
-df.to_csv('benchmarking_data/legendre_poly_exp_martix.csv')
+df.to_csv('benchmarking_data/legendre_poly_exp_cache='+str(CACHE)+'.csv')
 
 #full paper plot
 

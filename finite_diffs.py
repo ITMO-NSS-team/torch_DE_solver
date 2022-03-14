@@ -189,7 +189,7 @@ Every +1 changes to ->[1,-4,3] when order of differential rises
 
 [0,0] (+1) ->[0,0]->[[2,0],[1,0],[0,0]] ([-3,4,-1])
 
-Every a changes to [3a,-4a,a]
+Every -1 changes to [3a,-4a,a]
 
 [[2,0],[1,0],[0,0]] ([3,-4,1])->[[2,2],[2,1],[2,0],[1,2],[1,1],[1,0],[0,2],[0,1],[0,0]]  ([3,-4,1,-12,16,-4,9,-12,3])
 
@@ -288,7 +288,10 @@ def second_order_scheme_build(axes, varn, axes_mode):
         diff_list = []
         for diff in finite_diff:
             # we use [0,0]->[[1,0],[-1,0]] rule for the axis
-            f_diff = second_order_shift(diff, axes[i], axes_mode[axes[i]])
+            if axes_mode == 'central':
+                f_diff = second_order_shift(diff, axes[i], 'central')
+            else:
+                f_diff = second_order_shift(diff, axes[i], axes_mode[axes[i]])
             if len(diff_list) == 0:
                 # and put it to the pool of differentials if it is empty
                 diff_list = f_diff
@@ -300,6 +303,8 @@ def second_order_scheme_build(axes, varn, axes_mode):
         finite_diff = diff_list
         direction_list.append(axes_mode[axes[i]])
     return finite_diff, direction_list
+
+
 
 
 def second_order_sign_order(order, mode, h=1 / 2):

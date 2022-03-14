@@ -1,0 +1,30 @@
+{
+"Optimizer": {
+"learning_rate":1e-4,
+"lambda_bound":10,
+"optimizer":"Adam"
+},
+"NN":{
+"use_cache":true,
+"cache_dir":"../cache/",
+"cache_verbose":false,
+"batch_size":null,
+"save_always":false,
+"lp_par":null,
+"grid_point_subset":["central"],
+"model_randomize_parameter":0,
+"h":0.001
+},
+"Verbose":{
+	"verbose":false,
+	"print_every":null
+},
+"StopCriterion":{
+"eps":1e-5,
+"tmin":1000,
+"tmax":1e5 ,
+"patience":5,
+"loss_oscillation_window":100,
+"no_improvement_patience":1000   	
+}
+}

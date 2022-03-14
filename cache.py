@@ -9,18 +9,23 @@ import datetime
 import torch
 import os 
 import glob
-from solver import *
 import numpy as np
+from metrics import point_sort_shift_loss
 
 
 def save_model(model,state,optimizer_state,cache_dir='../cache/',name=None):
     if name==None:
         name=str(datetime.datetime.now().timestamp())
-    torch.save({'model':model, 'model_state_dict': state,
+    if os.path.isdir(cache_dir):
+        torch.save({'model':model, 'model_state_dict': state,
+                'optimizer_state_dict': optimizer_state}, cache_dir+name+'.tar')
+    else:
+        os.mkdir(cache_dir)
+        torch.save({'model':model, 'model_state_dict': state,
                 'optimizer_state_dict': optimizer_state}, cache_dir+name+'.tar')
     return
 
-def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='../cache/',nmodels=None,verbose=False): 
+def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='../cache/',nmodels=None,verbose=False,norm=None): 
     # looking for all *.tar files in directory cache_dir
     files=glob.glob(cache_dir+'*.tar')
     # if files not found
@@ -47,9 +52,10 @@ def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='
         # this one for the input shape fix if needed
         # it is taken from the grid shape
         if model[0].in_features!=prepared_grid.shape[-1]:
-            model[0]=torch.nn.Linear(prepared_grid.shape[-1],model[0].out_features)
-        model.eval()
-        l=point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound)      
+            continue
+        #     model[0]=torch.nn.Linear(prepared_grid.shape[-1],model[0].out_features)
+        # model.eval()
+        l=point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound,norm=norm)      
         if l<min_loss:
             min_loss=l
             best_checkpoint['model']=model
@@ -57,6 +63,9 @@ def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='
             best_checkpoint['optimizer_state_dict']=checkpoint['optimizer_state_dict']
             if verbose:
                 print('best_model_num={} , loss={}'.format(i,l))
+    if best_checkpoint=={}:
+        best_checkpoint=None
+        min_loss=np.inf
     return best_checkpoint,min_loss
         
 
