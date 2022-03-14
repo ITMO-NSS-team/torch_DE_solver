@@ -18,11 +18,12 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from mpl_toolkits.mplot3d import Axes3D
-from solver import lbfgs_solution,matrix_optimizer
+from solver import lbfgs_solution,matrix_optimizer,grid_format_prepare
 import time
 from scipy.special import legendre
+from solver import matrix_cache_lookup
 device = torch.device('cpu')
-
+from cache import save_model
 """
 Preparing grid
 
@@ -33,17 +34,6 @@ dimensionality
 t = np.linspace(0, 1, 100)
 coord_list = [t]
 
-
-def grid_format_prepare(coord_list, mode='NN'):
-    if type(coord_list)==torch.Tensor:
-        print('Grid is a tensor, assuming old format, no action performed')
-        return coord_list
-    if mode=='NN':
-        grid=torch.cartesian_prod(*coord_list).float()
-    elif mode=='mat':
-        grid = np.meshgrid(*coord_list)
-        grid = torch.tensor(grid, device=device)
-    return grid
 
 
 grid=grid_format_prepare(coord_list,mode='mat')
@@ -194,14 +184,34 @@ legendre_poly= {
         }
 }
 
-
+model = torch.rand(grid.shape)    
+    
+model = matrix_optimizer(grid, model, legendre_poly, bconds,verbose=True,
+                         print_every=None,learning_rate=1e-3,optimizer='LBFGS',
+                         eps=1e-6,lambda_bound=100,use_cache=False,save_always=True)
 
 for _ in range(10):
+    
+    
+    NN_model = torch.nn.Sequential(
+        torch.nn.Linear(1, 100),
+        torch.nn.Tanh(),
+        torch.nn.Linear(100, 100),
+        torch.nn.Tanh(),
+        torch.nn.Linear(100, 100),
+        torch.nn.Tanh(),
+        torch.nn.Linear(100, 1)
+    )
+
+    NN_grid=grid.reshape(-1,1).float()
+    
     model = torch.rand(grid.shape)
 
     start = time.time()
-    # model = lbfgs_solution(model, grid, legendre_poly, 100, bconds,nsteps=int(5e5),rtol=1e-6,atol=0.01)
-    model = matrix_optimizer(grid, model, legendre_poly, bconds,verbose=True,print_every=None,learning_rate=1e-3,optimizer='LBFGS',eps=1e-4,lambda_bound=100)
+
+    model = matrix_optimizer(grid, model, legendre_poly, bconds,verbose=True,
+                             print_every=None,learning_rate=1e-4,optimizer='Adam',
+                             eps=1e-6,lambda_bound=100,use_cache=True)
     end = time.time()
 
     print('Time taken {} = {}'.format(n,  end - start))
@@ -217,8 +227,26 @@ for _ in range(10):
     
     exp_dict_list.append({'grid_res':100,'time':end - start,'RMSE':error_rmse.detach().numpy(),'type':'L'+str(n),'cache':str(CACHE)})
 
+    # optimizer = torch.optim.Adam(NN_model.parameters(), lr=0.001)
+    
+    # model_res=model.reshape(-1,1)
+        
+    # def closure():
+    #     optimizer.zero_grad()
+    #     loss = torch.mean((NN_model(NN_grid)-model_res)**2)
+    #     loss.backward()
+    #     return loss
+    
+    # loss=np.inf
+    # t=1
+    # while loss>1e-5 and t<1e5:
+    #     loss = optimizer.step(closure)
+    #     t+=1
+    #     if False:
+    #         print('Retrain from cache t={}, loss={}'.format(t,loss))
 
 
+    # save_model(NN_model,NN_model.state_dict(),optimizer.state_dict(),cache_dir='../cache',name=None)
 #full paper plot
 
 # import seaborn as sns

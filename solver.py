@@ -331,13 +331,57 @@ def lbfgs_solution(model, grid, operator, norm_lambda, bcond, rtol=1e-6,atol=0.0
 
     return model.detach()
 
+
+
+def matrix_cache_lookup(grid, model, operator, bconds,h=0.001,model_randomize_parameter=0,cache_dir="../cache",
+                            lambda_bound=10):
+    # prepare input data to uniform format 
+    
+    prepared_grid,grid_dict,point_type = grid_prepare(grid)
+    prepared_bconds = bnd_prepare(bconds, prepared_grid,grid_dict, h=h)
+    full_prepared_operator = operator_prepare(operator, grid_dict, true_grid=grid, h=h)
+    
+    r=create_random_fn(model_randomize_parameter)   
+    #  use cache if needed
+
+    cache_checkpoint,min_loss=cache_lookup(prepared_grid, full_prepared_operator, prepared_bconds,cache_dir=cache_dir
+                                           ,nmodels=None,verbose=True,lambda_bound=lambda_bound)
+    model, optimizer_state= cache_retrain(model,cache_checkpoint,grid,verbose=True)
+  
+    model.apply(r)
+    
+    return model
+
+
+
 def matrix_optimizer(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
                             verbose=False, learning_rate=1e-4, eps=1e-5, tmin=1000, tmax=1e5, h=0.001,
                             use_cache=True,cache_dir='../cache/',cache_verbose=False,
                             batch_size=None,save_always=False,lp_par=None,print_every=100,
                             patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
-                            model_randomize_parameter=0,optimizer='LBFGS'):
+                            model_randomize_parameter=1e-5,optimizer='LBFGS',cache_model=None):
     # prepare input data to uniform format 
+    
+    if use_cache:
+        NN_grid=grid.reshape(-1,1).float()
+        if cache_model==None:
+            cache_model = torch.nn.Sequential(
+                torch.nn.Linear(grid.shape[0], 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, 1)
+            )
+        
+        cache_model=matrix_cache_lookup(NN_grid, cache_model, operator, bconds,cache_dir=cache_dir,lambda_bound=100)
+        r=create_random_fn(model_randomize_parameter)
+        
+        cache_model.apply(r)
+        
+        model=cache_model(NN_grid).reshape(grid.shape).detach()
+        
     
     unified_operator = operator_prepare_matrix(operator)
 
@@ -410,6 +454,43 @@ def matrix_optimizer(grid, model, operator, bconds, grid_point_subset=['central'
         t += 1
         if t > tmax:
             break
+        
+    if use_cache or save_always:
+        if cache_model==None:
+            cache_model = torch.nn.Sequential(
+                torch.nn.Linear(grid.shape[0], 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, 1)
+            )
+        
+        NN_grid=grid.reshape(-1,1).float()
+        optimizer = torch.optim.Adam(cache_model.parameters(), lr=0.001)
+        
+        model_res=model.reshape(-1,1)
+            
+        def closure():
+            optimizer.zero_grad()
+            loss = torch.mean((cache_model(NN_grid)-model_res)**2)
+            loss.backward()
+            return loss
+        
+        loss=np.inf
+        t=1
+        while loss>1e-5 and t<1e5:
+            loss = optimizer.step(closure)
+            t+=1
+            if False:
+                print('Retrain from cache t={}, loss={}'.format(t,loss))
+
+
+        save_model(cache_model,cache_model.state_dict(),optimizer.state_dict(),cache_dir=cache_dir,name=None)
+    
+        
+        
     return model
 
 
@@ -419,7 +500,8 @@ def grid_format_prepare(coord_list, mode='NN'):
         print('Grid is a tensor, assuming old format, no action performed')
         return coord_list
     if mode=='NN':
-        grid=torch.cartesian_prod(*coord_list).float()
+        grid=torch.cartesian_prod(torch.from_numpy(*coord_list)).float()
+        grid=grid.reshape(-1, 1).float()
     elif mode=='mat':
         grid = np.meshgrid(*coord_list)
         grid = torch.tensor(grid)
