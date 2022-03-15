@@ -29,19 +29,23 @@ def take_derivative_shift_op(model, term):
     s_order_norm_list = term[2]
     # float that represents power of the differential term
     power = term[3]
+    # number of variables in equation
+    variables = term[4]
     # initially it is an ones field
-    der_term = torch.zeros_like(model(shift_grid_list[0][0])) + 1
+    der_term = torch.zeros_like(model(shift_grid_list[0][0])[:,0]) + 1
     
     for j, scheme in enumerate(shift_grid_list):
         # every shift in grid we should add with correspoiding sign, so we start
         # from zeros
-        grid_sum = torch.zeros_like(model(scheme[0]))
+        grid_sum = torch.zeros_like(model(scheme[0])) #почему схема от 0?
         for k, grid in enumerate(scheme):
             # and add grid sequentially
             grid_sum += model(grid) * s_order_norm_list[j][k]
-        # Here we want to apply differential operators for every term in the product
-        der_term = der_term * grid_sum ** power[j]
+            # Here we want to apply differential operators for every term in the product
+        der_term = der_term * grid_sum[:,variables[j]] ** power[j]
     der_term = coeff * der_term
+
+         
     return der_term
 
 
@@ -162,7 +166,7 @@ def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10,nor
         true_b_val = torch.cat(true_b_val_list)
         b_op_val = model(grid)
         b_val = b_op_val[flatten_list(b_pos_list)]
-    # or apply differential operatorn first to compute corresponding field and
+    # or apply differential operator first to compute corresponding field and
     else:
         for bcond in bconds:
             b_pos = bcond[0]

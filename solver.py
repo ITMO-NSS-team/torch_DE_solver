@@ -18,6 +18,8 @@ from cache import cache_lookup,cache_retrain,save_model
 
 
 
+
+
 def solution_print(prepared_grid,model,title=None):
     if prepared_grid.shape[1] == 2:
         fig = plt.figure()
@@ -43,10 +45,12 @@ def create_random_fn(eps):
         m.bias.data=m.bias.data+(2*torch.randn(m.bias.size())-1)*eps
     return randomize_params
 
+
+
 def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
                             verbose=False, learning_rate=1e-4, eps=1e-5, tmin=1000, tmax=1e5, h=0.001,
                             use_cache=True,cache_dir='../cache/',cache_verbose=False,
-                            batch_size=None,save_always=False,lp_par=None,print_every=100,
+                            batch_size=None,save_always=False,lp_par=None,print_every=10,
                             patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
                             model_randomize_parameter=0):
     # prepare input data to uniform format 
@@ -55,15 +59,14 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
     prepared_bconds = bnd_prepare(bconds, prepared_grid,grid_dict, h=h)
     full_prepared_operator = operator_prepare(operator, grid_dict, subset=grid_point_subset, true_grid=grid, h=h)
     
-
+    r=create_random_fn(model_randomize_parameter)   
     #  use cache if needed
     if use_cache:
         cache_checkpoint,min_loss=cache_lookup(prepared_grid, full_prepared_operator, prepared_bconds,cache_dir=cache_dir
-                                               ,nmodels=None,verbose=cache_verbose,lambda_bound=0.001,norm=lp_par)
+                                               ,nmodels=None,verbose=cache_verbose,lambda_bound=lambda_bound,norm=lp_par)
         model, optimizer_state= cache_retrain(model,cache_checkpoint,grid,verbose=cache_verbose)
-        if model_randomize_parameter>0:
-            r=create_random_fn(model_randomize_parameter)     
-            model.apply(r)
+  
+        model.apply(r)
     # model is not saved if cache model good enough
 
     # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
@@ -76,7 +79,8 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
     #     except Exception:
     #         optimizer_state=None
     #     tmin=100
-    min_loss = point_sort_shift_loss(model, prepared_grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound)
+    if not use_cache:
+        min_loss = point_sort_shift_loss(model, prepared_grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound)
     
     save_cache=False
     
@@ -116,8 +120,9 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
             t_imp_start=t
         if t%loss_oscillation_window==0:
             line=np.polyfit(range(loss_oscillation_window),last_loss,1)
-            if abs(line[0]/loss.item()) < eps:
+            if abs(line[0]/loss.item()) < eps and t>0:
                 stop_dings+=1
+                model.apply(r)
                 if verbose:
                     print('Oscillation near the same loss')
                     print(t, loss.item(), line,line[0]/loss.item(), stop_dings)
@@ -140,7 +145,7 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
         t += 1
         if t > tmax:
             break
-    if save_cache and use_cache:
+    if (save_cache and use_cache) or save_always:
         save_model(model,model.state_dict(),optimizer.state_dict(),cache_dir=cache_dir,name=None)
     return model
 
