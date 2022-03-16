@@ -19,18 +19,30 @@ from cache import cache_lookup,cache_retrain,save_model
 
 
 
-
 def solution_print(prepared_grid,model,title=None):
     if prepared_grid.shape[1] == 2:
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
+        nvars_model = model(prepared_grid).shape[1]
+        fig1 = plt.figure()
+        fig2 = plt.figure()
+        ax1 = fig1.add_subplot(projection='3d')
+        ax2 = fig2.add_subplot(projection='3d')
         if title!=None:
-            ax.set_title(title)
-        ax.plot_trisurf(prepared_grid[:, 0].reshape(-1), prepared_grid[:, 1].reshape(-1),
+            ax1.set_title(title)
+            ax2.set_title(title)
+        if nvars_model == 1:
+            ax1.plot_trisurf(prepared_grid[:, 0].reshape(-1), prepared_grid[:, 1].reshape(-1),
                         model(prepared_grid).detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
-        ax.set_xlabel("x1")
-        ax.set_ylabel("x2")
+        elif nvars_model == 2:
+            ax1.plot_trisurf(prepared_grid[:, 0].reshape(-1), prepared_grid[:, 1].reshape(-1),
+                        model(prepared_grid)[:,0].detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
+            ax2.plot_trisurf(prepared_grid[:, 0].reshape(-1), prepared_grid[:, 1].reshape(-1),
+                        model(prepared_grid)[:,1].detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
+        ax1.set_xlabel("x1")
+        ax1.set_ylabel("x2")
+        ax2.set_xlabel("x1")
+        ax2.set_ylabel("x2")
         plt.show()
+
     if prepared_grid.shape[1] == 1:
         fig = plt.figure()
         plt.scatter(prepared_grid.reshape(-1), model(prepared_grid).detach().numpy().reshape(-1))
@@ -52,7 +64,7 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
                             use_cache=True,cache_dir='../cache/',cache_verbose=False,
                             batch_size=None,save_always=False,lp_par=None,print_every=10,
                             patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
-                            model_randomize_parameter=0):
+                            model_randomize_parameter=0,print_plot = True):
     # prepare input data to uniform format 
     
     prepared_grid,grid_dict,point_type = grid_prepare(grid)
@@ -126,18 +138,21 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
                 if verbose:
                     print('Oscillation near the same loss')
                     print(t, loss.item(), line,line[0]/loss.item(), stop_dings)
-                    solution_print(prepared_grid,model,title='Iteration = ' + str(t))
+                    if print_plot:
+                        solution_print(prepared_grid,model,title='Iteration = ' + str(t))
         
         if t-t_imp_start==no_improvement_patience:
             print('No improvement in '+str(no_improvement_patience)+' steps')
             t_imp_start=t
             stop_dings+=1
             print(t, loss.item(), line,line[0]/loss.item(), stop_dings)
-            solution_print(prepared_grid,model,title='Iteration = ' + str(t))
+            if print_plot:
+                solution_print(prepared_grid,model,title='Iteration = ' + str(t))
             
         if print_every!=None and (t % print_every == 0) and verbose:
             print(t, loss.item(), line,line[0]/loss.item(), stop_dings)
-            solution_print(prepared_grid,model,title='Iteration = ' + str(t))
+            if print_plot:
+                solution_print(prepared_grid,model,title='Iteration = ' + str(t))
 
         # optimizer.zero_grad()
         loss.backward()

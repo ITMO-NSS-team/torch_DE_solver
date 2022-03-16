@@ -28,7 +28,7 @@ Grid is an essentially torch.Tensor  of a n-D points where n is the problem
 dimensionality
 """
 
-device = torch.device('cuda')
+device = torch.device('cpu')
 
 x_grid=np.linspace(0,1,21)
 t_grid=np.linspace(0,1,21)
@@ -123,13 +123,15 @@ wave_eq = {
         {
             'coeff': 1,
             'd2u/dt2': [1,1],
-            'pow':1
+            'pow':1,
+            'var':0
         },
         '-C*d2u/dx2**1':
         {
             'coeff': -C,
             'd2u/dx2': [0, 0],
-            'pow': 1
+            'pow': 1,
+            'var':0
         }
 }
 

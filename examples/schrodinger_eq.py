@@ -1,17 +1,20 @@
 import torch
 import numpy as np
+
+import os
+import sys
+
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+
+sys.path.pop()
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 from solver import *
 from cache import *
 
-x_lower = -5
-x_upper = 5
-t_lower = 0
-t_upper = np.pi / 2
-
 device = torch.device('cpu')
 
-x_grid = np.linspace(x_lower, x_upper, 256)
-t_grid = np.linspace(t_lower, t_upper, 201)
+x_grid=np.linspace(0,1,21)
+t_grid=np.linspace(0,1,21)
 
 x = torch.from_numpy(x_grid)
 t = torch.from_numpy(t_grid)
@@ -28,7 +31,7 @@ bnd1 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))
 bndval1 = func(bnd1[:, 0])
 
 # Initial conditions at t=pi/2
-bnd2 = torch.cartesian_prod(x, torch.from_numpy(np.array([t_upper], dtype=np.float64))).float()
+bnd2 = torch.cartesian_prod(x, torch.from_numpy(np.array([1], dtype=np.float64))).float()
 
 # u(pi/2,x)=2sech(x)
 bndval2 = func(bnd2[:, 0])
@@ -111,5 +114,5 @@ model = torch.nn.Sequential(
 model = point_sort_shift_solver(grid, model, schrodinger_eq_real , bconds,
                                               lambda_bound=1000, verbose=1, learning_rate=1e-3,
                                     eps=1e-6, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True,
-                                    batch_size=32, save_always=True,no_improvement_patience=None)
+                                    batch_size=32, save_always=True,no_improvement_patience=500,print_every = 100,print_plot=True)
 
