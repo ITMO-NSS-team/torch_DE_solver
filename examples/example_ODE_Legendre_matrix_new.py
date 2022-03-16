@@ -24,6 +24,8 @@ from scipy.special import legendre
 from solver import matrix_cache_lookup
 device = torch.device('cpu')
 from cache import save_model
+from solver import optimization_solver
+from config import read_config
 """
 Preparing grid
 
@@ -40,226 +42,187 @@ grid=grid_format_prepare(coord_list,mode='mat')
 
 exp_dict_list=[]
 
-CACHE=True
-
-n=3  
-"""
-Preparing boundary conditions (BC)
-
-For every boundary we define three items
-
-bnd=torch.Tensor of a boundary n-D points where n is the problem
-dimensionality
-
-bop=dict in form {'term1':term1,'term2':term2}-> term1+term2+...=0
-
-NB! dictionary keys at the current time serve only for user-frienly 
-description/comments and are not used in model directly thus order of
-items must be preserved as (coeff,op,pow)
-
-term is a dict term={coefficient:c1,[sterm1,sterm2],'pow': power}
-
-Meaning c1*u*d2u/dx2 has the form
-
-{'coefficient':c1,
- 'u*d2u/dx2': [[None],[0,0]],
- 'pow':[1,1]}
-
-None is for function without derivatives
-
-
-bval=torch.Tensor prescribed values at every point in the boundary
-"""
-
-# point t=0
-bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64))
-
-bop1 = None
-
-#  So u(0)=-1/2
-bndval1 = legendre(n)(bnd1)
-
-# point t=1
-bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64))
-
-# d/dt
-bop2 = {
-    '1*du/dt**1':
-        {
-            'coefficient': 1,
-            'du/dt': [0],
-            'pow': 1
-        }
-}
-
-# So, du/dt |_{x=1}=3
-bndval2 = torch.from_numpy(legendre(n).deriv(1)(bnd2))
-
-# Putting all bconds together
-bconds = [[bnd1, bop1, bndval1], [bnd2, bop2, bndval2]]
-
-"""
-Defining Legendre polynomials generating equations
-
-Operator has the form
-
-op=dict in form {'term1':term1,'term2':term2}-> term1+term2+...=0
-
-NB! dictionary keys at the current time serve only for user-frienly 
-description/comments and are not used in model directly thus order of
-items must be preserved as (coeff,op,pow)
-
-
-
-term is a dict term={coefficient:c1,[sterm1,sterm2],'pow': power}
-
-c1 may be integer, function of grid or tensor of dimension of grid
-
-Meaning c1*u*d2u/dx2 has the form
-
-{'coefficient':c1,
- 'u*d2u/dx2': [[None],[0,0]],
- 'pow':[1,1]}
-
-None is for function without derivatives
-
-
-"""
-
-
-# 1-t^2
-def c1(grid):
-    return 1 - grid ** 2
-
-
-# -2t
-def c2(grid):
-    return -2 * grid
-
-
-
-
-
-# operator is  (1-t^2)*d2u/dt2-2t*du/dt+n*(n-1)*u=0 (n=3)
-legendre_poly= {
-    '(1-t^2)*d2u/dt2**1':
-        {
-            'coeff': c1(grid), #coefficient is a torch.Tensor
-            'du/dt': [0, 0],
-            'pow': 1
-        },
-    '-2t*du/dt**1':
-        {
-            'coeff': c2(grid),
-            'u*du/dx': [0],
-            'pow':1
-        },
-    'n*(n-1)*u**1':
-        {
-            'coeff': n*(n+1),
-            'u':  [None],
-            'pow': 1
-        }
-}
-
-# this one is to show that coefficients may be a function of grid as well
-legendre_poly= {
-    '(1-t^2)*d2u/dt2**1':
-        {
-            'coeff': c1, #coefficient is a function
-            'du/dt': [0, 0],
-            'pow': 1
-        },
-    '-2t*du/dt**1':
-        {
-            'coeff': c2,
-            'u*du/dx': [0],
-            'pow':1
-        },
-    'n*(n-1)*u**1':
-        {
-            'coeff': n*(n+1),
-            'u':  [None],
-            'pow': 1
-        }
-}
-
-model = torch.rand(grid.shape)    
+for n in range(3,10):
+    """
+    Preparing boundary conditions (BC)
     
-model = matrix_optimizer(grid, model, legendre_poly, bconds,verbose=True,
-                         print_every=None,learning_rate=1e-3,optimizer='LBFGS',
-                         eps=1e-6,lambda_bound=100,use_cache=False,save_always=True)
-
-for _ in range(10):
+    For every boundary we define three items
+    
+    bnd=torch.Tensor of a boundary n-D points where n is the problem
+    dimensionality
+    
+    bop=dict in form {'term1':term1,'term2':term2}-> term1+term2+...=0
+    
+    NB! dictionary keys at the current time serve only for user-frienly 
+    description/comments and are not used in model directly thus order of
+    items must be preserved as (coeff,op,pow)
+    
+    term is a dict term={coefficient:c1,[sterm1,sterm2],'pow': power}
+    
+    Meaning c1*u*d2u/dx2 has the form
+    
+    {'coefficient':c1,
+     'u*d2u/dx2': [[None],[0,0]],
+     'pow':[1,1]}
+    
+    None is for function without derivatives
     
     
-    NN_model = torch.nn.Sequential(
-        torch.nn.Linear(1, 100),
-        torch.nn.Tanh(),
-        torch.nn.Linear(100, 100),
-        torch.nn.Tanh(),
-        torch.nn.Linear(100, 100),
-        torch.nn.Tanh(),
-        torch.nn.Linear(100, 1)
-    )
-
-    NN_grid=grid.reshape(-1,1).float()
+    bval=torch.Tensor prescribed values at every point in the boundary
+    """
     
-    model = torch.rand(grid.shape)
-
-    start = time.time()
-
-    model = matrix_optimizer(grid, model, legendre_poly, bconds,verbose=True,
-                             print_every=None,learning_rate=1e-4,optimizer='Adam',
-                             eps=1e-6,lambda_bound=100,use_cache=True)
-    end = time.time()
-
-    print('Time taken {} = {}'.format(n,  end - start))
-
-    fig = plt.figure()
-    plt.scatter(grid.numpy().reshape(-1), model.detach().numpy().reshape(-1))
-    # analytical sln is 1/2*(-1 + 3*t**2)
-    plt.scatter(grid.reshape(-1), legendre(n)(grid).reshape(-1))
-    plt.show()
+    # point t=0
+    bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64))
     
-    error_rmse=torch.sqrt(torch.mean((legendre(n)(grid)-model)**2))
-    print('RMSE {}= {}'.format(n, error_rmse))
+    bop1 = None
     
-    exp_dict_list.append({'grid_res':100,'time':end - start,'RMSE':error_rmse.detach().numpy(),'type':'L'+str(n),'cache':str(CACHE)})
-
-    # optimizer = torch.optim.Adam(NN_model.parameters(), lr=0.001)
+    #  So u(0)=-1/2
+    bndval1 = legendre(n)(bnd1)
     
-    # model_res=model.reshape(-1,1)
+    # point t=1
+    bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64))
+    
+    # d/dt
+    bop2 = {
+        '1*du/dt**1':
+            {
+                'coefficient': 1,
+                'du/dt': [0],
+                'pow': 1
+            }
+    }
+    
+    # So, du/dt |_{x=1}=3
+    bndval2 = torch.from_numpy(legendre(n).deriv(1)(bnd2))
+    
+    # Putting all bconds together
+    bconds = [[bnd1, bop1, bndval1], [bnd2, bop2, bndval2]]
+    
+    """
+    Defining Legendre polynomials generating equations
+    
+    Operator has the form
+    
+    op=dict in form {'term1':term1,'term2':term2}-> term1+term2+...=0
+    
+    NB! dictionary keys at the current time serve only for user-frienly 
+    description/comments and are not used in model directly thus order of
+    items must be preserved as (coeff,op,pow)
+    
+    
+    
+    term is a dict term={coefficient:c1,[sterm1,sterm2],'pow': power}
+    
+    c1 may be integer, function of grid or tensor of dimension of grid
+    
+    Meaning c1*u*d2u/dx2 has the form
+    
+    {'coefficient':c1,
+     'u*d2u/dx2': [[None],[0,0]],
+     'pow':[1,1]}
+    
+    None is for function without derivatives
+    
+    
+    """
+    
+    
+    # 1-t^2
+    def c1(grid):
+        return 1 - grid ** 2
+    
+    
+    # -2t
+    def c2(grid):
+        return -2 * grid
+    
+    
+    
+    
+    
+    # operator is  (1-t^2)*d2u/dt2-2t*du/dt+n*(n-1)*u=0 (n=3)
+    legendre_poly= {
+        '(1-t^2)*d2u/dt2**1':
+            {
+                'coeff': c1, #coefficient is a torch.Tensor
+                'du/dt': [0, 0],
+                'pow': 1
+            },
+        '-2t*du/dt**1':
+            {
+                'coeff': c2,
+                'u*du/dx': [0],
+                'pow':1
+            },
+        'n*(n-1)*u**1':
+            {
+                'coeff': n*(n+1),
+                'u':  [None],
+                'pow': 1
+            }
+    }
+    
+    
+    config=read_config('../default.json')
+    
+    config["Optimizer"]["optimizer"]='LBFGS'
+    config['Optimizer']['learning_rate']=1e-3
+    config["Optimizer"]['lambda_bound']=100
+    config["StopCriterion"]['eps']=1e-6
+    config["Cache"]['save_always']=True
+    config["Cache"]['model_randomize_parameter']=1e-5
+    config["Verbose"]['verbose']=True
         
-    # def closure():
-    #     optimizer.zero_grad()
-    #     loss = torch.mean((NN_model(NN_grid)-model_res)**2)
-    #     loss.backward()
-    #     return loss
+    model=None   
     
-    # loss=np.inf
-    # t=1
-    # while loss>1e-5 and t<1e5:
-    #     loss = optimizer.step(closure)
-    #     t+=1
-    #     if False:
-    #         print('Retrain from cache t={}, loss={}'.format(t,loss))
+    model=optimization_solver(coord_list, model, legendre_poly, bconds, config,mode='mat')
+    
+    
+    for _ in range(10):
+        
+        
+        NN_model = torch.nn.Sequential(
+            torch.nn.Linear(1, 100),
+            torch.nn.Tanh(),
+            torch.nn.Linear(100, 100),
+            torch.nn.Tanh(),
+            torch.nn.Linear(100, 100),
+            torch.nn.Tanh(),
+            torch.nn.Linear(100, 1)
+        )
+    
+        
+        model=None 
+    
+        start = time.time()
+    
+        # model = matrix_optimizer(grid, model, legendre_poly, bconds,verbose=True,
+        #                           print_every=None,learning_rate=1e-4,optimizer='Adam',
+        #                           eps=1e-6,lambda_bound=100,use_cache=True)
+        
+        config["Optimizer"]["optimizer"]='Adam'
+        config['Optimizer']['learning_rate']=1e-4
+        config['Matrix']['cache_model']=NN_model
+        config["StopCriterion"]['eps']=1e-5
+        
+        model=optimization_solver(coord_list, model, legendre_poly, bconds, config,mode='mat')
+        
+        end = time.time()
+    
+        print('Time taken {} = {}'.format(n,  end - start))
+    
+        fig = plt.figure()
+        plt.scatter(grid.numpy().reshape(-1), model.detach().numpy().reshape(-1))
+        # analytical sln is 1/2*(-1 + 3*t**2)
+        plt.scatter(grid.reshape(-1), legendre(n)(grid).reshape(-1))
+        plt.show()
+        
+        error_rmse=torch.sqrt(torch.mean((legendre(n)(grid)-model)**2))
+        print('RMSE {}= {}'.format(n, error_rmse))
+        exp_dict_list.append({'grid_res':100,'time':end - start,'RMSE':error_rmse.detach().numpy(),'type':'L'+str(n),'cache':True})
 
-
-    # save_model(NN_model,NN_model.state_dict(),optimizer.state_dict(),cache_dir='../cache',name=None)
-#full paper plot
-
-# import seaborn as sns
-
-# sns.set(rc={'figure.figsize':(11.7,8.27)},font_scale=2)
-
-
-# df1=pd.read_csv('benchmarking_data/legendre_poly_exp_cache=False.csv',index_col=0)
-# df2=pd.read_csv('benchmarking_data/legendre_poly_exp_cache=True.csv',index_col=0)
-# df=pd.concat((df1,df2))
-
-# sns.boxplot(x='type', y='RMSE', data=df, showfliers=False, hue='cache')
-
-# plt.figure()
-
-# sns.boxplot(x='type', y='time', data=df, showfliers=False, hue='cache')
+import pandas as pd
+df=pd.DataFrame(exp_dict_list)
+df.boxplot(by='type',column='RMSE',figsize=(20,10),fontsize=42,showfliers=False)
+df.boxplot(by='type',column='time',figsize=(20,10),fontsize=42,showfliers=False)
+df.to_csv('benchmarking_data/legendre_poly_exp_martix_new.csv')

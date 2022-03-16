@@ -257,18 +257,102 @@ def compute_operator_loss(grid, model, operator, bconds, grid_point_subset=['cen
 def derivative(u_tensor, h_tensor, axis, scheme_order=1, boundary_order=1):
     u_tensor = torch.transpose(u_tensor, 0, axis)
     h_tensor = torch.transpose(h_tensor, 0, axis)
-
-    du_forward = (-torch.roll(u_tensor, -1) + u_tensor) / \
-                 (-torch.roll(h_tensor, -1) + h_tensor)
-
-    du_backward = (torch.roll(u_tensor, 1) - u_tensor) / \
-                  (torch.roll(h_tensor, 1) - h_tensor)
-    du = (1 / 2) * (du_forward + du_backward)
-
-    du[:, 0] = du_forward[:, 0]
-    du[:, -1] = du_backward[:, -1]
-
+    
+    
+    if scheme_order==1:
+        du_forward = (-torch.roll(u_tensor, -1) + u_tensor) / \
+                     (-torch.roll(h_tensor, -1) + h_tensor)
+    
+        du_backward = (torch.roll(u_tensor, 1) - u_tensor) / \
+                      (torch.roll(h_tensor, 1) - h_tensor)
+        du = (1 / 2) * (du_forward + du_backward)
+    
+    # dh=h_tensor[0,1]-h_tensor[0,0]
+    
+    if scheme_order==2:
+        u_shift_down_1 = torch.roll(u_tensor, 1)
+        u_shift_down_2 = torch.roll(u_tensor, 2)
+        u_shift_up_1 = torch.roll(u_tensor, -1)
+        u_shift_up_2 = torch.roll(u_tensor, -2)
+        
+        h_shift_down_1 = torch.roll(h_tensor, 1)
+        h_shift_down_2 = torch.roll(h_tensor, 2)
+        h_shift_up_1 = torch.roll(h_tensor, -1)
+        h_shift_up_2 = torch.roll(h_tensor, -2)
+        
+        h1_up=h_shift_up_1-h_tensor
+        h2_up=h_shift_up_2-h_shift_up_1
+        
+        h1_down=h_tensor-h_shift_down_1
+        h2_down=h_shift_down_1-h_shift_down_2
+       
+        a_up=-(2*h1_up+h2_up)/(h1_up*(h1_up+h2_up))
+        b_up=(h2_up+h1_up)/(h1_up*h2_up)
+        c_up=-h1_up/(h2_up*(h1_up+h2_up))
+        
+        a_down=(2*h1_down+h2_down)/(h1_down*(h1_down+h2_down))
+        b_down=-(h2_down+h1_down)/(h1_down*h2_down)
+        c_down=h1_down/(h2_down*(h1_down+h2_down))
+        
+        du_forward=a_up*u_tensor+b_up*u_shift_up_1+c_up*u_shift_up_2
+        du_backward=a_down*u_tensor+b_down*u_shift_down_1+c_down*u_shift_down_2
+        du = (1 / 2) * (du_forward + du_backward)
+        
+        
+    if boundary_order==1:
+        if scheme_order==1:
+            du[:, 0] = du_forward[:, 0]
+            du[:, -1] = du_backward[:, -1]
+        elif scheme_order==2:
+            du_forward = (-torch.roll(u_tensor, -1) + u_tensor) / \
+                         (-torch.roll(h_tensor, -1) + h_tensor)
+        
+            du_backward = (torch.roll(u_tensor, 1) - u_tensor) / \
+                          (torch.roll(h_tensor, 1) - h_tensor)
+            du[:, 0] = du_forward[:, 0]
+            du[:, 1] = du_forward[:, 1]
+            du[:, -1] = du_backward[:, -1]
+            du[:, -2] = du_backward[:, -2]
+    elif boundary_order==2:
+        if scheme_order==2:
+             du[:, 0] = du_forward[:, 0]
+             du[:, 1] = du_forward[:, 1]
+             du[:, -1] = du_backward[:, -1]
+             du[:, -2] = du_backward[:, -2]
+        elif scheme_order==1:
+            u_shift_down_1 = torch.roll(u_tensor, 1)
+            u_shift_down_2 = torch.roll(u_tensor, 2)
+            u_shift_up_1 = torch.roll(u_tensor, -1)
+            u_shift_up_2 = torch.roll(u_tensor, -2)
+            
+            h_shift_down_1 = torch.roll(h_tensor, 1)
+            h_shift_down_2 = torch.roll(h_tensor, 2)
+            h_shift_up_1 = torch.roll(h_tensor, -1)
+            h_shift_up_2 = torch.roll(h_tensor, -2)
+            
+            h1_up=h_shift_up_1-h_tensor
+            h2_up=h_shift_up_2-h_shift_up_1
+            
+            h1_down=h_tensor-h_shift_down_1
+            h2_down=h_shift_down_1-h_shift_down_2
+           
+       
+            a_up=-(2*h1_up+h2_up)/(h1_up*(h1_up+h2_up))
+            b_up=(h2_up+h1_up)/(h1_up*h2_up)
+            c_up=-h1_up/(h2_up*(h1_up+h2_up))
+            
+            a_down=(2*h1_up+h2_up)/(h1_down*(h1_down+h2_down))
+            b_down=-(h2_down+h1_down)/(h1_down*h2_down)
+            c_down=h1_down/(h2_down*(h1_down+h2_down))
+        
+            
+            du_forward=a_up*u_tensor+b_up*u_shift_up_1+c_up*u_shift_up_2
+            du_backward=a_down*u_tensor+b_down*u_shift_down_1+c_down*u_shift_down_2
+            du[:, 0] = du_forward[:, 0]
+            du[:, -1] = du_backward[:, -1]
+            
     du = torch.transpose(du, 0, axis)
+    
 
     return du
 

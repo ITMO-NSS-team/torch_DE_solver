@@ -346,7 +346,7 @@ def matrix_cache_lookup(grid, model, operator, bconds,h=0.001,model_randomize_pa
 
     cache_checkpoint,min_loss=cache_lookup(prepared_grid, full_prepared_operator, prepared_bconds,cache_dir=cache_dir
                                            ,nmodels=None,verbose=True,lambda_bound=lambda_bound)
-    model, optimizer_state= cache_retrain(model,cache_checkpoint,grid,verbose=True)
+    model, optimizer_state= cache_retrain(model,cache_checkpoint,grid,verbose=False)
   
     model.apply(r)
     
@@ -354,13 +354,16 @@ def matrix_cache_lookup(grid, model, operator, bconds,h=0.001,model_randomize_pa
 
 
 
-def matrix_optimizer(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
-                            verbose=False, learning_rate=1e-4, eps=1e-5, tmin=1000, tmax=1e5, h=0.001,
+def matrix_optimizer(grid, model, operator, bconds, lambda_bound=10,
+                            verbose=False, learning_rate=1e-4, eps=1e-5, tmin=1000, tmax=1e5,
                             use_cache=True,cache_dir='../cache/',cache_verbose=False,
                             batch_size=None,save_always=False,lp_par=None,print_every=100,
                             patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
                             model_randomize_parameter=1e-5,optimizer='LBFGS',cache_model=None):
     # prepare input data to uniform format 
+    
+    if model==None:
+        model= torch.rand(grid.shape) 
     
     if use_cache:
         NN_grid=grid.reshape(-1,1).float()
@@ -518,12 +521,12 @@ def optimization_solver(coord_list, model, operator,bconds,config,mode='NN'):
             optimizer=config['Optimizer']['optimizer'],
             grid_point_subset=config['NN']['grid_point_subset'],
             h=config['NN']['h'],
-            use_cache=config['NN']['use_cache'],
-            cache_dir=config['NN']['cache_dir'],
-            cache_verbose=config['NN']['cache_verbose'],
-            model_randomize_parameter=config['NN']['model_randomize_parameter'],
+            use_cache=config['Cache']['use_cache'],
+            cache_dir=config['Cache']['cache_dir'],
+            cache_verbose=config['Cache']['cache_verbose'],
+            model_randomize_parameter=config['Cache']['model_randomize_parameter'],
+            save_always=config['Cache']['save_always'],
             batch_size=config['NN']['batch_size'],
-            save_always=config['NN']['save_always'],
             lp_par=config['NN']['lp_par'],
             verbose=config['Verbose']['verbose'],
             print_every=config['Verbose']['print_every'],
@@ -533,4 +536,24 @@ def optimization_solver(coord_list, model, operator,bconds,config,mode='NN'):
             patience=config['StopCriterion']['patience'],
             loss_oscillation_window=config['StopCriterion']['loss_oscillation_window'],
             no_improvement_patience=config['StopCriterion']['no_improvement_patience'])
+    if mode=='mat':
+        model=matrix_optimizer(grid, model, operator, bconds,
+            learning_rate=config['Optimizer']['learning_rate'],
+            lambda_bound=config['Optimizer']['lambda_bound'],
+            optimizer=config['Optimizer']['optimizer'],
+            use_cache=config['Cache']['use_cache'],
+            cache_dir=config['Cache']['cache_dir'],
+            cache_verbose=config['Cache']['cache_verbose'],
+            model_randomize_parameter=config['Cache']['model_randomize_parameter'],
+            save_always=config['Cache']['save_always'],
+            lp_par=config['Matrix']['lp_par'],
+            cache_model=config['Matrix']['cache_model'],
+            verbose=config['Verbose']['verbose'],
+            print_every=config['Verbose']['print_every'],
+            eps=config['StopCriterion']['eps'], 
+            tmin=config['StopCriterion']['tmin'], 
+            tmax=config['StopCriterion']['tmax'], 
+            patience=config['StopCriterion']['patience'],
+            loss_oscillation_window=config['StopCriterion']['loss_oscillation_window'],
+            no_improvement_patience=config['StopCriterion']['no_improvement_patience'])             
     return model
