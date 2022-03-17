@@ -12,7 +12,7 @@ import sys
 
 sys.path.append('../')
 
-from solver_matrix import *
+from solver import *
 import time
 import pandas as pd
 

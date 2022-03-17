@@ -8,7 +8,7 @@ import torch
 import numpy as np
 import os
 
-from solver_matrix import *
+from solver import *
 import time
 
 """
