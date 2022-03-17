@@ -56,59 +56,43 @@ def wave_experiment(grid_res,CACHE):
     """
     Preparing boundary conditions (BC)
     
-    For every boundary we define three items
+    Unlike KdV example there is optional possibility to define only two items
+    when boundary operator is not needed
     
     bnd=torch.Tensor of a boundary n-D points where n is the problem
     dimensionality
     
-    bop=dict in form {'term1':term1,'term2':term2}-> term1+term2+...=0
-    
-    NB! dictionary keys at the current time serve only for user-frienly 
-    description/comments and are not used in model directly thus order of
-    items must be preserved as (coeff,op,pow)
-    
-    term is a dict term={coefficient:c1,[sterm1,sterm2],'pow': power}
-    
-    Meaning c1*u*d2u/dx2 has the form
-    
-    {'coefficient':c1,
-     'u*d2u/dx2': [[None],[0,0]],
-     'pow':[1,1]}
-    
-    None is for function without derivatives
-    
-    
     bval=torch.Tensor prescribed values at every point in the boundary
+    
     """
     
     # Initial conditions at t=0
     bnd1 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
     
     # u(0,x)=sin(pi*x)
-    bndval1 = func(bnd1)
+    bndval1 = torch.sin(np.pi * bnd1[:, 0])
     
     # Initial conditions at t=1
     bnd2 = torch.cartesian_prod(x, torch.from_numpy(np.array([1], dtype=np.float64))).float()
     
     # u(1,x)=sin(pi*x)
-    bndval2 = func(bnd2)
+    bndval2 = torch.sin(np.pi * bnd2[:, 0])
     
     # Boundary conditions at x=0
     bnd3 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t).float()
     
     # u(0,t)=0
-    bndval3 = func(bnd3)
+    bndval3 = torch.from_numpy(np.zeros(len(bnd3), dtype=np.float64))
     
     # Boundary conditions at x=1
     bnd4 = torch.cartesian_prod(torch.from_numpy(np.array([1], dtype=np.float64)), t).float()
     
     # u(1,t)=0
-    bndval4 = func(bnd4)
+    bndval4 = torch.from_numpy(np.zeros(len(bnd4), dtype=np.float64))
     
     # Putting all bconds together
     bconds = [[bnd1, bndval1], [bnd2, bndval2], [bnd3, bndval3], [bnd4, bndval4]]
-     
-        
+    
     """
     Defining wave equation
     
@@ -119,8 +103,7 @@ def wave_experiment(grid_res,CACHE):
     NB! dictionary keys at the current time serve only for user-frienly 
     description/comments and are not used in model directly thus order of
     items must be preserved as (coeff,op,pow)
-    
-    
+     
     
     term is a dict term={coefficient:c1,[sterm1,sterm2],'pow': power}
     
@@ -138,20 +121,23 @@ def wave_experiment(grid_res,CACHE):
     """
     # operator is 4*d2u/dx2-1*d2u/dt2=0
     wave_eq = {
-        'd2u/dt2**1':
+        '4*d2u/dx2**1':
             {
-                'coeff': 1,
-                'd2u/dt2': [1,1],
-                'pow':1
-            },
-            '-C*d2u/dx2**1':
-            {
-                'coeff': -C**2,
+                'coeff': 4,
                 'd2u/dx2': [0, 0],
                 'pow': 1
+            },
+        '-d2u/dt2**1':
+            {
+                'coeff': -1,
+                'd2u/dt2': [1,1],
+                'pow':1
             }
     }
 
+    sln=np.genfromtxt('wolfram_sln/wave_sln_'+str(grid_res)+'.csv',delimiter=',')
+    sln_torch=torch.from_numpy(sln)
+    sln_torch1=sln_torch.reshape(-1,1)
 
     # model = torch.nn.Sequential(
     #     torch.nn.Linear(2, 100),
@@ -167,9 +153,9 @@ def wave_experiment(grid_res,CACHE):
 
     model = torch.nn.Sequential(
         torch.nn.Linear(2, 100),
-        torch.nn.ReLU(),
+        torch.nn.Tanh(),
         torch.nn.Linear(100, 100),
-        torch.nn.ReLU(),
+        torch.nn.Tanh(),
         # torch.nn.Linear(100, 100),
         # torch.nn.ReLU(),
         # torch.nn.Linear(100, 100),
@@ -188,12 +174,12 @@ def wave_experiment(grid_res,CACHE):
     start = time.time()
     
     model = point_sort_shift_solver(grid, model, wave_eq, bconds, lambda_bound=10, verbose=2, learning_rate=1e-4, h=abs((t[1]-t[0]).item()),
-                                    eps=1e-8, tmin=1000, tmax=1e6,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
-                                    ,batch_size=None, save_always=True,lp_par=lp_par,no_improvement_patience=10000,print_every=None,
+                                    eps=1e-7, tmin=1000, tmax=1e6,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
+                                    ,batch_size=None, save_always=True,lp_par=lp_par,print_every=None,
                                     model_randomize_parameter=1e-6)
     end = time.time()
         
-    error_rmse=torch.sqrt(torch.mean((func(grid)-model(grid))**2))
+    error_rmse=torch.sqrt(torch.mean((sln_torch1-model(grid))**2))
     
   
     
@@ -219,13 +205,13 @@ CACHE=True
 for grid_res in range(10,101,10):
     for _ in range(nruns):
         exp_dict_list.append(wave_experiment(grid_res,CACHE))
+        import pandas as pd
+
+        exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+        df=pd.DataFrame(exp_dict_list_flatten)
+        df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
+        df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
+        df.to_csv('benchmarking_data/wave_experiment_2_{}_cache={}.csv'.format(grid_res,str(CACHE)))
    
 
         
-import pandas as pd
-
-exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-df=pd.DataFrame(exp_dict_list_flatten)
-df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
-df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
-df.to_csv('benchmarking_data/wave_experiment_10_50_cache={}.csv'.format(str(CACHE)))

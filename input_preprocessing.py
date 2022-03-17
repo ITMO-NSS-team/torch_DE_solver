@@ -446,3 +446,37 @@ def batch_bconds_transform(batch_grid,bconds):
     if len(batch_bconds)==0:
         batch_bconds=None
     return batch_bconds
+
+
+def bnd_prepare_matrix(bconds,grid):
+    prepared_bconds=[]
+    for bnd in bconds:
+        if len(bnd)==2:
+            bpts=bnd[0]
+            bop=None
+            bval=bnd[1]
+        else:
+            bpts=bnd[0]
+            bop=bnd[1]
+            bval=bnd[2]
+        bpos=[]
+        for pt in bpts:
+            prod=(torch.zeros_like(grid[0])+1).bool()
+            for axis in range(grid.shape[0]):
+                axis_intersect=torch.isclose(pt[axis].float(),grid[axis].float())
+                prod*=axis_intersect
+            point_pos=torch.where(prod==True)
+            bpos.append(point_pos)
+        if type(bop)==dict:
+            bop=op_dict_to_list(bop)
+        if bop!=None:
+            bop = operator_unify(bop)
+        prepared_bconds.append([bpos,bop,bval])
+    return prepared_bconds
+
+def operator_prepare_matrix(operator):
+    if type(operator) == dict:
+        operator = op_dict_to_list(operator)
+    unified_operator = operator_unify(operator)
+    return unified_operator
+

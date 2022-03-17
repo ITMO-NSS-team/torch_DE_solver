@@ -26,12 +26,20 @@ import time
 
 
 
+<<<<<<< HEAD
 CACHE=True
 
 device = torch.device('cuda')
 
 
 def p_IV_exp(grid_res):
+=======
+
+device = torch.device('cpu')
+
+
+def p_IV_exp(grid_res,CACHE):
+>>>>>>> torch_matrix_opt
     
     exp_dict_list=[]
     
@@ -206,8 +214,14 @@ def p_IV_exp(grid_res):
     start = time.time()
     
     model = point_sort_shift_solver(grid, model, p_4, bconds, lambda_bound=100, verbose=2,h=abs((t[1]-t[0]).item()), learning_rate=1e-4,
+<<<<<<< HEAD
                                     eps=1e-7, tmin=1000, tmax=1e6,use_cache=True,cache_dir='../cache/',cache_verbose=True
                                     ,batch_size=None, save_always=True,lp_par=lp_par,no_improvement_patience=10000,print_every=None)
+=======
+                                    eps=1e-7, tmin=1000, tmax=1e6,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
+                                    ,batch_size=None, save_always=True,lp_par=lp_par,no_improvement_patience=10000,print_every=None,
+                                    model_randomize_parameter=1e-6)
+>>>>>>> torch_matrix_opt
     end = time.time()
         
     error_rmse=torch.sqrt(torch.mean((sln_torch1-model(grid))**2))
@@ -219,12 +233,19 @@ def p_IV_exp(grid_res):
     prepared_bconds = bnd_prepare(bconds, prepared_grid,grid_dict, h=(7/4-1/4)/grid_res)
     prepared_operator = operator_prepare(p_4, grid_dict, subset=['central'], true_grid=grid, h=(7/4-1/4)/grid_res)
     end_loss = point_sort_shift_loss(model, prepared_grid, prepared_operator, prepared_bconds, lambda_bound=100)
+<<<<<<< HEAD
     exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'PIV'})
+=======
+    exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'PIV','cache':CACHE})
+>>>>>>> torch_matrix_opt
     
     print('Time taken {}= {}'.format(grid_res, end - start))
     print('RMSE {}= {}'.format(grid_res, error_rmse))
     print('loss {}= {}'.format(grid_res, end_loss))
     return exp_dict_list
+<<<<<<< HEAD
+
+=======
 
 
 
@@ -233,8 +254,33 @@ nruns=1
 
 exp_dict_list=[]
 
+CACHE=True
+>>>>>>> torch_matrix_opt
+
+for grid_res in range(100,501,100):
+    for _ in range(nruns):
+        exp_dict_list.append(p_IV_exp(grid_res,CACHE))
+        
+        
+import pandas as pd
+
+<<<<<<< HEAD
+
+nruns=1
+=======
+exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+df=pd.DataFrame(exp_dict_list_flatten)
+df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
+df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
+df.to_csv('PIV_experiment_100_500_cache={}.csv'.format(str(CACHE)))
+
+>>>>>>> torch_matrix_opt
+
+exp_dict_list=[]
 
 
+
+<<<<<<< HEAD
 for grid_res in range(100,501,100):
     for _ in range(nruns):
         exp_dict_list.append(p_IV_exp(grid_res))
@@ -247,3 +293,5 @@ df=pd.DataFrame(exp_dict_list_flatten)
 df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
 df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
 df.to_csv('PIV_experiment_100_500_cache={}.csv'.format(str(CACHE)))
+=======
+>>>>>>> torch_matrix_opt

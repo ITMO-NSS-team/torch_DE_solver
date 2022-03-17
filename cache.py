@@ -41,6 +41,7 @@ def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='
     else:
         # here we take random nmodels from the cache
         cache_n=np.random.choice(len(files), nmodels, replace=False)
+    cache_same_architecture=[]
     min_loss=np.inf
     best_model=0
     best_checkpoint={}
@@ -52,8 +53,9 @@ def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='
         # this one for the input shape fix if needed
         # it is taken from the grid shape
         if model[0].in_features!=prepared_grid.shape[-1]:
-            model[0]=torch.nn.Linear(prepared_grid.shape[-1],model[0].out_features)
-        model.eval()
+            continue
+        #     model[0]=torch.nn.Linear(prepared_grid.shape[-1],model[0].out_features)
+        # model.eval()
         l=point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound,norm=norm)      
         if l<min_loss:
             min_loss=l
@@ -62,6 +64,9 @@ def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='
             best_checkpoint['optimizer_state_dict']=checkpoint['optimizer_state_dict']
             if verbose:
                 print('best_model_num={} , loss={}'.format(i,l))
+    if best_checkpoint=={}:
+        best_checkpoint=None
+        min_loss=np.inf
     return best_checkpoint,min_loss
         
 

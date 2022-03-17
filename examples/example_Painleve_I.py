@@ -202,6 +202,7 @@ exp_dict_list=[]
 
 CACHE=False
 
+<<<<<<< HEAD
 
 for grid_res in range(10,100,10):
     exp_dict_list.append(p_I_exp(grid_res, nruns,CACHE))
@@ -224,6 +225,8 @@ exp_dict_list=[]
 
 CACHE=True
 
+=======
+>>>>>>> torch_matrix_opt
 
 for grid_res in range(10,100,10):
     exp_dict_list.append(p_I_exp(grid_res, nruns,CACHE))
@@ -239,6 +242,7 @@ exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df=pd.DataFrame(exp_dict_list_flatten)
 df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
 df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
+<<<<<<< HEAD
 df.to_csv('PI_experiment_10_500_cache={}.csv'.format(str(CACHE)))
 
 
@@ -256,3 +260,28 @@ df.to_csv('PI_experiment_10_500_cache={}.csv'.format(str(CACHE)))
 # plt.figure()
 
 # sns.boxplot(x='grid_res', y='time', data=df, showfliers=False, hue='cache')
+=======
+df.to_csv('benchmarking_data/PI_experiment_10_500_cache={}.csv'.format(str(CACHE)))
+
+
+exp_dict_list=[]
+
+CACHE=True
+
+
+for grid_res in range(10,100,10):
+    exp_dict_list.append(p_I_exp(grid_res, nruns,CACHE))
+
+
+for grid_res in range(100,501,100):
+    exp_dict_list.append(p_I_exp(grid_res, nruns,CACHE))
+
+
+exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+df=pd.DataFrame(exp_dict_list_flatten)
+df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
+df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
+df.to_csv('benchmarking_data/PI_experiment_10_500_cache={}.csv'.format(str(CACHE)))
+
+
+>>>>>>> torch_matrix_opt
