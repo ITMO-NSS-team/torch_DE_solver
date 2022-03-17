@@ -28,15 +28,10 @@ import time
 
 
 
-CACHE=True
 
 device = torch.device('cpu')
 
-<<<<<<< HEAD
-def p_III_exp(grid_res):
-=======
 def p_III_exp(grid_res,CACHE):
->>>>>>> torch_matrix_opt
     
     exp_dict_list=[]
     
@@ -219,11 +214,7 @@ def p_III_exp(grid_res,CACHE):
     prepared_bconds = bnd_prepare(bconds, prepared_grid,grid_dict, h=(2.1-0.25)/grid_res)
     prepared_operator = operator_prepare(p_3, grid_dict, subset=['central'], true_grid=grid, h=(2.1-0.25)/grid_res)
     end_loss = point_sort_shift_loss(model, prepared_grid, prepared_operator, prepared_bconds, lambda_bound=100)
-<<<<<<< HEAD
-    exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'PIII'})
-=======
     exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'PIII','cache':CACHE})
->>>>>>> torch_matrix_opt
     
     print('Time taken {}= {}'.format(grid_res, end - start))
     print('RMSE {}= {}'.format(grid_res, error_rmse))
@@ -260,11 +251,7 @@ CACHE=True
 
 for grid_res in range(100,501,100):
     for _ in range(nruns):
-<<<<<<< HEAD
-        exp_dict_list.append(p_III_exp(grid_res))
-=======
         exp_dict_list.append(p_III_exp(grid_res,CACHE))
->>>>>>> torch_matrix_opt
 
 
 import pandas as pd
@@ -273,9 +260,5 @@ exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df=pd.DataFrame(exp_dict_list_flatten)
 df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
 df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
-<<<<<<< HEAD
-df.to_csv('PIII_experiment_100_500_cache={}.csv'.format(str(CACHE)))
-=======
 df.to_csv('benchmarking_data/PIII_experiment_100_500_cache={}.csv'.format(str(CACHE)))
 
->>>>>>> torch_matrix_opt

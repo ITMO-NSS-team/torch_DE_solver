@@ -202,7 +202,6 @@ exp_dict_list=[]
 
 CACHE=False
 
-<<<<<<< HEAD
 
 for grid_res in range(10,100,10):
     exp_dict_list.append(p_I_exp(grid_res, nruns,CACHE))
@@ -218,49 +217,6 @@ exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df=pd.DataFrame(exp_dict_list_flatten)
 df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
 df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
-df.to_csv('PI_experiment_10_500_cache={}.csv'.format(str(CACHE)))
-
-
-exp_dict_list=[]
-
-CACHE=True
-
-=======
->>>>>>> torch_matrix_opt
-
-for grid_res in range(10,100,10):
-    exp_dict_list.append(p_I_exp(grid_res, nruns,CACHE))
-
-
-for grid_res in range(100,501,100):
-    exp_dict_list.append(p_I_exp(grid_res, nruns,CACHE))
-
-
-import pandas as pd
-
-exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-df=pd.DataFrame(exp_dict_list_flatten)
-df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
-df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
-<<<<<<< HEAD
-df.to_csv('PI_experiment_10_500_cache={}.csv'.format(str(CACHE)))
-
-
-# import seaborn as sns
-
-# sns.set(rc={'figure.figsize':(11.7,8.27)},font_scale=2)
-
-
-# df1=pd.read_csv('PI_experiment_10_500_cache=False.csv',index_col=0)
-# df2=pd.read_csv('PI_experiment_10_500_cache=True.csv',index_col=0)
-# df=pd.concat((df1,df2))
-
-# sns.boxplot(x='grid_res', y='RMSE', data=df, showfliers=False, hue='cache')
-
-# plt.figure()
-
-# sns.boxplot(x='grid_res', y='time', data=df, showfliers=False, hue='cache')
-=======
 df.to_csv('benchmarking_data/PI_experiment_10_500_cache={}.csv'.format(str(CACHE)))
 
 
@@ -284,4 +240,3 @@ df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=Fa
 df.to_csv('benchmarking_data/PI_experiment_10_500_cache={}.csv'.format(str(CACHE)))
 
 
->>>>>>> torch_matrix_opt

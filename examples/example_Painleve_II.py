@@ -27,15 +27,8 @@ import time
 
 device = torch.device('cpu')
 
-<<<<<<< HEAD
-CACHE=True
-
-
-def p_II_exp(grid_res,nruns):
-=======
 
 def p_II_exp(grid_res,nruns,CACHE):
->>>>>>> torch_matrix_opt
     
     exp_dict_list=[]
     
@@ -166,11 +159,7 @@ def p_II_exp(grid_res,nruns,CACHE):
         start = time.time()
         model = point_sort_shift_solver(grid, model, p_2, bconds, lambda_bound=100, verbose=0, learning_rate=1e-4,
                                         eps=1e-7, tmin=1000, tmax=1e5,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
-<<<<<<< HEAD
-                                        ,batch_size=None, save_always=False,print_every=None)
-=======
                                         ,batch_size=None, save_always=False,print_every=None,model_randomize_parameter=1e-6)
->>>>>>> torch_matrix_opt
         end = time.time()
 
             
@@ -212,9 +201,6 @@ exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df=pd.DataFrame(exp_dict_list_flatten)
 df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
 df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
-<<<<<<< HEAD
-df.to_csv('PII_experiment_10_500_cache={}.csv'.format(str(CACHE)))
-=======
 df.to_csv('benchmarking_data/PII_experiment_10_500_cache={}.csv'.format(str(CACHE)))
 
 
@@ -239,4 +225,3 @@ df.to_csv('benchmarking_data/PII_experiment_10_500_cache={}.csv'.format(str(CACH
 
 
 
->>>>>>> torch_matrix_opt
