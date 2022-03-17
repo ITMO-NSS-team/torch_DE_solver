@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from mpl_toolkits.mplot3d import Axes3D
-from solver import lbfgs_solution
+from solver import lbfgs_solution,grid_format_prepare
 
 import time
 from scipy.special import legendre
@@ -34,18 +34,6 @@ dimensionality
 t = np.linspace(0, 1, 100)
 
 coord_list = [t]
-
-
-def grid_format_prepare(coord_list, mode='NN'):
-    if type(coord_list)==torch.Tensor:
-        print('Grid is a tensor, assuming old format, no action performed')
-        return coord_list
-    if mode=='NN':
-        grid=torch.cartesian_prod(*coord_list).float()
-    elif mode=='mat':
-        grid = np.meshgrid(*coord_list)
-        grid = torch.tensor(grid, device=device)
-    return grid
 
 
 grid=grid_format_prepare(coord_list,mode='mat')

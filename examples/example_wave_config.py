@@ -33,7 +33,7 @@ t = torch.from_numpy(np.array([0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9,
 
 coord_list=[x,t]
 
-# grid = torch.cartesian_prod(x, t).float()
+# grid = torch.cartesian_prod(*coord_list).float()
 
 # grid.to(device)
 

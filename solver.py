@@ -28,9 +28,6 @@ def solution_print(prepared_grid,model,title=None):
         ax = fig.add_subplot(111, projection='3d')
         if title!=None:
             ax.set_title(title)
-        print(prepared_grid[:, 0].reshape(-1))
-        print(prepared_grid[:, 1].reshape(-1))
-        print(model(prepared_grid).detach().numpy().reshape(-1))
         ax.plot_trisurf(prepared_grid[:, 0].reshape(-1), prepared_grid[:, 1].reshape(-1),
                         model(prepared_grid).detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
         ax.set_xlabel("x1")
@@ -503,8 +500,7 @@ def grid_format_prepare(coord_list, mode='NN'):
         print('Grid is a tensor, assuming old format, no action performed')
         return coord_list
     if mode=='NN':
-        grid=torch.cartesian_prod(torch.from_numpy(*coord_list)).float()
-        grid=grid.reshape(-1, 1).float()
+        grid=torch.cartesian_prod(*coord_list).float()
     elif mode=='mat':
         grid = np.meshgrid(*coord_list)
         grid = torch.tensor(grid)
