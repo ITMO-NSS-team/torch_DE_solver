@@ -444,7 +444,10 @@ def apply_matrix_bcond_operator(model,grid,b_prepared):
             b_pos = bcond[0]
             true_boundary_val = bcond[2]
             for position in b_pos:
-                b_val_list.append(model[position])
+                if grid.dim() == 1 or min(grid.shape) == 1:
+                    b_val_list.append(model[:,position])
+                else:
+                    b_val_list.append(model[position])
             true_b_val_list.append(true_boundary_val)
         b_val=torch.cat(b_val_list)
         true_b_val=torch.cat(true_b_val_list)
