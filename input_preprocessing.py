@@ -326,6 +326,8 @@ def bndpos(grid, bnd):
         positions of boundaty points in grid
 
     """
+    if grid.shape[0]==1:
+        grid=grid.reshape(-1,1)
     bndposlist = []
     grid = grid.double()
     if type(bnd) == np.array:
@@ -448,6 +450,7 @@ def batch_bconds_transform(batch_grid,bconds):
     return batch_bconds
 
 
+
 def bnd_prepare_matrix(bconds,grid):
     prepared_bconds=[]
     for bnd in bconds:
@@ -460,12 +463,16 @@ def bnd_prepare_matrix(bconds,grid):
             bop=bnd[1]
             bval=bnd[2]
         bpos=[]
+        # bpos=bndpos(grid,bpts)
         for pt in bpts:
-            prod=(torch.zeros_like(grid[0])+1).bool()
-            for axis in range(grid.shape[0]):
-                axis_intersect=torch.isclose(pt[axis].float(),grid[axis].float())
-                prod*=axis_intersect
-            point_pos=torch.where(prod==True)
+            if grid.shape[0]==1:
+                point_pos=(torch.tensor(bndpos(grid,pt)),)
+            else:
+                prod=(torch.zeros_like(grid[0])+1).bool()
+                for axis in range(grid.shape[0]):
+                    axis_intersect=torch.isclose(pt[axis].float(),grid[axis].float())
+                    prod*=axis_intersect
+                point_pos=torch.where(prod==True)
             bpos.append(point_pos)
         if type(bop)==dict:
             bop=op_dict_to_list(bop)

@@ -253,8 +253,29 @@ def compute_operator_loss(grid, model, operator, bconds, grid_point_subset=['cen
     return loss
 
 
+def derivative_1d(model,grid):
+    # print('1d>2d')
+    u=model.reshape(-1)
+    x=grid.reshape(-1)
+    
+    # du_forward = (u-torch.roll(u, -1)) / (x-torch.roll(x, -1))
+    
+    # du_backward = (torch.roll(u, 1) - u) / (torch.roll(x, 1) - x)
+    du = (1 / 2) * (torch.roll(u, 1) - torch.roll(u, -1))/(torch.roll(x, 1)-torch.roll(x, -1))
+    du[0] = (u[0]-u[1])/(x[0]-x[1])
+    du[-1] = (u[-1]-u[-2])/(x[-1]-x[-2])
+    
+    du=du.reshape(model.shape)
+    
+    return du
+
 
 def derivative(u_tensor, h_tensor, axis, scheme_order=1, boundary_order=1):
+    # print('shape=',u_tensor.shape)
+    if (u_tensor.shape[0]==1):
+        du=derivative_1d(u_tensor,h_tensor)
+        return du
+    
     u_tensor = torch.transpose(u_tensor, 0, axis)
     h_tensor = torch.transpose(h_tensor, 0, axis)
     

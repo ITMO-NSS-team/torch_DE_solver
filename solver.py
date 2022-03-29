@@ -386,7 +386,7 @@ def matrix_optimizer(grid, model, operator, bconds, lambda_bound=10,
     unified_operator = operator_prepare_matrix(operator)
 
     b_prepared = bnd_prepare_matrix(bconds, grid)
-
+    
     if optimizer=='Adam':
         optimizer = torch.optim.Adam([model.requires_grad_()], lr=learning_rate)
     elif optimizer=='SGD':
@@ -441,7 +441,7 @@ def matrix_optimizer(grid, model, operator, bconds, lambda_bound=10,
                     solution_print_mat(grid,model,title='Iteration = ' + str(t))
         
         if (t-t_imp_start==no_improvement_patience) and verbose:
-            print('No improvement in '+str(no_improvement_patience)+' steps')
+            print('No improvement in '+str(no_improvement_patience)+' steps, min_loss = '+str(min_loss))
             t_imp_start=t
             stop_dings+=1
             print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
@@ -500,7 +500,9 @@ def grid_format_prepare(coord_list, mode='NN'):
         print('Grid is a tensor, assuming old format, no action performed')
         return coord_list
     if mode=='NN':
+        coord_list=torch.tensor(coord_list)
         grid=torch.cartesian_prod(*coord_list).float()
+        grid=grid.reshape(-1,1)
     elif mode=='mat':
         grid = np.meshgrid(*coord_list)
         grid = torch.tensor(grid)

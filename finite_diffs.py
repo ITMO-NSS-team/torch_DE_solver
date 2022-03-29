@@ -119,7 +119,7 @@ The following material is presented in illustrative matters
 For boundaries we have to use at the one hand - 2nd order scheme, at the other - forward/backward scheme.
 
 Tests show, that we cannot use center scheme even for infinite small h for boundary points, since it gives
-function from other that Sobolev space for a given equation.
+function from other than Sobolev space for a given equation.
 
 Thus, everything becomes more serious. Brace yourself, if you go further to the code
 """

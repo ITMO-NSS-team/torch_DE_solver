@@ -170,6 +170,7 @@ for n in range(3,10):
     config["Optimizer"]['lambda_bound']=100
     config["StopCriterion"]['eps']=1e-6
     config["Cache"]['save_always']=True
+    config["Cache"]['use_cache']=False
     config["Cache"]['model_randomize_parameter']=1e-5
     config["Verbose"]['verbose']=True
         
