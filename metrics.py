@@ -138,7 +138,6 @@ def lp_norm(*arg,p=2,normalized=False,weighted=False):
 def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10,norm=None):
 
     op = apply_operator_set(model, operator_set)
-    
     if bconds==None:
         loss = torch.mean((op) ** 2)
         return loss
@@ -159,10 +158,13 @@ def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10,nor
     if simpleform:
         for bcond in bconds:
             b_pos_list.append(bcond[0])
-            true_boundary_val = bcond[2].reshape(-1, 1)
+
+            if len(bcond[2]) == bcond[2].shape[-1]:
+                true_boundary_val = bcond[2].reshape(-1,1)
+            else: 
+                true_boundary_val = bcond[2]
+
             true_b_val_list.append(true_boundary_val)
-        # print(flatten_list(b_pos_list))
-        # b_pos=torch.cat(b_pos_list)
         true_b_val = torch.cat(true_b_val_list)
         b_op_val = model(grid)
         b_val = b_op_val[flatten_list(b_pos_list)]
@@ -172,7 +174,11 @@ def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10,nor
             b_pos = bcond[0]
             b_pos_list.append(bcond[0])
             b_cond_operator = bcond[1]
-            true_boundary_val = bcond[2].reshape(-1, 1)
+            
+            if len(bcond[2]) == bcond[2].shape[-1]:
+                true_boundary_val = bcond[2].reshape(-1,1)
+            else: 
+                true_boundary_val = bcond[2]
             true_b_val_list.append(true_boundary_val)
             if b_cond_operator == None or b_cond_operator == [[1, [None], 1]]:
                 b_op_val = model(grid)
@@ -190,13 +196,6 @@ def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10,nor
     crucial thing for all that stuff, so we should increase significance of the
     coundary conditions
     """
-    # l1_lambda = 0.001
-    # l1_norm =sum(p.abs().sum() for p in model.parameters())
-    # loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)+ l1_lambda * l1_norm
-    
-    
-    # loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)
-    
     if norm==None:
         op_weigthed=False
         op_normalized=False

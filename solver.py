@@ -23,24 +23,28 @@ def solution_print(prepared_grid,model,title=None):
     if prepared_grid.shape[1] == 2:
         nvars_model = model(prepared_grid).shape[1]
         fig1 = plt.figure()
-        fig2 = plt.figure()
         ax1 = fig1.add_subplot(projection='3d')
-        ax2 = fig2.add_subplot(projection='3d')
+
         if title!=None:
             ax1.set_title(title)
-            ax2.set_title(title)
+            # ax2.set_title(title)
         if nvars_model == 1:
             ax1.plot_trisurf(prepared_grid[:, 0].reshape(-1), prepared_grid[:, 1].reshape(-1),
                         model(prepared_grid).detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
+            ax1.set_xlabel("x1")
+            ax1.set_ylabel("x2")
+
         elif nvars_model == 2:
+            fig2 = plt.figure()
+            ax2 = fig2.add_subplot(projection='3d')
             ax1.plot_trisurf(prepared_grid[:, 0].reshape(-1), prepared_grid[:, 1].reshape(-1),
                         model(prepared_grid)[:,0].detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
             ax2.plot_trisurf(prepared_grid[:, 0].reshape(-1), prepared_grid[:, 1].reshape(-1),
                         model(prepared_grid)[:,1].detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
-        ax1.set_xlabel("x1")
-        ax1.set_ylabel("x2")
-        ax2.set_xlabel("x1")
-        ax2.set_ylabel("x2")
+            ax2.set_xlabel("x1")
+            ax2.set_ylabel("x2")
+        
+        
         plt.show()
 
     if prepared_grid.shape[1] == 1:
@@ -62,7 +66,7 @@ def create_random_fn(eps):
 def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['central'], lambda_bound=10,
                             verbose=False, learning_rate=1e-4, eps=1e-5, tmin=1000, tmax=1e5, h=0.001,
                             use_cache=True,cache_dir='../cache/',cache_verbose=False,
-                            batch_size=None,save_always=False,lp_par=None,print_every=10,
+                            batch_size=None,save_always=False,lp_par=None,print_every=100,
                             patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
                             model_randomize_parameter=0,print_plot = True):
     # prepare input data to uniform format 

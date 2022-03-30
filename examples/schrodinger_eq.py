@@ -1,5 +1,7 @@
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
+import scipy
 
 import os
 import sys
@@ -23,36 +25,51 @@ grid = torch.cartesian_prod(x, t).float()
 
 grid.to(device)
 
-func = lambda x: 2/np.cosh(x)
+## BOUNDARY AND INITIAL CONDITIONS
+def func(grid):
+    x, t = grid[:,0],grid[:,1]
+    return torch.sin(np.pi * x) * torch.cos(C * np.pi * t) + torch.sin(A * np.pi * x) * torch.cos(
+        A * C * np.pi * t
+    )
+fun = lambda x: 2/np.cosh(x)
+
+A = 2
+C = 10
 # Initial conditions at t=0
 bnd1 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
 
-# u(0,x)=2sech(x)
-bndval1 = func(bnd1[:, 0])
+# u(0,x)=sin(pi*x)
+bndval1_1 = func(bnd1)
+bndval1_2 = fun(bnd1[:, 0])
+bndval1 = torch.stack((bndval1_1,bndval1_2),dim=1)
 
-# Initial conditions at t=pi/2
+# Initial conditions at t=1
 bnd2 = torch.cartesian_prod(x, torch.from_numpy(np.array([1], dtype=np.float64))).float()
 
-# u(pi/2,x)=2sech(x)
-bndval2 = func(bnd2[:, 0])
+# u(1,x)=sin(pi*x)
+bndval2_1 = func(bnd2)
+bndval2_2 = fun(bnd2[:, 0])
+bndval2 = torch.stack((bndval2_1,bndval2_2),dim=1)
 
-# u(0,x)=u(pi/2,x)
-
-# Boundary cond at x=0
-
-bnd3 = bnd3 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t).float()
+# Boundary conditions at x=0
+bnd3 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t).float()
 
 # u(0,t)=0
-bndval3 = torch.from_numpy(np.zeros(len(bnd3), dtype=np.float64))
+bndval3_1 = func(bnd3)
+bndval3_2 = fun(bnd3[:, 0])
+bndval3 = torch.stack((bndval3_1,bndval3_2),dim=1)
 
 # Boundary conditions at x=1
 bnd4 = torch.cartesian_prod(torch.from_numpy(np.array([1], dtype=np.float64)), t).float()
 
 # u(1,t)=0
-bndval4 = torch.from_numpy(np.zeros(len(bnd4), dtype=np.float64))
+bndval4_1 = func(bnd4)
+bndval4_2 = fun(bnd4[:, 0])
+bndval4 = torch.stack((bndval4_1,bndval4_2),dim=1)
 
 # Putting all bconds together
 bconds = [[bnd1, bndval1], [bnd2, bndval2], [bnd3, bndval3], [bnd4, bndval4]]
+
 
 '''
 schrodinger equation:
@@ -114,5 +131,5 @@ model = torch.nn.Sequential(
 model = point_sort_shift_solver(grid, model, schrodinger_eq_real , bconds,
                                               lambda_bound=1000, verbose=1, learning_rate=1e-3,
                                     eps=1e-6, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True,
-                                    batch_size=32, save_always=True,no_improvement_patience=500,print_every = 100,print_plot=True)
+                                    batch_size=None, save_always=True,no_improvement_patience=500,print_every = 500,print_plot=True)
 
