@@ -41,6 +41,7 @@ def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='
     else:
         # here we take random nmodels from the cache
         cache_n=np.random.choice(len(files), nmodels, replace=False)
+    cache_same_architecture=[]
     min_loss=np.inf
     best_model=0
     best_checkpoint={}

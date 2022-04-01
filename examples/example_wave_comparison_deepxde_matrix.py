@@ -6,22 +6,9 @@ Created on Mon May 31 12:33:44 2021
 """
 import torch
 import numpy as np
-import matplotlib.pyplot as plt
-import scipy
-
 import os
 
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-import sys
-# import torch_rbf as rbf
-# sys.path.append('../')
-sys.path.pop()
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
-
-
 from solver import *
-from cache import *
 import time
 
 """
@@ -33,15 +20,18 @@ dimensionality
 
 device = torch.device('cpu')
 
-x_grid=np.linspace(0,1,11)
-t_grid=np.linspace(0,1,11)
+x_grid=np.linspace(0,1,21)
+t_grid=np.linspace(0,1,21)
+
+grid = []
+grid.append(x_grid)
+grid.append(t_grid)
+
+grid = np.meshgrid(*grid)
+grid = torch.tensor(grid, device=device)
 
 x = torch.from_numpy(x_grid)
 t = torch.from_numpy(t_grid)
-
-grid = torch.cartesian_prod(x, t).float()
-
-grid.to(device)
 
 """
 Preparing boundary conditions (BC)
@@ -126,38 +116,24 @@ wave_eq = {
         {
             'coeff': 1,
             'd2u/dt2': [1,1],
-            'pow':1,
-            'var':0
+            'pow':1
         },
         '-C*d2u/dx2**1':
         {
             'coeff': -C,
             'd2u/dx2': [0, 0],
-            'pow': 1,
-            'var':0
+            'pow': 1
         }
 }
 
 
 
 for _ in range(1):
-    model = torch.nn.Sequential(
-        torch.nn.Linear(2, 100),
-        torch.nn.Tanh(),
-        torch.nn.Linear(100, 100),
-        torch.nn.Tanh(),
-        torch.nn.Linear(100, 100),
-        torch.nn.Tanh(),
-        torch.nn.Linear(100, 1)
-    )
-
+    model = torch.rand(grid[0].shape)
     
     start = time.time()
     
-    model = point_sort_shift_solver(grid, model, wave_eq , bconds, lambda_bound=1000, verbose=1, learning_rate=1e-4,
-                                    eps=1e-5, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True,
-                                    batch_size=32, save_always=True,print_every = 500)
-
+    model = lbfgs_solution(model, grid, wave_eq, 100, bconds)
 
     end = time.time()
     print('Time taken 10= ', end - start)
