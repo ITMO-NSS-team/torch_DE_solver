@@ -7,40 +7,19 @@ Created on Wed Mar 30 13:25:13 2022
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-from input_preprocessing import op_dict_to_list,operator_unify
+
+import sys
+
+sys.path.append('../')
+
+
+from input_preprocessing import operator_prepare_autograd,bnd_prepare_autograd
+from metrics import autograd_loss
+from solver import nn_autorad_optimizer
 
 
 
 
-
-def nn_autograd_simple(model, points, order,axis=0):
-    points.requires_grad=True
-    f = model(points).sum()
-    for i in range(order):
-        grads, = torch.autograd.grad(f, points, create_graph=True)
-        f = grads[:,axis].sum()
-    return grads[:,axis]
-
-
-def nn_autograd_mixed(model, points,axis=[0]):
-    points.requires_grad=True
-    f = model(points).sum()
-    for ax in axis:
-        grads, = torch.autograd.grad(f, points, create_graph=True)
-        f = grads[:,ax].sum()
-    return grads[:,axis[-1]]
-
-
-
-def nn_autograd(*args,axis=0):
-    model=args[0]
-    points=args[1]
-    if len(args)==3:
-        order=args[2]
-        grads=nn_autograd_simple(model, points, order,axis=axis)
-    else:
-        grads=nn_autograd_mixed(model, points,axis=axis)
-    return grads
 
 
 wave_eq = {
@@ -61,14 +40,12 @@ wave_eq = {
 
 
     
-if type(wave_eq)==dict:
-    wave_eq=op_dict_to_list(wave_eq)
-wave_eq1 = operator_unify(wave_eq)
-    
+
+wave_eq1=operator_prepare_autograd(wave_eq)
     
 
-x_grid=np.linspace(0,1,100+1)
-t_grid=np.linspace(0,1,100+1)
+x_grid=np.linspace(0,1,10+1)
+t_grid=np.linspace(0,1,10+1)
 
 x = torch.from_numpy(x_grid)
 t = torch.from_numpy(t_grid)
@@ -159,55 +136,5 @@ model = torch.nn.Sequential(
     # torch.nn.Tanh()
 )
 
+model=nn_autorad_optimizer(grid, model, wave_eq, bconds,use_cache=False,verbose=True,print_every=100)
 
-
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-
-
-lam=1
-
-min_loss=10000000
-
-# cur_loss=min_loss
-
-def closure():
-    # nonlocal cur_loss
-    optimizer.zero_grad()
-    op_part=torch.mean((4*nn_autograd(model, grid, 2,axis=[0,0])-1*nn_autograd(model, grid, 2,axis=[1,1]))**2)
-    bcond_part=torch.mean(torch.abs(torch.cat((model(bnd1),model(bnd2),model(bnd3),model(bnd4)))- \
-                          torch.cat((bndval1.reshape(-1,1),bndval2.reshape(-1,1),
-                                     bndval3.reshape(-1,1),bndval4.reshape(-1,1)))))
-    print('op_part={}, bcond_part={}'.format(op_part,bcond_part))
-    loss=op_part+lam*bcond_part
-    loss.backward()
-    # cur_loss = loss.item()
-    return loss
-
-# cur_loss=min_loss
-
-t=0
-
-loss=optimizer.step(closure)
-
-while loss>1e-3 and t<1e4:
-    loss=optimizer.step(closure)
-    if t%100==0:
-        print('t={}, loss={}'.format(t,loss.item()))
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.plot_trisurf(grid[:, 0].detach().numpy().reshape(-1), grid[:, 1].detach().numpy().reshape(-1),
-                        model(grid).detach().numpy().reshape(-1), cmap=plt.cm.jet, linewidth=0.2, alpha=1)
-        ax.set_xlabel("x1")
-        ax.set_ylabel("x2")
-        plt.show()
-    t+=1
-
-
-
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.plot_trisurf(grid[:, 0].detach().numpy().reshape(-1), grid[:, 1].detach().numpy().reshape(-1),
-                model(grid).detach().numpy().reshape(-1), cmap=plt.cm.jet, linewidth=0.2, alpha=1)
-ax.set_xlabel("x1")
-ax.set_ylabel("x2")
-plt.show()

@@ -12,7 +12,8 @@ from mpl_toolkits.mplot3d import Axes3D
 from input_preprocessing import grid_prepare, bnd_prepare, operator_prepare
 from metrics import point_sort_shift_loss,point_sort_shift_loss_batch
 from input_preprocessing import bnd_prepare_matrix,operator_prepare_matrix
-from metrics import matrix_loss
+from input_preprocessing import operator_prepare_autograd,bnd_prepare_autograd
+from metrics import matrix_loss,autograd_loss
 import numpy as np
 from cache import cache_lookup,cache_retrain,save_model
 
@@ -28,14 +29,14 @@ def solution_print(prepared_grid,model,title=None):
         ax = fig.add_subplot(111, projection='3d')
         if title!=None:
             ax.set_title(title)
-        ax.plot_trisurf(prepared_grid[:, 0].reshape(-1), prepared_grid[:, 1].reshape(-1),
+        ax.plot_trisurf(prepared_grid[:, 0].detach().numpy().reshape(-1), prepared_grid[:, 1].detach().numpy().reshape(-1),
                         model(prepared_grid).detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
         ax.set_xlabel("x1")
         ax.set_ylabel("x2")
         plt.show()
     if prepared_grid.shape[1] == 1:
         fig = plt.figure()
-        plt.scatter(prepared_grid.reshape(-1), model(prepared_grid).detach().numpy().reshape(-1))
+        plt.scatter(prepared_grid.detach().numpy().reshape(-1), model(prepared_grid).detach().numpy().reshape(-1))
         plt.show()
 
 
@@ -491,6 +492,107 @@ def matrix_optimizer(grid, model, operator, bconds, lambda_bound=10,
     
         
         
+    return model
+
+
+
+def nn_autorad_optimizer(grid, model, operator, bconds, lambda_bound=10,
+                            verbose=False, learning_rate=1e-4, eps=1e-5, tmin=1000, tmax=1e5, h=0.001,
+                            use_cache=True,cache_dir='../cache/',cache_verbose=False,
+                            batch_size=None,save_always=False,lp_par=None,print_every=100,
+                            patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
+                            model_randomize_parameter=0,optimizer='Adam'):
+    # prepare input data to uniform format 
+    
+    full_prepared_operator = operator_prepare_autograd(operator)
+    
+    prepared_bconds=bnd_prepare_autograd(bconds, grid)
+    r=create_random_fn(model_randomize_parameter)   
+    #  use cache if needed
+    # if use_cache:
+    #     cache_checkpoint,min_loss=cache_lookup(prepared_grid, full_prepared_operator, prepared_bconds,cache_dir=cache_dir
+    #                                            ,nmodels=None,verbose=cache_verbose,lambda_bound=lambda_bound,norm=lp_par)
+    #     model, optimizer_state= cache_retrain(model,cache_checkpoint,grid,verbose=cache_verbose)
+  
+    #     model.apply(r)
+
+    if optimizer=='Adam':
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    elif optimizer=='SGD':
+        optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    elif optimizer=='LBFGS':
+        optimizer = torch.optim.LBFGS(model.parameters(), lr=learning_rate)
+    else:
+        print('Wrong optimizer chosen, optimization was not performed')
+        return model
+    
+
+    if not use_cache:
+        min_loss = autograd_loss(model, grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound)
+    
+    save_cache=False
+    
+    if min_loss>0.1 or save_always:
+        save_cache=True
+    
+    
+    # standard NN stuff
+    if verbose:
+        print('-1 {}'.format(min_loss))
+    
+    t = 0
+    
+    last_loss=np.zeros(loss_oscillation_window)+float(min_loss)
+    line=np.polyfit(range(loss_oscillation_window),last_loss,1)
+    
+
+    def closure():
+        nonlocal cur_loss
+        optimizer.zero_grad()
+        loss =autograd_loss(model, grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound)
+        loss.backward()
+        cur_loss = loss.item()
+        return loss
+    
+    stop_dings=0
+    t_imp_start=0
+    # to stop train proceduce we fit the line in the loss data
+    #if line is flat enough 5 times, we stop the procedure
+    cur_loss=min_loss
+    while stop_dings<=patience:
+        optimizer.step(closure)
+
+        last_loss[t%loss_oscillation_window]=cur_loss
+        
+        if cur_loss<min_loss:
+            min_loss=cur_loss
+            t_imp_start=t
+        if t%loss_oscillation_window==0:
+            line=np.polyfit(range(loss_oscillation_window),last_loss,1)
+            if abs(line[0]/cur_loss) < eps and t>0:
+                stop_dings+=1
+                model.apply(r)
+                if verbose:
+                    print('Oscillation near the same loss')
+                    print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
+                    solution_print(grid,model,title='Iteration = ' + str(t))
+        
+        if (t-t_imp_start==no_improvement_patience) and verbose:
+            print('No improvement in '+str(no_improvement_patience)+' steps')
+            t_imp_start=t
+            stop_dings+=1
+            print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
+            solution_print(grid,model,title='Iteration = ' + str(t))
+            
+        if print_every!=None and (t % print_every == 0) and verbose:
+            print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
+            solution_print(grid,model,title='Iteration = ' + str(t))
+
+        t += 1
+        if t > tmax:
+            break
+    if (save_cache and use_cache) or save_always:
+        save_model(model,model.state_dict(),optimizer.state_dict(),cache_dir=cache_dir,name=None)
     return model
 
 

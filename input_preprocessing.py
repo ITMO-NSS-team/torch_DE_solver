@@ -292,6 +292,28 @@ def operator_prepare(op, grid_dict, subset=['central'], true_grid=None, h=0.001)
     prepared_operator = apply_all_operators(op1, grid_dict, subset=subset, true_grid=true_grid, h=h)
     return prepared_operator
 
+
+def operator_prepare_autograd(op):
+    """
+    Changes the operator in conventional form to the input one
+    
+    Parameters
+    ----------
+    op : list
+        operator in conventional form.
+    Returns
+    -------
+    operator_list :  list
+        final form of differential operator used in the algorithm 
+
+    """
+    if type(op)==dict:
+        op=op_dict_to_list(op)
+    prepared_operator = operator_unify(op)
+        
+    return prepared_operator
+
+
 def op_dict_to_list(opdict):
     return list([list(term.values()) for term in opdict.values()])
 
@@ -486,4 +508,45 @@ def operator_prepare_matrix(operator):
         operator = op_dict_to_list(operator)
     unified_operator = operator_unify(operator)
     return unified_operator
+
+
+def bnd_prepare_autograd(bconds,grid):
+    """
+    
+
+    Parameters
+    ----------
+    bconds : list
+        boundary in conventional form (see examples)
+    grid : torch.Tensor
+        grid with sotred nodes (see grid_prepare)
+    h : float
+        derivative precision parameter. The default is 0.001.
+
+    Returns
+    -------
+    prepared_bnd : list
+        
+        boundary in input form
+
+    """
+    bconds = bnd_unify(bconds)
+    if bconds==None:
+        return None
+    prepared_bnd = []
+    for bcond in bconds:
+        b_coord = bcond[0]
+        bop = bcond[1]
+        bval = bcond[2]
+        bpos = bndpos(grid, b_coord)
+        if bop == [[1, [None], 1]]:
+            bop = None
+        if bop != None:
+            if type(bop)==dict:
+                bop=op_dict_to_list(bop)
+            bop1 = operator_unify(bop)
+        else:
+            bop1 = None
+        prepared_bnd.append([bpos, bop1, bval])
+    return prepared_bnd
 
