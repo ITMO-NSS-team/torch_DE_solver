@@ -220,7 +220,7 @@ for n in range(3,10):
     
         start = time.time()
         model = nn_autograd_optimizer(grid, model, legendre_poly, bconds,use_cache=True,verbose=True,
-                                      print_every=None,cache_verbose=True,abs_loss=1e-3,lambda_bound=10,optimizer='Adam',learning_rate=1e-4)
+                                      print_every=None,cache_verbose=True,abs_loss=1e-3,lambda_bound=10,optimizer='Adam',learning_rate=1e-4,save_always=True)
         end = time.time()
     
         print('Time taken {} = {}'.format(n,  end - start))
