@@ -15,7 +15,7 @@ from input_preprocessing import bnd_prepare_matrix,operator_prepare_matrix
 from input_preprocessing import operator_prepare_autograd,bnd_prepare_autograd
 from metrics import matrix_loss,autograd_loss
 import numpy as np
-from cache import cache_lookup,cache_retrain,save_model
+from cache import cache_lookup,cache_retrain,save_model,cache_lookup_autograd
 
 
 
@@ -496,25 +496,28 @@ def matrix_optimizer(grid, model, operator, bconds, lambda_bound=10,
 
 
 
-def nn_autorad_optimizer(grid, model, operator, bconds, lambda_bound=10,
+def nn_autograd_optimizer(grid, model, operator, bconds, lambda_bound=10,
                             verbose=False, learning_rate=1e-4, eps=1e-5, tmin=1000, tmax=1e5, h=0.001,
                             use_cache=True,cache_dir='../cache/',cache_verbose=False,
                             batch_size=None,save_always=False,lp_par=None,print_every=100,
                             patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
-                            model_randomize_parameter=0,optimizer='Adam'):
+                            model_randomize_parameter=0,optimizer='Adam',abs_loss=None):
     # prepare input data to uniform format 
     
-    full_prepared_operator = operator_prepare_autograd(operator)
+    grid=torch.clone(grid)
+    
+    full_prepared_operator = operator_prepare_autograd(operator,grid)
     
     prepared_bconds=bnd_prepare_autograd(bconds, grid)
+    
     r=create_random_fn(model_randomize_parameter)   
-    #  use cache if needed
-    # if use_cache:
-    #     cache_checkpoint,min_loss=cache_lookup(prepared_grid, full_prepared_operator, prepared_bconds,cache_dir=cache_dir
-    #                                            ,nmodels=None,verbose=cache_verbose,lambda_bound=lambda_bound,norm=lp_par)
-    #     model, optimizer_state= cache_retrain(model,cache_checkpoint,grid,verbose=cache_verbose)
+     # use cache if needed
+    if use_cache:
+        cache_checkpoint,min_loss=cache_lookup_autograd(grid, full_prepared_operator, prepared_bconds,cache_dir=cache_dir
+                                                ,nmodels=None,verbose=cache_verbose,lambda_bound=lambda_bound)
+        model, optimizer_state= cache_retrain(model,cache_checkpoint,grid,verbose=cache_verbose)
   
-    #     model.apply(r)
+        model.apply(r)
 
     if optimizer=='Adam':
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -545,6 +548,7 @@ def nn_autorad_optimizer(grid, model, operator, bconds, lambda_bound=10,
     last_loss=np.zeros(loss_oscillation_window)+float(min_loss)
     line=np.polyfit(range(loss_oscillation_window),last_loss,1)
     
+
 
     def closure():
         nonlocal cur_loss
@@ -583,6 +587,15 @@ def nn_autorad_optimizer(grid, model, operator, bconds, lambda_bound=10,
             stop_dings+=1
             print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
             solution_print(grid,model,title='Iteration = ' + str(t))
+        
+        if abs_loss!=None:
+            if cur_loss<abs_loss and verbose:
+                print('Absolute value of loss is lower than threshold')
+                stop_dings+=1
+                print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
+                solution_print(grid,model,title='Iteration = ' + str(t))  
+     
+         
             
         if print_every!=None and (t % print_every == 0) and verbose:
             print(t, cur_loss, line,line[0]/cur_loss, stop_dings)

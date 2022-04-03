@@ -548,8 +548,7 @@ def nn_autograd(*args,axis=0):
         grads=nn_autograd_simple(model, points, order,axis=axis)
     else:
         grads=nn_autograd_mixed(model, points,axis=axis)
-    return grads
-
+    return grads.reshape(-1,1)
 
 
 def take_derivative_autograd (model, grid, term):
@@ -580,13 +579,15 @@ def take_derivative_autograd (model, grid, term):
     der_term = torch.zeros_like(model(grid)) + 1
     
     for j,derivative in enumerate(product):
-        if derivative is not None:
-            der=nn_autograd(model,grid,axis=derivative)
-        else:
+        if derivative==[None]:
             der=model(grid)
+        else:
+            der=nn_autograd(model,grid,axis=derivative)
         der_term = der_term * der ** power[j]
-
+    
     der_term = coeff * der_term
+    
+    
     return der_term
 
 
@@ -613,7 +614,7 @@ def apply_autograd_operator(model,grid, operator):
             total += dif
         except NameError:
             total = dif
-    return total.reshape(-1,1)
+    return total
 
 
 def apply_autograd_bcond_operator(model,grid,bconds):

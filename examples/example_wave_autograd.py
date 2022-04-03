@@ -15,7 +15,7 @@ sys.path.append('../')
 
 from input_preprocessing import operator_prepare_autograd,bnd_prepare_autograd
 from metrics import autograd_loss
-from solver import nn_autorad_optimizer
+from solver import nn_autograd_optimizer
 
 
 
@@ -39,10 +39,7 @@ wave_eq = {
 
 
 
-    
-
-wave_eq1=operator_prepare_autograd(wave_eq)
-    
+        
 
 x_grid=np.linspace(0,1,10+1)
 t_grid=np.linspace(0,1,10+1)
@@ -136,5 +133,5 @@ model = torch.nn.Sequential(
     # torch.nn.Tanh()
 )
 
-model=nn_autorad_optimizer(grid, model, wave_eq, bconds,use_cache=False,verbose=True,print_every=100)
+model=nn_autograd_optimizer(grid, model, wave_eq, bconds,use_cache=True,verbose=True,print_every=100,cache_verbose=True,abs_loss=0.01)
 

@@ -173,6 +173,8 @@ def finite_diff_scheme_to_grid_list(finite_diff_scheme, grid, h=0.001):
     return s_grid_list
 
 
+
+
 def type_op_to_grid_shift_op(fin_diff_op, grid, h=0.001, true_grid=None):
     """
     Converts operator to a grid_shift form. Includes term coefficient
@@ -293,25 +295,7 @@ def operator_prepare(op, grid_dict, subset=['central'], true_grid=None, h=0.001)
     return prepared_operator
 
 
-def operator_prepare_autograd(op):
-    """
-    Changes the operator in conventional form to the input one
-    
-    Parameters
-    ----------
-    op : list
-        operator in conventional form.
-    Returns
-    -------
-    operator_list :  list
-        final form of differential operator used in the algorithm 
 
-    """
-    if type(op)==dict:
-        op=op_dict_to_list(op)
-    prepared_operator = operator_unify(op)
-        
-    return prepared_operator
 
 
 def op_dict_to_list(opdict):
@@ -508,6 +492,45 @@ def operator_prepare_matrix(operator):
         operator = op_dict_to_list(operator)
     unified_operator = operator_unify(operator)
     return unified_operator
+
+
+def expand_coeffs_autograd(op,grid):
+    autograd_op=[]
+    for term in op:
+        coeff1 = term[0]
+        if type(coeff1) == int:
+            coeff = coeff1
+        elif callable(coeff1):
+            coeff = coeff1(grid)
+            coeff = coeff.reshape(-1,1)
+        elif type(coeff1) == torch.Tensor:
+            coeff = coeff1.reshape(-1,1)
+        prod = term[1]
+        power = term[2]
+        autograd_op.append([coeff, prod, power])
+    return autograd_op
+
+def operator_prepare_autograd(op,grid):
+    """
+    Changes the operator in conventional form to the input one
+    
+    Parameters
+    ----------
+    op : list
+        operator in conventional form.
+    Returns
+    -------
+    operator_list :  list
+        final form of differential operator used in the algorithm 
+
+    """
+    if type(op)==dict:
+        op=op_dict_to_list(op)
+    unified_operator = operator_unify(op)
+        
+    prepared_operator=expand_coeffs_autograd(unified_operator,grid)
+    
+    return prepared_operator
 
 
 def bnd_prepare_autograd(bconds,grid):
