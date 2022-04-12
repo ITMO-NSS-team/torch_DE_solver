@@ -615,13 +615,16 @@ def grid_format_prepare(coord_list, mode='NN'):
         print('Grid is a tensor, assuming old format, no action performed')
         return coord_list
     if mode=='NN':
-        coord_list=torch.tensor(coord_list)
+        # coord_list=torch.tensor(coord_list)
         grid=torch.cartesian_prod(*coord_list).float()
-        grid=grid.reshape(-1,1)
+        # grid=grid.reshape(-1,1)
     elif mode=='mat':
         grid = np.meshgrid(*coord_list)
         grid = torch.tensor(grid)
     return grid
+
+
+
 
 
 
