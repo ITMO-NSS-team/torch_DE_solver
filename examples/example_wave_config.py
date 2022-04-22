@@ -15,7 +15,8 @@ import sys
 sys.path.append('../')
 
 from solver import *
-from cache import *
+# from cache import *
+from config import read_config
 import time
 
 """
@@ -30,9 +31,11 @@ device = torch.device('cpu')
 x = torch.from_numpy(np.array([0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]))
 t = torch.from_numpy(np.array([0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]))
 
-grid = torch.cartesian_prod(x, t).float()
+coord_list=[x,t]
 
-grid.to(device)
+# grid = torch.cartesian_prod(*coord_list).float()
+
+# grid.to(device)
 
 """
 Preparing boundary conditions (BC)
@@ -118,7 +121,8 @@ wave_eq = {
 }
 
 
-
+config=read_config('../default.json')
+    
 for _ in range(1):
     model = torch.nn.Sequential(
         torch.nn.Linear(2, 100),
@@ -139,10 +143,10 @@ for _ in range(1):
             'boundary_weighted':False,
             'boundary_normalized':False}
     
-    model = point_sort_shift_solver(grid, model, wave_eq , bconds, 
-                                              lambda_bound=100, verbose=True, learning_rate=1e-4,
-                                    eps=1e-5, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
-                                    batch_size=None, save_always=True,lp_par=lp_par)
-
+    # model = point_sort_shift_solver(grid, model, wave_eq , bconds, 
+    #                                           lambda_bound=100, verbose=True, learning_rate=1e-4,
+    #                                 eps=1e-5, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
+    #                                 batch_size=None, save_always=True,lp_par=lp_par)
+    model=optimization_solver(coord_list, model, wave_eq,bconds,config,mode='NN')
     end = time.time()
     print('Time taken 10= ', end - start)
