@@ -32,7 +32,7 @@ def take_derivative_shift_op(model, term):
     # number of variables in equation
     variables = term[4]
     # initially it is an ones field
-    der_term = torch.zeros_like(model(shift_grid_list[0][0])[:,0]) + 1
+    der_term = (torch.zeros_like(model(shift_grid_list[0][0])[0:,0]) + 1).reshape(-1,1)
     
     for j, scheme in enumerate(shift_grid_list):
         # every shift in grid we should add with correspoiding sign, so we start
@@ -43,7 +43,7 @@ def take_derivative_shift_op(model, term):
             grid_sum += model(grid) * s_order_norm_list[j][k]
             # Here we want to apply differential operators for every term in the product
         der_term = der_term * grid_sum[:,variables[j]] ** power[j]
-    der_term = coeff * der_term
+    der_term = (coeff * der_term).reshape(-1,1)
 
          
     return der_term
