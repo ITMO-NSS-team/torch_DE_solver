@@ -52,9 +52,13 @@ def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='
         model.load_state_dict(checkpoint['model_state_dict'])
         # this one for the input shape fix if needed
         # it is taken from the grid shape
-        if model[0].in_features!=prepared_grid.shape[-1]:
-            continue
-        #     model[0]=torch.nn.Linear(prepared_grid.shape[-1],model[0].out_features)
+        try:
+            if model[0].in_features != prepared_grid.shape[-1]:
+                continue
+        except:
+            if model[-1].out_features != prepared_grid.shape[-1]:
+                continue
+        # model[0] = torch.nn.Linear(prepared_grid.shape[-1], model[0].out_features)
         # model.eval()
         l=point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound,norm=norm)      
         if l<min_loss:

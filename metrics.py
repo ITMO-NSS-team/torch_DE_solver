@@ -37,13 +37,13 @@ def take_derivative_shift_op(model, term):
     for j, scheme in enumerate(shift_grid_list):
         # every shift in grid we should add with correspoiding sign, so we start
         # from zeros
-        grid_sum = torch.zeros_like(model(scheme[0])) #почему схема от 0?
+        grid_sum = torch.zeros_like(model(scheme[0]))[0:,0].reshape(-1,1) #почему схема от 0?
         for k, grid in enumerate(scheme):
             # and add grid sequentially
-            grid_sum += model(grid) * s_order_norm_list[j][k]
+            grid_sum += (model(grid)[0:,variables[j]]).reshape(-1,1) * s_order_norm_list[j][k]
             # Here we want to apply differential operators for every term in the product
-        der_term = der_term * grid_sum[:,variables[j]] ** power[j]
-    der_term = (coeff * der_term).reshape(-1,1)
+        der_term = der_term * grid_sum ** power[j]
+    der_term = coeff * der_term
 
          
     return der_term
