@@ -45,6 +45,16 @@ def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='
     min_loss=np.inf
     best_model=0
     best_checkpoint={}
+    var = []
+    n_vars = []
+    for op in operator:
+        for term in op:
+            var.append(term[4])
+    for elt in var:
+        nrm = np.sqrt((np.array([-1]) - elt) ** 2)
+        for elem in nrm:
+            n_vars.append(elem)
+    n_vars = int(max(n_vars))
     for i in cache_n:
         file=files[i]
         checkpoint = torch.load(file)
@@ -52,12 +62,13 @@ def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='
         model.load_state_dict(checkpoint['model_state_dict'])
         # this one for the input shape fix if needed
         # it is taken from the grid shape
+        if model[0].in_features != prepared_grid.shape[-1]:
+            continue
         try:
-            if model[0].in_features != prepared_grid.shape[-1]:
+            if model[-1].out_features != n_vars:
                 continue
-        except:
-            if model[-1].out_features != prepared_grid.shape[-1]:
-                continue
+        except Exception:
+            continue
         # model[0] = torch.nn.Linear(prepared_grid.shape[-1], model[0].out_features)
         # model.eval()
         l=point_sort_shift_loss(model, prepared_grid, operator, bconds, lambda_bound=lambda_bound,norm=norm)      
