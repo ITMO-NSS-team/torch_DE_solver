@@ -73,7 +73,7 @@ def operator_unify(operator):
         elif type(power)==int:
             variables=0
         elif type(power)==list:
-            for _ in len(power):
+            for _ in range(len(power)):
                 variables.append(0)
         if variables is None:
             if type(power) is list:
