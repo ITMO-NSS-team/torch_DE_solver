@@ -201,7 +201,7 @@ def type_op_to_grid_shift_op(fin_diff_op, grid, h=0.001, true_grid=None):
     for term1 in fin_diff_op:
         shift_grid_list = []
         coeff1 = term1[0]
-        if type(coeff1) == int:
+        if type(coeff1) == int or type(coeff1) == float:
             coeff = coeff1
         elif callable(coeff1):
             coeff = coeff1(grid)
