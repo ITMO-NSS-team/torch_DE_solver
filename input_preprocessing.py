@@ -67,7 +67,14 @@ def operator_unify(operator):
         const = term[0]
         vars_set = term[1]
         power = term[2]
-        variables = term[3]
+        variables=[]
+        if len(term)==4:
+            variables = term[3]
+        elif type(power)==int:
+            variables=0
+        elif type(power)==list:
+            for _ in len(power):
+                variables.append(0)
         if variables is None:
             if type(power) is list:
                 unified_operator.append([const, vars_set, power,0])
