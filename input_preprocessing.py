@@ -67,10 +67,28 @@ def operator_unify(operator):
         const = term[0]
         vars_set = term[1]
         power = term[2]
-        if type(power) is list:
-            unified_operator.append([const, vars_set, power])
+        variables=[]
+        if len(term)==4:
+            variables = term[3]
+        elif type(power)==int:
+            variables=0
+        elif type(power)==list:
+            for _ in range(len(power)):
+                variables.append(0)
+        if variables is None:
+            if type(power) is list:
+                unified_operator.append([const, vars_set, power,0])
+            else:
+                unified_operator.append([const, [vars_set], [power],[0]])
         else:
-            unified_operator.append([const, [vars_set], [power]])
+            if type(power) is list:
+                unified_operator.append([const, vars_set, power,variables])
+            else:
+                unified_operator.append([const, [vars_set], [power],[variables]])
+        # if type(power) is list:
+        #         unified_operator.append([const, vars_set, power])
+        # else:
+        #         unified_operator.append([const, [vars_set], [power]])
     return unified_operator
 
 
@@ -108,6 +126,7 @@ def operator_to_type_op(unified_operator, nvars, axes_scheme_type, h=1 / 2,inner
         const = term[0]
         vars_set = term[1]
         power = term[2]
+        variables = term[3]
         for k, term in enumerate(vars_set):
             # None is for case where we need the fuction without derivatives
             if term != [None]:
@@ -130,7 +149,7 @@ def operator_to_type_op(unified_operator, nvars, axes_scheme_type, h=1 / 2,inner
                 s_order = [1]
             fin_diff_list.append(scheme)
             s_order_list.append(s_order)
-        fin_diff_op.append([const, fin_diff_list, s_order_list, power])
+        fin_diff_op.append([const, fin_diff_list, s_order_list, power,variables])
     return fin_diff_op
 
 
@@ -215,13 +234,14 @@ def type_op_to_grid_shift_op(fin_diff_op, grid, h=0.001, true_grid=None):
         finite_diff_scheme = term1[1]
         s_order = term1[2]
         power = term1[3]
+        variables = term1[4]
         for k, term in enumerate(finite_diff_scheme):
             if term != [None]:
                 grid_op = finite_diff_scheme_to_grid_list(term, grid, h=h)
             else:
                 grid_op = [grid]
             shift_grid_list.append(grid_op)
-        shift_grid_op.append([coeff, shift_grid_list, s_order, power])
+        shift_grid_op.append([coeff, shift_grid_list, s_order, power,variables])
     return shift_grid_op
 
 

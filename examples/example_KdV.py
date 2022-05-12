@@ -6,18 +6,23 @@ Created on Mon May 31 12:33:44 2021
 """
 import torch
 import numpy as np
-import os
-
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
-import sys
-
-sys.path.append('../')
-
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from mpl_toolkits.mplot3d import Axes3D
+import scipy
+
+import os
+import sys
+
+
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+
+sys.path.pop()
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
+sys.path.append('../')
+
+
 from solver import *
 import time
 
@@ -94,23 +99,26 @@ for grid_res in [10,20,30]:
             {
                 'a1': a1,
                 'd2u/dx2': [0, 0],
-                'pow': 1
+                'pow': 1,
+                'var': 0
             },
         'a2*du/dx':
             {
                 'a2': a2,
                 'du/dx': [0],
-                'pow': 1
+                'pow': 1,
+                'var': 0
             },
         'a3*u':
             {
                 'a3': a3,
                 'u': [None],
-                'pow': 1
+                'pow': 1,
+                'var': 0
             }
     }
     
-    bop1=[[a1,[0,0],1],[a2,[0],1],[a3,[None],1]]
+    # bop1=[[a1,[0,0],1],[a2,[0],1],[a3,[None],1]]
     
     # equal to zero
     bndval1 = torch.zeros(len(bnd1))
@@ -128,23 +136,26 @@ for grid_res in [10,20,30]:
             {
                 'a1': b1,
                 'd2u/dx2': [0, 0],
-                'pow': 1
+                'pow': 1,
+                'var': 0 
             },
         'b2*du/dx':
             {
                 'a2': b2,
                 'du/dx': [0],
-                'pow': 1
+                'pow': 1,
+                'var': 0
             },
         'b3*u':
             {
                 'a3': b3,
                 'u': [None],
-                'pow': 1
+                'pow': 1,
+                'var':0
             }
     }
     
-    bop2=[[b1,[0,0],1],[b2,[0],1],[b3,[None],1]]
+    # bop2=[[b1,[0,0],1],[b2,[0],1],[b3,[None],1]]
     # equal to zero
     bndval2 = torch.zeros(len(bnd2))
     
@@ -160,17 +171,19 @@ for grid_res in [10,20,30]:
             {
                 'r1': r1,
                 'du/dx': [0],
-                'pow': 1
+                'pow': 1,
+                'var':0
             },
         'r2*u':
             {
                 'r2': r2,
                 'u': [None],
-                'pow': 1
+                'pow': 1,
+                'var': 0
             }
     }
     
-    bop3=[[r1,[0],1],[r2,[None],1]]
+    # bop3=[[r1,[0],1],[r2,[None],1]]
     
     # equal to zero
     bndval3 = torch.zeros(len(bnd3))
@@ -227,25 +240,29 @@ for grid_res in [10,20,30]:
             {
                 'coeff': 1,
                 'du/dt': [1],
-                'pow': 1
+                'pow': 1,
+                'var': 0
             },
         '6*u**1*du/dx**1':
             {
                 'coeff': 6,
                 'u*du/dx': [[None], [0]],
-                'pow': [1,1]
+                'pow': [1,1],
+                'var':[0,0]
             },
         'd3u/dx3**1':
             {
                 'coeff': 1,
                 'd3u/dx3': [0, 0, 0],
-                'pow': 1
+                'pow': 1,
+                'var':0
             },
         '-sin(x)cos(t)':
             {
                 '-sin(x)cos(t)': c1,
                 'u': [None],
-                'pow': 0
+                'pow': 0,
+                'var':0
             }
     }
     
@@ -274,7 +291,7 @@ for grid_res in [10,20,30]:
         start = time.time()
         model = point_sort_shift_solver(grid, model, kdv, bconds, lambda_bound=100,verbose=1, learning_rate=1e-4,h=0.01,
                                         eps=1e-5, tmin=1000, tmax=1e5,use_cache=True,cache_verbose=True,
-                                    batch_size=None, save_always=True,print_every=None,model_randomize_parameter=1e-6,optimizer='Adam')
+                                    batch_size=None, save_always=True,print_every=None,model_randomize_parameter=1e-6,optimizer='Adam',no_improvement_patience=None)
         # model = point_sort_shift_solver(grid, model, kdv, bconds, lambda_bound=1000,verbose=True, learning_rate=1e-4,
         #                                 eps=1e-6, tmin=1000, tmax=1e5, h=0.01,use_cache=True,cache_verbose=True,
         #                             batch_size=64, save_always=True)
