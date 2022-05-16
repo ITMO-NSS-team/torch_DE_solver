@@ -136,12 +136,11 @@ def lp_norm(*arg,p=2,normalized=False,weighted=False):
 
 
 def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10,norm=None):
-
     op = apply_operator_set(model, operator_set)
-    if bconds==None:
+    if bconds == None:
         loss = torch.mean((op) ** 2)
         return loss
-    
+
     true_b_val_list = []
     b_val_list = []
     b_pos_list = []
@@ -155,39 +154,53 @@ def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10,nor
         if bcond[1] != None:
             simpleform = False
             break
-    if simpleform:
+    '''
+            b_pos_list = bcond[0] (bnd = model(grid)[b_pos_list])
+            b_cond_operator = bcond[1]
+            true_boundary_val = bcond[2] (bndval)
+            bnd_type = bcond[3]
+    '''
+    '''
+    Формат каждого из граничных условий [bnd, bop, bndval] - точки границы, оператор для граничных условий и значения на границах. 
+    Нужно как-то ввести обработку bop='periodic', чтобы алгоритм не стандартно считал model(bnd) и сравнивал c bndval, а чтобы вместо bndval подавалась сетка.
+    Если прямо конкретно, то должен быть формат [bnd1,'periodic', bnd2], и когда есть оператор 'periodic' нужно сравнивать model(bnd1) и model(bnd2). 
+    Следующий шаг, нужно задавать [[bnd1,['periodic',bop], bnd2] и сравнивать уже нужно bop применённый к model(bnd1) и его же применённого к model(bnd2).
+    '''
+    def bnd_calc(bconds):
+        bnd_pos = []
+        true_b_val_list = []
         for bcond in bconds:
-            b_pos_list.append(bcond[0])
-
+            bnd_pos.append(bcond[0])
+            # print(bnd_pos)
+            b_cond_operator = bcond[1]
             if len(bcond[2]) == bcond[2].shape[-1]:
-                true_boundary_val = bcond[2].reshape(-1,1)
-            else: 
+                true_boundary_val = bcond[2].reshape(-1, 1)
+            else:
                 true_boundary_val = bcond[2]
-
+            bnd_type = bcond[3]
             true_b_val_list.append(true_boundary_val)
-        true_b_val = torch.cat(true_b_val_list)
-        b_op_val = model(grid)
-        b_val = b_op_val[flatten_list(b_pos_list)]
+        bndval = torch.cat(true_b_val_list)
+        return bnd_pos,b_cond_operator,bndval,bnd_type
+
+    if simpleform:
+        bnd_pos, b_cond_operator, true_b_val, bnd_type = bnd_calc(bconds)
+        if bnd_type == 'boundary values':
+            b_op_val = model(grid)
+            b_val = b_op_val[flatten_list(bnd_pos)]
+            residual = b_val - true_b_val
+        # if bnd_type == 'periodic':
+
     # or apply differential operator first to compute corresponding field and
     else:
-        for bcond in bconds:
-            b_pos = bcond[0]
-            b_pos_list.append(bcond[0])
-            b_cond_operator = bcond[1]
-            
-            if len(bcond[2]) == bcond[2].shape[-1]:
-                true_boundary_val = bcond[2].reshape(-1,1)
-            else: 
-                true_boundary_val = bcond[2]
-            true_b_val_list.append(true_boundary_val)
+        bnd_pos, b_cond_operator, bndval, bnd_type = bnd_calc(bconds)
+        if bnd_type == 'boundary values':
             if b_cond_operator == None or b_cond_operator == [[1, [None], 1]]:
                 b_op_val = model(grid)
             else:
                 b_op_val = apply_operator_set(model, b_cond_operator)
-            # take boundary values
-            b_val_list.append(b_op_val[b_pos])
-        true_b_val = torch.cat(true_b_val_list)
-        b_val = torch.cat(b_val_list)
+            b_val = b_op_val[flatten_list(bnd_pos)]
+            residual = b_val - bndval
+
 
     """
     actually, we can use L2 norm for the operator and L1 for boundary
@@ -212,7 +225,7 @@ def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10,nor
         b_p=norm['boundary_p']
     
     loss = lp_norm(grid[:len(op)],op,weighted=op_weigthed,normalized=op_normalized,p=op_p) + \
-    lambda_bound * lp_norm(grid[flatten_list(b_pos_list)],b_val - true_b_val,p=b_p,weighted=b_weigthed,normalized=b_normalized)
+    lambda_bound * lp_norm(grid[flatten_list(b_pos_list)],residual,p=b_p,weighted=b_weigthed,normalized=b_normalized)
     
     return loss
 

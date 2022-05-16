@@ -89,7 +89,7 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
                             use_cache=True,cache_dir='../cache/',cache_verbose=False,
                             batch_size=None,save_always=False,lp_par=None,print_every=100,
                             patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
-                            model_randomize_parameter=0,optimizer='Adam',print_plot = True):
+                            model_randomize_parameter=0,optimizer='Adam',show_plot = True):
     # prepare input data to uniform format 
     
     prepared_grid,grid_dict,point_type = grid_prepare(grid)
@@ -168,7 +168,8 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
                 if verbose:
                     print('Oscillation near the same loss')
                     print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
-                    solution_print(prepared_grid,model,title='Iteration = ' + str(t))
+                    if show_plot:
+                        solution_print(prepared_grid,model,title='Iteration = ' + str(t))
         
 
         if (t-t_imp_start==no_improvement_patience) and verbose:
@@ -176,11 +177,13 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
             t_imp_start=t
             stop_dings+=1
             print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
-            solution_print(prepared_grid,model,title='Iteration = ' + str(t))
+            if show_plot:
+                solution_print(prepared_grid,model,title='Iteration = ' + str(t))
             
         if print_every!=None and (t % print_every == 0) and verbose:
             print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
-            solution_print(prepared_grid,model,title='Iteration = ' + str(t))
+            if show_plot:
+                solution_print(prepared_grid,model,title='Iteration = ' + str(t))
 
         t += 1
         if t > tmax:

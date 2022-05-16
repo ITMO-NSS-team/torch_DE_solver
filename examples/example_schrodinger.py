@@ -67,6 +67,7 @@ bndval4_1 = func(bnd4)
 bndval4_2 = fun(bnd4[:, 0])
 bndval4 = torch.stack((bndval4_1,bndval4_2),dim=1)
 
+bcond_type = 'periodic'
 # Putting all bconds together
 bconds = [[bnd1, bndval1], [bnd2, bndval2], [bnd3, bndval3], [bnd4, bndval4]]
 
@@ -131,5 +132,5 @@ model = torch.nn.Sequential(
 model = point_sort_shift_solver(grid, model, schrodinger_eq_real , bconds,
                                               lambda_bound=1000, verbose=1, learning_rate=1e-3,
                                     eps=1e-6, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True,
-                                    batch_size=None, save_always=True,no_improvement_patience=500,print_every = 500,print_plot=True)
+                                    batch_size=None, save_always=True,no_improvement_patience=500,print_every = 500,show_plot=False)
 
