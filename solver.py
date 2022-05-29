@@ -25,15 +25,32 @@ from cache import cache_lookup,cache_retrain,save_model,cache_lookup_autograd
 
 def solution_print(prepared_grid,model,title=None):
     if prepared_grid.shape[1] == 2:
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
+        nvars_model = model(prepared_grid).shape[1]
+        fig1 = plt.figure()
+        ax1 = fig1.add_subplot(projection='3d')
+
         if title!=None:
-            ax.set_title(title)
-        ax.plot_trisurf(prepared_grid[:, 0].detach().numpy().reshape(-1), prepared_grid[:, 1].detach().numpy().reshape(-1),
+            ax1.set_title(title)
+            # ax2.set_title(title)
+        if nvars_model == 1:
+            ax1.plot_trisurf(prepared_grid[:, 0].reshape(-1), prepared_grid[:, 1].reshape(-1),
                         model(prepared_grid).detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
-        ax.set_xlabel("x1")
-        ax.set_ylabel("x2")
+            ax1.set_xlabel("x1")
+            ax1.set_ylabel("x2")
+
+        elif nvars_model == 2:
+            fig2 = plt.figure()
+            ax2 = fig2.add_subplot(projection='3d')
+            ax1.plot_trisurf(prepared_grid[:, 0].reshape(-1), prepared_grid[:, 1].reshape(-1),
+                        model(prepared_grid)[:,0].detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
+            ax2.plot_trisurf(prepared_grid[:, 0].reshape(-1), prepared_grid[:, 1].reshape(-1),
+                        model(prepared_grid)[:,1].detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
+            ax2.set_xlabel("x1")
+            ax2.set_ylabel("x2")
+        
+        
         plt.show()
+
     if prepared_grid.shape[1] == 1:
         fig = plt.figure()
         plt.scatter(prepared_grid.detach().numpy().reshape(-1), model(prepared_grid).detach().numpy().reshape(-1))
@@ -73,7 +90,7 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
                             use_cache=True,cache_dir='../cache/',cache_verbose=False,
                             batch_size=None,save_always=False,lp_par=None,print_every=100,
                             patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
-                            model_randomize_parameter=0,optimizer='Adam'):
+                            model_randomize_parameter=0,optimizer='Adam',print_plot = True):
     # prepare input data to uniform format 
     
     prepared_grid,grid_dict,point_type = grid_prepare(grid)
@@ -89,6 +106,7 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
   
         model.apply(r)
 
+
     if optimizer=='Adam':
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     elif optimizer=='SGD':
@@ -98,7 +116,6 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
     else:
         print('Wrong optimizer chosen, optimization was not performed')
         return model
-    
 
     if not use_cache:
         min_loss = point_sort_shift_loss(model, prepared_grid, full_prepared_operator, prepared_bconds, lambda_bound=lambda_bound)
@@ -251,24 +268,29 @@ def nn_optimizer(grid, model, operator, bconds, grid_point_subset=['central'], l
             t_imp_start=t
         if t%loss_oscillation_window==0:
             line=np.polyfit(range(loss_oscillation_window),last_loss,1)
+
             if abs(line[0]/cur_loss) < eps and t>0:
                 stop_dings+=1
                 model.apply(r)
                 if verbose:
                     print('Oscillation near the same loss')
                     print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
-                    solution_print(prepared_grid,model,title='Iteration = ' + str(t))
-        
+                    if print_plot:
+                        solution_print(prepared_grid,model,title='Iteration = ' + str(t))
+
         if (t-t_imp_start==no_improvement_patience) and verbose:
             print('No improvement in '+str(no_improvement_patience)+' steps')
             t_imp_start=t
             stop_dings+=1
             print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
-            solution_print(prepared_grid,model,title='Iteration = ' + str(t))
+            if print_plot:
+                solution_print(prepared_grid,model,title='Iteration = ' + str(t))
             
         if print_every!=None and (t % print_every == 0) and verbose:
             print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
-            solution_print(prepared_grid,model,title='Iteration = ' + str(t))
+            if print_plot:
+                solution_print(prepared_grid,model,title='Iteration = ' + str(t))
+
 
         t += 1
         if t > tmax:
@@ -455,6 +477,7 @@ def matrix_optimizer(grid, model, operator, bconds, lambda_bound=10,
         t += 1
         if t > tmax:
             break
+
         
     if use_cache or save_always:
         if cache_model==None:
@@ -490,7 +513,6 @@ def matrix_optimizer(grid, model, operator, bconds, lambda_bound=10,
 
         save_model(cache_model,cache_model.state_dict(),optimizer.state_dict(),cache_dir=cache_dir,name=None)
     
-        
         
     return model
 

@@ -6,21 +6,20 @@ Created on Mon May 31 12:33:44 2021
 """
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
+import scipy
+
 import os
-
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
 import sys
 
-sys.path.append('../')
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from mpl_toolkits.mplot3d import Axes3D
+sys.path.pop()
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 from solver import *
-import time
+from cache import *
 from scipy.special import legendre
+import time
 device = torch.device('cpu')
 
 """
@@ -87,7 +86,8 @@ for n in range(3,11):
             {
                 'coefficient': 1,
                 'du/dt': [0],
-                'pow': 1
+                'pow': 1,
+                'var':0
             }
     }
     
@@ -145,19 +145,22 @@ for n in range(3,11):
             {
                 'coeff': c1(grid), #coefficient is a torch.Tensor
                 'du/dt': [0, 0],
-                'pow': 1
+                'pow': 1,
+                'var':0
             },
         '-2t*du/dt**1':
             {
                 'coeff': c2(grid),
                 'u*du/dx': [0],
-                'pow':1
+                'pow':1,
+                'var':0
             },
         'n*(n-1)*u**1':
             {
                 'coeff': n*(n+1),
                 'u':  [None],
-                'pow': 1
+                'pow': 1,
+                'var':0
             }
     }
     
@@ -167,19 +170,22 @@ for n in range(3,11):
             {
                 'coeff': c1, #coefficient is a function
                 'du/dt': [0, 0],
-                'pow': 1
+                'pow': 1,
+                'var':0
             },
         '-2t*du/dt**1':
             {
                 'coeff': c2,
                 'u*du/dx': [0],
-                'pow':1
+                'pow':1,
+                'var':0
             },
         'n*(n-1)*u**1':
             {
                 'coeff': n*(n+1),
                 'u':  [None],
-                'pow': 1
+                'pow': 1,
+                'var':0
             }
     }
     
@@ -214,11 +220,11 @@ for n in range(3,11):
         
         exp_dict_list.append({'grid_res':100,'time':end - start,'RMSE':error_rmse.detach().numpy(),'type':'L'+str(n),'cache':str(CACHE)})
 
-import pandas as pd
-df=pd.DataFrame(exp_dict_list)
-df.boxplot(by='type',column='RMSE',figsize=(20,10),fontsize=42,showfliers=False)
-df.boxplot(by='type',column='time',figsize=(20,10),fontsize=42,showfliers=False)
-df.to_csv('benchmarking_data/legendre_poly_exp_cache='+str(CACHE)+'.csv')
+# import pandas as pd
+# df=pd.DataFrame(exp_dict_list)
+# df.boxplot(by='type',column='RMSE',figsize=(20,10),fontsize=42,showfliers=False)
+# df.boxplot(by='type',column='time',figsize=(20,10),fontsize=42,showfliers=False)
+# df.to_csv('benchmarking_data/legendre_poly_exp_cache='+str(CACHE)+'.csv')
 
 #full paper plot
 
