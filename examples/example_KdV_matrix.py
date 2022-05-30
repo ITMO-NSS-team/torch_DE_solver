@@ -10,6 +10,8 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 import sys
 
+sys.path.pop()
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 sys.path.append('../')
 
 from solver import *
@@ -252,7 +254,7 @@ for grid_res in [20,30]:
     """
     for _ in range(10):
 
-        sln=np.genfromtxt('wolfram_sln/KdV_sln_'+str(grid_res)+'.csv',delimiter=',')
+        sln=np.genfromtxt(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'wolfram_sln/KdV_sln_'+str(grid_res)+'.csv')),delimiter=',')
         sln_torch=torch.from_numpy(sln)
         
         model = torch.rand(grid[0].shape)

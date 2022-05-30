@@ -12,13 +12,16 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 import sys
 
+
+sys.path.pop()
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 sys.path.append('../')
 
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from mpl_toolkits.mplot3d import Axes3D
-from solver import lbfgs_solution,grid_format_prepare
+from solver import lbfgs_solution,grid_format_prepare,matrix_optimizer
 
 import time
 from scipy.special import legendre
@@ -188,10 +191,28 @@ for n in range(3,10):
     
     
     for _ in range(10):
-        model = torch.rand(grid.shape)
+
     
         start = time.time()
-        model = lbfgs_solution(model, grid, legendre_poly, 100, bconds,nsteps=int(5e5),rtol=1e-6,atol=0.01)
+
+        model_arch = torch.nn.Sequential(
+            torch.nn.Linear(1, 256),
+            torch.nn.ReLU(),
+            torch.nn.Linear(256, 64),
+            torch.nn.ReLU(),
+            torch.nn.Linear(64, 1024),
+            torch.nn.ReLU(),
+            torch.nn.Linear(1024, 1)
+        )
+
+            
+        model = matrix_optimizer(grid, None, legendre_poly, bconds, lambda_bound=100,
+                                         verbose=True, learning_rate=1e-4, eps=1e-7, tmin=1000, tmax=5e6,
+                                         use_cache=True,cache_dir='../cache/',cache_verbose=False,
+                                         batch_size=None,save_always=False,lp_par=None,print_every=None,
+                                         patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
+                                         model_randomize_parameter=1e-5,optimizer='Adam',cache_model=model_arch)
+
         end = time.time()
     
         print('Time taken {} = {}'.format(n,  end - start))

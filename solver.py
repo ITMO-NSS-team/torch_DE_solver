@@ -33,7 +33,7 @@ def solution_print(prepared_grid,model,title=None):
             ax1.set_title(title)
             # ax2.set_title(title)
         if nvars_model == 1:
-            ax1.plot_trisurf(prepared_grid[:, 0].reshape(-1), prepared_grid[:, 1].reshape(-1),
+            ax1.plot_trisurf(prepared_grid[:, 0].detach().numpy().reshape(-1), prepared_grid[:, 1].detach().numpy().reshape(-1),
                         model(prepared_grid).detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
             ax1.set_xlabel("x1")
             ax1.set_ylabel("x2")
@@ -49,11 +49,13 @@ def solution_print(prepared_grid,model,title=None):
             ax2.set_ylabel("x2")
         
         
+        plt.show(block=False)
         plt.show()
 
     if prepared_grid.shape[1] == 1:
         fig = plt.figure()
         plt.scatter(prepared_grid.detach().numpy().reshape(-1), model(prepared_grid).detach().numpy().reshape(-1))
+        plt.show(block=False)
         plt.show()
 
 

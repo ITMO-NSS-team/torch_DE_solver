@@ -9,9 +9,13 @@ import torch
 import matplotlib.pyplot as plt
 
 import sys
+import os
 
 sys.path.append('../')
 
+
+sys.path.pop()
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
 from input_preprocessing import operator_prepare_autograd,bnd_prepare_autograd
 from metrics import autograd_loss
@@ -133,5 +137,5 @@ model = torch.nn.Sequential(
     # torch.nn.Tanh()
 )
 
-model=nn_autograd_optimizer(grid, model, wave_eq, bconds,use_cache=True,verbose=True,print_every=100,cache_verbose=True,abs_loss=0.01)
+model=nn_autograd_optimizer(grid, model, wave_eq, bconds,use_cache=True,verbose=True,print_every=None,cache_verbose=True,abs_loss=0.01)
 
