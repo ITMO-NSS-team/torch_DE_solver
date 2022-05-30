@@ -14,9 +14,13 @@ import sys
 
 sys.path.append('../')
 
-from solver import *
+sys.path.pop()
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 import time
 import pandas as pd
+from solver import *
+
+
 """
 Preparing grid
 
@@ -29,15 +33,23 @@ device = torch.device('cpu')
 exp_dict_list=[]
 
 for grid_res in range(40, 110, 10):
-    x = torch.from_numpy(np.linspace(0, 1, grid_res+1))
-    t = torch.from_numpy(np.linspace(0, 1, grid_res+1))
+    x = torch.from_numpy(np.linspace(0, 1, grid_res + 1))
+    t = torch.from_numpy(np.linspace(0, 1, grid_res + 1))
 
-    grid = []
-    grid.append(x)
-    grid.append(t)
+    coord_list = []
+    coord_list.append(x)
+    coord_list.append(t)
 
-    grid = np.meshgrid(*grid)
-    grid = torch.tensor(grid, device=device)
+    grid=grid_format_prepare(coord_list,mode='mat')
+
+    #grid = np.meshgrid(*grid)
+    #grid = torch.tensor(grid, device=device)
+
+
+    print(grid.shape)
+
+    #grid = np.meshgrid(*grid)
+    #grid = torch.tensor(grid, device=device)
     
     """
     Preparing boundary conditions (BC)
@@ -125,19 +137,35 @@ for grid_res in range(40, 110, 10):
     
   
     for _ in range(10):
+        sln=np.genfromtxt(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'wolfram_sln/wave_sln_'+str(grid_res)+'.csv')),delimiter=',')
         
-        sln=np.genfromtxt('wolfram_sln/wave_sln_'+str(grid_res)+'.csv',delimiter=',')
-        
-        model = torch.rand(grid[0].shape)
+        model = None
         
         start = time.time()
         
-        model = lbfgs_solution(model, grid, wave_eq, 100, bconds,nsteps=int(5e5),rtol=10**(-9),atol=0.01)
+        model_arch = torch.nn.Sequential(
+            torch.nn.Linear(1, 256),
+            torch.nn.ReLU(),
+            torch.nn.Linear(256, 64),
+            torch.nn.ReLU(),
+            torch.nn.Linear(64, 1024),
+            torch.nn.ReLU(),
+            torch.nn.Linear(1024, 1)
+        )
+
+            
+        model = matrix_optimizer(grid, model, wave_eq, bconds, lambda_bound=100,
+                                         verbose=True, learning_rate=1e-4, eps=1e-7, tmin=1000, tmax=5e6,
+                                         use_cache=False,cache_dir='../cache/',cache_verbose=False,
+                                         batch_size=None,save_always=False,lp_par=None,print_every=None,
+                                         patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
+                                         model_randomize_parameter=1e-5,optimizer='Adam',cache_model=model_arch)
+
     
         end = time.time()
 
-        model = torch.transpose(model, 0, 1)
-        error_rmse = np.sqrt(np.mean((sln.reshape(-1) - model.numpy().reshape(-1)) ** 2))
+        #model = torch.transpose(model, 0, 1)
+        error_rmse = np.sqrt(np.mean((sln.reshape(-1) - model.detach().numpy().reshape(-1)) ** 2))
 
         solution_print(grid, model)
 

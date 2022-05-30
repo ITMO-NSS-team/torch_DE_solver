@@ -30,6 +30,7 @@ grid.append(t_grid)
 grid = np.meshgrid(*grid)
 grid = torch.tensor(grid, device=device)
 
+
 x = torch.from_numpy(x_grid)
 t = torch.from_numpy(t_grid)
 

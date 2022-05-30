@@ -385,7 +385,7 @@ def matrix_optimizer(grid, model, operator, bconds, lambda_bound=10,
     # prepare input data to uniform format 
     
     if model==None:
-        model= torch.rand(grid.shape) 
+        model= torch.rand(grid[0].shape) 
     
     if use_cache:
         NN_grid=grid.reshape(-1,1).float()
@@ -424,7 +424,7 @@ def matrix_optimizer(grid, model, operator, bconds, lambda_bound=10,
     
     min_loss = matrix_loss(model, grid, unified_operator, b_prepared, lambda_bound=lambda_bound)
     
-    
+    matrix_loss(model, grid, unified_operator, b_prepared, lambda_bound=lambda_bound)
     # standard NN stuff
     if verbose:
         print('-1 {}'.format(min_loss))
