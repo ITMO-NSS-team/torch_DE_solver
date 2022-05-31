@@ -14,7 +14,10 @@ sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 sys.path.append('../')
 
-from solver import *
+from solver import matrix_optimizer, solution_print, matrix_loss,grid_format_prepare
+from input_preprocessing import operator_unify, bnd_prepare_matrix
+import numpy as np
+import torch
 import time
 import pandas as pd
 
@@ -263,11 +266,10 @@ for grid_res in [20,30]:
         model = torch.rand(grid[0].shape)
     
         start = time.time()
-        #model = lbfgs_solution(model, grid, kdv, 100, bconds)
 
         model = matrix_optimizer(grid, None, kdv, bconds, lambda_bound=100,
-                                         verbose=True, learning_rate=1e-4, eps=1e-7, tmin=1000, tmax=5e6,
-                                         use_cache=False,cache_dir='../cache/',cache_verbose=False,
+                                         verbose=True, learning_rate=1e-5, eps=1e-8, tmin=1000, tmax=5e6,
+                                         use_cache=True,cache_dir='../cache/',cache_verbose=False,
                                          batch_size=None,save_always=False,lp_par=None,print_every=None,
                                          patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
                                          model_randomize_parameter=1e-5,optimizer='Adam',cache_model=None)
