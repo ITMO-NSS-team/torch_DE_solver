@@ -27,6 +27,7 @@ from cache import cache_lookup,cache_retrain,save_model,cache_lookup_autograd
 def solution_print(prepared_grid,model,title=None):
     if prepared_grid.shape[1] == 2:
         nvars_model = model(prepared_grid).shape[1]
+        plt.ion()
         fig1 = plt.figure()
         ax1 = fig1.add_subplot(projection='3d')
 
@@ -50,8 +51,9 @@ def solution_print(prepared_grid,model,title=None):
             ax2.set_ylabel("x2")
         
         
-        plt.show(block=False)
-        plt.show()
+        #plt.show(block=False)
+        #plt.show()
+        plt.pause(0.001)
 
     if prepared_grid.shape[1] == 1:
         fig = plt.figure()
@@ -397,8 +399,13 @@ def matrix_optimizer(grid, model, operator, bconds, lambda_bound=10,
       #  use_cache=False
 
     if model==None:
-        model= torch.rand(grid[0].shape) 
-    
+        if len(grid.shape)==2:
+            model=torch.rand(grid.shape)
+        else:
+            model= torch.rand(grid[0].shape)
+   
+
+
     if use_cache:
         NN_grid=torch.from_numpy(np.vstack([grid[i].reshape(-1) for i in range(grid.shape[0])]).T).float()
         if cache_model==None:

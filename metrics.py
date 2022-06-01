@@ -274,7 +274,7 @@ def derivative_1d(model,grid):
 
 
 def derivative(u_tensor, h_tensor, axis, scheme_order=1, boundary_order=1):
-    # print('shape=',u_tensor.shape)
+    #print('shape=',u_tensor.shape)
     if (u_tensor.shape[0]==1):
         du=derivative_1d(u_tensor,h_tensor)
         return du

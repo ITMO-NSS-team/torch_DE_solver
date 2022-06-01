@@ -13,17 +13,12 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 import sys
 
 sys.path.append('../')
+sys.path.pop()
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
 from solver import *
-from cache import *
 import time
 
-"""
-Preparing grid
-
-Grid is an essentially torch.Tensor  of a n-D points where n is the problem
-dimensionality
-"""
 
 device = torch.device('cpu')
 
@@ -175,10 +170,6 @@ def heat_experiment(grid_res,CACHE):
         torch.nn.Tanh(),
         torch.nn.Linear(100, 100),
         torch.nn.Tanh(),
-        # torch.nn.Linear(100, 100),
-        # torch.nn.ReLU(),
-        # torch.nn.Linear(100, 100),
-        # torch.nn.ReLU(),
         torch.nn.Linear(100, 1)
     )
 

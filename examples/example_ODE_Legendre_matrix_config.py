@@ -13,6 +13,9 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import sys
 
 sys.path.append('../')
+sys.path.pop()
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
+sys.path.append('../')
 
 import matplotlib.pyplot as plt
 from matplotlib import cm
@@ -172,7 +175,7 @@ for n in range(3,10):
     }
     
     
-    config=read_config('../default.json')
+    config=read_config(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '../default.json')))
     
     config["Optimizer"]["optimizer"]='LBFGS'
     config['Optimizer']['learning_rate']=1e-3
