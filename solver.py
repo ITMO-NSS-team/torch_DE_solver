@@ -507,7 +507,7 @@ def matrix_optimizer(grid, model, operator, bconds, lambda_bound=10,
                 torch.nn.Linear(100, 1)
             )
         
-        NN_grid=grid.reshape(-1,1).float()
+        NN_grid=torch.from_numpy(np.vstack([grid[i].reshape(-1) for i in range(grid.shape[0])]).T).float()
         optimizer = torch.optim.Adam(cache_model.parameters(), lr=0.001)
         
         model_res=model.reshape(-1,1)

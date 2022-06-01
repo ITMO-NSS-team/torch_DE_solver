@@ -15,7 +15,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 sys.path.append('../')
 
 from solver import matrix_optimizer, solution_print, matrix_loss,grid_format_prepare
-from input_preprocessing import operator_unify, bnd_prepare_matrix
+from input_preprocessing import operator_unify, bnd_prepare_matrix,op_dict_to_list
 import numpy as np
 import torch
 import time
@@ -278,7 +278,7 @@ for grid_res in [20,30]:
         end = time.time()
 
         model = torch.transpose(model, 0, 1)
-        error_rmse=np.sqrt(np.mean((sln_torch.numpy().reshape(-1)-model.numpy().reshape(-1))**2))
+        error_rmse=np.sqrt(np.mean((sln_torch.numpy().reshape(-1)-model.detach().numpy().reshape(-1))**2))
 
         solution_print(grid, model)
 
