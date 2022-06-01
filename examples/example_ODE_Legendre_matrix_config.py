@@ -12,7 +12,6 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 import sys
 
-sys.path.append('../')
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 sys.path.append('../')

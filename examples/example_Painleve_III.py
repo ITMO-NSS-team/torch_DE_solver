@@ -180,7 +180,7 @@ def p_III_exp(grid_res,CACHE):
 
   
         
-    sln=np.genfromtxt('wolfram_sln/P_III_sln_'+str(grid_res)+'.csv',delimiter=',')
+    sln=np.genfromtxt(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'wolfram_sln/P_III_sln_'+str(grid_res)+'.csv')),delimiter=',')
     sln_torch=torch.from_numpy(sln)
     sln_torch1=sln_torch.reshape(-1,1)
     
