@@ -10,9 +10,14 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 import sys
 
+sys.path.pop()
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 sys.path.append('../')
 
-from solver import *
+from solver import matrix_optimizer, solution_print, matrix_loss,grid_format_prepare
+from input_preprocessing import operator_unify, bnd_prepare_matrix,op_dict_to_list
+import numpy as np
+import torch
 import time
 import pandas as pd
 
@@ -35,12 +40,15 @@ for grid_res in [20,30]:
     x = torch.from_numpy(np.linspace(0, 1, grid_res + 1))
     t = torch.from_numpy(np.linspace(0, 1, grid_res + 1))
 
-    grid = []
-    grid.append(x)
-    grid.append(t)
+    coord_list = []
+    coord_list.append(x)
+    coord_list.append(t)
 
-    grid = np.meshgrid(*grid)
-    grid = torch.tensor(grid, device=device)
+    grid=grid_format_prepare(coord_list,mode='mat')
+
+
+    #grid = np.meshgrid(*grid)
+    #grid = torch.tensor(grid, device=device)
     
     """
     Preparing boundary conditions (BC)
@@ -252,17 +260,25 @@ for grid_res in [20,30]:
     """
     for _ in range(10):
 
-        sln=np.genfromtxt('wolfram_sln/KdV_sln_'+str(grid_res)+'.csv',delimiter=',')
+        sln=np.genfromtxt(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'wolfram_sln/KdV_sln_'+str(grid_res)+'.csv')),delimiter=',')
         sln_torch=torch.from_numpy(sln)
         
         model = torch.rand(grid[0].shape)
     
         start = time.time()
-        model = lbfgs_solution(model, grid, kdv, 100, bconds, tol=1e-6, nsteps=100000)
+
+        model = matrix_optimizer(grid, None, kdv, bconds, lambda_bound=100,
+                                         verbose=True, learning_rate=1e-5, eps=1e-8, tmin=1000, tmax=5e6,
+                                         use_cache=True,cache_dir='../cache/',cache_verbose=False,
+                                         batch_size=None,save_always=False,lp_par=None,print_every=None,
+                                         patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
+                                         model_randomize_parameter=1e-5,optimizer='Adam',cache_model=None)
+
+
         end = time.time()
 
         model = torch.transpose(model, 0, 1)
-        error_rmse=np.sqrt(np.mean((sln_torch.numpy().reshape(-1)-model.numpy().reshape(-1))**2))
+        error_rmse=np.sqrt(np.mean((sln_torch.numpy().reshape(-1)-model.detach().numpy().reshape(-1))**2))
 
         solution_print(grid, model)
 

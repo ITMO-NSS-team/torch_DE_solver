@@ -192,6 +192,8 @@ def finite_diff_scheme_to_grid_list(finite_diff_scheme, grid, h=0.001):
     return s_grid_list
 
 
+
+
 def type_op_to_grid_shift_op(fin_diff_op, grid, h=0.001, true_grid=None):
     """
     Converts operator to a grid_shift form. Includes term coefficient
@@ -311,6 +313,10 @@ def operator_prepare(op, grid_dict, subset=['central'], true_grid=None, h=0.001)
     op1 = operator_unify(op)
     prepared_operator = apply_all_operators(op1, grid_dict, subset=subset, true_grid=true_grid, h=h)
     return prepared_operator
+
+
+
+
 
 def op_dict_to_list(opdict):
     return list([list(term.values()) for term in opdict.values()])
@@ -506,4 +512,84 @@ def operator_prepare_matrix(operator):
         operator = op_dict_to_list(operator)
     unified_operator = operator_unify(operator)
     return unified_operator
+
+
+def expand_coeffs_autograd(op,grid):
+    autograd_op=[]
+    for term in op:
+        coeff1 = term[0]
+        if type(coeff1) == int:
+            coeff = coeff1
+        elif callable(coeff1):
+            coeff = coeff1(grid)
+            coeff = coeff.reshape(-1,1)
+        elif type(coeff1) == torch.Tensor:
+            coeff = coeff1.reshape(-1,1)
+        prod = term[1]
+        power = term[2]
+        autograd_op.append([coeff, prod, power])
+    return autograd_op
+
+def operator_prepare_autograd(op,grid):
+    """
+    Changes the operator in conventional form to the input one
+    
+    Parameters
+    ----------
+    op : list
+        operator in conventional form.
+    Returns
+    -------
+    operator_list :  list
+        final form of differential operator used in the algorithm 
+
+    """
+    if type(op)==dict:
+        op=op_dict_to_list(op)
+    unified_operator = operator_unify(op)
+        
+    prepared_operator=expand_coeffs_autograd(unified_operator,grid)
+    
+    return prepared_operator
+
+
+def bnd_prepare_autograd(bconds,grid):
+    """
+    
+
+    Parameters
+    ----------
+    bconds : list
+        boundary in conventional form (see examples)
+    grid : torch.Tensor
+        grid with sotred nodes (see grid_prepare)
+    h : float
+        derivative precision parameter. The default is 0.001.
+
+    Returns
+    -------
+    prepared_bnd : list
+        
+        boundary in input form
+
+    """
+    bconds = bnd_unify(bconds)
+    if bconds==None:
+        return None
+    prepared_bnd = []
+    for bcond in bconds:
+        b_coord = bcond[0]
+        bop = bcond[1]
+        bval = bcond[2]
+        bpos = bndpos(grid, b_coord)
+        if bop == [[1, [None], 1]]:
+            bop = None
+        if bop != None:
+            if type(bop)==dict:
+                bop=op_dict_to_list(bop)
+            bop1 = operator_unify(bop)
+        else:
+            bop1 = None
+        prepared_bnd.append([bpos, bop1, bval])
+    return prepared_bnd
 

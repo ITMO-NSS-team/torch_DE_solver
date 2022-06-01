@@ -155,7 +155,7 @@ def p_I_exp(grid_res,nruns,CACHE):
   
     for _ in range(nruns):
         
-        sln=np.genfromtxt('wolfram_sln/P_I_sln_'+str(grid_res)+'.csv',delimiter=',')
+        sln=np.genfromtxt(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'wolfram_sln/P_I_sln_'+str(grid_res)+'.csv')),delimiter=',')
         sln_torch=torch.from_numpy(sln)
         sln_torch1=sln_torch.reshape(-1,1)
         

@@ -12,6 +12,8 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 import sys
 
+sys.path.pop()
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 sys.path.append('../')
 
 import matplotlib.pyplot as plt
@@ -79,21 +81,30 @@ for n in range(3,10):
     #  So u(0)=-1/2
     bndval1 = legendre(n)(bnd1)
     
-    # point t=1
+    # # point t=1
+    # bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64))
+    
+    # # d/dt
+    # bop2 = {
+    #     '1*du/dt**1':
+    #         {
+    #             'coefficient': 1,
+    #             'du/dt': [0],
+    #             'pow': 1
+    #         }
+    # }
+    
+    # # So, du/dt |_{x=1}=3
+    # bndval2 = torch.from_numpy(legendre(n).deriv(1)(bnd2))
+    
+    # point t=0
     bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64))
     
-    # d/dt
-    bop2 = {
-        '1*du/dt**1':
-            {
-                'coefficient': 1,
-                'du/dt': [0],
-                'pow': 1
-            }
-    }
+    bop2 = None
     
-    # So, du/dt |_{x=1}=3
-    bndval2 = torch.from_numpy(legendre(n).deriv(1)(bnd2))
+    #  So u(0)=-1/2
+    bndval2 = legendre(n)(bnd2)
+    
     
     # Putting all bconds together
     bconds = [[bnd1, bop1, bndval1], [bnd2, bop2, bndval2]]
@@ -144,13 +155,13 @@ for n in range(3,10):
     legendre_poly= {
         '(1-t^2)*d2u/dt2**1':
             {
-                'coeff': c1, #coefficient is a torch.Tensor
+                'coeff': c1(grid), #coefficient is a torch.Tensor
                 'du/dt': [0, 0],
                 'pow': 1
             },
         '-2t*du/dt**1':
             {
-                'coeff': c2,
+                'coeff': c2(grid),
                 'u*du/dx': [0],
                 'pow':1
             },
@@ -163,7 +174,7 @@ for n in range(3,10):
     }
     
     
-    config=read_config('../default.json')
+    config=read_config(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '../default.json')))
     
     config["Optimizer"]["optimizer"]='LBFGS'
     config['Optimizer']['learning_rate']=1e-3

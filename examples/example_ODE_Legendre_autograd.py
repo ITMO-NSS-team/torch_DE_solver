@@ -12,16 +12,13 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 import sys
 
-
-sys.path.pop()
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 sys.path.append('../')
 
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from mpl_toolkits.mplot3d import Axes3D
-from solver import lbfgs_solution,grid_format_prepare,matrix_optimizer
+from solver import nn_autograd_optimizer,grid_format_prepare
 
 import time
 from scipy.special import legendre
@@ -39,7 +36,7 @@ t = np.linspace(0, 1, 100)
 coord_list = [t]
 
 
-grid=grid_format_prepare(coord_list,mode='mat')
+grid=grid_format_prepare(coord_list,mode='NN')
 
 
 exp_dict_list=[]
@@ -99,6 +96,21 @@ for n in range(3,10):
     # So, du/dt |_{x=1}=3
     bndval2 = torch.from_numpy(legendre(n).deriv(1)(bnd2))
     
+    
+    # # point t=1
+    # bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64))
+    
+    # # d/dt
+    # bop2 = None
+    
+    # # So, du/dt |_{x=1}=3
+    # bndval2 = legendre(n)(bnd2)
+    
+    
+    
+    
+    
+    
     # Putting all bconds together
     bconds = [[bnd1, bop1, bndval1], [bnd2, bop2, bndval2]]
     
@@ -144,18 +156,18 @@ for n in range(3,10):
     
     
     
-    # operator is  (1-t^2)*d2u/dt2-2t*du/dt+n*(n-1)*u=0 (n=3)
+    # # operator is  (1-t^2)*d2u/dt2-2t*du/dt+n*(n-1)*u=0 (n=3)
     legendre_poly= {
         '(1-t^2)*d2u/dt2**1':
             {
                 'coeff': c1(grid), #coefficient is a torch.Tensor
-                'du/dt': [0, 0],
+                'd2u/dt2': [0, 0],
                 'pow': 1
             },
         '-2t*du/dt**1':
             {
                 'coeff': c2(grid),
-                'u*du/dx': [0],
+                'du/dt ': [0],
                 'pow':1
             },
         'n*(n-1)*u**1':
@@ -167,63 +179,59 @@ for n in range(3,10):
     }
     
     # this one is to show that coefficients may be a function of grid as well
-    legendre_poly= {
-        '(1-t^2)*d2u/dt2**1':
-            {
-                'coeff': c1, #coefficient is a function
-                'du/dt': [0, 0],
-                'pow': 1
-            },
-        '-2t*du/dt**1':
-            {
-                'coeff': c2,
-                'u*du/dx': [0],
-                'pow':1
-            },
-        'n*(n-1)*u**1':
-            {
-                'coeff': n*(n+1),
-                'u':  [None],
-                'pow': 1
-            }
-    }
+    # legendre_poly= {
+    #     '(1-t^2)*d2u/dt2**1':
+    #         {
+    #             'coeff': c1, #coefficient is a function
+    #             'du/dt': [0, 0],
+    #             'pow': 1
+    #         },
+    #     '-2t*du/dt**1':
+    #         {
+    #             'coeff': c2,
+    #             'u*du/dx': [0],
+    #             'pow':1
+    #         },
+    #     'n*(n-1)*u**1':
+    #         {
+    #             'coeff': n*(n+1),
+    #             'u':  [None],
+    #             'pow': 1
+    #         }
+    # }
     
     
     
     for _ in range(10):
-
+        model = torch.nn.Sequential(
+            torch.nn.Linear(1, 256),
+            torch.nn.Tanh(),
+            # torch.nn.Dropout(0.1),
+            # torch.nn.ReLU(),
+            torch.nn.Linear(256, 64),
+            # # torch.nn.Dropout(0.1),
+            torch.nn.Tanh(),
+            torch.nn.Linear(64, 1024),
+            # torch.nn.Dropout(0.1),
+            torch.nn.Tanh(),
+            torch.nn.Linear(1024, 1)
+            # torch.nn.Tanh()
+        )
     
         start = time.time()
-
-        model_arch = torch.nn.Sequential(
-            torch.nn.Linear(1, 256),
-            torch.nn.ReLU(),
-            torch.nn.Linear(256, 64),
-            torch.nn.ReLU(),
-            torch.nn.Linear(64, 1024),
-            torch.nn.ReLU(),
-            torch.nn.Linear(1024, 1)
-        )
-
-            
-        model = matrix_optimizer(grid, None, legendre_poly, bconds, lambda_bound=100,
-                                         verbose=True, learning_rate=1e-4, eps=1e-7, tmin=1000, tmax=5e6,
-                                         use_cache=True,cache_dir='../cache/',cache_verbose=False,
-                                         batch_size=None,save_always=False,lp_par=None,print_every=None,
-                                         patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
-                                         model_randomize_parameter=1e-5,optimizer='Adam',cache_model=model_arch)
-
+        model = nn_autograd_optimizer(grid, model, legendre_poly, bconds,use_cache=True,verbose=True,
+                                      print_every=None,cache_verbose=True,abs_loss=1e-3,lambda_bound=10,optimizer='Adam',learning_rate=1e-4,save_always=True)
         end = time.time()
     
         print('Time taken {} = {}'.format(n,  end - start))
     
         fig = plt.figure()
-        plt.scatter(grid.reshape(-1), model.detach().numpy().reshape(-1))
+        plt.scatter(grid.detach().numpy().reshape(-1), model(grid).detach().numpy().reshape(-1))
         # analytical sln is 1/2*(-1 + 3*t**2)
-        plt.scatter(grid.reshape(-1), legendre(n)(grid).reshape(-1))
+        plt.scatter(grid.detach().numpy().reshape(-1), legendre(n)(grid.detach().numpy()).reshape(-1))
         plt.show()
         
-        error_rmse=torch.sqrt(torch.mean((legendre(n)(grid)-model)**2))
+        error_rmse=torch.sqrt(torch.mean((legendre(n)(grid.detach())-model(grid))**2))
         print('RMSE {}= {}'.format(n, error_rmse))
         
         exp_dict_list.append({'grid_res':100,'time':end - start,'RMSE':error_rmse.detach().numpy(),'type':'L'+str(n),'cache':str(CACHE)})
@@ -232,7 +240,7 @@ import pandas as pd
 df=pd.DataFrame(exp_dict_list)
 df.boxplot(by='type',column='RMSE',figsize=(20,10),fontsize=42,showfliers=False)
 df.boxplot(by='type',column='time',figsize=(20,10),fontsize=42,showfliers=False)
-df.to_csv('benchmarking_data/legendre_poly_exp_martix.csv')
+df.to_csv('benchmarking_data/legendre_poly_exp_autograd.csv')
 
 #full paper plot
 

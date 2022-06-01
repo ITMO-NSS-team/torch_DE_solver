@@ -12,6 +12,8 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 import sys
 
+sys.path.pop()
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 sys.path.append('../')
 
 from solver import *
@@ -121,7 +123,7 @@ wave_eq = {
 }
 
 
-config=read_config('../default.json')
+config=read_config(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '../default.json')))
     
 for _ in range(1):
     model = torch.nn.Sequential(

@@ -1,38 +1,58 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon May 31 12:33:44 2021
+Created on Wed Mar 30 13:25:13 2022
 
 @author: user
 """
-import torch
 import numpy as np
+import torch
+import matplotlib.pyplot as plt
+
+import sys
 import os
 
-from solver import *
-import time
+sys.path.append('../')
 
-"""
-Preparing grid
 
-Grid is an essentially torch.Tensor  of a n-D points where n is the problem
-dimensionality
-"""
+sys.path.pop()
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-device = torch.device('cpu')
+from input_preprocessing import operator_prepare_autograd,bnd_prepare_autograd
+from metrics import autograd_loss
+from solver import nn_autograd_optimizer
 
-x_grid=np.linspace(0,1,21)
-t_grid=np.linspace(0,1,21)
 
-grid = []
-grid.append(x_grid)
-grid.append(t_grid)
 
-grid = np.meshgrid(*grid)
-grid = torch.tensor(grid, device=device)
 
+
+
+wave_eq = {
+    '4*d2u/dx2**1':
+        {
+            'coeff': 4,
+            'd2u/dx2': [0, 0],
+            'pow': 1
+        },
+    '-d2u/dt2**1':
+        {
+            'coeff': -1,
+            'd2u/dt2': [1,1],
+            'pow':1
+        }
+}
+
+
+
+        
+
+x_grid=np.linspace(0,1,10+1)
+t_grid=np.linspace(0,1,10+1)
 
 x = torch.from_numpy(x_grid)
 t = torch.from_numpy(t_grid)
+
+grid = torch.cartesian_prod(x, t).float()
+
 
 """
 Preparing boundary conditions (BC)
@@ -47,39 +67,29 @@ bval=torch.Tensor prescribed values at every point in the boundary
 
 """
 
-A = 2
-C = 10
-
-def func(grid):
-    x, t = grid[:,0],grid[:,1]
-    return torch.sin(np.pi * x) * torch.cos(C * np.pi * t) + torch.sin(A * np.pi * x) * torch.cos(
-        A * C * np.pi * t
-    )
-
-
 # Initial conditions at t=0
 bnd1 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
 
 # u(0,x)=sin(pi*x)
-bndval1 = func(bnd1)
+bndval1 = torch.sin(np.pi * bnd1[:, 0])
 
 # Initial conditions at t=1
 bnd2 = torch.cartesian_prod(x, torch.from_numpy(np.array([1], dtype=np.float64))).float()
 
 # u(1,x)=sin(pi*x)
-bndval2 = func(bnd2)
+bndval2 = torch.sin(np.pi * bnd2[:, 0])
 
 # Boundary conditions at x=0
 bnd3 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t).float()
 
 # u(0,t)=0
-bndval3 = func(bnd3)
+bndval3 = torch.from_numpy(np.zeros(len(bnd3), dtype=np.float64))
 
 # Boundary conditions at x=1
 bnd4 = torch.cartesian_prod(torch.from_numpy(np.array([1], dtype=np.float64)), t).float()
 
 # u(1,t)=0
-bndval4 = func(bnd4)
+bndval4 = torch.from_numpy(np.zeros(len(bnd4), dtype=np.float64))
 
 # Putting all bconds together
 bconds = [[bnd1, bndval1], [bnd2, bndval2], [bnd3, bndval3], [bnd4, bndval4]]
@@ -94,8 +104,7 @@ op=dict in form {'term1':term1,'term2':term2}-> term1+term2+...=0
 NB! dictionary keys at the current time serve only for user-frienly 
 description/comments and are not used in model directly thus order of
 items must be preserved as (coeff,op,pow)
-
-
+ 
 
 term is a dict term={coefficient:c1,[sterm1,sterm2],'pow': power}
 
@@ -111,30 +120,22 @@ None is for function without derivatives
 
 
 """
-# operator is 4*d2u/dx2-1*d2u/dt2=0
-wave_eq = {
-    'd2u/dt2**1':
-        {
-            'coeff': 1,
-            'd2u/dt2': [1,1],
-            'pow':1
-        },
-        '-C*d2u/dx2**1':
-        {
-            'coeff': -C,
-            'd2u/dx2': [0, 0],
-            'pow': 1
-        }
-}
 
 
+model = torch.nn.Sequential(
+    torch.nn.Linear(2, 256),
+    torch.nn.Tanh(),
+    # torch.nn.Dropout(0.1),
+    # torch.nn.ReLU(),
+    torch.nn.Linear(256, 64),
+    # # torch.nn.Dropout(0.1),
+    torch.nn.Tanh(),
+    torch.nn.Linear(64, 1024),
+    # torch.nn.Dropout(0.1),
+    torch.nn.Tanh(),
+    torch.nn.Linear(1024, 1)
+    # torch.nn.Tanh()
+)
 
-for _ in range(1):
-    model = torch.rand(grid[0].shape)
-    
-    start = time.time()
-    
-    model = lbfgs_solution(model, grid, wave_eq, 100, bconds)
+model=nn_autograd_optimizer(grid, model, wave_eq, bconds,use_cache=True,verbose=True,print_every=None,cache_verbose=True,abs_loss=0.01)
 
-    end = time.time()
-    print('Time taken 10= ', end - start)
