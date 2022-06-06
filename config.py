@@ -108,38 +108,74 @@ So, we make the full 'default' version of the config and load 'non-default' para
 either from file or using method 'change_parameter'
 '''
 class Config:
-  def __init__(self, *args):
-    '''
-    We init config with default one
+    def __init__(self, *args):
+        '''
+        We init config with default one
 
-    If there is passed path to a custon config, we try to load it and change
-    default parameters
+        If there is passed path to a custon config, we try to load it and change
+        default parameters
 
 
-    Parameters
-    ----------
-    config_path: str, optional
+        Parameters
+        ----------
+        config_path: str, optional
         
-        path to a custom config
+            path to a custom config
 
-    Returns
-    -------
-    self: Config 
+        Returns
+        -------
+        self: Config 
 
-        config used in solver.optimization_solver function
-    '''
+            config used in solver.optimization_solver function
+        '''
 
 
 
-    self.params=default_config
-    if len(args)==1:
-        custom_config=read_config(args[0])
-        for module_name in custom_config.keys():
-            if check_module_name(module_name) and check_param_name(module_name,custom_config[module_name].keys()):
-                for param in custom_config[module_name].keys():
-                    self.params[module_name][param]=custom_config[module_name][param]
-    else:
-        print('Too much initialization args, using default config')
+        self.params=default_config
+        if len(args)==1:
+            custom_config=read_config(args[0])
+            for module_name in custom_config.keys():
+                if check_module_name(module_name):
+                    for param in custom_config[module_name].keys():
+                        if check_param_name(module_name,param):
+                            self.params[module_name][param]=custom_config[module_name][param]
+                        else:
+                            print('Wrong parameter name: ok.wrong for {}.{}'.format(module_name,param))
+                else: 
+                        print('Wrong module name: wrong.maybeok for {}.smth'.format(module_name))
+
+        elif len(args)>1:
+            print('Too much initialization args, using default config')
+  
+       
+        
+    def set_parameter(self,parameter_string:str,value):
+        '''
+        We may want to just change defalut condfig parameters manually, without loading
+        the .json
+
+        We run checks to see we set them corretly
+
+
+        Parameters
+        ----------
+        parameter_string: str
+        
+        string in format 'module.parameter'
+
+        value: bool,float, int, None
+
+        value for the parameter
+        '''
+ 
+        module_name,param=parameter_string.split('.')
+        if check_module_name(module_name):
+            if check_param_name(module_name,param):
+                self.params[module_name][param]=value
+            else:
+                print('Wrong parameter name: ok.wrong for {}.{}'.format(module_name,param))
+        else: 
+            print('Wrong module name: wrong.maybeok for {}.smth'.format(module_name))
 
 
 
