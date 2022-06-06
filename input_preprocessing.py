@@ -192,8 +192,6 @@ def finite_diff_scheme_to_grid_list(finite_diff_scheme, grid, h=0.001):
     return s_grid_list
 
 
-
-
 def type_op_to_grid_shift_op(fin_diff_op, grid, h=0.001, true_grid=None):
     """
     Converts operator to a grid_shift form. Includes term coefficient
@@ -314,10 +312,6 @@ def operator_prepare(op, grid_dict, subset=['central'], true_grid=None, h=0.001)
     prepared_operator = apply_all_operators(op1, grid_dict, subset=subset, true_grid=true_grid, h=h)
     return prepared_operator
 
-
-
-
-
 def op_dict_to_list(opdict):
     return list([list(term.values()) for term in opdict.values()])
 
@@ -358,14 +352,28 @@ def bndpos(grid, bnd):
     grid = grid.double()
     if type(bnd) == np.array:
         bnd = torch.from_numpy(bnd).double()
+    elif type(bnd) is list:
+        for i in range(len(bnd)):
+            bnd[i] = bnd[i].double()
     else:
         bnd = bnd.double()
-    for point in bnd:
-        try:
-            pos = int(torch.where(torch.all(torch.isclose(grid, point), dim=1))[0])
-        except Exception:
-            pos=closest_point(grid,point)
-        bndposlist.append(pos)
+    if type(bnd) is list:
+        sep = len(bnd)
+        for bcond in bnd:
+            for point in bcond:
+                try:
+                    pos = int(torch.where(torch.all(torch.isclose(grid, point), dim=1))[0])
+                except Exception:
+                    pos=closest_point(grid,point)
+                bndposlist.append(pos)
+        bndposlist = np.hsplit(np.array(bndposlist),sep)
+    else:
+        for point in bnd:
+            try:
+                pos = int(torch.where(torch.all(torch.isclose(grid, point), dim=1))[0])
+            except Exception:
+                pos=closest_point(grid,point)
+            bndposlist.append(pos)
     return bndposlist
 
 
@@ -390,9 +398,27 @@ def bnd_unify(bconds):
         return None
     unified_bconds = []
     for bcond in bconds:
-        if len(bcond) == 2:
-            unified_bconds.append([bcond[0], None, bcond[1]])
+        if len(bcond) == 1:
+            if type(bcond[0]) is list:
+                for bnd in bcond[0]:
+                    shape_1 = len(bnd)
+                    shape_2 = bnd.shape[-1]
+                unified_bconds.append([bcond[0], None, torch.from_numpy(np.zeros((shape_1,shape_2))), 'boundary values'])
+        elif len(bcond) == 2:
+            if type(bcond[1]) is str:
+                if type(bcond[0]) is list:
+                    for bnd in bcond[0]:
+                        shape_1 = len(bnd)
+                        shape_2 = bnd.shape[-1]
+                    unified_bconds.append([bcond[0], None, torch.from_numpy(np.zeros((shape_1,shape_2))), bcond[1]])
+            else:
+                unified_bconds.append([bcond[0], None, bcond[1], 'boundary values'])
         elif len(bcond) == 3:
+            if type(bcond[2]) is str:
+                unified_bconds.append([bcond[0], None, bcond[1], bcond[2]])
+            else:
+                unified_bconds.append([bcond[0],bcond[1],bcond[2],'boundary values'])
+        elif len(bcond) == 4:
             unified_bconds.append(bcond)
     return unified_bconds
 
@@ -425,6 +451,7 @@ def bnd_prepare(bconds,grid,grid_dict, h=0.001):
         b_coord = bcond[0]
         bop = bcond[1]
         bval = bcond[2]
+        bnd_type = bcond[3]
         bpos = bndpos(grid, b_coord)
         if bop == [[1, [None], 1]]:
             bop = None
@@ -435,7 +462,7 @@ def bnd_prepare(bconds,grid,grid_dict, h=0.001):
             bop2 = apply_all_operators(bop1, grid_dict, h=h)
         else:
             bop2 = None
-        prepared_bnd.append([bpos, bop2, bval])
+        prepared_bnd.append([bpos, bop2, bval,bnd_type])
 
     return prepared_bnd
 
@@ -533,7 +560,7 @@ def expand_coeffs_autograd(op,grid):
 def operator_prepare_autograd(op,grid):
     """
     Changes the operator in conventional form to the input one
-    
+
     Parameters
     ----------
     op : list
@@ -541,21 +568,21 @@ def operator_prepare_autograd(op,grid):
     Returns
     -------
     operator_list :  list
-        final form of differential operator used in the algorithm 
+        final form of differential operator used in the algorithm
 
     """
     if type(op)==dict:
         op=op_dict_to_list(op)
     unified_operator = operator_unify(op)
-        
+
     prepared_operator=expand_coeffs_autograd(unified_operator,grid)
-    
+
     return prepared_operator
 
 
 def bnd_prepare_autograd(bconds,grid):
     """
-    
+
 
     Parameters
     ----------
@@ -569,7 +596,7 @@ def bnd_prepare_autograd(bconds,grid):
     Returns
     -------
     prepared_bnd : list
-        
+
         boundary in input form
 
     """

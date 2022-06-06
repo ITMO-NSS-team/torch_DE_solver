@@ -10,7 +10,7 @@ import torch
 import os 
 import glob
 import numpy as np
-from metrics import point_sort_shift_loss,autograd_loss
+from metrics import point_sort_shift_loss
 
 
 def save_model(model,state,optimizer_state,cache_dir='../cache/',name=None):
@@ -83,9 +83,9 @@ def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='
         best_checkpoint=None
         min_loss=np.inf
     return best_checkpoint,min_loss
-        
 
-def cache_lookup_autograd(grid, operator, bconds, lambda_bound=0.001,cache_dir='../cache/',nmodels=None,verbose=False): 
+
+def cache_lookup_autograd(grid, operator, bconds, lambda_bound=0.001,cache_dir='../cache/',nmodels=None,verbose=False):
     # looking for all *.tar files in directory cache_dir
     files=glob.glob(cache_dir+'*.tar')
     # if files not found
@@ -116,7 +116,7 @@ def cache_lookup_autograd(grid, operator, bconds, lambda_bound=0.001,cache_dir='
             continue
         #     model[0]=torch.nn.Linear(prepared_grid.shape[-1],model[0].out_features)
         # model.eval()
-        l=autograd_loss(model, grid, operator, bconds, lambda_bound=lambda_bound)     
+        l=autograd_loss(model, grid, operator, bconds, lambda_bound=lambda_bound)
         if l<min_loss:
             min_loss=l
             best_checkpoint['model']=model
@@ -129,7 +129,6 @@ def cache_lookup_autograd(grid, operator, bconds, lambda_bound=0.001,cache_dir='
         min_loss=np.inf
     return best_checkpoint,min_loss
         
-
 
 def cache_retrain(model,cache_checkpoint,grid,verbose=False):
     # do nothing if cache is empty

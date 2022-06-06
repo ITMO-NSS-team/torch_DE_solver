@@ -44,8 +44,6 @@ def take_derivative_shift_op(model, term):
             # Here we want to apply differential operators for every term in the product
         der_term = der_term * grid_sum ** power[j]
     der_term = coeff * der_term
-
-         
     return der_term
 
 
@@ -135,59 +133,54 @@ def lp_norm(*arg,p=2,normalized=False,weighted=False):
     return norm
 
 
-def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10,norm=None):
-
+def point_sort_shift_loss(model, grid, operator_set, prepared_bconds, lambda_bound=10,norm=None):
     op = apply_operator_set(model, operator_set)
-    if bconds==None:
+    if prepared_bconds == None:
         loss = torch.mean((op) ** 2)
         return loss
-    
-    true_b_val_list = []
-    b_val_list = []
+
+    residual = []
     b_pos_list = []
 
-    # we apply no  boundary conditions operators if they are all None
+    for bconds in prepared_bconds:
 
-    simpleform = False
-    for bcond in bconds:
-        if bcond[1] == None:
-            simpleform = True
-        if bcond[1] != None:
-            simpleform = False
-            break
-    if simpleform:
-        for bcond in bconds:
-            b_pos_list.append(bcond[0])
+        bconds_pos = bconds[0]
+        bconds_op = bconds[1]
+        true_bconds = bconds[2]
+        bconds_type = bconds[3]
 
-            if len(bcond[2]) == bcond[2].shape[-1]:
-                true_boundary_val = bcond[2].reshape(-1,1)
-            else: 
-                true_boundary_val = bcond[2]
-
-            true_b_val_list.append(true_boundary_val)
-        true_b_val = torch.cat(true_b_val_list)
-        b_op_val = model(grid)
-        b_val = b_op_val[flatten_list(b_pos_list)]
-    # or apply differential operator first to compute corresponding field and
-    else:
-        for bcond in bconds:
-            b_pos = bcond[0]
-            b_pos_list.append(bcond[0])
-            b_cond_operator = bcond[1]
-            
-            if len(bcond[2]) == bcond[2].shape[-1]:
-                true_boundary_val = bcond[2].reshape(-1,1)
-            else: 
-                true_boundary_val = bcond[2]
-            true_b_val_list.append(true_boundary_val)
-            if b_cond_operator == None or b_cond_operator == [[1, [None], 1]]:
+        def bcond_op_val_calc(model,grid,bconds_op):
+            if bconds_op == None or bconds_op == [[1, [None], 1]]:
                 b_op_val = model(grid)
             else:
-                b_op_val = apply_operator_set(model, b_cond_operator)
-            # take boundary values
-            b_val_list.append(b_op_val[b_pos])
-        true_b_val = torch.cat(true_b_val_list)
-        b_val = torch.cat(b_val_list)
+                b_op_val = apply_operator_set(model, bconds_op)
+            return b_op_val
+
+        if bconds_type == 'boundary values':
+            b_op_val = bcond_op_val_calc(model,grid,bconds_op)
+            b_val = b_op_val[bconds_pos]
+            b_pos_list.append(bconds_pos)
+            if type(true_bconds) is list:
+                for i in range(0,len(true_bconds)):
+                    residual.append(b_val - (true_bconds[i]))
+            elif len(true_bconds) == true_bconds.shape[-1]:
+                true_bconds = true_bconds.reshape(-1,1)
+                residual.append(b_val - true_bconds)
+
+        if bconds_type == 'periodic':
+            b_op_val = bcond_op_val_calc(model,grid,bconds_op)
+            b_val = []
+
+            b_pos_list.append(flatten_list(bconds_pos))
+
+            if type(bconds_pos) is list:
+                for i in range(0, len(bconds_pos)):
+                    b_val_temp = b_op_val[bconds_pos[i]]
+                    b_val.append(b_val_temp)
+                residual.append(b_val[0] - b_val[1])
+    residual = torch.cat(residual)
+    b_pos_list = list(set(map(lambda i: tuple(i), b_pos_list)))
+
 
     """
     actually, we can use L2 norm for the operator and L1 for boundary
@@ -196,6 +189,13 @@ def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10,nor
     crucial thing for all that stuff, so we should increase significance of the
     coundary conditions
     """
+    # l1_lambda = 0.001
+    # l1_norm =sum(p.abs().sum() for p in model.parameters())
+    # loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)+ l1_lambda * l1_norm
+    
+    
+    # loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)
+    
     if norm==None:
         op_weigthed=False
         op_normalized=False
@@ -212,7 +212,7 @@ def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10,nor
         b_p=norm['boundary_p']
     
     loss = lp_norm(grid[:len(op)],op,weighted=op_weigthed,normalized=op_normalized,p=op_p) + \
-    lambda_bound * lp_norm(grid[flatten_list(b_pos_list)],b_val - true_b_val,p=b_p,weighted=b_weigthed,normalized=b_normalized)
+    lambda_bound * lp_norm(grid[flatten_list(b_pos_list)],residual,p=b_p,weighted=b_weigthed,normalized=b_normalized)
     
     return loss
 
@@ -260,16 +260,16 @@ def derivative_1d(model,grid):
     # print('1d>2d')
     u=model.reshape(-1)
     x=grid.reshape(-1)
-    
+
     # du_forward = (u-torch.roll(u, -1)) / (x-torch.roll(x, -1))
-    
+
     # du_backward = (torch.roll(u, 1) - u) / (torch.roll(x, 1) - x)
     du =  (torch.roll(u, 1) - torch.roll(u, -1))/(torch.roll(x, 1)-torch.roll(x, -1))
     du[0] = (u[0]-u[1])/(x[0]-x[1])
     du[-1] = (u[-1]-u[-2])/(x[-1]-x[-2])
-    
+
     du=du.reshape(model.shape)
-    
+
     return du
 
 
@@ -281,48 +281,48 @@ def derivative(u_tensor, h_tensor, axis, scheme_order=1, boundary_order=1):
 
     u_tensor = torch.transpose(u_tensor, 0, axis)
     h_tensor = torch.transpose(h_tensor, 0, axis)
-    
-    
+
+
     if scheme_order==1:
         du_forward = (-torch.roll(u_tensor, -1) + u_tensor) / \
                      (-torch.roll(h_tensor, -1) + h_tensor)
-    
+
         du_backward = (torch.roll(u_tensor, 1) - u_tensor) / \
                       (torch.roll(h_tensor, 1) - h_tensor)
         du = (1 / 2) * (du_forward + du_backward)
-    
+
     # dh=h_tensor[0,1]-h_tensor[0,0]
-    
+
     if scheme_order==2:
         u_shift_down_1 = torch.roll(u_tensor, 1)
         u_shift_down_2 = torch.roll(u_tensor, 2)
         u_shift_up_1 = torch.roll(u_tensor, -1)
         u_shift_up_2 = torch.roll(u_tensor, -2)
-        
+
         h_shift_down_1 = torch.roll(h_tensor, 1)
         h_shift_down_2 = torch.roll(h_tensor, 2)
         h_shift_up_1 = torch.roll(h_tensor, -1)
         h_shift_up_2 = torch.roll(h_tensor, -2)
-        
+
         h1_up=h_shift_up_1-h_tensor
         h2_up=h_shift_up_2-h_shift_up_1
-        
+
         h1_down=h_tensor-h_shift_down_1
         h2_down=h_shift_down_1-h_shift_down_2
-       
+
         a_up=-(2*h1_up+h2_up)/(h1_up*(h1_up+h2_up))
         b_up=(h2_up+h1_up)/(h1_up*h2_up)
         c_up=-h1_up/(h2_up*(h1_up+h2_up))
-        
+
         a_down=(2*h1_down+h2_down)/(h1_down*(h1_down+h2_down))
         b_down=-(h2_down+h1_down)/(h1_down*h2_down)
         c_down=h1_down/(h2_down*(h1_down+h2_down))
-        
+
         du_forward=a_up*u_tensor+b_up*u_shift_up_1+c_up*u_shift_up_2
         du_backward=a_down*u_tensor+b_down*u_shift_down_1+c_down*u_shift_down_2
         du = (1 / 2) * (du_forward + du_backward)
-        
-        
+
+
     if boundary_order==1:
         if scheme_order==1:
             du[:, 0] = du_forward[:, 0]
@@ -330,7 +330,7 @@ def derivative(u_tensor, h_tensor, axis, scheme_order=1, boundary_order=1):
         elif scheme_order==2:
             du_forward = (-torch.roll(u_tensor, -1) + u_tensor) / \
                          (-torch.roll(h_tensor, -1) + h_tensor)
-        
+
             du_backward = (torch.roll(u_tensor, 1) - u_tensor) / \
                           (torch.roll(h_tensor, 1) - h_tensor)
             du[:, 0] = du_forward[:, 0]
@@ -348,33 +348,33 @@ def derivative(u_tensor, h_tensor, axis, scheme_order=1, boundary_order=1):
             u_shift_down_2 = torch.roll(u_tensor, 2)
             u_shift_up_1 = torch.roll(u_tensor, -1)
             u_shift_up_2 = torch.roll(u_tensor, -2)
-            
+
             h_shift_down_1 = torch.roll(h_tensor, 1)
             h_shift_down_2 = torch.roll(h_tensor, 2)
             h_shift_up_1 = torch.roll(h_tensor, -1)
             h_shift_up_2 = torch.roll(h_tensor, -2)
-            
+
             h1_up=h_shift_up_1-h_tensor
             h2_up=h_shift_up_2-h_shift_up_1
-            
+
             h1_down=h_tensor-h_shift_down_1
             h2_down=h_shift_down_1-h_shift_down_2
-           
-       
+
+
             a_up=-(2*h1_up+h2_up)/(h1_up*(h1_up+h2_up))
             b_up=(h2_up+h1_up)/(h1_up*h2_up)
             c_up=-h1_up/(h2_up*(h1_up+h2_up))
-            
+
             a_down=(2*h1_up+h2_up)/(h1_down*(h1_down+h2_down))
             b_down=-(h2_down+h1_down)/(h1_down*h2_down)
             c_down=h1_down/(h2_down*(h1_down+h2_down))
-        
-            
+
+
             du_forward=a_up*u_tensor+b_up*u_shift_up_1+c_up*u_shift_up_2
             du_backward=a_down*u_tensor+b_down*u_shift_down_1+c_down*u_shift_down_2
             du[:, 0] = du_forward[:, 0]
             du[:, -1] = du_backward[:, -1]
-            
+
     du = torch.transpose(du, 0, axis)
 
     return du
@@ -578,17 +578,17 @@ def take_derivative_autograd (model, grid, term):
     power = term[2]
     # initially it is an ones field
     der_term = torch.zeros_like(model(grid)) + 1
-    
+
     for j,derivative in enumerate(product):
         if derivative==[None]:
             der=model(grid)
         else:
             der=nn_autograd(model,grid,axis=derivative)
         der_term = der_term * der ** power[j]
-    
+
     der_term = coeff * der_term
-    
-    
+
+
     return der_term
 
 
@@ -601,7 +601,7 @@ def apply_autograd_operator(model,grid, operator):
     model : torch.Sequential
         Neural network.
     operator : list
-        Single (len(subset)==1) operator in input form. See 
+        Single (len(subset)==1) operator in input form. See
         input_preprocessing.operator_prepare()
 
     Returns
