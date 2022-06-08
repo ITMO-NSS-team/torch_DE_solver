@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 import pathlib
 
-here = pathlib.Path(__file__).parent.resolve()
+HERE = os.path.abspath(os.path.dirname(__file__))
 
 # Get the long description from the README file
 SHORT_DESCRIPTION = 'TEDEouS - Torch Exhaustive Differential Equations Solver. Differential equation solver, based on pytorch library'
