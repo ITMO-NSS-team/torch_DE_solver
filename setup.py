@@ -7,14 +7,15 @@ Created on Wed May 26 13:36:47 2021
 """
 
 from setuptools import setup, find_packages
-from os.path import dirname, join
+import os
 from pathlib import Path
 import pathlib
 
 here = pathlib.Path(__file__).parent.resolve()
 
 # Get the long description from the README file
-long_description = (here / 'README.md').read_text(encoding='utf-8')
+SHORT_DESCRIPTION = 'TEDEouS - Torch Exhaustive Differential Equations Solver. Differential equation solver, based on pytorch library'
+LONG_DESCRIPTION = (Path(os.path.join(HERE, "README.rst"))).read_text()
 
 name = 'TEDEouS' # Add name
 version= '0.0.9' # Add version
@@ -25,7 +26,7 @@ url = 'https://github.com/ITMO-NSS-team/torch_DE_solver'
 
 def read(*names, **kwargs):
     with open(
-            join(dirname(__file__), *names),
+            os.path.join(os.path.dirname(__file__), *names),
             encoding=kwargs.get('encoding', 'utf8')
     ) as fh:
         return fh.read()
@@ -42,10 +43,12 @@ def get_requirements():
 setup(
       name = name,
       version = version,
-      description = description,
       author = author,
       author_email = author_email,
       url = url,
+      description = SHORT_DESCRIPTION,
+      long_description=LONG_DESCRIPTION,
+      long_description_content_type="text/x-rst",
       classifiers = [      
               'Development Status :: 3 - Alpha',
               'Programming Language :: Python :: 3',
