@@ -97,7 +97,27 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
                             patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
                             model_randomize_parameter=0,optimizer='Adam',print_plot = True):
     # prepare input data to uniform format 
-    
+    if model==None:
+        if len(grid.shape)==2:
+            model = torch.nn.Sequential(
+                torch.nn.Linear(1, 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, 1)
+            )
+        else:
+            model = torch.nn.Sequential(
+                torch.nn.Linear(grid.shape[0], 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, 1)
+            )
     prepared_grid,grid_dict,point_type = grid_prepare(grid)
     prepared_bconds = bnd_prepare(bconds, prepared_grid,grid_dict, h=h)
     full_prepared_operator = operator_prepare(operator, grid_dict, subset=grid_point_subset, true_grid=grid, h=h)

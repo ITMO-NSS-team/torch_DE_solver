@@ -232,7 +232,9 @@ def type_op_to_grid_shift_op(fin_diff_op, grid, h=0.001, true_grid=None):
                 pos = bndpos(true_grid, grid)
             else:
                 pos = bndpos(grid, grid)
+            coeff1=coeff1.reshape(grid.shape)
             coeff = coeff1[pos].reshape(-1, 1)
+        
         finite_diff_scheme = term1[1]
         s_order = term1[2]
         power = term1[3]
