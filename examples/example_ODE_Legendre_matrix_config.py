@@ -186,7 +186,7 @@ for n in range(3,10):
         
     model=None   
     
-    model=optimization_solver(coord_list, model, legendre_poly, bconds, config,mode='mat')
+    model=optimization_solver(coord_list, model, legendre_poly, bconds, config,mode='NN')
     
     
     for _ in range(10):

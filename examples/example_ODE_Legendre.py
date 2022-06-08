@@ -29,11 +29,11 @@ Grid is an essentially torch.Tensor of a n-D points where n is the problem
 dimensionality
 """
 
-t = torch.from_numpy(np.linspace(0, 1, 100))
+t = np.linspace(0, 1, 100)
 
-grid = t.reshape(-1, 1).float()
+coord_list = [t]
 
-grid.to(device)
+grid=grid_format_prepare(coord_list,mode='NN')
 
 
 exp_dict_list=[]
