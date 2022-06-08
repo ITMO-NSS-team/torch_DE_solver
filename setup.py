@@ -18,7 +18,7 @@ SHORT_DESCRIPTION = 'TEDEouS - Torch Exhaustive Differential Equations Solver. D
 LONG_DESCRIPTION = (Path(os.path.join(HERE, "README.rst"))).read_text()
 
 name = 'TEDEouS' # Add name
-version= '0.0.10' # Add version
+version= '0.0.11' # Add version
 description = 'TEDEouS - Torch Exhaustive Differential Equations Solver. Differential equation solver, based on pytorch library'
 author = 'Alexander Hvatov'
 author_email = 'itmo.nss.team@gmail.com' # add email
