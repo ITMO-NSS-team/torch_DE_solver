@@ -5,6 +5,7 @@ Created on Sun Mar 13 14:13:37 2022
 @author: Sashka
 """
 
+from email.policy import default
 import json
 
 def read_config(name):
@@ -34,7 +35,7 @@ DEFAULT_CONFIG="""
 "h":0.001
 },
 "Verbose":{
-	"verbose":false,
+	"verbose":true,
 	"print_every":null
 },
 "StopCriterion":{
@@ -133,16 +134,20 @@ class Config:
 
         self.params=default_config
         if len(args)==1:
-            custom_config=read_config(args[0])
+            try:
+                custom_config=read_config(args[0])
+            except Exception:
+                print('Error reading config. Default config assumed.')
+                custom_config=default_config
             for module_name in custom_config.keys():
                 if check_module_name(module_name):
                     for param in custom_config[module_name].keys():
                         if check_param_name(module_name,param):
                             self.params[module_name][param]=custom_config[module_name][param]
                         else:
-                            print('Wrong parameter name: ok.wrong for {}.{}'.format(module_name,param))
+                            print('Wrong parameter name: ok.wrong for {}.{}. Defalut parameters assumed.'.format(module_name,param))
                 else: 
-                        print('Wrong module name: wrong.maybeok for {}.smth'.format(module_name))
+                        print('Wrong module name: wrong.maybeok for {}.smth. Defalut parameters assumed.'.format(module_name))
 
         elif len(args)>1:
             print('Too much initialization args, using default config')
@@ -173,9 +178,9 @@ class Config:
             if check_param_name(module_name,param):
                 self.params[module_name][param]=value
             else:
-                print('Wrong parameter name: ok.wrong for {}.{}'.format(module_name,param))
+                print('Wrong parameter name: ok.wrong for {}.{}. Defalut parameters assumed.'.format(module_name,param))
         else: 
-            print('Wrong module name: wrong.maybeok for {}.smth'.format(module_name))
+            print('Wrong module name: wrong.maybeok for {}.smth. Defalut parameters assumed.'.format(module_name))
 
 
 
