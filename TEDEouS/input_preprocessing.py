@@ -67,10 +67,28 @@ def operator_unify(operator):
         const = term[0]
         vars_set = term[1]
         power = term[2]
-        if type(power) is list:
-            unified_operator.append([const, vars_set, power])
+        variables=[]
+        if len(term)==4:
+            variables = term[3]
+        elif type(power)==int:
+            variables=0
+        elif type(power)==list:
+            for _ in range(len(power)):
+                variables.append(0)
+        if variables is None:
+            if type(power) is list:
+                unified_operator.append([const, vars_set, power,0])
+            else:
+                unified_operator.append([const, [vars_set], [power],[0]])
         else:
-            unified_operator.append([const, [vars_set], [power]])
+            if type(power) is list:
+                unified_operator.append([const, vars_set, power,variables])
+            else:
+                unified_operator.append([const, [vars_set], [power],[variables]])
+        # if type(power) is list:
+        #         unified_operator.append([const, vars_set, power])
+        # else:
+        #         unified_operator.append([const, [vars_set], [power]])
     return unified_operator
 
 
@@ -108,6 +126,7 @@ def operator_to_type_op(unified_operator, nvars, axes_scheme_type, h=1 / 2,inner
         const = term[0]
         vars_set = term[1]
         power = term[2]
+        variables = term[3]
         for k, term in enumerate(vars_set):
             # None is for case where we need the fuction without derivatives
             if term != [None]:
@@ -130,7 +149,7 @@ def operator_to_type_op(unified_operator, nvars, axes_scheme_type, h=1 / 2,inner
                 s_order = [1]
             fin_diff_list.append(scheme)
             s_order_list.append(s_order)
-        fin_diff_op.append([const, fin_diff_list, s_order_list, power])
+        fin_diff_op.append([const, fin_diff_list, s_order_list, power,variables])
     return fin_diff_op
 
 
@@ -173,6 +192,8 @@ def finite_diff_scheme_to_grid_list(finite_diff_scheme, grid, h=0.001):
     return s_grid_list
 
 
+
+
 def type_op_to_grid_shift_op(fin_diff_op, grid, h=0.001, true_grid=None):
     """
     Converts operator to a grid_shift form. Includes term coefficient
@@ -201,7 +222,7 @@ def type_op_to_grid_shift_op(fin_diff_op, grid, h=0.001, true_grid=None):
     for term1 in fin_diff_op:
         shift_grid_list = []
         coeff1 = term1[0]
-        if type(coeff1) == int:
+        if type(coeff1) == int or type(coeff1) == float:
             coeff = coeff1
         elif callable(coeff1):
             coeff = coeff1(grid)
@@ -215,13 +236,14 @@ def type_op_to_grid_shift_op(fin_diff_op, grid, h=0.001, true_grid=None):
         finite_diff_scheme = term1[1]
         s_order = term1[2]
         power = term1[3]
+        variables = term1[4]
         for k, term in enumerate(finite_diff_scheme):
             if term != [None]:
                 grid_op = finite_diff_scheme_to_grid_list(term, grid, h=h)
             else:
                 grid_op = [grid]
             shift_grid_list.append(grid_op)
-        shift_grid_op.append([coeff, shift_grid_list, s_order, power])
+        shift_grid_op.append([coeff, shift_grid_list, s_order, power,variables])
     return shift_grid_op
 
 
@@ -292,6 +314,10 @@ def operator_prepare(op, grid_dict, subset=['central'], true_grid=None, h=0.001)
     prepared_operator = apply_all_operators(op1, grid_dict, subset=subset, true_grid=true_grid, h=h)
     return prepared_operator
 
+
+
+
+
 def op_dict_to_list(opdict):
     return list([list(term.values()) for term in opdict.values()])
 
@@ -326,6 +352,8 @@ def bndpos(grid, bnd):
         positions of boundaty points in grid
 
     """
+    if grid.shape[0]==1:
+        grid=grid.reshape(-1,1)
     bndposlist = []
     grid = grid.double()
     if type(bnd) == np.array:
@@ -448,6 +476,7 @@ def batch_bconds_transform(batch_grid,bconds):
     return batch_bconds
 
 
+
 def bnd_prepare_matrix(bconds,grid):
     prepared_bconds=[]
     for bnd in bconds:
@@ -460,12 +489,16 @@ def bnd_prepare_matrix(bconds,grid):
             bop=bnd[1]
             bval=bnd[2]
         bpos=[]
+        # bpos=bndpos(grid,bpts)
         for pt in bpts:
-            prod=(torch.zeros_like(grid[0])+1).bool()
-            for axis in range(grid.shape[0]):
-                axis_intersect=torch.isclose(pt[axis].float(),grid[axis].float())
-                prod*=axis_intersect
-            point_pos=torch.where(prod==True)
+            if grid.shape[0]==1:
+                point_pos=(torch.tensor(bndpos(grid,pt)),)
+            else:
+                prod=(torch.zeros_like(grid[0])+1).bool()
+                for axis in range(grid.shape[0]):
+                    axis_intersect=torch.isclose(pt[axis].float(),grid[axis].float())
+                    prod*=axis_intersect
+                point_pos=torch.where(prod==True)
             bpos.append(point_pos)
         if type(bop)==dict:
             bop=op_dict_to_list(bop)
@@ -479,4 +512,84 @@ def operator_prepare_matrix(operator):
         operator = op_dict_to_list(operator)
     unified_operator = operator_unify(operator)
     return unified_operator
+
+
+def expand_coeffs_autograd(op,grid):
+    autograd_op=[]
+    for term in op:
+        coeff1 = term[0]
+        if type(coeff1) == int:
+            coeff = coeff1
+        elif callable(coeff1):
+            coeff = coeff1(grid)
+            coeff = coeff.reshape(-1,1)
+        elif type(coeff1) == torch.Tensor:
+            coeff = coeff1.reshape(-1,1)
+        prod = term[1]
+        power = term[2]
+        autograd_op.append([coeff, prod, power])
+    return autograd_op
+
+def operator_prepare_autograd(op,grid):
+    """
+    Changes the operator in conventional form to the input one
+    
+    Parameters
+    ----------
+    op : list
+        operator in conventional form.
+    Returns
+    -------
+    operator_list :  list
+        final form of differential operator used in the algorithm 
+
+    """
+    if type(op)==dict:
+        op=op_dict_to_list(op)
+    unified_operator = operator_unify(op)
+        
+    prepared_operator=expand_coeffs_autograd(unified_operator,grid)
+    
+    return prepared_operator
+
+
+def bnd_prepare_autograd(bconds,grid):
+    """
+    
+
+    Parameters
+    ----------
+    bconds : list
+        boundary in conventional form (see examples)
+    grid : torch.Tensor
+        grid with sotred nodes (see grid_prepare)
+    h : float
+        derivative precision parameter. The default is 0.001.
+
+    Returns
+    -------
+    prepared_bnd : list
+        
+        boundary in input form
+
+    """
+    bconds = bnd_unify(bconds)
+    if bconds==None:
+        return None
+    prepared_bnd = []
+    for bcond in bconds:
+        b_coord = bcond[0]
+        bop = bcond[1]
+        bval = bcond[2]
+        bpos = bndpos(grid, b_coord)
+        if bop == [[1, [None], 1]]:
+            bop = None
+        if bop != None:
+            if type(bop)==dict:
+                bop=op_dict_to_list(bop)
+            bop1 = operator_unify(bop)
+        else:
+            bop1 = None
+        prepared_bnd.append([bpos, bop1, bval])
+    return prepared_bnd
 
