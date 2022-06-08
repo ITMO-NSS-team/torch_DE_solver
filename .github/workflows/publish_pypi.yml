@@ -1,4 +1,4 @@
-name: Build and publish package to PyPi
+name: Updated config and unified solver
 
 on:
   push:
