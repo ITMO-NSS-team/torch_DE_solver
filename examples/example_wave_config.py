@@ -18,7 +18,7 @@ sys.path.append('../')
 
 from solver import *
 # from cache import *
-from config import read_config
+from config import Config
 import time
 
 """
@@ -122,8 +122,8 @@ wave_eq = {
         }
 }
 
-
-config=read_config(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '../default.json')))
+#default config used
+config=Config()
     
 for _ in range(1):
     model = torch.nn.Sequential(

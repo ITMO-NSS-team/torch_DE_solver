@@ -27,7 +27,7 @@ from solver import matrix_cache_lookup
 device = torch.device('cpu')
 from cache import save_model
 from solver import optimization_solver
-from config import read_config
+from config import Config
 """
 Preparing grid
 
@@ -37,7 +37,6 @@ dimensionality
 
 t = np.linspace(0, 1, 100)
 coord_list = [t]
-
 
 
 grid=grid_format_prepare(coord_list,mode='mat')
@@ -174,16 +173,16 @@ for n in range(3,10):
     }
     
     
-    config=read_config(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '../default.json')))
-    
-    config["Optimizer"]["optimizer"]='LBFGS'
-    config['Optimizer']['learning_rate']=1e-3
-    config["Optimizer"]['lambda_bound']=100
-    config["StopCriterion"]['eps']=1e-6
-    config["Cache"]['save_always']=True
-    config["Cache"]['use_cache']=False
-    config["Cache"]['model_randomize_parameter']=1e-5
-    config["Verbose"]['verbose']=True
+    config=Config()
+
+    config.set_parameter('Optimizer.optimizer','LBFGS')
+    config.set_parameter('Optimizer.learning_rate',1e-3)
+    config.set_parameter('Optimizer.lambda_bound',100)
+    config.set_parameter('StopCriterion.eps',1e-6)
+    config.set_parameter('Cache.save_always',True)
+    config.set_parameter('Cache.use_cache',True)
+    config.set_parameter('Cache.model_randomize_parameter',1e-5)
+    config.set_parameter('Verbose.verbose',True)
         
     model=None   
     
@@ -212,10 +211,10 @@ for n in range(3,10):
         #                           print_every=None,learning_rate=1e-4,optimizer='Adam',
         #                           eps=1e-6,lambda_bound=100,use_cache=True)
         
-        config["Optimizer"]["optimizer"]='Adam'
-        config['Optimizer']['learning_rate']=1e-4
-        config['Matrix']['cache_model']=NN_model
-        config["StopCriterion"]['eps']=1e-5
+        config.set_parameter('Optimizer.optimizer','Adam')
+        config.set_parameter('Optimizer.learning_rate',1e-4)
+        config.set_parameter('Matrix.cache_model',NN_model)
+        config.set_parameter('StopCriterion.eps',1e-5)
         
         model=optimization_solver(coord_list, model, legendre_poly, bconds, config,mode='mat')
         
