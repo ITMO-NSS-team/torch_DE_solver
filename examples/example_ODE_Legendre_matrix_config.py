@@ -39,7 +39,7 @@ t = np.linspace(0, 1, 100)
 coord_list = [t]
 
 
-grid=grid_format_prepare(coord_list,mode='mat')
+grid=grid_format_prepare(coord_list,mode='NN')
 
 exp_dict_list=[]
 
@@ -197,7 +197,7 @@ for n in range(3,10):
         )
 
     
-    model=optimization_solver(coord_list, model, legendre_poly, bconds, config,mode='NN')
+    model=optimization_solver(coord_list, model, legendre_poly, bconds, config,mode='mat')
     
     
     for _ in range(10):
