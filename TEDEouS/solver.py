@@ -4,6 +4,7 @@ Created on Sun Jun  6 15:06:41 2021
 
 @author: Sashka
 """
+from pickle import NONE
 import torch
 import matplotlib.pyplot as plt
 from matplotlib import cm
@@ -27,7 +28,7 @@ from TEDEouS.cache import cache_lookup,cache_retrain,save_model,cache_lookup_aut
 def solution_print(prepared_grid,model,title=None):
     if prepared_grid.shape[1] == 2:
         nvars_model = model(prepared_grid).shape[1]
-        plt.ion()
+        #plt.ion()
         fig1 = plt.figure()
         ax1 = fig1.add_subplot(projection='3d')
 
@@ -52,13 +53,13 @@ def solution_print(prepared_grid,model,title=None):
         
         
         #plt.show(block=False)
-        #plt.show()
-        plt.pause(0.001)
+        plt.show()
+        #plt.pause(0.001)
 
     if prepared_grid.shape[1] == 1:
         fig = plt.figure()
         plt.scatter(prepared_grid.detach().numpy().reshape(-1), model(prepared_grid).detach().numpy().reshape(-1))
-        plt.show(block=False)
+        #plt.show(block=False)
         plt.show()
 
 
@@ -97,7 +98,27 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
                             patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
                             model_randomize_parameter=0,optimizer='Adam',print_plot = True):
     # prepare input data to uniform format 
-    
+    if model==None:
+        if len(grid.shape)==2:
+            model = torch.nn.Sequential(
+                torch.nn.Linear(1, 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, 1)
+            )
+        else:
+            model = torch.nn.Sequential(
+                torch.nn.Linear(grid.shape[0], 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, 1)
+            )
     prepared_grid,grid_dict,point_type = grid_prepare(grid)
     prepared_bconds = bnd_prepare(bconds, prepared_grid,grid_dict, h=h)
     full_prepared_operator = operator_prepare(operator, grid_dict, subset=grid_point_subset, true_grid=grid, h=h)
@@ -356,12 +377,15 @@ def lbfgs_solution(model, grid, operator, norm_lambda, bcond, rtol=1e-6,atol=0.0
 
     return model.detach()
 
-
+from copy import deepcopy
 
 def matrix_cache_lookup(grid, model, operator, bconds,h=0.001,model_randomize_parameter=0,cache_dir="../cache",
                             lambda_bound=10):
     # prepare input data to uniform format 
-    op_list=op_dict_to_list(operator)
+    if type(operator)==dict:
+        op_list=op_dict_to_list(operator)
+    else:
+        op_list=deepcopy(operator)
 
     for term in op_list:
         if type(term[0])==torch.Tensor:
@@ -397,14 +421,16 @@ def matrix_optimizer(grid, model, operator, bconds, lambda_bound=10,
     #if coord_list==None:
      #   print("Error: No coord_list supplied, using cache is not possible")
       #  use_cache=False
-
+    if type(model)!=torch.Tensor:
+        model==None
     if model==None:
         if len(grid.shape)==2:
             model=torch.rand(grid.shape)
         else:
             model= torch.rand(grid[0].shape)
    
-
+    
+    
 
     if use_cache:
         NN_grid=torch.from_numpy(np.vstack([grid[i].reshape(-1) for i in range(grid.shape[0])]).T).float()
@@ -430,7 +456,10 @@ def matrix_optimizer(grid, model, operator, bconds, lambda_bound=10,
             model=cache_model(NN_grid).reshape(grid[0].shape).detach()
         
     
+
     unified_operator = operator_prepare_matrix(operator)
+
+    
 
     b_prepared = bnd_prepare_matrix(bconds, grid)
     
@@ -660,21 +689,45 @@ def grid_format_prepare(coord_list, mode='NN'):
         print('Grid is a tensor, assuming old format, no action performed')
         return coord_list
     if mode=='NN':
-        # coord_list=torch.tensor(coord_list)
-        grid=torch.cartesian_prod(*coord_list).float()
-        # grid=grid.reshape(-1,1)
+        if len(coord_list)==1:
+            coord_list=torch.tensor(coord_list)
+            grid=coord_list.reshape(-1,1).float()
+        else:
+            grid=torch.cartesian_prod(*coord_list).float()
     elif mode=='mat':
         grid = np.meshgrid(*coord_list)
         grid = torch.tensor(grid)
     return grid
 
 
+def coefficient_unification(grid,operator,mode='NN'):
+        for term in operator:
+            coeff = term[0]
+            if callable(coeff):
+                coeff = coeff(grid)
+                #coeff = coeff.reshape(-1, 1)
+            elif type(coeff) == torch.Tensor:
+                if mode == 'NN':
+                    if coeff.shape!=grid.shape[1:]:
+                        coeff = coeff.reshape(-1, 1)
+                    if coeff.shape!=grid.shape[1:]:
+                        print('ERROR: Something went wrong with the coefficient, it may be because coefficients were pre-computed for matrix grid')
+                elif mode=='mat':
+                    if coeff.shape!=grid.shape[1:]:
+                        try:
+                            coeff = coeff.reshape(grid.shape[1:]).T
+                        except Exception:
+                            print('ERROR: Something went wrong with the coefficient, it may be because coefficients were pre-computed for NN grid')
+            term[0]=coeff
+        return operator
 
 
 
 
 def optimization_solver(coord_list, model, operator,bconds,config,mode='NN'):
     grid=grid_format_prepare(coord_list, mode=mode)
+    operator=op_dict_to_list(operator)
+    operator=coefficient_unification(grid,operator,mode=mode)
     if mode=='NN':
         model=point_sort_shift_solver(grid, model, operator, bconds,
             learning_rate=config.params['Optimizer']['learning_rate'],
