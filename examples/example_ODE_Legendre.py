@@ -29,11 +29,11 @@ Grid is an essentially torch.Tensor of a n-D points where n is the problem
 dimensionality
 """
 
-t = torch.from_numpy(np.linspace(0, 1, 100))
+t = np.linspace(0, 1, 100)
 
-grid = t.reshape(-1, 1).float()
+coord_list = [t]
 
-grid.to(device)
+grid=grid_format_prepare(coord_list,mode='NN')
 
 
 exp_dict_list=[]
@@ -136,7 +136,31 @@ for n in range(3,11):
         return -2 * grid
     
     
-    
+      # this one is to show that coefficients may be a function of grid as well
+    legendre_poly= {
+        '(1-t^2)*d2u/dt2**1':
+            {
+                'coeff': c1, #coefficient is a function
+                'du/dt': [0, 0],
+                'pow': 1,
+                'var':0
+            },
+        '-2t*du/dt**1':
+            {
+                'coeff': c2,
+                'u*du/dx': [0],
+                'pow':1,
+                'var':0
+            },
+        'n*(n-1)*u**1':
+            {
+                'coeff': n*(n+1),
+                'u':  [None],
+                'pow': 1,
+                'var':0
+            }
+    }
+      
     
     
     # operator is  (1-t^2)*d2u/dt2-2t*du/dt+n*(n-1)*u=0 (n=3)
@@ -164,31 +188,7 @@ for n in range(3,11):
             }
     }
     
-    # this one is to show that coefficients may be a function of grid as well
-    legendre_poly= {
-        '(1-t^2)*d2u/dt2**1':
-            {
-                'coeff': c1, #coefficient is a function
-                'du/dt': [0, 0],
-                'pow': 1,
-                'var':0
-            },
-        '-2t*du/dt**1':
-            {
-                'coeff': c2,
-                'u*du/dx': [0],
-                'pow':1,
-                'var':0
-            },
-        'n*(n-1)*u**1':
-            {
-                'coeff': n*(n+1),
-                'u':  [None],
-                'pow': 1,
-                'var':0
-            }
-    }
-    
+
     
     
     for _ in range(10):

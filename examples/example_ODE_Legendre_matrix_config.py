@@ -184,7 +184,18 @@ for n in range(3,10):
     config.set_parameter('Cache.model_randomize_parameter',1e-5)
     config.set_parameter('Verbose.verbose',True)
         
-    model=None   
+    model=None  
+    
+    NN_model = torch.nn.Sequential(
+    torch.nn.Linear(1, 100),
+    torch.nn.Tanh(),
+    torch.nn.Linear(100, 100),
+    torch.nn.Tanh(),
+    torch.nn.Linear(100, 100),
+    torch.nn.Tanh(),
+    torch.nn.Linear(100, 1)
+        )
+
     
     model=optimization_solver(coord_list, model, legendre_poly, bconds, config,mode='mat')
     
@@ -192,15 +203,7 @@ for n in range(3,10):
     for _ in range(10):
         
         
-        NN_model = torch.nn.Sequential(
-            torch.nn.Linear(1, 100),
-            torch.nn.Tanh(),
-            torch.nn.Linear(100, 100),
-            torch.nn.Tanh(),
-            torch.nn.Linear(100, 100),
-            torch.nn.Tanh(),
-            torch.nn.Linear(100, 1)
-        )
+
     
         
         model=None 

@@ -499,7 +499,7 @@ def matrix_loss(model, grid, operator, bconds, lambda_bound=10):
     if bconds == None:
         print('No bconds is not possible, returning infinite loss')
         return np.inf
-
+ 
     op = apply_matrix_diff_operator(model, grid, operator)
 
     # we apply no  boundary conditions operators if they are all None
