@@ -705,12 +705,19 @@ def coefficient_unification(grid,operator,mode='NN'):
             coeff = term[0]
             if callable(coeff):
                 coeff = coeff(grid)
-                coeff = coeff.reshape(-1, 1)
+                #coeff = coeff.reshape(-1, 1)
             elif type(coeff) == torch.Tensor:
                 if mode == 'NN':
-                    coeff = coeff.reshape(-1, 1)
+                    if coeff.shape!=grid.shape[1:]:
+                        coeff = coeff.reshape(-1, 1)
+                    if coeff.shape!=grid.shape[1:]:
+                        print('ERROR: Something went wrong with the coefficient, it may be because coefficients were pre-computed for matrix grid')
                 elif mode=='mat':
-                    coeff = coeff.reshape(grid.shape[1:])
+                    if coeff.shape!=grid.shape[1:]:
+                        try:
+                            coeff = coeff.reshape(grid.shape[1:]).T
+                        except Exception:
+                            print('ERROR: Something went wrong with the coefficient, it may be because coefficients were pre-computed for NN grid')
             term[0]=coeff
         return operator
 

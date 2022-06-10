@@ -39,7 +39,7 @@ t = np.linspace(0, 1, 100)
 coord_list = [t]
 
 
-grid=grid_format_prepare(coord_list,mode='NN')
+grid=grid_format_prepare(coord_list,mode='mat')
 
 exp_dict_list=[]
 

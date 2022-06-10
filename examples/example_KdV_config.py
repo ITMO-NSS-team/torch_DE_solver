@@ -50,7 +50,7 @@ for grid_res in [10,20,30]:
     coord_list=[x,t]
     
 
-    grid=grid_format_prepare(coord_list, mode='NN')
+    grid=grid_format_prepare(coord_list, mode='mat')
     """
     Preparing boundary conditions (BC)
     
