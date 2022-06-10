@@ -70,7 +70,7 @@ def operator_unify(operator):
         variables=[]
         if len(term)==4:
             variables = term[3]
-        elif type(power)==int:
+        elif isinstance(power,(int,float)):
             variables=0
         elif type(power)==list:
             for _ in range(len(power)):
