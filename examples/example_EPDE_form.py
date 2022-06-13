@@ -22,7 +22,7 @@ sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 sys.path.append('../')
 
-
+from config import Config
 from solver import *
 import time
 
@@ -35,8 +35,6 @@ t=np.array([0.     , 0.00025, 0.0005 , 0.00075, 0.001  , 0.00125, 0.0015 ,
 
 coord_list = [t]
 
-
-grid=grid_format_prepare(coord_list, mode='NN')
 
 operator=[[torch.tensor([[-0.0000],
         [-0.0268],
@@ -310,8 +308,14 @@ model = torch.nn.Sequential(
     torch.nn.Tanh(),
     torch.nn.Linear(100, 1)
 )
-    
 
-model = point_sort_shift_solver(grid, model, operator, bconds, lambda_bound=100,verbose=True, learning_rate=1e-4,h=0.01,
-                                eps=1e-5, tmin=1000, tmax=1e5,use_cache=False,cache_verbose=True,
-                            batch_size=None, save_always=True,print_every=None,model_randomize_parameter=1e-6,optimizer='Adam',no_improvement_patience=None)
+
+config=Config()
+
+config.set_parameter('Cache.save_always',True)
+config.set_parameter('Cache.use_cache',True)
+
+    
+model= optimization_solver(coord_list, model, operator, bconds, config,mode='mat')
+
+

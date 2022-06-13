@@ -39,7 +39,7 @@ t = np.linspace(0, 1, 100)
 coord_list = [t]
 
 
-grid=grid_format_prepare(coord_list,mode='mat')
+grid=grid_format_prepare(coord_list,mode='NN')
 
 exp_dict_list=[]
 
@@ -219,7 +219,7 @@ for n in range(3,10):
         config.set_parameter('Matrix.cache_model',NN_model)
         config.set_parameter('StopCriterion.eps',1e-5)
         
-        model=optimization_solver(coord_list, model, legendre_poly, bconds, config,mode='mat')
+        model=optimization_solver(coord_list, model, legendre_poly, bconds, config,mode='NN')
         
         end = time.time()
     

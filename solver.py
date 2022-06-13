@@ -708,10 +708,10 @@ def coefficient_unification(grid,operator,mode='NN'):
                 #coeff = coeff.reshape(-1, 1)
             elif type(coeff) == torch.Tensor:
                 if mode == 'NN':
-                    if coeff.shape!=grid.shape[1:]:
+                    if coeff.shape[0]!=grid.shape[0]:
                         coeff = coeff.reshape(-1, 1)
-                    if coeff.shape!=grid.shape[1:]:
-                        print('ERROR: Something went wrong with the coefficient, it may be because coefficients were pre-computed for matrix grid')
+                    if coeff.shape[0]!=grid.shape[0]:
+                        print('ERROR: Coefficient shape {} is inconsistent with grid shape {}, it may be because coefficients were pre-computed for matrix grid'.format(coeff.shape,grid.shape))
                 elif mode=='mat':
                     if coeff.shape!=grid.shape[1:]:
                         try:
@@ -726,7 +726,8 @@ def coefficient_unification(grid,operator,mode='NN'):
 
 def optimization_solver(coord_list, model, operator,bconds,config,mode='NN'):
     grid=grid_format_prepare(coord_list, mode=mode)
-    operator=op_dict_to_list(operator)
+    if type(operator)==dict:
+        operator=op_dict_to_list(operator)
     operator=coefficient_unification(grid,operator,mode=mode)
     if mode=='NN':
         model=point_sort_shift_solver(grid, model, operator, bconds,
