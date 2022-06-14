@@ -70,7 +70,7 @@ def operator_unify(operator):
         variables=[]
         if len(term)==4:
             variables = term[3]
-        elif type(power)==int:
+        elif isinstance(power,(int,float)):
             variables=0
         elif type(power)==list:
             for _ in range(len(power)):
@@ -233,6 +233,7 @@ def type_op_to_grid_shift_op(fin_diff_op, grid, h=0.001, true_grid=None):
             else:
                 pos = bndpos(grid, grid)
             coeff = coeff1[pos].reshape(-1, 1)
+        
         finite_diff_scheme = term1[1]
         s_order = term1[2]
         power = term1[3]
