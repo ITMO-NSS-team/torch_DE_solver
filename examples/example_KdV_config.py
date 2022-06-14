@@ -50,7 +50,7 @@ for grid_res in [10,20,30]:
     coord_list=[x,t]
     
 
-    grid=grid_format_prepare(coord_list, mode='mat')
+    
     """
     Preparing boundary conditions (BC)
     
@@ -229,8 +229,8 @@ for grid_res in [10,20,30]:
     
     
     """
-    
-    # -sin(x)cos(t)
+    grid=grid_format_prepare(coord_list, mode='NN')
+    # -sin(x)cos(t) ONLY for NN grid!
     def c1(grid):
         return (-1) * torch.sin(grid[:, 0]) * torch.cos(grid[:, 1])
     
@@ -298,6 +298,8 @@ for grid_res in [10,20,30]:
         config.set_parameter('Cache.use_cache',True)
         config.set_parameter('Cache.model_randomize_parameter',1e-5)
         config.set_parameter('Verbose.verbose',True)
+        config.set_parameter('NN.h',0.01)
+
 
         start = time.time()
         model=optimization_solver(coord_list, model, kdv, bconds, config,mode='NN')
