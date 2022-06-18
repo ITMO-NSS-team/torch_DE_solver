@@ -693,7 +693,13 @@ def grid_format_prepare(coord_list, mode='NN'):
             coord_list=torch.tensor(coord_list)
             grid=coord_list.reshape(-1,1).float()
         else:
-            grid=torch.cartesian_prod(*coord_list).float()
+            coord_list_tensor=[]
+            for item in coord_list:
+                if type(item)==np.array:
+                    coord_list_tensor.append(torch.from_numpy(item))
+                else:
+                    coord_list_tensor.append(item)
+            grid=torch.cartesian_prod(*coord_list_tensor).float()
     elif mode=='mat':
         grid = np.meshgrid(*coord_list)
         grid = torch.tensor(grid)
