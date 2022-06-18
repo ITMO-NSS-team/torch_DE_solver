@@ -99,19 +99,8 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
                             model_randomize_parameter=0,optimizer='Adam',print_plot = True):
     # prepare input data to uniform format 
     if model==None:
-        if len(grid.shape)==2:
             model = torch.nn.Sequential(
-                torch.nn.Linear(1, 100),
-                torch.nn.Tanh(),
-                torch.nn.Linear(100, 100),
-                torch.nn.Tanh(),
-                torch.nn.Linear(100, 100),
-                torch.nn.Tanh(),
-                torch.nn.Linear(100, 1)
-            )
-        else:
-            model = torch.nn.Sequential(
-                torch.nn.Linear(grid.shape[0], 100),
+                torch.nn.Linear(grid.shape[-1], 100),
                 torch.nn.Tanh(),
                 torch.nn.Linear(100, 100),
                 torch.nn.Tanh(),
@@ -695,7 +684,7 @@ def grid_format_prepare(coord_list, mode='NN'):
         else:
             coord_list_tensor=[]
             for item in coord_list:
-                if type(item)==np.array:
+                if isinstance(item,(np.ndarray)):
                     coord_list_tensor.append(torch.from_numpy(item))
                 else:
                     coord_list_tensor.append(item)
