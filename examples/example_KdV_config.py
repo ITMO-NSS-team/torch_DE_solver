@@ -34,7 +34,7 @@ device = torch.device('cpu')
 exp_dict_list=[]
 
 
-for grid_res in [10,20,30]:
+for grid_res in [10]:
     
     """
     Preparing grid
@@ -259,7 +259,7 @@ for grid_res in [10,20,30]:
             },
         '-sin(x)cos(t)':
             {
-                '-sin(x)cos(t)': c1(grid),
+                '-sin(x)cos(t)': c1(grid).reshape(-1,1),
                 'u': [None],
                 'pow': 0,
                 'var':0
@@ -271,7 +271,7 @@ for grid_res in [10,20,30]:
     """
     Solving equation
     """
-    for _ in range(10):
+    for _ in range(1):
         sln=np.genfromtxt(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'wolfram_sln/KdV_sln_'+str(grid_res)+'.csv')),delimiter=',')
         sln_torch=torch.from_numpy(sln)
         sln_torch1=sln_torch.reshape(-1,1)
@@ -279,8 +279,6 @@ for grid_res in [10,20,30]:
         
         model = torch.nn.Sequential(
             torch.nn.Linear(2, 100),
-            torch.nn.Tanh(),
-            torch.nn.Linear(100, 100),
             torch.nn.Tanh(),
             torch.nn.Linear(100, 100),
             torch.nn.Tanh(),
@@ -302,7 +300,7 @@ for grid_res in [10,20,30]:
 
 
         start = time.time()
-        model=optimization_solver(coord_list, model, kdv, bconds, config,mode='NN')
+        model=optimization_solver(coord_list, model, kdv, bconds, config,mode='mat')
         # model = point_sort_shift_solver(grid, model, kdv, bconds, lambda_bound=1000,verbose=True, learning_rate=1e-4,
         #                                 eps=1e-6, tmin=1000, tmax=1e5, h=0.01,use_cache=True,cache_verbose=True,
         #                             batch_size=64, save_always=True)
@@ -318,17 +316,4 @@ for grid_res in [10,20,30]:
         
         print('Time taken {}= {}'.format(grid_res, end - start))
         print('RMSE {}= {}'.format(grid_res, error_rmse))
-
-
-CACHE=True
-
-import pandas as pd
-
-result_assessment=pd.DataFrame(exp_dict_list)
-
-result_assessment.boxplot(by='grid_res',column='time',showfliers=False,figsize=(20,10),fontsize=42)
-
-result_assessment.boxplot(by='grid_res',column='RMSE',figsize=(20,10),fontsize=42)
-
-result_assessment.to_csv('benchmarking_data/kdv_experiment_10_30_cache={}.csv'.format(str(CACHE)))
 
