@@ -10,13 +10,13 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from mpl_toolkits.mplot3d import Axes3D
+import numpy as np
 from input_preprocessing import grid_prepare, bnd_prepare, operator_prepare
 from metrics import point_sort_shift_loss,point_sort_shift_loss_batch
 from input_preprocessing import bnd_prepare_matrix,operator_prepare_matrix
 from input_preprocessing import operator_prepare_autograd,bnd_prepare_autograd
 from input_preprocessing import op_dict_to_list
 from metrics import matrix_loss,autograd_loss
-import numpy as np
 from cache import cache_lookup,cache_retrain,save_model,cache_lookup_autograd
 
 
