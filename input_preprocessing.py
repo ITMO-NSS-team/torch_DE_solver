@@ -401,13 +401,21 @@ def bnd_unify(bconds):
     unified_bconds = []
     for bcond in bconds:
         if len(bcond) == 2:
-            unified_bconds.append([bcond[0], None, bcond[1]])
+            if type(bcond[1]) is str:
+                unified_bconds.append([bcond[0], None, torch.from_numpy(np.zeros(1)), bcond[1]])
+            else:
+                unified_bconds.append([bcond[0], None, bcond[1],'boundary values'])
         elif len(bcond) == 3:
+            if type(bcond[2]) is str:
+                unified_bconds.append([bcond[0], bcond[1], torch.from_numpy(np.zeros(1)), bcond[2]])
+            else:
+                unified_bconds.append([bcond[0], bcond[1], bcond[2], 'boundary values'])
+        elif len(bcond) == 4:
             unified_bconds.append(bcond)
     return unified_bconds
 
 
-def bnd_prepare(bconds,grid,grid_dict, h=0.001):
+def bnd_prepare(bconds, grid, grid_dict, h=0.001):
     """
     
 
@@ -436,6 +444,7 @@ def bnd_prepare(bconds,grid,grid_dict, h=0.001):
         bop = bcond[1]
         bval = bcond[2]
         bpos = bndpos(grid, b_coord)
+        bconds_type = bcond[3]
         if bop == [[1, [None], 1]]:
             bop = None
         if bop != None:
@@ -445,7 +454,7 @@ def bnd_prepare(bconds,grid,grid_dict, h=0.001):
             bop2 = apply_all_operators(bop1, grid_dict, h=h)
         else:
             bop2 = None
-        prepared_bnd.append([bpos, bop2, bval])
+        prepared_bnd.append([bpos, bop2, bval, bconds_type])
 
     return prepared_bnd
 

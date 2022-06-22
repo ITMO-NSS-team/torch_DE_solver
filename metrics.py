@@ -120,7 +120,7 @@ def lp_norm(*arg,p=2,normalized=False,weighted=False):
             grid_prod*=grid[:,i]
     if p>1: 
         if not weighted and not normalized:
-             norm=torch.sum(torch.mean((mat) ** p,0))
+             norm=torch.mean((mat) ** p)
         elif not weighted and normalized:
             norm=torch.pow(torch.mean((mat) ** p),1/p)
         elif weighted and not normalized:
@@ -135,67 +135,77 @@ def lp_norm(*arg,p=2,normalized=False,weighted=False):
     return norm
 
 
-def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10,norm=None):
+def point_sort_shift_loss(model, grid, operator_set, prepared_bconds, lambda_bound=10,norm=None):
 
-    num_of_eq = len(operator_set)
-    if num_of_eq == 1:
-        op = apply_operator_set(model, operator_set[0])
-        if bconds == None:
-            return torch.mean((op) ** 2)
-    else:
-        op_list = []
-        for i in range(num_of_eq):
-            op_list.append(apply_operator_set(model, operator_set[i]))
-        op = torch.cat(op_list, 1)
-        if bconds == None:
-            return torch.sum(torch.mean((op) ** 2, 0))
-    
-    true_b_val_list = []
-    b_val_list = []
+    op = apply_operator_set(model, operator_set)
+    if prepared_bconds==None:
+        loss = torch.mean((op) ** 2)
+        return loss
+
     b_pos_list = []
-
+    residual = []
     # we apply no  boundary conditions operators if they are all None
+    def bcond_op_val_calc():
+        if bconds_op == None or bconds_op == [[1, [None], 1]]:
+            b_op_val = model(grid)
+        else:
+            b_op_val = apply_operator_set(model, bconds_op)
+        return b_op_val
 
-    simpleform = False
-    for bcond in bconds:
-        if bcond[1] == None:
-            simpleform = True
-        if bcond[1] != None:
-            simpleform = False
-            break
-    if simpleform:
-        for bcond in bconds:
-            b_pos_list.append(bcond[0])
+    for bconds in prepared_bconds:
+        bconds_pos = bconds[0]
+        bconds_op = bconds[1]
+        true_bconds = bconds[2]
+        bconds_type = bconds[3]
+        b_pos_list.append(bconds_pos)
 
-            if len(bcond[2]) == bcond[2].shape[-1]:
-                true_boundary_val = bcond[2].reshape(-1,1)
-            else: 
-                true_boundary_val = bcond[2]
-
-            true_b_val_list.append(true_boundary_val)
-        true_b_val = torch.cat(true_b_val_list)
-        b_op_val = model(grid)
-        b_val = b_op_val[flatten_list(b_pos_list)]
-    # or apply differential operator first to compute corresponding field and
-    else:
-        for bcond in bconds:
-            b_pos = bcond[0]
-            b_pos_list.append(bcond[0])
-            b_cond_operator = bcond[1]
-            
-            if len(bcond[2]) == bcond[2].shape[-1]:
-                true_boundary_val = bcond[2].reshape(-1,1)
-            else: 
-                true_boundary_val = bcond[2]
-            true_b_val_list.append(true_boundary_val)
-            if b_cond_operator == None or b_cond_operator == [[1, [None], 1]]:
-                b_op_val = model(grid)
-            else:
-                b_op_val = apply_operator_set(model, b_cond_operator)
-            # take boundary values
-            b_val_list.append(b_op_val[b_pos])
-        true_b_val = torch.cat(true_b_val_list)
-        b_val = torch.cat(b_val_list)
+        if len(true_bconds) == true_bconds.shape[-1]:
+            true_bconds = true_bconds.reshape(-1,1)
+        if bconds_type == 'boundary values':
+            b_op_val = bcond_op_val_calc()
+            b_val = b_op_val[bconds_pos]
+            residual.append(b_val - true_bconds)
+    residual = torch.cat(residual)
+    # simpleform = False
+    # for bcond in bconds:
+    #     if bcond[1] == None:
+    #         simpleform = True
+    #     if bcond[1] != None:
+    #         simpleform = False
+    #         break
+    # if simpleform:
+    #     for bcond in bconds:
+    #         b_pos_list.append(bcond[0])
+    #
+    #         if len(bcond[2]) == bcond[2].shape[-1]:
+    #             true_boundary_val = bcond[2].reshape(-1,1)
+    #         else:
+    #             true_boundary_val = bcond[2]
+    #
+    #         true_b_val_list.append(true_boundary_val)
+    #     true_b_val = torch.cat(true_b_val_list)
+    #     b_op_val = model(grid)
+    #     b_val = b_op_val[flatten_list(b_pos_list)]
+    # # or apply differential operator first to compute corresponding field and
+    # else:
+    #     for bcond in bconds:
+    #         b_pos = bcond[0]
+    #         b_pos_list.append(bcond[0])
+    #         b_cond_operator = bcond[1]
+    #
+    #         if len(bcond[2]) == bcond[2].shape[-1]:
+    #             true_boundary_val = bcond[2].reshape(-1,1)
+    #         else:
+    #             true_boundary_val = bcond[2]
+    #         true_b_val_list.append(true_boundary_val)
+    #         if b_cond_operator == None or b_cond_operator == [[1, [None], 1]]:
+    #             b_op_val = model(grid)
+    #         else:
+    #             b_op_val = apply_operator_set(model, b_cond_operator)
+    #         # take boundary values
+    #         b_val_list.append(b_op_val[b_pos])
+    #     true_b_val = torch.cat(true_b_val_list)
+    #     b_val = torch.cat(b_val_list)
 
     """
     actually, we can use L2 norm for the operator and L1 for boundary
@@ -219,8 +229,8 @@ def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10,nor
         b_normalized=norm['boundary_weighted']
         b_p=norm['boundary_p']
     
-    loss = lp_norm(grid[:len(op)],op,weighted=op_weigthed,normalized=op_normalized,p=op_p) + \
-    lambda_bound * lp_norm(grid[flatten_list(b_pos_list)],b_val - true_b_val,p=b_p,weighted=b_weigthed,normalized=b_normalized)
+    loss = lp_norm(grid[:len(op)], op, weighted=op_weigthed,normalized=op_normalized, p=op_p) + \
+    lambda_bound * lp_norm(grid[flatten_list(b_pos_list)], residual, p=b_p, weighted=b_weigthed, normalized=b_normalized)
     
     return loss
 
@@ -532,30 +542,20 @@ def matrix_loss(model, grid, operator, bconds, lambda_bound=10):
 
 def nn_autograd_simple(model, points, order,axis=0):
     points.requires_grad=True
-    gradient_full = []
-    f = model(points).sum(0)
-    for i in range(len(f)):
-        fi = f[i]
-        for j in range(order):
-            grads, = torch.autograd.grad(fi, points, create_graph=True)
-            fi = grads[:,axis].sum()
-        gradient_full.append(grads[:,axis].reshape(-1,1))
-    gradient_full = torch.hstack(gradient_full)
-    return gradient_full
+    f = model(points).sum()
+    for i in range(order):
+        grads, = torch.autograd.grad(f, points, create_graph=True)
+        f = grads[:,axis].sum()
+    return grads[:,axis]
 
 
 def nn_autograd_mixed(model, points,axis=[0]):
     points.requires_grad=True
-    gradient_full = []
-    f = model(points).sum(0)
-    for i in range(len(f)):
-        fi = f[i]
-        for ax in axis:
-            grads, = torch.autograd.grad(fi, points, create_graph=True)
-            fi = grads[:,ax].sum()
-        gradient_full.append(grads[:,axis[-1]].reshape(-1,1))
-    gradient_full = torch.hstack(gradient_full)
-    return gradient_full
+    f = model(points).sum()
+    for ax in axis:
+        grads, = torch.autograd.grad(f, points, create_graph=True)
+        f = grads[:,ax].sum()
+    return grads[:,axis[-1]]
 
 
 
@@ -567,7 +567,7 @@ def nn_autograd(*args,axis=0):
         grads=nn_autograd_simple(model, points, order,axis=axis)
     else:
         grads=nn_autograd_mixed(model, points,axis=axis)
-    return grads
+    return grads.reshape(-1,1)
 
 
 def take_derivative_autograd (model, grid, term):
@@ -594,20 +594,19 @@ def take_derivative_autograd (model, grid, term):
     product = term[1]
     # float that represents power of the differential term
     power = term[2]
-    # list that represent using variables
-    variables = term[3]
     # initially it is an ones field
-    der_term = (torch.zeros_like(model(grid))[0:, 0] + 1).reshape(-1, 1)
-    for j, derivative in enumerate(product):
-        if derivative == [None]:
-            der = model(grid)[:, variables[j]].reshape(-1, 1)
+    der_term = torch.zeros_like(model(grid)) + 1
+    
+    for j,derivative in enumerate(product):
+        if derivative==[None]:
+            der=model(grid)
         else:
-            der = nn_autograd(model, grid, axis=derivative)[0:, variables[j]].reshape(-1, 1)
-
+            der=nn_autograd(model,grid,axis=derivative)
         der_term = der_term * der ** power[j]
-
+    
     der_term = coeff * der_term
-
+    
+    
     return der_term
 
 
@@ -641,7 +640,6 @@ def apply_autograd_bcond_operator(model,grid,bconds):
     true_b_val_list = []
     b_val_list = []
     b_pos_list = []
-    num_of_eq = model(grid).shape[-1]
 
     # we apply no  boundary conditions operators if they are all None
 
@@ -655,7 +653,7 @@ def apply_autograd_bcond_operator(model,grid,bconds):
     if simpleform:
         for bcond in bconds:
             b_pos_list.append(bcond[0])
-            true_boundary_val = bcond[2].reshape(-1, num_of_eq)
+            true_boundary_val = bcond[2].reshape(-1, 1)
             true_b_val_list.append(true_boundary_val)
         # print(flatten_list(b_pos_list))
         # b_pos=torch.cat(b_pos_list)
@@ -687,14 +685,7 @@ def autograd_loss(model, grid, operator, bconds, lambda_bound=10):
         print('No bconds is not possible, returning infinite loss')
         return np.inf
 
-    num_of_eq = len(operator)
-    if num_of_eq ==1:
-        op = apply_autograd_operator(model,grid, operator[0])
-    else:
-        op_list = []
-        for i in range(num_of_eq):
-            op_list.append(apply_autograd_operator(model,grid, operator[i]))
-        op = torch.cat(op_list,1)
+    op = apply_autograd_operator(model,grid, operator)
 
     # we apply no  boundary conditions operators if they are all None
 
@@ -710,7 +701,7 @@ def autograd_loss(model, grid, operator, bconds, lambda_bound=10):
     # l1_norm =sum(p.abs().sum() for p in model.parameters())
     # loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)+ l1_lambda * l1_norm
     bcond_part=b_val - true_b_val
-    loss = torch.sum(torch.mean(op**2,0)) + lambda_bound * torch.sum(torch.mean(bcond_part**2, 0))
+    loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((bcond_part) ** 2)
 
     return loss
 
