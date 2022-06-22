@@ -135,59 +135,77 @@ def lp_norm(*arg,p=2,normalized=False,weighted=False):
     return norm
 
 
-def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10,norm=None):
+def point_sort_shift_loss(model, grid, operator_set, prepared_bconds, lambda_bound=10,norm=None):
 
     op = apply_operator_set(model, operator_set)
-    if bconds==None:
+    if prepared_bconds==None:
         loss = torch.mean((op) ** 2)
         return loss
-    
-    true_b_val_list = []
-    b_val_list = []
+
     b_pos_list = []
-
+    residual = []
     # we apply no  boundary conditions operators if they are all None
+    def bcond_op_val_calc():
+        if bconds_op == None or bconds_op == [[1, [None], 1]]:
+            b_op_val = model(grid)
+        else:
+            b_op_val = apply_operator_set(model, bconds_op)
+        return b_op_val
 
-    simpleform = False
-    for bcond in bconds:
-        if bcond[1] == None:
-            simpleform = True
-        if bcond[1] != None:
-            simpleform = False
-            break
-    if simpleform:
-        for bcond in bconds:
-            b_pos_list.append(bcond[0])
+    for bconds in prepared_bconds:
+        bconds_pos = bconds[0]
+        bconds_op = bconds[1]
+        true_bconds = bconds[2]
+        bconds_type = bconds[3]
+        b_pos_list.append(bconds_pos)
 
-            if len(bcond[2]) == bcond[2].shape[-1]:
-                true_boundary_val = bcond[2].reshape(-1,1)
-            else: 
-                true_boundary_val = bcond[2]
-
-            true_b_val_list.append(true_boundary_val)
-        true_b_val = torch.cat(true_b_val_list)
-        b_op_val = model(grid)
-        b_val = b_op_val[flatten_list(b_pos_list)]
-    # or apply differential operator first to compute corresponding field and
-    else:
-        for bcond in bconds:
-            b_pos = bcond[0]
-            b_pos_list.append(bcond[0])
-            b_cond_operator = bcond[1]
-            
-            if len(bcond[2]) == bcond[2].shape[-1]:
-                true_boundary_val = bcond[2].reshape(-1,1)
-            else: 
-                true_boundary_val = bcond[2]
-            true_b_val_list.append(true_boundary_val)
-            if b_cond_operator == None or b_cond_operator == [[1, [None], 1]]:
-                b_op_val = model(grid)
-            else:
-                b_op_val = apply_operator_set(model, b_cond_operator)
-            # take boundary values
-            b_val_list.append(b_op_val[b_pos])
-        true_b_val = torch.cat(true_b_val_list)
-        b_val = torch.cat(b_val_list)
+        if len(true_bconds) == true_bconds.shape[-1]:
+            true_bconds = true_bconds.reshape(-1,1)
+        if bconds_type == 'boundary values':
+            b_op_val = bcond_op_val_calc()
+            b_val = b_op_val[bconds_pos]
+            residual.append(b_val - true_bconds)
+    residual = torch.cat(residual)
+    # simpleform = False
+    # for bcond in bconds:
+    #     if bcond[1] == None:
+    #         simpleform = True
+    #     if bcond[1] != None:
+    #         simpleform = False
+    #         break
+    # if simpleform:
+    #     for bcond in bconds:
+    #         b_pos_list.append(bcond[0])
+    #
+    #         if len(bcond[2]) == bcond[2].shape[-1]:
+    #             true_boundary_val = bcond[2].reshape(-1,1)
+    #         else:
+    #             true_boundary_val = bcond[2]
+    #
+    #         true_b_val_list.append(true_boundary_val)
+    #     true_b_val = torch.cat(true_b_val_list)
+    #     b_op_val = model(grid)
+    #     b_val = b_op_val[flatten_list(b_pos_list)]
+    # # or apply differential operator first to compute corresponding field and
+    # else:
+    #     for bcond in bconds:
+    #         b_pos = bcond[0]
+    #         b_pos_list.append(bcond[0])
+    #         b_cond_operator = bcond[1]
+    #
+    #         if len(bcond[2]) == bcond[2].shape[-1]:
+    #             true_boundary_val = bcond[2].reshape(-1,1)
+    #         else:
+    #             true_boundary_val = bcond[2]
+    #         true_b_val_list.append(true_boundary_val)
+    #         if b_cond_operator == None or b_cond_operator == [[1, [None], 1]]:
+    #             b_op_val = model(grid)
+    #         else:
+    #             b_op_val = apply_operator_set(model, b_cond_operator)
+    #         # take boundary values
+    #         b_val_list.append(b_op_val[b_pos])
+    #     true_b_val = torch.cat(true_b_val_list)
+    #     b_val = torch.cat(b_val_list)
 
     """
     actually, we can use L2 norm for the operator and L1 for boundary
@@ -211,8 +229,8 @@ def point_sort_shift_loss(model, grid, operator_set, bconds, lambda_bound=10,nor
         b_normalized=norm['boundary_weighted']
         b_p=norm['boundary_p']
     
-    loss = lp_norm(grid[:len(op)],op,weighted=op_weigthed,normalized=op_normalized,p=op_p) + \
-    lambda_bound * lp_norm(grid[flatten_list(b_pos_list)],b_val - true_b_val,p=b_p,weighted=b_weigthed,normalized=b_normalized)
+    loss = lp_norm(grid[:len(op)], op, weighted=op_weigthed,normalized=op_normalized, p=op_p) + \
+    lambda_bound * lp_norm(grid[flatten_list(b_pos_list)], residual, p=b_p, weighted=b_weigthed, normalized=b_normalized)
     
     return loss
 
