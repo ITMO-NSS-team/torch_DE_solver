@@ -47,9 +47,10 @@ def cache_lookup(prepared_grid, operator, bconds, lambda_bound=0.001,cache_dir='
     best_checkpoint={}
     var = []
     n_vars = []
-    for op in operator:
-        for term in op:
-            var.append(term[4])
+    for eqn in operator:
+        for op in eqn:
+            for term in op:
+                var.append(term[4])
     for elt in var:
         nrm = np.sqrt((np.array([-1]) - elt) ** 2)
         for elem in nrm:
