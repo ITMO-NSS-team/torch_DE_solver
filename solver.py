@@ -51,6 +51,23 @@ def solution_print(prepared_grid,model,title=None):
             ax2.set_xlabel("x1")
             ax2.set_ylabel("x2")
         
+        elif nvars_model == 3:
+            fig2 = plt.figure()
+            ax2 = fig2.add_subplot(projection='3d')
+            fig3 = plt.figure()
+            ax3 = fig3.add_subplot(projection='3d')
+            ax1.plot_trisurf(prepared_grid[:, 0].reshape(-1), prepared_grid[:, 1].reshape(-1),
+                        model(prepared_grid)[:,0].detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
+            ax2.plot_trisurf(prepared_grid[:, 0].reshape(-1), prepared_grid[:, 1].reshape(-1),
+                        model(prepared_grid)[:,1].detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
+            ax3.plot_trisurf(prepared_grid[:, 0].reshape(-1), prepared_grid[:, 1].reshape(-1),
+                        model(prepared_grid)[:,2].detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
+            ax1.set_xlabel("x1")
+            ax1.set_ylabel("x2")
+            ax2.set_xlabel("x1")
+            ax2.set_ylabel("x2")
+            ax3.set_xlabel("x1")
+            ax3.set_ylabel("x2")
         
         #plt.show(block=False)
         plt.show()
@@ -62,7 +79,55 @@ def solution_print(prepared_grid,model,title=None):
         #plt.show(block=False)
         plt.show()
 
+def solution_print_autograd(prepared_grid,model,title=None):
+    if prepared_grid.shape[1] == 2:
+        nvars_model = model(prepared_grid).shape[1]
+        fig1 = plt.figure()
+        ax1 = fig1.add_subplot(projection='3d')
+        if title!=None:
+            ax1.set_title(title)
+            # ax2.set_title(title)
+        if nvars_model == 1:
+            ax1.plot_trisurf(prepared_grid[:, 0].detach().numpy().reshape(-1), prepared_grid[:, 1].detach().numpy().reshape(-1),
+                        model(prepared_grid).detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
+            ax1.set_xlabel("x1")
+            ax1.set_ylabel("x2")
 
+        elif nvars_model == 2:
+            fig2 = plt.figure()
+            ax2 = fig2.add_subplot(projection='3d')
+            ax1.plot_trisurf(prepared_grid[:, 0].detach().numpy().reshape(-1), prepared_grid[:, 1].detach().numpy().reshape(-1),
+                        model(prepared_grid)[:,0].detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
+            ax2.plot_trisurf(prepared_grid[:, 0].detach().numpy().reshape(-1), prepared_grid[:, 1].detach().numpy().reshape(-1),
+                        model(prepared_grid)[:,1].detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
+            ax2.set_xlabel("x1")
+            ax2.set_ylabel("x2")
+        
+        elif nvars_model == 3:
+            fig2 = plt.figure()
+            ax2 = fig2.add_subplot(projection='3d')
+            fig3 = plt.figure()
+            ax3 = fig3.add_subplot(projection='3d')
+            ax1.plot_trisurf(prepared_grid[:, 0].detach().numpy().reshape(-1), prepared_grid[:, 1].detach().numpy().reshape(-1),
+                        model(prepared_grid)[:,0].detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
+            ax2.plot_trisurf(prepared_grid[:, 0].detach().numpy().reshape(-1), prepared_grid[:, 1].detach().numpy().reshape(-1),
+                        model(prepared_grid)[:,1].detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
+            ax3.plot_trisurf(prepared_grid[:, 0].detach().numpy().reshape(-1), prepared_grid[:, 1].detach().numpy().reshape(-1),
+                        model(prepared_grid)[:,2].detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
+            ax1.set_xlabel("x1")
+            ax1.set_ylabel("x2")
+            ax2.set_xlabel("x1")
+            ax2.set_ylabel("x2")
+            ax3.set_xlabel("x1")
+            ax3.set_ylabel("x2")
+        
+        
+        plt.show()
+
+    if prepared_grid.shape[1] == 1:
+        fig = plt.figure()
+        plt.scatter(prepared_grid.detach().numpy().reshape(-1), model(prepared_grid).detach().numpy().reshape(-1))
+        plt.show()
 def solution_print_mat(grid,model,title=None):
     if grid.shape[0] == 1:
         fig = plt.figure()
@@ -186,7 +251,6 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
                     print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
                     solution_print(prepared_grid,model,title='Iteration = ' + str(t))
         
-
         if (t-t_imp_start==no_improvement_patience) and verbose:
             print('No improvement in '+str(no_improvement_patience)+' steps')
             t_imp_start=t
@@ -642,27 +706,27 @@ def nn_autograd_optimizer(grid, model, operator, bconds, lambda_bound=10,
                 if verbose:
                     print('Oscillation near the same loss')
                     print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
-                    solution_print(grid,model,title='Iteration = ' + str(t))
+                    solution_print_autograd(grid,model,title='Iteration = ' + str(t))
         
         if (t-t_imp_start==no_improvement_patience) and verbose:
             print('No improvement in '+str(no_improvement_patience)+' steps')
             t_imp_start=t
             stop_dings+=1
             print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
-            solution_print(grid,model,title='Iteration = ' + str(t))
+            solution_print_autograd(grid,model,title='Iteration = ' + str(t))
         
         if abs_loss!=None:
             if cur_loss<abs_loss and verbose:
                 print('Absolute value of loss is lower than threshold')
                 stop_dings+=1
                 print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
-                solution_print(grid,model,title='Iteration = ' + str(t))  
+                solution_print_autograd(grid,model,title='Iteration = ' + str(t))  
      
          
             
         if print_every!=None and (t % print_every == 0) and verbose:
             print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
-            solution_print(grid,model,title='Iteration = ' + str(t))
+            solution_print_autograd(grid,model,title='Iteration = ' + str(t))
 
         t += 1
         if t > tmax:
