@@ -19,7 +19,7 @@ import sys
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-
+from input_preprocessing import *
 from solver import *
 from cache import *
 import time
@@ -33,8 +33,8 @@ dimensionality
 
 device = torch.device('cpu')
 
-x_grid=np.linspace(0,1,21)
-t_grid=np.linspace(0,1,21)
+x_grid=np.linspace(0,1,11)
+t_grid=np.linspace(0,1,11)
 
 x = torch.from_numpy(x_grid)
 t = torch.from_numpy(t_grid)
@@ -129,14 +129,14 @@ None is for function without derivatives
 wave_eq = {
     'd2u/dt2**1':
         {
-            'coeff': -1/4,
+            'coeff': 1,
             'd2u/dt2': [1,1],
             'pow':1,
             'var':0
         },
         '-C*d2u/dx2**1':
         {
-            'coeff': 1,
+            'coeff': -1/4,
             'd2u/dx2': [0, 0],
             'pow': 1,
             'var':0
@@ -152,7 +152,16 @@ model = torch.nn.Sequential(
     torch.nn.Tanh(),
     torch.nn.Linear(100, 1)
 )
+# unified_bconds = bnd_unify(bconds)
+# prepared_grid,grid_dict,point_type = grid_prepare(grid)
+# prepared_bconds = bnd_prepare(bconds,prepared_grid,grid_dict,h=0.001)
+# full_prepared_operator = operator_prepare(wave_eq, grid_dict, subset=['central'], true_grid=grid, h=0.001)
 
+# plt.scatter(prepared_grid[:,0],prepared_grid[:,1])
+# plt.scatter(prepared_grid[prepared_bconds[3][0][0]][:,0],prepared_grid[prepared_bconds[3][0][0]][:,1])
+# plt.scatter(prepared_grid[prepared_bconds[0][0]][:,0],prepared_grid[prepared_bconds[0][0]][:,1])
+# plt.scatter(prepared_grid[prepared_bconds[3][0][1]][:,0],prepared_grid[prepared_bconds[3][0][1]][:,1])
+# plt.show()
 model = point_sort_shift_solver(grid, model, wave_eq, bconds, lambda_bound=1000, verbose=1, learning_rate=1e-4,
                                 eps=1e-5, tmin=1000, tmax=1e5, use_cache=False, cache_dir='../cache/',
                                 cache_verbose=True,

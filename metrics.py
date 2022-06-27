@@ -146,6 +146,7 @@ def point_sort_shift_loss(model, grid, operator_set, prepared_bconds, lambda_bou
     residual = []
     bnd_type = []
     b_pos = []
+    b_pos_list = []
     true_bconds = []
     bconds_op = []
 
@@ -166,12 +167,29 @@ def point_sort_shift_loss(model, grid, operator_set, prepared_bconds, lambda_bou
 
     for i, type in enumerate(bnd_type):
         if type == 'boundary values':
+            b_pos_list.append(b_pos[i])
             b_op_val = bcond_op_val_calc(bconds_op[i])
             b_val = b_op_val[b_pos[i]]
             result = b_val - true_bconds[i]
-        residual.append(result)
+            residual.append(result)
+
+        if type == 'periodic':
+            b_pos_list.append(flatten_list(b_pos[i]))
+            b_op_val = bcond_op_val_calc(bconds_op[i])
+            b_val = []
+            for j in range(0, len(b_pos[i])):
+                b_val_temp = b_op_val[b_pos[i][j]]
+                b_val.append(b_val_temp)
+            print(b_val)
+            result = b_val[0] - b_val[1]
+            residual.append(result)
+
+
 
     residual = torch.cat(residual)
+    # print(b_pos_list)
+    # b_pos_list = list(set(map(lambda i: tuple(i), b_pos_list)))
+    # print(flatten_list(b_pos_list))
     """
     actually, we can use L2 norm for the operator and L1 for boundary
     since L2>L1 and thus, boundary values become not so signifnicant, 
@@ -195,7 +213,7 @@ def point_sort_shift_loss(model, grid, operator_set, prepared_bconds, lambda_bou
         b_p=norm['boundary_p']
 
     loss = lp_norm(grid[:len(op)], op, weighted=op_weigthed,normalized=op_normalized, p=op_p) + \
-    lambda_bound * lp_norm(grid[flatten_list(b_pos)], residual, p=b_p, weighted=b_weigthed, normalized=b_normalized)
+    lambda_bound * lp_norm(grid[flatten_list(b_pos_list)], residual, p=b_p, weighted=b_weigthed, normalized=b_normalized)
     
     return loss
 
