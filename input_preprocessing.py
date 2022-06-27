@@ -359,14 +359,29 @@ def bndpos(grid, bnd):
     grid = grid.double()
     if type(bnd) == np.array:
         bnd = torch.from_numpy(bnd).double()
+    elif type(bnd) is list:
+        for i in range(len(bnd)):
+            bnd[i] = bnd[i].double()
     else:
         bnd = bnd.double()
-    for point in bnd:
-        try:
-            pos = int(torch.where(torch.all(torch.isclose(grid, point), dim=1))[0])
-        except Exception:
-            pos=closest_point(grid,point)
-        bndposlist.append(pos)
+
+    if type(bnd) is list:
+        sep = len(bnd)
+        for bcond in bnd:
+            for point in bcond:
+                try:
+                    pos = int(torch.where(torch.all(torch.isclose(grid, point), dim=1))[0])
+                except Exception:
+                    pos = closest_point(grid, point)
+                bndposlist.append(pos)
+        bndposlist = np.hsplit(np.array(bndposlist), sep)
+    else:
+        for point in bnd:
+            try:
+                pos = int(torch.where(torch.all(torch.isclose(grid, point), dim=1))[0])
+            except Exception:
+                pos=closest_point(grid,point)
+            bndposlist.append(pos)
     return bndposlist
 
 
