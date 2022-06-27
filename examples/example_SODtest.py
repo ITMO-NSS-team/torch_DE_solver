@@ -1,14 +1,24 @@
 import torch
 import numpy as np
 import os
-from solver import*
-from cache import *
 import time
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
+from mpl_toolkits.mplot3d import Axes3D
+from scipy.spatial import Delaunay
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 import sys
 
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+
+sys.path.pop()
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 sys.path.append('../')
+
+from solver import*
+from cache import *
 
 
 device = torch.device('cpu')
@@ -175,7 +185,7 @@ model = torch.nn.Sequential(
 start = time.time()
 
 model = point_sort_shift_solver(grid, model, gas_eq, bconds,
-                                lambda_bound=100, verbose=True, learning_rate=1e-3, h=h,
+                                lambda_bound=1000, verbose=True, learning_rate=1e-3, h=h,
                                 eps=1e-6, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=False,
                                 batch_size=None, save_always=True,no_improvement_patience=500,print_every=100,print_plot=True)
 
