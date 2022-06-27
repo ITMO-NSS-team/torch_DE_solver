@@ -7,7 +7,8 @@ Created on Mon May 31 12:33:44 2021
 import torch
 import numpy as np
 import os
-
+import time
+import pandas as pd
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 import sys
@@ -16,10 +17,9 @@ sys.path.append('../')
 
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
-import time
-import pandas as pd
-from solver import *
 
+from solver import *
+from input_preprocessing import operator_unify
 
 """
 Preparing grid
@@ -155,10 +155,10 @@ for grid_res in range(40, 110, 10):
 
             
         model = matrix_optimizer(grid, model, wave_eq, bconds, lambda_bound=100,
-                                         verbose=True, learning_rate=1e-4, eps=1e-7, tmin=1000, tmax=5e6,
+                                         verbose=True, learning_rate=1e-3, eps=1e-7, tmin=1000, tmax=5e6,
                                          use_cache=False,cache_dir='../cache/',cache_verbose=False,
                                          batch_size=None,save_always=False,lp_par=None,print_every=None,
-                                         patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
+                                         patience=5,loss_oscillation_window=100,no_improvement_patience=100,
                                          model_randomize_parameter=1e-5,optimizer='Adam',cache_model=model_arch)
 
     
