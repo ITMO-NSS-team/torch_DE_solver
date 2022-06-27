@@ -316,7 +316,6 @@ def operator_prepare(op, grid_dict, subset=['central'], true_grid=None, h=0.001)
             op0 = op_dict_to_list(op[i])
             op1 = operator_unify(op0)
             prepared_operator.append(apply_all_operators(op1, grid_dict, subset=subset, true_grid=true_grid, h=h))
-            return prepared_operator
     else:
         if type(op) == dict:
             op = op_dict_to_list(op)
