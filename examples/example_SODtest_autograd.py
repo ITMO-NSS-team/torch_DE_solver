@@ -1,15 +1,16 @@
 import torch
 import numpy as np
 import os
-from solver import *
-from cache import *
 import time
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 import sys
 
-sys.path.append('../')
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
+
+from solver import *
+from cache import *
 
 device = torch.device('cpu')
 
@@ -166,19 +167,14 @@ gas_eq = [gas_eq1, gas_eq2, gas_eq3]
 model = torch.nn.Sequential(
     torch.nn.Linear(2, 64),
     torch.nn.Tanh(),
-    # torch.nn.Dropout(0.1),
-    # torch.nn.ReLU(),
     torch.nn.Linear(64, 256),
-    # # torch.nn.Dropout(0.1),
     torch.nn.Tanh(),
     torch.nn.Linear(256, 256),
-    # torch.nn.Dropout(0.1),
     torch.nn.Tanh(),
     torch.nn.Linear(256, 3)
-    # torch.nn.Tanh()
 )
 start = time.time()
-model = nn_autograd_optimizer(grid, model, gas_eq, bconds, use_cache=False, verbose=True, print_every=100,
+model = nn_autograd_optimizer(grid, model, gas_eq, bconds, use_cache=False, verbose=True, print_every=500,
                               cache_verbose=False, abs_loss=0.0001)
 
 end = time.time()
