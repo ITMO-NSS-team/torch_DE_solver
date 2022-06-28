@@ -180,16 +180,12 @@ def point_sort_shift_loss(model, grid, operator_set, prepared_bconds, lambda_bou
             for j in range(0, len(b_pos[i])):
                 b_val_temp = b_op_val[b_pos[i][j]]
                 b_val.append(b_val_temp)
-            print(b_val)
             result = b_val[0] - b_val[1]
             residual.append(result)
 
 
 
     residual = torch.cat(residual)
-    # print(b_pos_list)
-    # b_pos_list = list(set(map(lambda i: tuple(i), b_pos_list)))
-    # print(flatten_list(b_pos_list))
     """
     actually, we can use L2 norm for the operator and L1 for boundary
     since L2>L1 and thus, boundary values become not so signifnicant, 
