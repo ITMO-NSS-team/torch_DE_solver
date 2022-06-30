@@ -191,7 +191,7 @@ model = point_sort_shift_solver(grid, model, gas_eq, bconds,
 
 end = time.time()
 
-print('Time taken {}= {}'.format(end - start))
+print('Time taken = {}'.format(end - start))
 
 def exact(point):
   N = 100

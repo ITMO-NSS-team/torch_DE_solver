@@ -178,7 +178,7 @@ model = nn_autograd_optimizer(grid, model, gas_eq, bconds, use_cache=False, verb
                               cache_verbose=False, abs_loss=0.0001)
 
 end = time.time()
-print('Time taken {}= {}'.format(end - start))
+print('Time taken = {}'.format(end - start))
 
 
 def exact(point):
