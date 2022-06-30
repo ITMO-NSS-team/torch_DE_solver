@@ -142,50 +142,39 @@ def point_sort_shift_loss(model, grid, operator_set, prepared_bconds, lambda_bou
         loss = torch.mean((op) ** 2)
         return loss
 
-    # we apply no  boundary conditions operators if they are all None
-    residual = []
-    bnd_type = []
-    b_pos = []
+    true_b_val_list = []
+    b_val_list = []
     b_pos_list = []
-    true_bconds = []
-    bconds_op = []
+    residual = []
+    # we apply no  boundary conditions operators if they are all None
 
     for bcond in prepared_bconds:
-        b_pos.append(bcond[0])
-        bconds_op.append(bcond[1])
+        b_pos = bcond[0]
+        b_cond_operator = bcond[1]
         if len(bcond[2]) == bcond[2].shape[-1]:
-            true_bconds.append(bcond[2].reshape(-1,1))
-
-        bnd_type.append(bcond[3])
-
-    def bcond_op_val_calc(bconds_op):
-        if bconds_op == None or bconds_op == [[1, [None], 1]]:
-            b_op_val = model(grid)
+            true_boundary_val = bcond[2].reshape(-1, 1)
         else:
-            b_op_val = apply_operator_set(model, bconds_op)
-        return b_op_val
+            true_boundary_val = bcond[2]
+        bnd_type = bcond[3]
+        if bnd_type == 'boundary values':
+            b_pos_list.append(bcond[0])
+            if b_cond_operator == None or b_cond_operator == [[1, [None], 1]]:
+                b_op_val = model(grid)
+            else:
+                b_op_val = apply_operator_set(model, b_cond_operator)
+            residual.append(b_op_val[b_pos] - true_boundary_val)
 
-    for i, type in enumerate(bnd_type):
-        if type == 'boundary values':
-            b_pos_list.append(b_pos[i])
-            b_op_val = bcond_op_val_calc(bconds_op[i])
-            b_val = b_op_val[b_pos[i]]
-            result = b_val - true_bconds[i]
-            residual.append(result)
-
-        if type == 'periodic':
-            b_pos_list.append(flatten_list(b_pos[i]))
-            b_op_val = bcond_op_val_calc(bconds_op[i])
-            b_val = []
-            for j in range(0, len(b_pos[i])):
-                b_val_temp = b_op_val[b_pos[i][j]]
-                b_val.append(b_val_temp)
-            result = b_val[0] - b_val[1]
-            residual.append(result)
-
-
-
+        if bnd_type == 'periodic':
+            b_pos_list.append(flatten_list(bcond[0]))
+            if b_cond_operator == None or b_cond_operator == [[1, [None], 1]]:
+                b_op_val = model(grid)
+            else:
+                b_op_val = apply_operator_set(model, b_cond_operator)
+            for i in range(0, len(b_pos)):
+                b_val_list.append(b_op_val[b_pos[i]])
+            residual.append(b_val_list[0] - b_val_list[1])
     residual = torch.cat(residual)
+
     """
     actually, we can use L2 norm for the operator and L1 for boundary
     since L2>L1 and thus, boundary values become not so signifnicant, 
