@@ -309,10 +309,19 @@ def operator_prepare(op, grid_dict, subset=['central'], true_grid=None, h=0.001)
         grid types
 
     """
-    if type(op)==dict:
-        op=op_dict_to_list(op)
-    op1 = operator_unify(op)
-    prepared_operator = apply_all_operators(op1, grid_dict, subset=subset, true_grid=true_grid, h=h)
+    if type(op) is list and type(op[0]) is dict:
+        num_of_eq = len(op)
+        prepared_operator = []
+        for i in range(num_of_eq):
+            op0 = op_dict_to_list(op[i])
+            op1 = operator_unify(op0)
+            prepared_operator.append(apply_all_operators(op1, grid_dict, subset=subset, true_grid=true_grid, h=h))
+    else:
+        if type(op) == dict:
+            op = op_dict_to_list(op)
+        op1 = operator_unify(op)
+        prepared_operator = [apply_all_operators(op1, grid_dict, subset=subset, true_grid=true_grid, h=h)]
+
     return prepared_operator
 
 
@@ -528,7 +537,8 @@ def expand_coeffs_autograd(op,grid):
             coeff = coeff1.reshape(-1,1)
         prod = term[1]
         power = term[2]
-        autograd_op.append([coeff, prod, power])
+        variables = term[3]
+        autograd_op.append([coeff, prod, power, variables])
     return autograd_op
 
 def operator_prepare_autograd(op,grid):
@@ -545,11 +555,19 @@ def operator_prepare_autograd(op,grid):
         final form of differential operator used in the algorithm 
 
     """
-    if type(op)==dict:
-        op=op_dict_to_list(op)
-    unified_operator = operator_unify(op)
-        
-    prepared_operator=expand_coeffs_autograd(unified_operator,grid)
+    if type(op) is list and type(op[0]) is dict:
+        num_of_eq = len(op)
+        prepared_operator = []
+        for i in range(num_of_eq):
+            op0 = op_dict_to_list(op[i])
+            unified_operator = operator_unify(op0)
+            prepared_operator.append(expand_coeffs_autograd(unified_operator,grid))
+    else:
+        if type(op) == dict:
+            op = op_dict_to_list(op)
+        unified_operator = operator_unify(op)
+
+        prepared_operator = [expand_coeffs_autograd(unified_operator, grid)]
     
     return prepared_operator
 
