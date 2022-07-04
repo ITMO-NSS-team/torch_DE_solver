@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import sys
 import os
 
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 sys.path.append('../')
 
 
