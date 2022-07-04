@@ -156,6 +156,7 @@ def point_sort_shift_loss(model, grid, operator_set, prepared_bconds, lambda_bou
         else:
             true_boundary_val = bcond[2]
         bnd_type = bcond[3]
+        
         if bnd_type == 'boundary values':
             b_pos_list.append(bcond[0])
             if b_cond_operator == None or b_cond_operator == [[1, [None], 1]]:
@@ -170,9 +171,7 @@ def point_sort_shift_loss(model, grid, operator_set, prepared_bconds, lambda_bou
                 b_op_val = model(grid)
             else:
                 b_op_val = apply_operator_set(model, b_cond_operator)
-            for i in range(0, len(b_pos)):
-                b_val_list.append(b_op_val[b_pos[i]])
-            residual.append(b_val_list[0] - b_val_list[1])
+            residual.append(b_op_val[b_pos[0]] - b_op_val[b_pos[1]])
     residual = torch.cat(residual)
 
     """
