@@ -107,6 +107,9 @@ prepared_grid,grid_dict,point_type = grid_prepare(grid)
 full_prepared_operator = operator_prepare(wave_eq, grid_dict, subset=['central'], true_grid=grid, h=0.001)
 prepared_bconds = bnd_prepare(bconds,grid,grid_dict,h=0.001)
 
+
+lambda_bound=10
+norm=None
 op = apply_operator_set(model, full_prepared_operator)
 if bconds == None:
     loss = torch.mean((op) ** 2)
@@ -156,9 +159,29 @@ for bcond in prepared_bconds:
         print('Точки справа',b_op_val[b_pos[1]])
         # считаем разницу на границах слева и справа и записываем в список остатков
         residual.append(b_op_val[b_pos[0]] - b_op_val[b_pos[1]])
-        # print('остатки периодич',b_op_val[b_pos[0]] - b_op_val[b_pos[1]])
+        print('остатки периодич',b_op_val[b_pos[0]] - b_op_val[b_pos[1]])
         # print('все остатки',residual)
         # считаем разницу на границах справа и слева и записываем в общий список остатков
-print('остатки',residual)
+# print('остатки',residual)
 residual = torch.cat(residual)
 # print(residual)
+
+if norm == None:
+    op_weigthed = False
+    op_normalized = False
+    op_p = 2
+    b_weigthed = False
+    b_normalized = False
+    b_p = 2
+else:
+    op_weigthed = norm['operator_weighted']
+    op_normalized = norm['operator_normalized']
+    op_p = norm['operator_p']
+    b_weigthed = norm['boundary_weighted']
+    b_normalized = norm['boundary_weighted']
+    b_p = norm['boundary_p']
+
+loss = lp_norm(grid[:len(op)], op, weighted=op_weigthed, normalized=op_normalized, p=op_p) + \
+       lambda_bound * lp_norm(grid[flatten_list(b_pos_list)], residual, p=b_p, weighted=b_weigthed,
+                              normalized=b_normalized)
+print(loss)
