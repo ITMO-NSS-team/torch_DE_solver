@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon May 31 12:33:44 2021
-
-@author: user
-"""
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -19,22 +13,15 @@ import sys
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from input_preprocessing import *
+
 from solver import *
 from cache import *
+from input_preprocessing import *
 import time
-
-"""
-Preparing grid
-
-Grid is an essentially torch.Tensor  of a n-D points where n is the problem
-dimensionality
-"""
-
 device = torch.device('cpu')
-
-x_grid=np.linspace(0,1,11)
-t_grid=np.linspace(0,1,11)
+# Grid
+x_grid = np.linspace(0,1,21)
+t_grid = np.linspace(0,1,21)
 
 x = torch.from_numpy(x_grid)
 t = torch.from_numpy(t_grid)
@@ -42,27 +29,16 @@ t = torch.from_numpy(t_grid)
 grid = torch.cartesian_prod(x, t).float()
 
 grid.to(device)
+# Boundary and initial conditions
 
-"""
-Preparing boundary conditions (BC)
+# u(x,0)=1e4*sin^2(x(x-1)/10)
 
-Unlike KdV example there is optional possibility to define only two items
-when boundary operator is not needed
-
-bnd=torch.Tensor of a boundary n-D points where n is the problem
-dimensionality
-
-bval=torch.Tensor prescribed values at every point in the boundary
-
-"""
-
-# u(x,0) = 1e4 * sin^2(x (x - 1) / 10)
-func_bnd1 = lambda x: 10 ** 4 * np.sin((1/10) * x * (x - 1))
+func_bnd1 = lambda x: 10 ** 4 * np.sin((1/10) * x * (x-1)) ** 2
 bnd1 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
 bndval1 = func_bnd1(bnd1[:,0])
 
-# du/dx (x,0) = 1e3 * sin^2(x (x - 1) / 10)
-func_bnd2 = lambda x: 10 ** 3 * np.sin((1/10) * x * (x - 1))
+# du/dx (x,0) = 1e3*sin^2(x(x-1)/10)
+func_bnd2 = lambda x: 10 ** 3 * np.sin((1/10) * x * (x-1)) ** 2
 bnd2 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
 bop2 = {
         'du/dx':
@@ -97,61 +73,36 @@ bop4= {
 bcond_type = 'periodic'
 
 bconds = [[bnd1,bndval1],[bnd2,bop2,bndval2],[bnd3,bcond_type],[bnd4,bop4,bcond_type]]
-"""
-Defining wave equation
 
-Operator has the form
-
-op=dict in form {'term1':term1,'term2':term2}-> term1+term2+...=0
-
-NB! dictionary keys at the current time serve only for user-frienly 
-description/comments and are not used in model directly thus order of
-items must be preserved as (coeff,op,pow)
-
-
-
-term is a dict term={coefficient:c1,[sterm1,sterm2],'pow': power}
-
-c1 may be integer, function of grid or tensor of dimension of grid
-
-Meaning c1*u*d2u/dx2 has the form
-
-{'coefficient':c1,
- 'u*d2u/dx2': [[None],[0,0]],
- 'pow':[1,1]}
-
-None is for function without derivatives
-
-
-"""
-# operator is 4*d2u/dx2-1*d2u/dt2=0
-
+# wave equation is d2u/dt2-(1/4)*d2u/dx2=0
+C = 4
 wave_eq = {
-    'd2u/dt2**1':
+    'd2u/dt2':
         {
             'coeff': 1,
-            'd2u/dt2': [1,1],
-            'pow':1,
-            'var':0
+            'd2u/dt2': [1, 1],
+            'pow': 1,
+            'var': 0
         },
-        '-C*d2u/dx2**1':
+        '-1/C*d2u/dx2':
         {
-            'coeff': -1/4,
+            'coeff': -1/C,
             'd2u/dx2': [0, 0],
             'pow': 1,
-            'var':0
+            'var': 0
         }
 }
 
+# NN
 model = torch.nn.Sequential(
-    torch.nn.Linear(2, 100),
-    torch.nn.Tanh(),
-    torch.nn.Linear(100, 100),
-    torch.nn.Tanh(),
-    torch.nn.Linear(100, 100),
-    torch.nn.Tanh(),
-    torch.nn.Linear(100, 1)
-)
+        torch.nn.Linear(2, 100),
+        torch.nn.Tanh(),
+        torch.nn.Linear(100, 100),
+        torch.nn.Tanh(),
+        torch.nn.Linear(100, 100),
+        torch.nn.Tanh(),
+        torch.nn.Linear(100, 1))
+
 # unified_bconds = bnd_unify(bconds)
 # prepared_grid,grid_dict,point_type = grid_prepare(grid)
 # prepared_bconds = bnd_prepare(bconds,prepared_grid,grid_dict,h=0.001)
@@ -162,7 +113,15 @@ model = torch.nn.Sequential(
 # plt.scatter(prepared_grid[prepared_bconds[0][0]][:,0],prepared_grid[prepared_bconds[0][0]][:,1])
 # plt.scatter(prepared_grid[prepared_bconds[3][0][1]][:,0],prepared_grid[prepared_bconds[3][0][1]][:,1])
 # plt.show()
-model = point_sort_shift_solver(grid, model, wave_eq, bconds, lambda_bound=1000, verbose=1, learning_rate=1e-4,
-                                eps=1e-5, tmin=1000, tmax=1e5, use_cache=False, cache_dir='../cache/',
-                                cache_verbose=True,
-                                batch_size=None, save_always=True, print_every=500)
+start = time.time()
+
+model = point_sort_shift_solver(grid, model, wave_eq , bconds,
+                                              lambda_bound=1000, verbose=1, learning_rate=1e-4,
+                                    eps=1e-6, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
+                                    batch_size=None, save_always=True,no_improvement_patience=500,print_every = 500)
+
+end = time.time()
+print('Time taken 10= ', end - start)
+
+
+
