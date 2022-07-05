@@ -41,10 +41,10 @@ bndval1 = func_bnd1(bnd1[:,0])
 func_bnd2 = lambda x: 10 ** 3 * np.sin((1/10) * x * (x-1)) ** 2
 bnd2 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
 bop2 = {
-        'du/dx':
+        'du/dt':
             {
                 'coeff': 1,
-                'du/dx': [0],
+                'du/dt': [1],
                 'pow': 1,
                 'var': 0
             }
@@ -62,10 +62,10 @@ bnd4_right = torch.cartesian_prod(torch.from_numpy(np.array([1], dtype=np.float6
 bnd4 = [bnd4_left,bnd4_right]
 
 bop4= {
-        'du/dt':
+        'du/dx':
             {
                 'coeff': 1,
-                'du/dt': [1],
+                'du/dx': [0],
                 'pow': 1,
                 'var': 0
             }
@@ -117,8 +117,8 @@ start = time.time()
 
 model = point_sort_shift_solver(grid, model, wave_eq , bconds,
                                               lambda_bound=1000, verbose=1, learning_rate=1e-4,
-                                    eps=1e-6, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
-                                    batch_size=None, save_always=True,no_improvement_patience=500,print_every = 500)
+                                    eps=1e-6, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True,
+                                    batch_size=None, save_always=True,no_improvement_patience=500,print_every = 500,h=0.01)
 
 end = time.time()
 print('Time taken 10= ', end - start)
