@@ -137,13 +137,19 @@ def lp_norm(*arg,p=2,normalized=False,weighted=False):
 
 def point_sort_shift_loss(model, grid, operator_set, prepared_bconds, lambda_bound=10,norm=None):
 
-    op = apply_operator_set(model, operator_set)
-    if prepared_bconds==None:
-        loss = torch.mean((op) ** 2)
-        return loss
+    num_of_eq = len(operator_set)
+    if num_of_eq == 1:
+        op = apply_operator_set(model, operator_set[0])
+        if bconds == None:
+            return torch.mean((op) ** 2)
+    else:
+        op_list = []
+        for i in range(num_of_eq):
+            op_list.append(apply_operator_set(model, operator_set[i]))
+        op = torch.cat(op_list, 1)
+        if bconds == None:
+            return torch.sum(torch.mean((op) ** 2, 0))
 
-    true_b_val_list = []
-    b_val_list = []
     b_pos_list = []
     residual = []
     # we apply no  boundary conditions operators if they are all None
