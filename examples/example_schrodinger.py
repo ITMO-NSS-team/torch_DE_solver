@@ -5,6 +5,8 @@ import scipy
 
 import os
 import sys
+import warnings
+warnings.filterwarnings("ignore")
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
@@ -12,6 +14,8 @@ sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 from solver import *
 from cache import *
+from metrics import *
+from input_preprocessing import *
 
 device = torch.device('cpu')
 
@@ -52,15 +56,17 @@ bconds = [[bnd1,...,...], etc...]
 fun = lambda x: 2/np.cosh(x)
 
 # u(x,0) = 2sech(x), v(x,0) = 0
-bnd1 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
+bnd1_real = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
+bnd1_imag = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
+bnd1 = [bnd1_real, bnd1_imag]
 
 # u(x,0) = 2sech(x)
-bndval1_real = fun(bnd1)
+bndval1_real = fun(bnd1_real[:,0])
 
 #  v(x,0) = 0
-bndval1_imag = torch.from_numpy(np.zeros_like(bnd1))
+bndval1_imag = torch.from_numpy(np.zeros_like(bnd1_imag[:,0]))
 
-bndval1 = torch.stack((bndval1_real,bndval1_imag),dim=1)
+bndval1 = [bndval1_real,bndval1_imag]
 
 # u(-5,t) = u(5,t)
 bnd2_real_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.float64)), t).float()
@@ -72,10 +78,12 @@ bnd2_imag_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.f
 bnd2_imag_right = torch.cartesian_prod(torch.from_numpy(np.array([5], dtype=np.float64)), t).float()
 bnd2_imag = [bnd2_imag_left,bnd2_imag_right]
 
-bnd2 = torch.stack((bnd2_real, bnd2_imag), dim = 1)
+bnd2 = [bnd2_real, bnd2_imag]
 # du/dx (-5,t) = du/dx (5,t)
 bnd3_real_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.float64)), t).float()
 bnd3_real_right = torch.cartesian_prod(torch.from_numpy(np.array([5], dtype=np.float64)), t).float()
+bnd3_real = [bnd3_real_left, bnd3_real_right]
+
 bop3_real = {
             'du/dx':
                 {
@@ -88,6 +96,10 @@ bop3_real = {
 # dv/dx (-5,t) = dv/dx (5,t)
 bnd3_imag_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.float64)), t).float()
 bnd3_imag_right = torch.cartesian_prod(torch.from_numpy(np.array([5], dtype=np.float64)), t).float()
+bnd3_imag = [bnd3_imag_left,bnd3_imag_right]
+
+bnd3 = [bnd3_real, bnd3_imag]
+
 bop3_imag = {
             'dv/dx':
                 {
@@ -98,9 +110,9 @@ bop3_imag = {
                 }
 }
 bop3 = [bop3_real,bop3_imag]
+
 bcond_type = 'periodic'
 bconds = [[bnd1,bndval1],[bnd2,bcond_type],[bnd3,bop3,bcond_type]]
-
 
 '''
 schrodinger equation:

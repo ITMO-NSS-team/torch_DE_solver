@@ -120,7 +120,7 @@ def lp_norm(*arg,p=2,normalized=False,weighted=False):
             grid_prod*=grid[:,i]
     if p>1: 
         if not weighted and not normalized:
-             norm=torch.mean((mat) ** p)
+             norm=torch.sum(torch.mean((mat) ** p,0))
         elif not weighted and normalized:
             norm=torch.pow(torch.mean((mat) ** p),1/p)
         elif weighted and not normalized:
@@ -140,14 +140,14 @@ def point_sort_shift_loss(model, grid, operator_set, prepared_bconds, lambda_bou
     num_of_eq = len(operator_set)
     if num_of_eq == 1:
         op = apply_operator_set(model, operator_set[0])
-        if bconds == None:
+        if prepared_bconds == None:
             return torch.mean((op) ** 2)
     else:
         op_list = []
         for i in range(num_of_eq):
             op_list.append(apply_operator_set(model, operator_set[i]))
         op = torch.cat(op_list, 1)
-        if bconds == None:
+        if prepared_bconds == None:
             return torch.sum(torch.mean((op) ** 2, 0))
 
     b_pos_list = []
@@ -157,10 +157,13 @@ def point_sort_shift_loss(model, grid, operator_set, prepared_bconds, lambda_bou
     for bcond in prepared_bconds:
         b_pos = bcond[0]
         b_cond_operator = bcond[1]
-        if len(bcond[2]) == bcond[2].shape[-1]:
+        if type(bcond[2]) is list:
+            true_boundary_val = list(map(lambda x: x.reshape(-1, 1), bcond[2]))
+        elif len(bcond[2]) == bcond[2].shape[-1]:
             true_boundary_val = bcond[2].reshape(-1, 1)
         else:
             true_boundary_val = bcond[2]
+
         bnd_type = bcond[3]
         
         if bnd_type == 'boundary values':
