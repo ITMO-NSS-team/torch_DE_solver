@@ -92,7 +92,7 @@ bndval4 = func(bnd4)
 
 # Putting all bconds together
 bconds = [[bnd1, bndval1], [bnd2, bndval2], [bnd3, bndval3], [bnd4, bndval4]]
-
+# bconds = [[bnd1, 'periodic'], [bnd2, 'periodic'], [bnd3, bndval3], [bnd4, bndval4]]
 """
 Defining wave equation
 
@@ -155,8 +155,8 @@ for _ in range(1):
     start = time.time()
     
     model = point_sort_shift_solver(grid, model, wave_eq , bconds, lambda_bound=1000, verbose=1, learning_rate=1e-4,
-                                    eps=1e-5, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True,
-                                    batch_size=32, save_always=True,print_every = 500)
+                                    eps=1e-5, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
+                                    batch_size=None, save_always=True,print_every = 500)
 
 
     end = time.time()

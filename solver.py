@@ -161,7 +161,7 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
                             use_cache=True,cache_dir='../cache/',cache_verbose=False,
                             batch_size=None,save_always=False,lp_par=None,print_every=100,
                             patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
-                            model_randomize_parameter=0,optimizer='Adam',print_plot = True):
+                            model_randomize_parameter=0,optimizer='Adam'):
     # prepare input data to uniform format 
     if model==None:
             model = torch.nn.Sequential(

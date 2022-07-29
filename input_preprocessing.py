@@ -362,20 +362,37 @@ def bndpos(grid, bnd):
         positions of boundaty points in grid
 
     """
-    if grid.shape[0]==1:
+    if grid.shape[0] == 1:
         grid=grid.reshape(-1,1)
-    bndposlist = []
     grid = grid.double()
-    if type(bnd) == np.array:
-        bnd = torch.from_numpy(bnd).double()
-    else:
-        bnd = bnd.double()
-    for point in bnd:
-        try:
-            pos = int(torch.where(torch.all(torch.isclose(grid, point), dim=1))[0])
-        except Exception:
-            pos=closest_point(grid,point)
-        bndposlist.append(pos)
+
+    def convert_to_double(bnd):
+        if type(bnd) == list:
+            for i, cur_bnd in enumerate(bnd):
+                bnd[i] = convert_to_double(cur_bnd)
+            return bnd
+        elif type(bnd) == np.array:
+            return torch.from_numpy(bnd).double()
+        return bnd.double()
+
+    bnd = convert_to_double(bnd)
+
+    def search_pos(bnd):
+        if type(bnd) == list:
+            for i, cur_bnd in enumerate(bnd):
+                bnd[i] = search_pos(cur_bnd)
+            return bnd
+        pos_list = []
+        for point in bnd:
+            try:
+                pos = int(torch.where(torch.all(torch.isclose(grid, point), dim=1))[0])
+            except Exception:
+                pos = closest_point(grid, point)
+            pos_list.append(pos)
+        return pos_list
+
+    bndposlist = search_pos(bnd)
+
     return bndposlist
 
 
@@ -396,20 +413,27 @@ def bnd_unify(bconds):
         boundary in input-friendly form
 
     """
-    if bconds==None:
+    if bconds == None:
         return None
     unified_bconds = []
     for bcond in bconds:
         if len(bcond) == 2:
-            unified_bconds.append([bcond[0], None, bcond[1]])
+            if type(bcond[1]) is str:
+                unified_bconds.append([bcond[0], None, torch.from_numpy(np.zeros(1)), bcond[1]])
+            else:
+                unified_bconds.append([bcond[0], None, bcond[1], 'boundary values'])
         elif len(bcond) == 3:
+            if type(bcond[2]) is str:
+                unified_bconds.append([bcond[0], bcond[1], torch.from_numpy(np.zeros(1)), bcond[2]])
+            else:
+                unified_bconds.append([bcond[0], bcond[1], bcond[2], 'boundary values'])
+        elif len(bcond) == 4:
             unified_bconds.append(bcond)
     return unified_bconds
 
 
-def bnd_prepare(bconds,grid,grid_dict, h=0.001):
+def bnd_prepare(bconds, grid, grid_dict, h=0.001):
     """
-    
 
     Parameters
     ----------
@@ -436,16 +460,28 @@ def bnd_prepare(bconds,grid,grid_dict, h=0.001):
         bop = bcond[1]
         bval = bcond[2]
         bpos = bndpos(grid, b_coord)
-        if bop == [[1, [None], 1]]:
-            bop = None
-        if bop != None:
-            if type(bop)==dict:
-                bop=op_dict_to_list(bop)
-            bop1 = operator_unify(bop)
-            bop2 = apply_all_operators(bop1, grid_dict, h=h)
-        else:
-            bop2 = None
-        prepared_bnd.append([bpos, bop2, bval])
+        bconds_type = bcond[3]
+
+        def apply_op_bnd(bop):
+            bop1 = []
+            if bop == [[1, [None], 1]] or bop == None:
+                return None
+            elif type(bop) is list:
+                bop_temp = []
+                for bcond_op in bop:
+                    if type(bcond_op) is dict:
+                        bop1 = op_dict_to_list(bcond_op)
+                    unified_bop = operator_unify(bop1)
+                    bop_temp.append(apply_all_operators(unified_bop, grid_dict, h=h))
+                return bop_temp
+            if type(bop) is dict:
+                bop1 = op_dict_to_list(bop)
+            unified_bop = operator_unify(bop1)
+            bop2 = apply_all_operators(unified_bop, grid_dict, h=h)
+            return bop2
+
+        decoded_bop = apply_op_bnd(bop)
+        prepared_bnd.append([bpos, decoded_bop, bval, bconds_type])
 
     return prepared_bnd
 
