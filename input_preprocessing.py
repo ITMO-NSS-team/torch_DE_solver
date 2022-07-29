@@ -413,7 +413,7 @@ def bnd_unify(bconds):
         boundary in input-friendly form
 
     """
-    if bconds==None:
+    if bconds == None:
         return None
     unified_bconds = []
     for bcond in bconds:
@@ -421,7 +421,7 @@ def bnd_unify(bconds):
             if type(bcond[1]) is str:
                 unified_bconds.append([bcond[0], None, torch.from_numpy(np.zeros(1)), bcond[1]])
             else:
-                unified_bconds.append([bcond[0], None, bcond[1],'boundary values'])
+                unified_bconds.append([bcond[0], None, bcond[1], 'boundary values'])
         elif len(bcond) == 3:
             if type(bcond[2]) is str:
                 unified_bconds.append([bcond[0], bcond[1], torch.from_numpy(np.zeros(1)), bcond[2]])
@@ -434,7 +434,6 @@ def bnd_unify(bconds):
 
 def bnd_prepare(bconds, grid, grid_dict, h=0.001):
     """
-    
 
     Parameters
     ----------
@@ -464,6 +463,7 @@ def bnd_prepare(bconds, grid, grid_dict, h=0.001):
         bconds_type = bcond[3]
 
         def apply_op_bnd(bop):
+            bop1 = []
             if bop == [[1, [None], 1]] or bop == None:
                 return None
             elif type(bop) is list:
@@ -481,7 +481,6 @@ def bnd_prepare(bconds, grid, grid_dict, h=0.001):
             return bop2
 
         decoded_bop = apply_op_bnd(bop)
-
         prepared_bnd.append([bpos, decoded_bop, bval, bconds_type])
 
     return prepared_bnd
