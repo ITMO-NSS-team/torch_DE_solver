@@ -13,8 +13,6 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 from solver import *
-from cache import *
-from metrics import *
 from input_preprocessing import *
 
 device = torch.device('cpu')
@@ -112,7 +110,8 @@ bop3_imag = {
 bop3 = [bop3_real,bop3_imag]
 
 bcond_type = 'periodic'
-bconds = [[bnd1,bndval1],[bnd2,bcond_type],[bnd3,bop3,bcond_type]]
+
+bconds = [[bnd1, bndval1], [bnd2, bcond_type], [bnd3, bop3, bcond_type]]
 
 '''
 schrodinger equation:
@@ -133,14 +132,14 @@ schrodinger_eq_real = {
     'du/dt':
         {
             'const': 1,
-            'term': [0],
+            'term': [1],
             'power': 1,
             'var': 0
         },
     '1/2*d2v/dx2':
         {
             'const': 1 / 2,
-            'term': [1, 1],
+            'term': [0, 0],
             'power': 1,
             'var': 1
         },
@@ -164,14 +163,14 @@ schrodinger_eq_imag = {
     'dv/dt':
         {
             'const': 1,
-            'term': [0],
+            'term': [1],
             'power': 1,
             'var': 1
         },
-    '-1/2*d2v/dx2':
+    '-1/2*d2u/dx2':
         {
             'const': - 1 / 2,
-            'term': [1, 1],
+            'term': [0, 0],
             'power': 1,
             'var': 0
         },
@@ -208,4 +207,3 @@ model = point_sort_shift_solver(grid, model, schrodinger_eq , bconds,
                                               lambda_bound=1000, verbose=1, learning_rate=1e-4,
                                     eps=1e-6, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
                                     batch_size=None, save_always=True,no_improvement_patience=500,print_every = 500)
-

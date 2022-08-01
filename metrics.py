@@ -164,25 +164,15 @@ def point_sort_shift_loss(model, grid, operator_set, prepared_bconds, lambda_bou
         return b_op_val
 
     for bcond in prepared_bconds:
-        '''
-        Let's wrap all bcond term in list to eliminate redundancy of calculation of systems of equations.
-        In other words, get rid of check for the system of equations.
-        '''
-        for i in range(0, len(bcond) - 1):
-            if num_of_eq == 1:
-                bcond[i] = [bcond[i]]
-            if bcond[i] == None or bcond[i] == [[1, [None], 1]]:
-                bcond[i] = [None for j in range(0, num_of_eq)]
-            if type(bcond[i]) is not list:
-                bcond[i] = [bcond[i]]
 
+        '''
+        We wrapped all bcond term in a list to eliminate redundancy of calculation of systems of equations.
+        In other words, get rid of check for the system of equations and represent even one equation as a system. 
+        '''
         b_pos = bcond[0]
         b_cond_operator = bcond[1]
-        # print('before',bcond[2])
         true_boundary_val = list(map(lambda x: x.reshape(-1, 1), bcond[2]))
-        # print('after', true_boundary_val)
         bnd_type = bcond[3]
-
 
         if bnd_type == 'boundary values':
             residual_temp = []
@@ -229,12 +219,11 @@ def point_sort_shift_loss(model, grid, operator_set, prepared_bconds, lambda_bou
                lambda_bound * lp_norm(grid[bnd_pos_list], res, p=b_p, weighted=b_weigthed,
                                       normalized=b_normalized)
 
-    if num_of_eq > 1:
-        loss = 0
-        for i in range(num_of_eq):
-            loss = loss + loss_calc(residual[:, i], b_pos_list[i])
-    else:
-        loss = loss_calc(residual, b_pos_list)
+
+    loss = 0
+    for i in range(num_of_eq):
+        loss = loss + loss_calc(residual[:, i], b_pos_list[i])
+
 
     return loss
 

@@ -432,7 +432,7 @@ def bnd_unify(bconds):
     return unified_bconds
 
 
-def bnd_prepare(bconds, grid, grid_dict, h=0.001):
+def bnd_prepare(bconds, grid, grid_dict,num_of_eq, h=0.001):
     """
 
     Parameters
@@ -441,6 +441,8 @@ def bnd_prepare(bconds, grid, grid_dict, h=0.001):
         boundary in conventional form (see examples)
     grid : torch.Tensor
         grid with sotred nodes (see grid_prepare)
+    num_of_eq : int
+        shows the number of equations for preparing boundary conditions
     h : float
         derivative precision parameter. The default is 0.001.
 
@@ -465,7 +467,7 @@ def bnd_prepare(bconds, grid, grid_dict, h=0.001):
         def apply_op_bnd(bop):
             bop1 = []
             if bop == [[1, [None], 1]] or bop == None:
-                return None
+                return [None for j in range(0, num_of_eq)]
             elif type(bop) is list:
                 bop_temp = []
                 for bcond_op in bop:
@@ -478,9 +480,13 @@ def bnd_prepare(bconds, grid, grid_dict, h=0.001):
                 bop1 = op_dict_to_list(bop)
             unified_bop = operator_unify(bop1)
             bop2 = apply_all_operators(unified_bop, grid_dict, h=h)
-            return bop2
+            return [bop2]
 
         decoded_bop = apply_op_bnd(bop)
+
+        if num_of_eq == 1:
+            bpos = [bpos]
+            bval = [bval]
         prepared_bnd.append([bpos, decoded_bop, bval, bconds_type])
 
     return prepared_bnd

@@ -173,8 +173,9 @@ def point_sort_shift_solver(grid, model, operator, bconds, grid_point_subset=['c
                 torch.nn.Tanh(),
                 torch.nn.Linear(100, 1)
             )
+    num_of_eq = model[-1].out_features
     prepared_grid,grid_dict,point_type = grid_prepare(grid)
-    prepared_bconds = bnd_prepare(bconds, prepared_grid,grid_dict, h=h)
+    prepared_bconds = bnd_prepare(bconds, prepared_grid, grid_dict,num_of_eq, h=h)
     full_prepared_operator = operator_prepare(operator, grid_dict, subset=grid_point_subset, true_grid=grid, h=h)
     
     r=create_random_fn(model_randomize_parameter)   
