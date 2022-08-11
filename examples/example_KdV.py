@@ -16,6 +16,7 @@ import os
 import sys
 
 
+
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 sys.path.pop()
@@ -23,7 +24,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 sys.path.append('../')
 
 
-from solver import *
+from solver import Solver
+from metrics import Solution
+from input_preprocessing import Equation
 import time
 
 
@@ -195,14 +198,13 @@ for grid_res in [10,20,30]:
     bnd4 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
     
     # No operator applied,i.e. u(x,0)=0
-    bop4 = None
     
     # equal to zero
     bndval4 = torch.zeros(len(bnd4))
     
     
     # Putting all bconds together
-    bconds = [[bnd1, bop1, bndval1], [bnd2, bop2, bndval2], [bnd3, bop3, bndval3], [bnd4, bop4, bndval4]]
+    bconds = [[bnd1, bop1, bndval1], [bnd2, bop2, bndval2], [bnd3, bop3, bndval3], [bnd4, bndval4]]
     
     """
     Defining kdv equation
@@ -288,24 +290,21 @@ for grid_res in [10,20,30]:
         )
     
         start = time.time()
-        model = point_sort_shift_solver(grid, model, kdv, bconds, lambda_bound=100,verbose=1, learning_rate=1e-4,h=0.01,
-                                        eps=1e-5, tmin=1000, tmax=1e5,use_cache=True,cache_verbose=True,
-                                    batch_size=None, save_always=True,print_every=None,model_randomize_parameter=1e-6,optimizer='Adam',no_improvement_patience=None)
-        # model = point_sort_shift_solver(grid, model, kdv, bconds, lambda_bound=1000,verbose=True, learning_rate=1e-4,
-        #                                 eps=1e-6, tmin=1000, tmax=1e5, h=0.01,use_cache=True,cache_verbose=True,
-        #                             batch_size=64, save_always=True)
+        
+        equation = Equation(grid, kdv, bconds, h=0.01).set_strategy('NN')
+
+        model = Solver(grid, equation, model, 'NN').solve(lambda_bound=100,verbose=1, learning_rate=1e-4,h=0.01,
+                                                    eps=1e-5, tmin=1000, tmax=1e5,use_cache=True,cache_verbose=True,
+                                                    save_always=True,print_every=None,model_randomize_parameter=1e-6,
+                                                    optimizer_mode='Adam',no_improvement_patience=None)
+
         
         end = time.time()
     
         error_rmse=torch.sqrt(torch.mean((sln_torch1-model(grid))**2))
-        
-
-        prepared_grid,grid_dict,point_type = grid_prepare(grid)
-        prepared_bconds = bnd_prepare(bconds, prepared_grid,grid_dict, h=0.001)
-        prepared_operator = operator_prepare(kdv, grid_dict, true_grid=grid, h=0.001)
     
         
-        end_loss = point_sort_shift_loss(model, prepared_grid, prepared_operator, prepared_bconds, lambda_bound=100)
+        end_loss = Solution(grid, equation, model, 'NN').loss_evaluation(lambda_bound=100)
     
         exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'kdv_eqn','cache':True})
         

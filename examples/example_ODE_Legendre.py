@@ -16,8 +16,10 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
-from solver import *
-from cache import *
+
+from input_preprocessing import Equation
+from solver import Solver
+
 from scipy.special import legendre
 import time
 device = torch.device('cpu')
@@ -33,7 +35,8 @@ t = np.linspace(0, 1, 100)
 
 coord_list = [t]
 
-grid=grid_format_prepare(coord_list,mode='NN')
+coord_list=torch.tensor(coord_list)
+grid=coord_list.reshape(-1,1).float()
 
 
 exp_dict_list=[]
@@ -72,7 +75,6 @@ for n in range(3,11):
     # point t=0
     bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64))
     
-    bop1 = None
     
     #  So u(0)=-1/2
     bndval1 = legendre(n)(bnd1)
@@ -95,7 +97,7 @@ for n in range(3,11):
     bndval2 = torch.from_numpy(legendre(n).deriv(1)(bnd2))
     
     # Putting all bconds together
-    bconds = [[bnd1, bop1, bndval1], [bnd2, bop2, bndval2]]
+    bconds = [[bnd1, bndval1], [bnd2, bop2, bndval2]]
     
     """
     Defining Legendre polynomials generating equations
@@ -202,9 +204,13 @@ for n in range(3,11):
         )
     
         start = time.time()
-        model = point_sort_shift_solver(grid, model, legendre_poly, bconds, lambda_bound=10, verbose=True, learning_rate=1e-3,
-                                        eps=1e-5, tmin=1000, tmax=1e5,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
-                                        ,batch_size=None, save_always=False,print_every=None,model_randomize_parameter=1e-6)
+
+        equation = Equation(grid, legendre_poly, bconds).set_strategy('NN')
+
+
+        model = Solver(grid, equation, model, 'NN').solve(lambda_bound=10, verbose=True, learning_rate=1e-3,
+                                        eps=1e-5, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True
+                                        ,save_always=False,print_every=1000,model_randomize_parameter=1e-6)
         end = time.time()
     
         print('Time taken {} = {}'.format(n,  end - start))

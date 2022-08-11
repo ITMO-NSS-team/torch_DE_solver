@@ -7,7 +7,8 @@ Created on Mon May 31 12:33:44 2021
 import torch
 import numpy as np
 import os
-
+import matplotlib.pyplot as plt
+from scipy.spatial import Delaunay
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 import sys
@@ -16,8 +17,9 @@ import sys
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from solver import *
-from cache import *
+from solver import Solver
+from metrics import  Solution
+from input_preprocessing import Equation
 import time
 
 device = torch.device('cpu')
@@ -65,7 +67,6 @@ def p_I_exp(grid_res,nruns,CACHE):
     # point t=0
     bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64))
     
-    bop1 = None
     
     #  So u(0)=-1/2
     bndval1 = torch.from_numpy(np.array([[0]], dtype=np.float64))
@@ -90,7 +91,7 @@ def p_I_exp(grid_res,nruns,CACHE):
     bndval2 = torch.from_numpy(np.array([[0]], dtype=np.float64))
     
     # Putting all bconds together
-    bconds = [[bnd1, bop1, bndval1], [bnd2, bop2, bndval2]]
+    bconds = [[bnd1, bndval1], [bnd2, bop2, bndval2]]
     
     """
     Defining Legendre polynomials generating equations
@@ -173,21 +174,20 @@ def p_I_exp(grid_res,nruns,CACHE):
         )
 
         start = time.time()
-        model = point_sort_shift_solver(grid, model, p_1, bconds, lambda_bound=100, verbose=0, learning_rate=1e-4,
+
+        equation = Equation(grid, p_1, bconds).set_strategy('NN')
+
+        model = Solver(grid, equation, model, 'NN').solve(lambda_bound=100, verbose=1, learning_rate=1e-4,
                                         eps=1e-7, tmin=1000, tmax=1e5,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
-                                        ,batch_size=None, save_always=False,print_every=None,model_randomize_parameter=1e-6)
+                                        ,save_always=False,print_every=None,model_randomize_parameter=1e-6)
         end = time.time()
 
             
         error_rmse=torch.sqrt(torch.mean((sln_torch1-model(grid))**2))
         
   
-        
-        prepared_grid,grid_dict,point_type = grid_prepare(grid)
-        
-        prepared_bconds = bnd_prepare(bconds, prepared_grid,grid_dict, h=0.0001)
-        prepared_operator = operator_prepare(p_1, grid_dict, subset=['central'], true_grid=grid, h=0.001)
-        end_loss = point_sort_shift_loss(model, prepared_grid, prepared_operator, prepared_bconds, lambda_bound=100)
+        end_loss = Solution(grid, equation, model, 'NN').loss_evaluation(lambda_bound=100)
+
         exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'PI','cache':CACHE})
         
         print('Time taken {}= {}'.format(grid_res, end - start))

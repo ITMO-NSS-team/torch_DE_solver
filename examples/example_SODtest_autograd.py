@@ -2,15 +2,19 @@ import torch
 import numpy as np
 import os
 import time
-
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
+from mpl_toolkits.mplot3d import Axes3D
+from scipy.spatial import Delaunay
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from solver import *
-from cache import *
+from solver import Solver
+from input_preprocessing import Equation
 
 device = torch.device('cpu')
 
@@ -53,18 +57,17 @@ bnd1 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))
 u_init0 = np.zeros(bnd1.shape[0], dtype=np.float64)
 u_init1 = np.zeros(bnd1.shape[0], dtype=np.float64)
 u_init2 = np.zeros(bnd1.shape[0], dtype=np.float64)
-j = 0
+j=0
 for i in bnd1:
-    u_init0[j] = u0(i[0], x0)[0]
-    u_init1[j] = u0(i[0], x0)[1]
-    u_init2[j] = u0(i[0], x0)[2]
-    j += 1
+  u_init0[j] = u0(i[0], x0)[0]
+  u_init1[j] = u0(i[0], x0)[1]
+  u_init2[j] = u0(i[0], x0)[2]
+  j +=1
 
 bndval1_0 = torch.from_numpy(u_init0)
 bndval1_1 = torch.from_numpy(u_init1)
 bndval1_2 = torch.from_numpy(u_init2)
 
-bndval1 = torch.stack((bndval1_0, bndval1_1, bndval1_2), dim=1)
 
 #  Boundary conditions at x=0
 bnd2 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t).float()
@@ -72,7 +75,8 @@ bnd2 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t
 bndval2_0 = torch.from_numpy(np.asarray([p_l for i in bnd2[:, 0]], dtype=np.float64))
 bndval2_1 = torch.from_numpy(np.asarray([v_l for i in bnd2[:, 0]], dtype=np.float64))
 bndval2_2 = torch.from_numpy(np.asarray([Ro_l for i in bnd2[:, 0]], dtype=np.float64))
-bndval2 = torch.stack((bndval2_0, bndval2_1, bndval2_2), dim=1)
+
+
 
 # Boundary conditions at x=1
 bnd3 = torch.cartesian_prod(torch.from_numpy(np.array([1], dtype=np.float64)), t).float()
@@ -81,10 +85,18 @@ bnd3 = torch.cartesian_prod(torch.from_numpy(np.array([1], dtype=np.float64)), t
 bndval3_0 = torch.from_numpy(np.asarray([p_r for i in bnd3[:, 0]], dtype=np.float64))
 bndval3_1 = torch.from_numpy(np.asarray([v_r for i in bnd3[:, 0]], dtype=np.float64))
 bndval3_2 = torch.from_numpy(np.asarray([Ro_r for i in bnd3[:, 0]], dtype=np.float64))
-bndval3 = torch.stack((bndval3_0, bndval3_1, bndval3_2), dim=1)
+
 
 # Putting all bconds together
-bconds = [[bnd1, bndval1], [bnd2, bndval2], [bnd3, bndval3]]
+bconds = [[bnd1, bndval1_0, 0],
+          [bnd1, bndval1_1, 1],
+          [bnd1, bndval1_2, 2],
+          [bnd2, bndval2_0, 0],
+          [bnd2, bndval2_1, 1],
+          [bnd2, bndval2_2, 2],
+          [bnd3, bndval3_0, 0],
+          [bnd3, bndval3_1, 1],
+          [bnd3, bndval3_2, 2]]
 
 '''
 gas dynamic system equations:
@@ -174,8 +186,11 @@ model = torch.nn.Sequential(
     torch.nn.Linear(256, 3)
 )
 start = time.time()
-model = nn_autograd_optimizer(grid, model, gas_eq, bconds, use_cache=False, verbose=True, print_every=500,
-                              cache_verbose=False, abs_loss=0.0001)
+
+equation = Equation(grid, gas_eq, bconds,h=h).set_strategy('autograd')
+
+model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=100, use_cache=False, verbose=True, print_every=500,
+                              cache_verbose=False, abs_loss=0.0001, learning_rate=1e)
 
 end = time.time()
 print('Time taken = {}'.format(end - start))

@@ -7,6 +7,11 @@ Created on Mon May 31 12:33:44 2021
 import torch
 import numpy as np
 import os
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
+from mpl_toolkits.mplot3d import Axes3D
+from scipy.special import legendre
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
@@ -17,14 +22,12 @@ sys.path.append('../')
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from mpl_toolkits.mplot3d import Axes3D
-from solver import nn_autograd_optimizer,grid_format_prepare
 
+from solver import Solver, grid_format_prepare
+from metrics import Solution
+from input_preprocessing import Equation
 import time
-from scipy.special import legendre
+
 device = torch.device('cpu')
 
 """
@@ -78,8 +81,6 @@ for n in range(3,10):
     # point t=0
     bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64))
     
-    bop1 = None
-    
     #  So u(0)=-1/2
     bndval1 = legendre(n)(bnd1)
     
@@ -115,7 +116,7 @@ for n in range(3,10):
     
     
     # Putting all bconds together
-    bconds = [[bnd1, bop1, bndval1], [bnd2, bop2, bndval2]]
+    bconds = [[bnd1, bndval1], [bnd2, bop2, bndval2]]
     
     """
     Defining Legendre polynomials generating equations
@@ -222,8 +223,12 @@ for n in range(3,10):
         )
     
         start = time.time()
-        model = nn_autograd_optimizer(grid, model, legendre_poly, bconds,use_cache=True,verbose=True,
-                                      print_every=None,cache_verbose=True,abs_loss=1e-3,lambda_bound=10,optimizer='Adam',learning_rate=1e-4,save_always=True)
+
+        equation = Equation(grid, legendre_poly, bconds).set_strategy('autograd')
+
+        model = Solver(grid, equation, model, 'autograd').solve(use_cache=True,verbose=True,
+                                      print_every=None, cache_verbose=True, abs_loss=1e-3,
+                                      lambda_bound=10,optimizer_mode='Adam',learning_rate=1e-4,save_always=True)
         end = time.time()
     
         print('Time taken {} = {}'.format(n,  end - start))
