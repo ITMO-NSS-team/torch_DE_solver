@@ -17,8 +17,8 @@ from input_preprocessing import *
 
 device = torch.device('cpu')
 
-x_grid = np.linspace(-5,5,11)
-t_grid = np.linspace(0,np.pi/2,11)
+x_grid = np.linspace(-5,5,256)
+t_grid = np.linspace(0,np.pi/2,201)
 
 x = torch.from_numpy(x_grid)
 t = torch.from_numpy(t_grid)
@@ -205,5 +205,11 @@ model = torch.nn.Sequential(
 
 model = point_sort_shift_solver(grid, model, schrodinger_eq , bconds,
                                               lambda_bound=1000, verbose=1, learning_rate=1e-4,
-                                    eps=1e-6, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
-                                    batch_size=None, save_always=True,no_improvement_patience=500,print_every = 500)
+                                    eps=1e-6, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True,
+                                    batch_size=None, save_always=True,no_improvement_patience=500,print_every = 1500)
+
+torch.save(model.state_dict(),'schrodinger_model.pth')
+
+# u = model(grid)[:,0]
+# v = model(grid)[:,1]
+# h = np.sqrt(u ** 2 + v ** 2)
