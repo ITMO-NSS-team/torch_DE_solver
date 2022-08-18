@@ -189,8 +189,8 @@ start = time.time()
 
 equation = Equation(grid, gas_eq, bconds,h=h).set_strategy('autograd')
 
-model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=100, use_cache=False, verbose=True, print_every=500,
-                              cache_verbose=False, abs_loss=0.0001, learning_rate=1e)
+model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=100, use_cache=True, verbose=True, print_every=None,
+                              cache_verbose=False, abs_loss=0.0001, learning_rate=1e-2)
 
 end = time.time()
 print('Time taken = {}'.format(end - start))

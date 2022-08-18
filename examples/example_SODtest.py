@@ -197,7 +197,7 @@ equation = Equation(grid, gas_eq, bconds, h=h).set_strategy('NN')
 model = Solver(grid, equation, model, 'NN').solve(
                                 lambda_bound=1000, verbose=True, learning_rate=1e-2,
                                 eps=1e-6, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=False,
-                                save_always=False,no_improvement_patience=500,print_every=100)
+                                save_always=False,no_improvement_patience=500,print_every=None)
 
 end = time.time()
 
