@@ -110,7 +110,7 @@ equation = Equation(grid, wave_eq, bconds, h=0.01).set_strategy('NN')
 
 model = Solver(grid, equation, model, 'NN').solve(lambda_bound=1000, verbose=1, learning_rate=1e-2,
                                     eps=1e-6, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
-                                    save_always=True,no_improvement_patience=500,print_every=100)
+                                    save_always=True,no_improvement_patience=500,print_every=None)
 
 end = time.time()
 print('Time taken 10= ', end - start)

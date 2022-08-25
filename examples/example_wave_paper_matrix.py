@@ -158,9 +158,10 @@ for grid_res in range(40, 110, 10):
         model = Solver(grid, equation, model, 'mat').solve(lambda_bound=100,
                                          verbose=True, learning_rate=1e-3, eps=1e-7, tmin=1000, tmax=5e6,
                                          use_cache=True,cache_dir='../cache/',cache_verbose=True,
-                                         save_always=False,print_every=1000,
+                                         save_always=False,print_every=None,
                                          patience=5,loss_oscillation_window=100,no_improvement_patience=100,
-                                         model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=None)
+                                         model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=model_arch)
+
 
     
         end = time.time()
@@ -182,9 +183,9 @@ for grid_res in range(40, 110, 10):
 
 
 
-result_assessment=pd.DataFrame(exp_dict_list)
-result_assessment.to_csv('results_wave_matrix_.csv')
+#result_assessment=pd.DataFrame(exp_dict_list)
+#result_assessment.to_csv('results_wave_matrix_.csv')
 
-result_assessment.boxplot(by='grid_res',column='time',showfliers=False,figsize=(20,10),fontsize=42)
+#result_assessment.boxplot(by='grid_res',column='time',showfliers=False,figsize=(20,10),fontsize=42)
 
-result_assessment.boxplot(by='grid_res',column='RMSE',figsize=(20,10),fontsize=42)
+#result_assessment.boxplot(by='grid_res',column='RMSE',figsize=(20,10),fontsize=42)

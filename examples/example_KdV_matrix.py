@@ -274,8 +274,8 @@ for grid_res in [20,30]:
 
         model = Solver(grid, equation, model, 'mat').solve(lambda_bound=100,
                                          verbose=True, learning_rate=1e-5, eps=1e-8, tmin=1000, tmax=5e6,
-                                         use_cache=False,cache_dir='../cache/',cache_verbose=False,
-                                         save_always=False,print_every=100,
+                                         use_cache=True,cache_dir='../cache/',cache_verbose=False,
+                                         save_always=False,print_every=None,
                                          patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
                                          model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=None)
 

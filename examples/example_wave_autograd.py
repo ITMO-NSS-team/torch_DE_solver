@@ -11,6 +11,9 @@ import matplotlib.pyplot as plt
 import sys
 import os
 
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+
+
 sys.path.append('../')
 
 
@@ -134,5 +137,5 @@ model = torch.nn.Sequential(
 )
 
 equation = Equation(grid, wave_eq, bconds).set_strategy('autograd')
-model=Solver(grid, equation, model, 'autograd').solve(use_cache=True,verbose=True,print_every=100,cache_verbose=True,abs_loss=0.01)
+model=Solver(grid, equation, model, 'autograd').solve(use_cache=True,verbose=True,print_every=None,cache_verbose=True,abs_loss=0.001)
 
