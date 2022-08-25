@@ -170,7 +170,6 @@ def p_I_exp(grid_res,nruns,CACHE):
         torch.nn.Linear(100, 100),
         torch.nn.Tanh(),
         torch.nn.Linear(100, 1)
-        # torch.nn.Tanh()
         )
 
         start = time.time()

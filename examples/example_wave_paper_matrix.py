@@ -144,7 +144,7 @@ for grid_res in range(40, 110, 10):
         start = time.time()
         
         model_arch = torch.nn.Sequential(
-            torch.nn.Linear(1, 256),
+            torch.nn.Linear(2, 256),
             torch.nn.ReLU(),
             torch.nn.Linear(256, 64),
             torch.nn.ReLU(),
@@ -157,10 +157,10 @@ for grid_res in range(40, 110, 10):
 
         model = Solver(grid, equation, model, 'mat').solve(lambda_bound=100,
                                          verbose=True, learning_rate=1e-3, eps=1e-7, tmin=1000, tmax=5e6,
-                                         use_cache=False,cache_dir='../cache/',cache_verbose=False,
-                                         save_always=False,print_every=100,
+                                         use_cache=True,cache_dir='../cache/',cache_verbose=True,
+                                         save_always=False,print_every=1000,
                                          patience=5,loss_oscillation_window=100,no_improvement_patience=100,
-                                         model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=model_arch)
+                                         model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=None)
 
     
         end = time.time()

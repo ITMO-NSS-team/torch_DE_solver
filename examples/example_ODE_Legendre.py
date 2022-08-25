@@ -200,7 +200,7 @@ for n in range(3,11):
             torch.nn.Linear(100, 100),
             torch.nn.Tanh(),
             torch.nn.Linear(100, 1),
-            torch.nn.Tanh()
+            #torch.nn.Tanh()
         )
     
         start = time.time()

@@ -398,6 +398,8 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
         else:
             if type(self.operator) == dict:
                 op = self.op_dict_to_list(self.operator)
+            else:
+                op = self.operator
             op1 = self.operator_unify(op)
             op2 = self.operator_to_type_op(op1, nvars, axes_scheme_type='central')
             prepared_operator = [self.type_op_to_grid_shift_op(op2, grid_dict['central'])]

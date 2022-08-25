@@ -12,7 +12,7 @@ import glob
 import numpy as np
 
 from metrics import Solution
-from input_preprocessing import Equation
+from input_preprocessing import Equation, EquationMixin
 
 class Model_prepare(Solution):
     def __init__(self, grid, equal_cls, model, mode):
@@ -61,6 +61,7 @@ class Model_prepare(Solution):
             for elem in nrm:
                 n_vars.append(elem)
         n_vars = int(max(n_vars))
+        
         for i in cache_n:
             file=files[i]
             checkpoint = torch.load(file)
@@ -128,8 +129,7 @@ class Model_prepare(Solution):
         while loss>1e-5 and t<1e5:
             loss = optimizer.step(closure)
             t+=1
-            if False:
-                print('Retrain from cache t={}, loss={}'.format(t,loss))
+
         self.save_model(cache_model,cache_model.state_dict(),optimizer.state_dict(),cache_dir=cache_dir, name=name)
 
     def scheme_interp(self, trained_model, cache_verbose=False):
@@ -190,7 +190,7 @@ class Model_prepare(Solution):
             NN_grid=torch.from_numpy(np.vstack([self.grid[i].reshape(-1) for i in range(self.grid.shape[0])]).T).float()
             if cache_model == None:
                 cache_model = torch.nn.Sequential(
-                    torch.nn.Linear(self.grid.shape[0], 100),
+                    torch.nn.Linear(NN_grid.shape[-1], 100),
                     torch.nn.Tanh(),
                     torch.nn.Linear(100, 100),
                     torch.nn.Tanh(),
@@ -198,7 +198,14 @@ class Model_prepare(Solution):
                     torch.nn.Tanh(),
                     torch.nn.Linear(100, 1)
                 )
-            equal = Equation(NN_grid, self.equal_cls.operator, self.equal_cls.bconds).set_strategy('NN')
+            operator_NN = EquationMixin.op_dict_to_list(self.equal_cls.operator)
+            for term in operator_NN:
+                if type(term[0])==torch.Tensor:
+                    term[0]=term[0].reshape(-1)
+                if callable(term[0]):
+                    print("Warning: coefficient is callable, it may lead to wrong cache item choice")
+            
+            equal = Equation(NN_grid, operator_NN, self.equal_cls.bconds).set_strategy('NN')
             model_cls = Model_prepare(NN_grid, equal, cache_model, 'NN')
             cache_checkpoint, min_loss = model_cls.cache_lookup(cache_dir=cache_dir, nmodels=nmodels, cache_verbose=cache_verbose, lambda_bound=lambda_bound)
             prepared_model, optimizer_state = model_cls.cache_retrain(cache_checkpoint, cache_verbose=cache_verbose)
@@ -209,7 +216,7 @@ class Model_prepare(Solution):
                 self.model = prepared_model(NN_grid).reshape(self.grid.shape).detach()
             else:
                 self.model = prepared_model(NN_grid).reshape(self.grid[0].shape).detach()
-            
+
             min_loss = self.loss_evaluation(lambda_bound=lambda_bound)
 
             return self.model, min_loss

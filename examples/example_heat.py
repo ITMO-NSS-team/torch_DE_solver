@@ -180,7 +180,7 @@ def heat_experiment(grid_res,CACHE):
 
     start = time.time()
     
-    model = Solver(grid, equation, model, 'NN').solve(lambda_bound=10, verbose=2, learning_rate=1e-4, h=h,
+    model = Solver(grid, equation, model, 'NN').solve(lambda_bound=10, verbose=2, learning_rate=1e-4,
                                     eps=1e-6, tmin=1000, tmax=1e6,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
                                     ,save_always=True, print_every=None, model_randomize_parameter=1e-6)
     end = time.time()

@@ -331,10 +331,10 @@ class Derivative():
 
 
 class Solution():
-    def __init__(self, grid, equat_cls, model, mode):
+    def __init__(self, grid, equal_cls, model, mode):
         self.grid = grid
-        self.prepared_operator = equat_cls.operator_prepare()
-        self.prepared_bconds = equat_cls.bnd_prepare()
+        self.prepared_operator = equal_cls.operator_prepare()
+        self.prepared_bconds = equal_cls.bnd_prepare()
         self.model = model
         self.mode = mode
 
@@ -476,8 +476,10 @@ class Solution():
         # l1_lambda = 0.001
         # l1_norm =sum(p.abs().sum() for p in model.parameters())
         # loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)+ l1_lambda * l1_norm
-
-        loss = torch.sum(torch.mean((op) ** 2, 0)) + lambda_bound * torch.sum(torch.mean((b_val - true_b_val) ** 2, 0))
+        if self.mode=='mat':
+            loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)
+        else:
+            loss = torch.sum(torch.mean((op) ** 2, 0)) + lambda_bound * torch.sum(torch.mean((b_val - true_b_val) ** 2, 0))
 
         return loss
 
