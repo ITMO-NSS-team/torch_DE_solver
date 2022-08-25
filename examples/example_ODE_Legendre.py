@@ -209,8 +209,8 @@ for n in range(3,11):
 
 
         model = Solver(grid, equation, model, 'NN').solve(lambda_bound=10, verbose=True, learning_rate=1e-3,
-                                        eps=1e-5, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True
-                                        ,save_always=False,print_every=1000,model_randomize_parameter=1e-6)
+                                        eps=1e-5, tmin=1000, tmax=1e5,use_cache=True,cache_verbose=True
+                                        ,save_always=False,print_every=None,model_randomize_parameter=1e-6)
         end = time.time()
     
         print('Time taken {} = {}'.format(n,  end - start))

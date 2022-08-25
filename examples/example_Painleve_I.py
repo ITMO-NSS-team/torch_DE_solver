@@ -176,8 +176,8 @@ def p_I_exp(grid_res,nruns,CACHE):
 
         equation = Equation(grid, p_1, bconds).set_strategy('NN')
 
-        model = Solver(grid, equation, model, 'NN').solve(lambda_bound=100, verbose=1, learning_rate=1e-4,
-                                        eps=1e-7, tmin=1000, tmax=1e5,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
+        model = Solver(grid, equation, model, 'NN').solve(lambda_bound=100, verbose=True, learning_rate=1e-4,
+                                        eps=1e-7, tmin=1000, tmax=1e5,use_cache=CACHE,cache_dir='../cache/',cache_verbose=False
                                         ,save_always=False,print_every=None,model_randomize_parameter=1e-6)
         end = time.time()
 
@@ -219,23 +219,23 @@ df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=Fa
 df.to_csv('benchmarking_data/PI_experiment_10_500_cache={}.csv'.format(str(CACHE)))
 
 
-exp_dict_list=[]
+#exp_dict_list=[]
 
-CACHE=True
-
-
-for grid_res in range(10,100,10):
-    exp_dict_list.append(p_I_exp(grid_res, nruns,CACHE))
+#CACHE=True
 
 
-for grid_res in range(100,501,100):
-    exp_dict_list.append(p_I_exp(grid_res, nruns,CACHE))
+#for grid_res in range(10,100,10):
+#    exp_dict_list.append(p_I_exp(grid_res, nruns,CACHE))
 
 
-exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-df=pd.DataFrame(exp_dict_list_flatten)
-df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
-df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
-df.to_csv('benchmarking_data/PI_experiment_10_500_cache={}.csv'.format(str(CACHE)))
+#for grid_res in range(100,501,100):
+#    exp_dict_list.append(p_I_exp(grid_res, nruns,CACHE))
+
+
+#exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+#df=pd.DataFrame(exp_dict_list_flatten)
+#df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
+#df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
+#df.to_csv('benchmarking_data/PI_experiment_10_500_cache={}.csv'.format(str(CACHE)))
 
 

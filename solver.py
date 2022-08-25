@@ -162,6 +162,8 @@ class Solver(Model_prepare):
             if cur_loss<min_loss:
                 min_loss=cur_loss
                 t_imp_start=t
+
+
             if t%loss_oscillation_window==0:
                 line=np.polyfit(range(loss_oscillation_window),last_loss,1)
                 if abs(line[0]/cur_loss) < eps and t>0:
@@ -173,19 +175,24 @@ class Solver(Model_prepare):
                         print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
                         self.solution_print(title='Iteration = ' + str(t))
         
-            if (t-t_imp_start==no_improvement_patience) and verbose:
-                print('No improvement in '+str(no_improvement_patience)+' steps')
-                t_imp_start=t
-                stop_dings+=1
-                print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
-                self.solution_print(title='Iteration = ' + str(t))
-            
-            if abs_loss!=None:
-                if cur_loss<abs_loss and verbose:
-                    print('Absolute value of loss is lower than threshold')
-                    stop_dings+=1
+            if (t-t_imp_start==no_improvement_patience):
+                if verbose:
+                    print('No improvement in '+str(no_improvement_patience)+' steps')
                     print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
                     self.solution_print(title='Iteration = ' + str(t))
+                t_imp_start=t
+                stop_dings+=1
+                if self.mode =='NN' or self.mode =='autograd':
+                        self.model.apply(r)
+
+            
+            if abs_loss!=None and cur_loss<abs_loss:
+                if verbose:
+                    print('Absolute value of loss is lower than threshold')
+                    print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
+                    self.solution_print(title='Iteration = ' + str(t))
+                stop_dings+=1
+
 
             if print_every!=None and (t % print_every == 0) and verbose:
                 print(t, cur_loss, line,line[0]/cur_loss, stop_dings)

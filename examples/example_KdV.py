@@ -273,7 +273,7 @@ for grid_res in [10,20,30]:
     """
     Solving equation
     """
-    for _ in range(10):
+    for _ in range(1):
         sln=np.genfromtxt(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'wolfram_sln/KdV_sln_'+str(grid_res)+'.csv')),delimiter=',')
         sln_torch=torch.from_numpy(sln)
         sln_torch1=sln_torch.reshape(-1,1)
@@ -296,7 +296,7 @@ for grid_res in [10,20,30]:
         model = Solver(grid, equation, model, 'NN').solve(lambda_bound=100,verbose=1, learning_rate=1e-4,
                                                     eps=1e-5, tmin=1000, tmax=1e5,use_cache=True,cache_verbose=True,
                                                     save_always=True,print_every=None,model_randomize_parameter=1e-6,
-                                                    optimizer_mode='Adam',no_improvement_patience=None)
+                                                    optimizer_mode='Adam',no_improvement_patience=1000)
 
         
         end = time.time()
@@ -313,15 +313,15 @@ for grid_res in [10,20,30]:
         print('loss {}= {}'.format(grid_res, end_loss))
 
 
-CACHE=True
+#CACHE=True
 
-import pandas as pd
+#import pandas as pd
 
-result_assessment=pd.DataFrame(exp_dict_list)
+#result_assessment=pd.DataFrame(exp_dict_list)
 
-result_assessment.boxplot(by='grid_res',column='time',showfliers=False,figsize=(20,10),fontsize=42)
+#result_assessment.boxplot(by='grid_res',column='time',showfliers=False,figsize=(20,10),fontsize=42)
 
-result_assessment.boxplot(by='grid_res',column='RMSE',figsize=(20,10),fontsize=42)
+#result_assessment.boxplot(by='grid_res',column='RMSE',figsize=(20,10),fontsize=42)
 
-result_assessment.to_csv('benchmarking_data/kdv_experiment_10_30_cache={}.csv'.format(str(CACHE)))
+#result_assessment.to_csv('benchmarking_data/kdv_experiment_10_30_cache={}.csv'.format(str(CACHE)))
 
