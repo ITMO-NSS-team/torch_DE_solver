@@ -10,13 +10,16 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
-from solver import *
-from cache import *
+
+from solver import Solver
+from cache import Model_prepare
+from input_preprocessing import Equation
+
 
 device = torch.device('cpu')
 
-x_grid=np.linspace(0,1,21)
-t_grid=np.linspace(0,1,21)
+x_grid = np.linspace(-5,5,11)
+t_grid = np.linspace(0,np.pi/2,11)
 
 x = torch.from_numpy(x_grid)
 t = torch.from_numpy(t_grid)
@@ -25,79 +28,112 @@ grid = torch.cartesian_prod(x, t).float()
 
 grid.to(device)
 
+"""
+To solve schrodinger equation we have to solve system because of its complexity. 
+Both for the operator and for boundary and initial conditions.
+The system of boundary and initial conditions is written as follows:
+bnd1 = torch.stack((bnd1_real, bnd1_imag),dim = 1)
+etc...
+For periodic bconds you need to set parameter bnd_type = 'periodic'.
+For 'periodic' you don't need to set bnd_val.
+In this case condition will be written as follows:
+bnd1_left = ...
+bnd1_right = ...
+bnd1 = [bnd1_left, bnd1_right]
+Each term of bconds support up to 4 parameters, such as: bnd, bnd_val, bnd_op, bnd_type.
+bnd_type is not necessary, default = 'boundary values'.
+bnd, bnd_val are essentials for setting parameters bconds.
+Eventually, whole list of bconds will be written:
+bconds = [[bnd1,...,...], etc...]
+"""
 ## BOUNDARY AND INITIAL CONDITIONS
-def func(grid):
-    x, t = grid[:,0],grid[:,1]
-    return torch.sin(np.pi * x) * torch.cos(C * np.pi * t) + torch.sin(A * np.pi * x) * torch.cos(
-        A * C * np.pi * t
-    )
 fun = lambda x: 2/np.cosh(x)
 
-A = 2
-C = 10
-# Initial conditions at t=0
-bnd1 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
+# u(x,0) = 2sech(x), v(x,0) = 0
+bnd1_real = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
+bnd1_imag = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
 
-# u(0,x)=sin(pi*x)
-bndval1_1 = func(bnd1)
-bndval1_2 = fun(bnd1[:, 0])
-bndval1 = torch.stack((bndval1_1,bndval1_2),dim=1)
 
-# Initial conditions at t=1
-bnd2 = torch.cartesian_prod(x, torch.from_numpy(np.array([1], dtype=np.float64))).float()
+# u(x,0) = 2sech(x)
+bndval1_real = fun(bnd1_real[:,0])
 
-# u(1,x)=sin(pi*x)
-bndval2_1 = func(bnd2)
-bndval2_2 = fun(bnd2[:, 0])
-bndval2 = torch.stack((bndval2_1,bndval2_2),dim=1)
+#  v(x,0) = 0
+bndval1_imag = torch.from_numpy(np.zeros_like(bnd1_imag[:,0]))
 
-# Boundary conditions at x=0
-bnd3 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t).float()
 
-# u(0,t)=0
-bndval3_1 = func(bnd3)
-bndval3_2 = fun(bnd3[:, 0])
-bndval3 = torch.stack((bndval3_1,bndval3_2),dim=1)
+# u(-5,t) = u(5,t)
+bnd2_real_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.float64)), t).float()
+bnd2_real_right = torch.cartesian_prod(torch.from_numpy(np.array([5], dtype=np.float64)), t).float()
+bnd2_real = [bnd2_real_left,bnd2_real_right]
 
-# Boundary conditions at x=1
-bnd4 = torch.cartesian_prod(torch.from_numpy(np.array([1], dtype=np.float64)), t).float()
+# v(-5,t) = v(5,t)
+bnd2_imag_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.float64)), t).float()
+bnd2_imag_right = torch.cartesian_prod(torch.from_numpy(np.array([5], dtype=np.float64)), t).float()
+bnd2_imag = [bnd2_imag_left,bnd2_imag_right]
 
-# u(1,t)=0
-bndval4_1 = func(bnd4)
-bndval4_2 = fun(bnd4[:, 0])
-bndval4 = torch.stack((bndval4_1,bndval4_2),dim=1)
 
-# Putting all bconds together
-bconds = [[bnd1, bndval1], [bnd2, bndval2], [bnd3, bndval3], [bnd4, bndval4]]
+# du/dx (-5,t) = du/dx (5,t)
+bnd3_real_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.float64)), t).float()
+bnd3_real_right = torch.cartesian_prod(torch.from_numpy(np.array([5], dtype=np.float64)), t).float()
+bnd3_real = [bnd3_real_left, bnd3_real_right]
 
+bop3_real = {
+            'du/dx':
+                {
+                    'coeff': 1,
+                    'du/dx': [0],
+                    'pow': 1,
+                    'var': 0
+                }
+}
+# dv/dx (-5,t) = dv/dx (5,t)
+bnd3_imag_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.float64)), t).float()
+bnd3_imag_right = torch.cartesian_prod(torch.from_numpy(np.array([5], dtype=np.float64)), t).float()
+bnd3_imag = [bnd3_imag_left,bnd3_imag_right]
+
+bop3_imag = {
+            'dv/dx':
+                {
+                    'coeff': 1,
+                    'dv/dx': [0],
+                    'pow': 1,
+                    'var': 1
+                }
+}
+
+
+bcond_type = 'periodic'
+
+bconds = [[bnd1_real, bndval1_real, 0],
+          [bnd1_imag, bndval1_imag, 1],
+          [bnd2_real, 0, bcond_type],
+          [bnd2_imag, 1, bcond_type],
+          [bnd3_real, bop3_real, bcond_type],
+          [bnd3_imag, bop3_imag, bcond_type]]
 
 '''
 schrodinger equation:
 i * dh/dt + 1/2 * d2h/dx2 + abs(h)**2 * h = 0 
-
 real part: 
 du/dt + 1/2 * d2v/dx2 + (u**2 + v**2) * v
-
 imag part:
-dv/dt - 1/2 * d2u/dx2 - (u**2 + v**2) * v
-
+dv/dt - 1/2 * d2u/dx2 - (u**2 + v**2) * u
 u = var:0
 v = var:1
-
 '''
 
 schrodinger_eq_real = {
     'du/dt':
         {
             'const': 1,
-            'term': [0],
+            'term': [1],
             'power': 1,
             'var': 0
         },
     '1/2*d2v/dx2':
         {
             'const': 1 / 2,
-            'term': [1, 1],
+            'term': [0, 0],
             'power': 1,
             'var': 1
         },
@@ -106,7 +142,7 @@ schrodinger_eq_real = {
             'const': 1,
             'term': [[None], [None]],
             'power': [1, 2],
-            'var': [0, 1]
+            'var': [1, 0]
         },
     'v**3':
         {
@@ -117,6 +153,39 @@ schrodinger_eq_real = {
         }
 
 }
+schrodinger_eq_imag = {
+    'dv/dt':
+        {
+            'const': 1,
+            'term': [1],
+            'power': 1,
+            'var': 1
+        },
+    '-1/2*d2u/dx2':
+        {
+            'const': - 1 / 2,
+            'term': [0, 0],
+            'power': 1,
+            'var': 0
+        },
+    '-u * v ** 2':
+        {
+            'const': -1,
+            'term': [[None], [None]],
+            'power': [1, 2],
+            'var': [0, 1]
+        },
+    '-u ** 3':
+        {
+            'const': -1,
+            'term': [None],
+            'power': 3,
+            'var': 0
+        }
+
+}
+
+schrodinger_eq = [schrodinger_eq_real,schrodinger_eq_imag]
 
 model = torch.nn.Sequential(
         torch.nn.Linear(2, 100),
@@ -128,8 +197,9 @@ model = torch.nn.Sequential(
         torch.nn.Linear(100, 2)
     )
 
-model = point_sort_shift_solver(grid, model, schrodinger_eq_real , bconds,
-                                              lambda_bound=1000, verbose=1, learning_rate=1e-3,
+equation = Equation(grid, schrodinger_eq, bconds).set_strategy('NN')
+
+model = Solver(grid, equation, model, 'NN').solve(lambda_bound=1000, verbose=1, learning_rate=1e-3,
                                     eps=1e-6, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True,
-                                    batch_size=None, save_always=True,no_improvement_patience=500,print_every = 500,print_plot=True)
+                                    save_always=True,no_improvement_patience=500,print_every = None)
 

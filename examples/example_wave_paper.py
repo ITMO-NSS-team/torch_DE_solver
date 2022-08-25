@@ -14,8 +14,11 @@ import sys
 
 sys.path.append('../')
 
-from solver import *
-from cache import *
+sys.path.pop()
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
+
+from input_preprocessing import Equation
+from solver import Solver
 import time
 
 """
@@ -178,19 +181,18 @@ def wave_experiment(grid_res,CACHE):
     )
 
 
-    lp_par={'operator_p':2,
-        'operator_weighted':False,
-        'operator_normalized':False,
-        'boundary_p':1,
-        'boundary_weighted':False,
-        'boundary_normalized':False}
     
     start = time.time()
     
-    model = point_sort_shift_solver(grid, model, wave_eq, bconds, lambda_bound=10, verbose=2, learning_rate=1e-4, h=abs((t[1]-t[0]).item()),
+    eq = Equation(grid, wave_eq, bconds).set_strategy('NN')
+    operator = eq.operator_prepare()
+    boundary = eq.bnd_prepare()
+    
+    model = Solver(grid, operator, boundary, model, 'NN').solve(lambda_bound=10, verbose=2, learning_rate=1e-4, h=abs((t[1]-t[0]).item()),
                                     eps=1e-8, tmin=1000, tmax=1e6,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
-                                    ,batch_size=None, save_always=True,lp_par=lp_par,no_improvement_patience=10000,print_every=None,
+                                    ,batch_size=None, save_always=True,no_improvement_patience=10000,print_every=1000,
                                     model_randomize_parameter=1e-6)
+
     end = time.time()
         
     error_rmse=torch.sqrt(torch.mean((func(grid)-model(grid))**2))

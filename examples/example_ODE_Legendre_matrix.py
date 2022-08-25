@@ -7,7 +7,11 @@ Created on Mon May 31 12:33:44 2021
 import torch
 import numpy as np
 import os
-
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
+from mpl_toolkits.mplot3d import Axes3D
+from scipy.special import legendre
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 import sys
@@ -17,14 +21,12 @@ sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 sys.path.append('../')
 
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from mpl_toolkits.mplot3d import Axes3D
-from solver import lbfgs_solution,grid_format_prepare,matrix_optimizer
 
+from solver import Solver, grid_format_prepare
+from input_preprocessing import Equation
+from metrics import Solution
 import time
-from scipy.special import legendre
+
 device = torch.device('cpu')
 
 """
@@ -78,7 +80,6 @@ for n in range(3,10):
     # point t=0
     bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64))
     
-    bop1 = None
     
     #  So u(0)=-1/2
     bndval1 = legendre(n)(bnd1)
@@ -100,7 +101,7 @@ for n in range(3,10):
     bndval2 = torch.from_numpy(legendre(n).deriv(1)(bnd2))
     
     # Putting all bconds together
-    bconds = [[bnd1, bop1, bndval1], [bnd2, bop2, bndval2]]
+    bconds = [[bnd1, bndval1], [bnd2, bop2, bndval2]]
     
     """
     Defining Legendre polynomials generating equations
@@ -205,13 +206,16 @@ for n in range(3,10):
             torch.nn.Linear(1024, 1)
         )
 
-            
-        model = matrix_optimizer(grid, None, legendre_poly, bconds, lambda_bound=100,
+        model= torch.rand(grid.shape)
+
+        equation = Equation(grid, legendre_poly, bconds).set_strategy('mat')
+
+        model = Solver(grid, equation, model, 'mat').solve(lambda_bound=100,
                                          verbose=True, learning_rate=1e-4, eps=1e-7, tmin=1000, tmax=5e6,
                                          use_cache=True,cache_dir='../cache/',cache_verbose=False,
-                                         batch_size=None,save_always=False,lp_par=None,print_every=None,
+                                         save_always=False,print_every=None,
                                          patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
-                                         model_randomize_parameter=1e-5,optimizer='Adam',cache_model=model_arch)
+                                         model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=model_arch)
 
         end = time.time()
     

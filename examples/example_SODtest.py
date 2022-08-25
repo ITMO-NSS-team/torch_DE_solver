@@ -13,12 +13,13 @@ import sys
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
-sys.path.pop()
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 sys.path.append('../')
 
-from solver import*
-from cache import *
+sys.path.pop()
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
+
+from input_preprocessing import Equation
+from solver import Solver
 
 
 device = torch.device('cpu')
@@ -71,15 +72,13 @@ bndval1_0 = torch.from_numpy(u_init0)
 bndval1_1 = torch.from_numpy(u_init1)
 bndval1_2 = torch.from_numpy(u_init2)
 
-bndval1 = torch.stack((bndval1_0, bndval1_1, bndval1_2),dim=1)
-
 #  Boundary conditions at x=0
 bnd2 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t).float()
 
 bndval2_0 = torch.from_numpy(np.asarray([p_l for i in bnd2[:, 0]], dtype=np.float64))
 bndval2_1 = torch.from_numpy(np.asarray([v_l for i in bnd2[:, 0]], dtype=np.float64))
 bndval2_2 = torch.from_numpy(np.asarray([Ro_l for i in bnd2[:, 0]], dtype=np.float64))
-bndval2 = torch.stack((bndval2_0, bndval2_1, bndval2_2),dim=1)
+
 
 
 # Boundary conditions at x=1
@@ -89,10 +88,18 @@ bnd3 = torch.cartesian_prod(torch.from_numpy(np.array([1], dtype=np.float64)), t
 bndval3_0 = torch.from_numpy(np.asarray([p_r for i in bnd3[:, 0]], dtype=np.float64))
 bndval3_1 = torch.from_numpy(np.asarray([v_r for i in bnd3[:, 0]], dtype=np.float64))
 bndval3_2 = torch.from_numpy(np.asarray([Ro_r for i in bnd3[:, 0]], dtype=np.float64))
-bndval3 = torch.stack((bndval3_0, bndval3_1, bndval3_2),dim=1)
+
 
 # Putting all bconds together
-bconds = [[bnd1, bndval1], [bnd2, bndval2],[bnd3, bndval3]]
+bconds = [[bnd1, bndval1_0, 0],
+          [bnd1, bndval1_1, 1],
+          [bnd1, bndval1_2, 2],
+          [bnd2, bndval2_0, 0],
+          [bnd2, bndval2_1, 1],
+          [bnd2, bndval2_2, 2],
+          [bnd3, bndval3_0, 0],
+          [bnd3, bndval3_1, 1],
+          [bnd3, bndval3_2, 2]]
 
 
 '''
@@ -184,10 +191,13 @@ model = torch.nn.Sequential(
     )
 start = time.time()
 
-model = point_sort_shift_solver(grid, model, gas_eq, bconds,
-                                lambda_bound=1000, verbose=True, learning_rate=1e-3, h=h,
-                                eps=1e-6, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=False,
-                                batch_size=None, save_always=True,no_improvement_patience=500,print_every=100,print_plot=True)
+equation = Equation(grid, gas_eq, bconds, h=h).set_strategy('NN')
+
+
+model = Solver(grid, equation, model, 'NN').solve(
+                                lambda_bound=1000, verbose=True, learning_rate=1e-2,
+                                eps=1e-6, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=False,
+                                save_always=False,no_improvement_patience=500,print_every=None)
 
 end = time.time()
 

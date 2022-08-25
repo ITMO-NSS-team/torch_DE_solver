@@ -5,7 +5,12 @@ Created on Mon May 31 12:33:44 2021
 @author: user
 """
 import os
-
+import numpy as np
+import torch
+import time
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy.spatial import Delaunay
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 import sys
@@ -14,12 +19,10 @@ sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 sys.path.append('../')
 
-from solver import matrix_optimizer, solution_print, matrix_loss,grid_format_prepare
-from input_preprocessing import operator_unify, bnd_prepare_matrix,op_dict_to_list
-import numpy as np
-import torch
-import time
-import pandas as pd
+from solver import Solver, grid_format_prepare
+from input_preprocessing import Equation
+from metrics import Solution
+
 
 
 
@@ -114,7 +117,7 @@ for grid_res in [20,30]:
             }
     }
     
-    bop1=[[a1,[0,0],1],[a2,[0],1],[a3,[None],1]]
+    #bop1=[[a1,[0,0],1],[a2,[0],1],[a3,[None],1]]
     
     # equal to zero
     bndval1 = torch.zeros(len(bnd1))
@@ -148,7 +151,7 @@ for grid_res in [20,30]:
             }
     }
     
-    bop2=[[b1,[0,0],1],[b2,[0],1],[b3,[None],1]]
+    #bop2=[[b1,[0,0],1],[b2,[0],1],[b3,[None],1]]
     # equal to zero
     bndval2 = torch.zeros(len(bnd2))
     
@@ -174,7 +177,7 @@ for grid_res in [20,30]:
             }
     }
     
-    bop3=[[r1,[0],1],[r2,[None],1]]
+    #bop3=[[r1,[0],1],[r2,[None],1]]
     
     # equal to zero
     bndval3 = torch.zeros(len(bnd3))
@@ -186,14 +189,14 @@ for grid_res in [20,30]:
     bnd4 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
     
     # No operator applied,i.e. u(x,0)=0
-    bop4 = None
+    
     
     # equal to zero
     bndval4 = torch.zeros(len(bnd4))
     
     
     # Putting all bconds together
-    bconds = [[bnd1, bop1, bndval1], [bnd2, bop2, bndval2], [bnd3, bop3, bndval3], [bnd4, bop4, bndval4]]
+    bconds = [[bnd1, bop1, bndval1], [bnd2, bop2, bndval2], [bnd3, bop3, bndval3], [bnd4, bndval4]]
     
     """
     Defining kdv equation
@@ -267,12 +270,14 @@ for grid_res in [20,30]:
     
         start = time.time()
 
-        model = matrix_optimizer(grid, None, kdv, bconds, lambda_bound=100,
+        equation = Equation(grid, kdv, bconds).set_strategy('mat')
+
+        model = Solver(grid, equation, model, 'mat').solve(lambda_bound=100,
                                          verbose=True, learning_rate=1e-5, eps=1e-8, tmin=1000, tmax=5e6,
                                          use_cache=True,cache_dir='../cache/',cache_verbose=False,
-                                         batch_size=None,save_always=False,lp_par=None,print_every=None,
+                                         save_always=False,print_every=None,
                                          patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
-                                         model_randomize_parameter=1e-5,optimizer='Adam',cache_model=None)
+                                         model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=None)
 
 
         end = time.time()
@@ -280,15 +285,10 @@ for grid_res in [20,30]:
         model = torch.transpose(model, 0, 1)
         error_rmse=np.sqrt(np.mean((sln_torch.numpy().reshape(-1)-model.detach().numpy().reshape(-1))**2))
 
-        solution_print(grid, model)
+        Solver(grid,equation, model, 'mat').solution_print()
 
-        if type(kdv) == dict:
-            kdv = op_dict_to_list(kdv)
-        unified_operator = operator_unify(kdv)
 
-        b_prepared = bnd_prepare_matrix(bconds, grid)
-
-        end_loss = matrix_loss(model, grid, unified_operator, b_prepared, lambda_bound=100)
+        end_loss = Solution(grid, equation, model, 'mat').loss_evaluation(lambda_bound=100)
     
         exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse,'loss':end_loss.detach().numpy(),'type':'kdv_eqn'})
         

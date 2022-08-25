@@ -18,9 +18,9 @@ sys.path.append('../')
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from solver import *
-from input_preprocessing import operator_unify
-
+from solver import Solver, grid_format_prepare
+from input_preprocessing import Equation
+from metrics import Solution
 """
 Preparing grid
 
@@ -139,12 +139,12 @@ for grid_res in range(40, 110, 10):
     for _ in range(10):
         sln=np.genfromtxt(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'wolfram_sln/wave_sln_'+str(grid_res)+'.csv')),delimiter=',')
         
-        model = None
+        model= torch.rand(grid[0].shape)
         
         start = time.time()
         
         model_arch = torch.nn.Sequential(
-            torch.nn.Linear(1, 256),
+            torch.nn.Linear(2, 256),
             torch.nn.ReLU(),
             torch.nn.Linear(256, 64),
             torch.nn.ReLU(),
@@ -153,13 +153,15 @@ for grid_res in range(40, 110, 10):
             torch.nn.Linear(1024, 1)
         )
 
-            
-        model = matrix_optimizer(grid, model, wave_eq, bconds, lambda_bound=100,
+        equation = Equation(grid, wave_eq, bconds).set_strategy('mat')
+
+        model = Solver(grid, equation, model, 'mat').solve(lambda_bound=100,
                                          verbose=True, learning_rate=1e-3, eps=1e-7, tmin=1000, tmax=5e6,
-                                         use_cache=False,cache_dir='../cache/',cache_verbose=False,
-                                         batch_size=None,save_always=False,lp_par=None,print_every=None,
+                                         use_cache=True,cache_dir='../cache/',cache_verbose=True,
+                                         save_always=False,print_every=None,
                                          patience=5,loss_oscillation_window=100,no_improvement_patience=100,
-                                         model_randomize_parameter=1e-5,optimizer='Adam',cache_model=model_arch)
+                                         model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=model_arch)
+
 
     
         end = time.time()
@@ -167,15 +169,10 @@ for grid_res in range(40, 110, 10):
         #model = torch.transpose(model, 0, 1)
         error_rmse = np.sqrt(np.mean((sln.reshape(-1) - model.detach().numpy().reshape(-1)) ** 2))
 
-        solution_print(grid, model)
+        Solver(grid, equation,model,'mat').solution_print()
 
-        if type(wave_eq) == dict:
-            wave_eq = op_dict_to_list(wave_eq)
-        unified_operator = operator_unify(wave_eq)
 
-        b_prepared = bnd_prepare_matrix(bconds, grid)
-
-        end_loss = matrix_loss(model, grid, unified_operator, b_prepared, lambda_bound=100)
+        end_loss = Solution(grid, equation, model, 'mat').loss_evaluation(lambda_bound=100)
         exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse,'loss':end_loss.detach().numpy(),'type':'wave_eqn'})
         
         print('Time taken {}= {}'.format(grid_res, end - start))
@@ -186,9 +183,9 @@ for grid_res in range(40, 110, 10):
 
 
 
-result_assessment=pd.DataFrame(exp_dict_list)
-result_assessment.to_csv('results_wave_matrix_.csv')
+#result_assessment=pd.DataFrame(exp_dict_list)
+#result_assessment.to_csv('results_wave_matrix_.csv')
 
-result_assessment.boxplot(by='grid_res',column='time',showfliers=False,figsize=(20,10),fontsize=42)
+#result_assessment.boxplot(by='grid_res',column='time',showfliers=False,figsize=(20,10),fontsize=42)
 
-result_assessment.boxplot(by='grid_res',column='RMSE',figsize=(20,10),fontsize=42)
+#result_assessment.boxplot(by='grid_res',column='RMSE',figsize=(20,10),fontsize=42)
