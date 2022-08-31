@@ -37,7 +37,7 @@ class Solver(Model_prepare):
                 optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
             elif self.mode =='mat':
                 optimizer = torch.optim.Adam([self.model.requires_grad_()], lr=learning_rate)
-        
+       
         elif optimizer=='SGD':
             if self.mode =='NN' or self.mode == 'autograd':
                 optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate)
@@ -64,11 +64,15 @@ class Solver(Model_prepare):
 
             for i in range(nvars_model):
                 if nparams == 1:
-                    if title!=None:
-                        plt.title(title)
-                    #fig = plt.figure()
-                    plt.scatter(self.grid.detach().numpy().reshape(-1), self.model(self.grid).detach().numpy().reshape(-1))
-                    plt.show()
+                    if nvars_model == 1:
+                        if title!= None:
+                            plt.title(title)
+                        #fig = plt.figure()
+                        plt.scatter(self.grid.detach().numpy().reshape(-1), self.model(self.grid).detach().numpy().reshape(-1))
+                        plt.show()
+                    else:
+                        plt.scatter(self.grid.detach().numpy().reshape(-1), self.model(self.grid)[:,i].detach().numpy().reshape(-1))
+                        plt.show()
                 else:
                     fig1 = plt.figure()
                     ax1 = fig1.add_subplot(projection='3d')
@@ -137,7 +141,6 @@ class Solver(Model_prepare):
     
         last_loss=np.zeros(loss_oscillation_window)+float(min_loss)
         line=np.polyfit(range(loss_oscillation_window),last_loss,1)
-    
 
         def closure():
             nonlocal cur_loss
