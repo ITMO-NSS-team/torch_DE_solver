@@ -37,7 +37,7 @@ class Solver(Model_prepare):
                 optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
             elif self.mode =='mat':
                 optimizer = torch.optim.Adam([self.model.requires_grad_()], lr=learning_rate)
-        
+       
         elif optimizer=='SGD':
             if self.mode =='NN' or self.mode == 'autograd':
                 optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate)
@@ -141,7 +141,6 @@ class Solver(Model_prepare):
     
         last_loss=np.zeros(loss_oscillation_window)+float(min_loss)
         line=np.polyfit(range(loss_oscillation_window),last_loss,1)
-    
 
         def closure():
             nonlocal cur_loss
