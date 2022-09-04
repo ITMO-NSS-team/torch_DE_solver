@@ -71,32 +71,28 @@ class Solver(Model_prepare):
         if self.mode == 'NN' or self.mode == 'autograd':
             nvars_model = self.model(self.grid).shape[-1]
             nparams = self.grid.shape[1]
-
+            fig = plt.figure()
             for i in range(nvars_model):
                 if nparams == 1:
+                    ax1 = fig.add_subplot(1,nvars_model,i+1)
                     if title!=None:
-                        plt.title(title)
-                    #fig = plt.figure()
-                    plt.scatter(self.grid.detach().numpy().reshape(-1), self.model(self.grid).detach().numpy().reshape(-1))
-                    if solution_print:
-                        plt.show()
-                    if solution_save:
-                        plt.savefig(directory)
+                        ax1.set_title(title+' variable {}'.format(i))
+                    ax1.scatter(self.grid.detach().numpy().reshape(-1), self.model(self.grid).detach().numpy().reshape(-1))
                 else:
-                    fig1 = plt.figure()
-                    ax1 = fig1.add_subplot(projection='3d')
+                    ax1 = fig.add_subplot(1,nvars_model,i+1,projection='3d')
 
                     if title!=None:
-                        ax1.set_title(title)
+                        ax1.set_title(title+' variable {}'.format(i))
 
                     ax1.plot_trisurf(self.grid[:, 0].detach().numpy().reshape(-1), self.grid[:, 1].detach().numpy().reshape(-1),
                                 self.model(self.grid)[:,i].detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
                     ax1.set_xlabel("x1")
                     ax1.set_ylabel("x2")
-                    if solution_print:
-                        plt.show()
-                    if solution_save:
-                        plt.savefig(directory)
+            if solution_print:
+                plt.show()
+            if solution_save:
+                plt.savefig(directory)
+            plt.close()
         elif self.mode == 'mat':
             nparams = self.grid.shape[0]
 
@@ -107,6 +103,7 @@ class Solver(Model_prepare):
                     plt.show()
                 if solution_save:
                     plt.savefig(directory)
+                plt.close()
             elif nparams == 2:
                 fig = plt.figure()
                 ax = fig.add_subplot(111, projection='3d')
@@ -120,6 +117,7 @@ class Solver(Model_prepare):
                     plt.show()
                 if solution_save:
                     plt.savefig(directory)
+                plt.close()
 
 
     def solve(self, lambda_bound=10, verbose=False, learning_rate=1e-4, eps=1e-5, tmin=1000,
