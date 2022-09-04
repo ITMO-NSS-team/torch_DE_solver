@@ -135,3 +135,7 @@ dmypy.json
 # vscode
 .vscode/
 .vs/
+img/
+#wave_img/
+*.png
+*.csv

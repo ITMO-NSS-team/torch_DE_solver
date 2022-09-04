@@ -4,6 +4,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from cache import Model_prepare
+import os
+import sys
+import datetime
 
 def grid_format_prepare(coord_list, mode='NN'):
     if type(coord_list)==torch.Tensor:
@@ -23,7 +26,7 @@ def grid_format_prepare(coord_list, mode='NN'):
             grid=torch.cartesian_prod(*coord_list_tensor).float()
     elif mode=='mat':
         grid = np.meshgrid(*coord_list)
-        grid = torch.tensor(grid)
+        grid = torch.tensor(np.array(grid))
     return grid
 
 class Solver(Model_prepare):
@@ -57,7 +60,14 @@ class Solver(Model_prepare):
         return optimizer
 
 
-    def solution_print(self,title=None):
+    def solution_print(self,title=None,solution_print=False,solution_save=True,save_dir=None):
+        if save_dir==None:
+            img_dir=os.path.join(os.path.dirname( __file__ ), 'img')
+            if not(os.path.isdir(img_dir)):
+                os.mkdir(img_dir)
+            directory=os.path.abspath(os.path.join(img_dir,str(datetime.datetime.now().timestamp())+'.png'))
+        else:
+            directory=os.path.join(save_dir, str(datetime.datetime.now().timestamp())+'.png')
         if self.mode == 'NN' or self.mode == 'autograd':
             nvars_model = self.model(self.grid).shape[-1]
             nparams = self.grid.shape[1]
@@ -68,7 +78,10 @@ class Solver(Model_prepare):
                         plt.title(title)
                     #fig = plt.figure()
                     plt.scatter(self.grid.detach().numpy().reshape(-1), self.model(self.grid).detach().numpy().reshape(-1))
-                    plt.show()
+                    if solution_print:
+                        plt.show()
+                    if solution_save:
+                        plt.savefig(directory)
                 else:
                     fig1 = plt.figure()
                     ax1 = fig1.add_subplot(projection='3d')
@@ -80,14 +93,20 @@ class Solver(Model_prepare):
                                 self.model(self.grid)[:,i].detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
                     ax1.set_xlabel("x1")
                     ax1.set_ylabel("x2")
-                    plt.show()
+                    if solution_print:
+                        plt.show()
+                    if solution_save:
+                        plt.savefig(directory)
         elif self.mode == 'mat':
             nparams = self.grid.shape[0]
 
             if nparams == 1:
                 fig = plt.figure()
                 plt.scatter(self.grid.reshape(-1), self.model.detach().numpy().reshape(-1))
-                plt.show()
+                if solution_print:
+                    plt.show()
+                if solution_save:
+                    plt.savefig(directory)
             elif nparams == 2:
                 fig = plt.figure()
                 ax = fig.add_subplot(111, projection='3d')
@@ -97,7 +116,10 @@ class Solver(Model_prepare):
                                 self.model.reshape(-1).detach().numpy(), cmap=cm.jet, linewidth=0.2, alpha=1)
                 ax.set_xlabel("x1")
                 ax.set_ylabel("x2")
-                plt.show()
+                if solution_print:
+                    plt.show()
+                if solution_save:
+                    plt.savefig(directory)
 
 
     def solve(self, lambda_bound=10, verbose=False, learning_rate=1e-4, eps=1e-5, tmin=1000,
@@ -105,7 +127,7 @@ class Solver(Model_prepare):
                             use_cache=True,cache_dir='../cache/',cache_verbose=False,
                             save_always=False,print_every=100,cache_model=None,
                             patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
-                            model_randomize_parameter=0, optimizer_mode='Adam'):
+                            model_randomize_parameter=0, optimizer_mode='Adam',step_plot_print=False,step_plot_save=False,image_save_dir=None):
         # prepare input data to uniform format 
         r = self.create_random_fn(model_randomize_parameter)
         #  use cache if needed
@@ -119,8 +141,8 @@ class Solver(Model_prepare):
 
         optimizer = self.optimizer_choice(optimizer_mode, learning_rate)
         
-
-        if not use_cache:
+        if True:
+        #if not use_cache:
             min_loss = self.loss_evaluation(lambda_bound=lambda_bound)   
     
         save_cache=False
@@ -131,7 +153,7 @@ class Solver(Model_prepare):
     
         # standard NN stuff
         if verbose:
-            print('-1 {}'.format(min_loss))
+            print('[{}] initial (min) loss is {}'.format(datetime.datetime.now(),min_loss))
     
         t = 0
     
@@ -163,6 +185,8 @@ class Solver(Model_prepare):
                 min_loss=cur_loss
                 t_imp_start=t
 
+            if verbose:
+                info_string='Step = {} loss = {:.6f} normalized loss line = {:.6f}x+{:.6f}. There was {} stop dings already.'.format(t, cur_loss, line[0]/cur_loss,line[1]/cur_loss, stop_dings+1)
 
             if t%loss_oscillation_window==0:
                 line=np.polyfit(range(loss_oscillation_window),last_loss,1)
@@ -171,15 +195,17 @@ class Solver(Model_prepare):
                     if self.mode =='NN' or self.mode =='autograd':
                         self.model.apply(r)
                     if verbose:
-                        print('Oscillation near the same loss')
-                        print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
-                        self.solution_print(title='Iteration = ' + str(t))
+                        print('[{}] Oscillation near the same loss'.format(datetime.datetime.now()))
+                        print(info_string)
+                        if step_plot_print or step_plot_save:
+                            self.solution_print(title='Iteration = ' + str(t),solution_print=step_plot_print,solution_save=step_plot_save,save_dir=image_save_dir)
         
             if (t-t_imp_start==no_improvement_patience):
                 if verbose:
-                    print('No improvement in '+str(no_improvement_patience)+' steps')
-                    print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
-                    self.solution_print(title='Iteration = ' + str(t))
+                    print('[{}] No improvement in {} steps'.format(datetime.datetime.now(),no_improvement_patience))
+                    print(info_string)
+                    if step_plot_print or step_plot_save:
+                        self.solution_print(title='Iteration = ' + str(t),solution_print=step_plot_print,solution_save=step_plot_save,save_dir=image_save_dir)
                 t_imp_start=t
                 stop_dings+=1
                 if self.mode =='NN' or self.mode =='autograd':
@@ -188,15 +214,18 @@ class Solver(Model_prepare):
             
             if abs_loss!=None and cur_loss<abs_loss:
                 if verbose:
-                    print('Absolute value of loss is lower than threshold')
-                    print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
-                    self.solution_print(title='Iteration = ' + str(t))
+                    print('[{}] Absolute value of loss is lower than threshold'.format(datetime.datetime.now()))
+                    print(info_string)
+                    if step_plot_print or step_plot_save:
+                        self.solution_print(title='Iteration = ' + str(t),solution_print=step_plot_print,solution_save=step_plot_save,save_dir=image_save_dir)
                 stop_dings+=1
 
 
             if print_every!=None and (t % print_every == 0) and verbose:
-                print(t, cur_loss, line,line[0]/cur_loss, stop_dings)
-                self.solution_print(title='Iteration = ' + str(t))
+                print('[{}] Print every {} step'.format(datetime.datetime.now(),print_every))
+                print(info_string)
+                if step_plot_print or step_plot_save:
+                        self.solution_print(title='Iteration = ' + str(t),solution_print=step_plot_print,solution_save=step_plot_save,save_dir=image_save_dir)
 
             t += 1
             if t > tmax:
