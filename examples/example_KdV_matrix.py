@@ -272,12 +272,17 @@ for grid_res in [20,30]:
 
         equation = Equation(grid, kdv, bconds).set_strategy('mat')
 
+        img_dir=os.path.join(os.path.dirname( __file__ ), 'kdv_img_mat')
+
+        if not(os.path.isdir(img_dir)):
+            os.mkdir(img_dir)
+
         model = Solver(grid, equation, model, 'mat').solve(lambda_bound=100,
                                          verbose=True, learning_rate=1e-5, eps=1e-8, tmin=1000, tmax=5e6,
                                          use_cache=True,cache_dir='../cache/',cache_verbose=False,
                                          save_always=False,print_every=None,
                                          patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
-                                         model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=None)
+                                         model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=None,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
 
 
         end = time.time()
@@ -296,9 +301,9 @@ for grid_res in [20,30]:
         print('RMSE {}= {}'.format(grid_res, error_rmse))
         print('loss {}= {}'.format(grid_res, end_loss))
 
-result_assessment=pd.DataFrame(exp_dict_list)
-result_assessment.to_csv('results_kdv_matrix.csv')
+#result_assessment=pd.DataFrame(exp_dict_list)
+#result_assessment.to_csv('results_kdv_matrix.csv')
 
-result_assessment.boxplot(by='grid_res',column='time',showfliers=False,figsize=(20,10),fontsize=42)
+#result_assessment.boxplot(by='grid_res',column='time',showfliers=False,figsize=(20,10),fontsize=42)
 
-result_assessment.boxplot(by='grid_res',column='RMSE',figsize=(20,10),fontsize=42)
+#result_assessment.boxplot(by='grid_res',column='RMSE',figsize=(20,10),fontsize=42)
