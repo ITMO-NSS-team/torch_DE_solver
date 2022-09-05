@@ -223,7 +223,7 @@ class Solver(Model_prepare):
                 print('[{}] Print every {} step'.format(datetime.datetime.now(),print_every))
                 print(info_string)
                 if step_plot_print or step_plot_save:
-                        self.solution_print(title='Iteration = ' + str(t),solution_print=step_plot_print,solution_save=step_plot_save,save_dir=image_save_dir)
+                    self.solution_print(title='Iteration = ' + str(t),solution_print=step_plot_print,solution_save=step_plot_save,save_dir=image_save_dir)
 
             t += 1
             if t > tmax:

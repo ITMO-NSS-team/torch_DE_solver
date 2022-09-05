@@ -19,6 +19,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 
 from input_preprocessing import Equation
 from solver import Solver
+from metrics import Solution
 import time
 
 """
@@ -184,27 +185,29 @@ def wave_experiment(grid_res,CACHE):
     
     start = time.time()
     
-    eq = Equation(grid, wave_eq, bconds).set_strategy('NN')
-    operator = eq.operator_prepare()
-    boundary = eq.bnd_prepare()
+
+    equation = Equation(grid, wave_eq, bconds).set_strategy('NN')
     
-    model = Solver(grid, operator, boundary, model, 'NN').solve(lambda_bound=10, verbose=2, learning_rate=1e-4, h=abs((t[1]-t[0]).item()),
-                                    eps=1e-8, tmin=1000, tmax=1e6,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
-                                    ,batch_size=None, save_always=True,no_improvement_patience=10000,print_every=1000,
-                                    model_randomize_parameter=1e-6)
+    img_dir=os.path.join(os.path.dirname( __file__ ), 'wave_example_paper_img')
+
+    if not(os.path.isdir(img_dir)):
+        os.mkdir(img_dir)
+
+    model = Solver(grid, equation, model, 'NN').solve(lambda_bound=100,verbose=1, learning_rate=1e-4,
+                                            eps=1e-8, tmin=1000, tmax=1e6,use_cache=CACHE,cache_verbose=True,
+                                            save_always=True,print_every=None,model_randomize_parameter=1e-5,
+                                            optimizer_mode='Adam',no_improvement_patience=1000,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
+
 
     end = time.time()
         
     error_rmse=torch.sqrt(torch.mean((func(grid)-model(grid))**2))
+      
+        
+    end_loss = Solution(grid, equation, model, 'NN').loss_evaluation(lambda_bound=100)
     
-  
-    
-    prepared_grid,grid_dict,point_type = grid_prepare(grid)
-    
-    prepared_bconds = bnd_prepare(bconds, prepared_grid,grid_dict, h=abs((t[1]-t[0]).item()))
-    prepared_operator = operator_prepare(wave_eq, grid_dict, subset=['central'], true_grid=grid, h=abs((t[1]-t[0]).item()))
-    end_loss = point_sort_shift_loss(model, prepared_grid, prepared_operator, prepared_bconds, lambda_bound=100)
-    exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'wave_eqn','cache':CACHE})
+    exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'kdv_eqn','cache':True})
+        
     
     print('Time taken {}= {}'.format(grid_res, end - start))
     print('RMSE {}= {}'.format(grid_res, error_rmse))
@@ -224,10 +227,10 @@ for grid_res in range(10,101,10):
    
 
         
-import pandas as pd
+#import pandas as pd
 
-exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-df=pd.DataFrame(exp_dict_list_flatten)
-df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
-df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
-df.to_csv('benchmarking_data/wave_experiment_10_50_cache={}.csv'.format(str(CACHE)))
+#exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+#df=pd.DataFrame(exp_dict_list_flatten)
+#df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
+#df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
+#df.to_csv('benchmarking_data/wave_experiment_10_50_cache={}.csv'.format(str(CACHE)))
