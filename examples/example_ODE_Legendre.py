@@ -207,19 +207,23 @@ for n in range(3,11):
 
         equation = Equation(grid, legendre_poly, bconds).set_strategy('NN')
 
+        img_dir=os.path.join(os.path.dirname( __file__ ), 'leg_img')
+
+        if not(os.path.isdir(img_dir)):
+            os.mkdir(img_dir)
 
         model = Solver(grid, equation, model, 'NN').solve(lambda_bound=10, verbose=True, learning_rate=1e-3,
                                         eps=1e-5, tmin=1000, tmax=1e5,use_cache=True,cache_verbose=True
-                                        ,save_always=False,print_every=None,model_randomize_parameter=1e-6)
+                                        ,save_always=False,print_every=None,model_randomize_parameter=1e-6,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
         end = time.time()
     
         print('Time taken {} = {}'.format(n,  end - start))
     
-        fig = plt.figure()
-        plt.scatter(grid.reshape(-1), model(grid).detach().numpy().reshape(-1))
+        #fig = plt.figure()
+        #plt.scatter(grid.reshape(-1), model(grid).detach().numpy().reshape(-1))
         # analytical sln is 1/2*(-1 + 3*t**2)
-        plt.scatter(grid.reshape(-1), legendre(n)(grid).reshape(-1))
-        plt.show()
+        #plt.scatter(grid.reshape(-1), legendre(n)(grid).reshape(-1))
+        #plt.show()
         
         error_rmse=torch.sqrt(torch.mean((legendre(n)(grid)-model(grid))**2))
         print('RMSE {}= {}'.format(n, error_rmse))

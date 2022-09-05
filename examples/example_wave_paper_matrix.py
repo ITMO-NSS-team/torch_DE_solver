@@ -42,14 +42,7 @@ for grid_res in range(40, 110, 10):
 
     grid=grid_format_prepare(coord_list,mode='mat')
 
-    #grid = np.meshgrid(*grid)
-    #grid = torch.tensor(grid, device=device)
 
-
-    print(grid.shape)
-
-    #grid = np.meshgrid(*grid)
-    #grid = torch.tensor(grid, device=device)
     
     """
     Preparing boundary conditions (BC)
@@ -155,12 +148,17 @@ for grid_res in range(40, 110, 10):
 
         equation = Equation(grid, wave_eq, bconds).set_strategy('mat')
 
+        img_dir=os.path.join(os.path.dirname( __file__ ), 'wave_img')
+
+        if not(os.path.isdir(img_dir)):
+            os.mkdir(img_dir)
+
         model = Solver(grid, equation, model, 'mat').solve(lambda_bound=100,
-                                         verbose=True, learning_rate=1e-3, eps=1e-7, tmin=1000, tmax=5e6,
-                                         use_cache=True,cache_dir='../cache/',cache_verbose=True,
+                                         verbose=True, learning_rate=1e-4, eps=1e-7, tmin=1000, tmax=5e6,
+                                         use_cache=True,cache_dir='../cache/',cache_verbose=False,
                                          save_always=False,print_every=None,
                                          patience=5,loss_oscillation_window=100,no_improvement_patience=100,
-                                         model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=model_arch)
+                                         model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=model_arch,step_plot_print=False,step_plot_save=False,image_save_dir=img_dir)
 
 
     
@@ -169,7 +167,7 @@ for grid_res in range(40, 110, 10):
         #model = torch.transpose(model, 0, 1)
         error_rmse = np.sqrt(np.mean((sln.reshape(-1) - model.detach().numpy().reshape(-1)) ** 2))
 
-        Solver(grid, equation,model,'mat').solution_print()
+        Solver(grid, equation,model,'mat').solution_print(title='final_solution',solution_print=False,solution_save=True,save_dir=img_dir)
 
 
         end_loss = Solution(grid, equation, model, 'mat').loss_evaluation(lambda_bound=100)
@@ -178,8 +176,8 @@ for grid_res in range(40, 110, 10):
         print('Time taken {}= {}'.format(grid_res, end - start))
         print('RMSE {}= {}'.format(grid_res, error_rmse))
         print('loss {}= {}'.format(grid_res, end_loss))
-        result_assessment=pd.DataFrame(exp_dict_list)
-        result_assessment.to_csv('results_wave_matrix_{}.csv'.format(grid_res))
+        #result_assessment=pd.DataFrame(exp_dict_list)
+        #result_assessment.to_csv('results_wave_matrix_{}.csv'.format(grid_res))
 
 
 

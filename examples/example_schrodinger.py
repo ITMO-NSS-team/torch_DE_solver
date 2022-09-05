@@ -199,7 +199,12 @@ model = torch.nn.Sequential(
 
 equation = Equation(grid, schrodinger_eq, bconds).set_strategy('NN')
 
+img_dir=os.path.join(os.path.dirname( __file__ ), 'schrodinger_img')
+
+if not(os.path.isdir(img_dir)):
+    os.mkdir(img_dir)
+
 model = Solver(grid, equation, model, 'NN').solve(lambda_bound=1000, verbose=1, learning_rate=1e-3,
                                     eps=1e-6, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True,
-                                    save_always=True,no_improvement_patience=500,print_every = None)
+                                    save_always=True,no_improvement_patience=500,print_every = None,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
 
