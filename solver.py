@@ -12,7 +12,7 @@ def grid_format_prepare(coord_list, mode='NN'):
     if type(coord_list)==torch.Tensor:
         print('Grid is a tensor, assuming old format, no action performed')
         return coord_list
-    if mode=='NN':
+    if mode=='NN' or mode =='autograd':
         if len(coord_list)==1:
             coord_list=torch.tensor(coord_list)
             grid=coord_list.reshape(-1,1).float()
