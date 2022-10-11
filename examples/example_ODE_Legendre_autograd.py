@@ -226,29 +226,34 @@ for n in range(3,10):
 
         equation = Equation(grid, legendre_poly, bconds).set_strategy('autograd')
 
+        img_dir=os.path.join(os.path.dirname( __file__ ), 'leg_img_autograd')
+
+        if not(os.path.isdir(img_dir)):
+            os.mkdir(img_dir)
+
         model = Solver(grid, equation, model, 'autograd').solve(use_cache=True,verbose=True,
-                                      print_every=None, cache_verbose=True, abs_loss=1e-3,
-                                      lambda_bound=10,optimizer_mode='Adam',learning_rate=1e-4,save_always=True)
+                                      print_every=None, cache_verbose=False, abs_loss=1e-3,
+                                      lambda_bound=10,optimizer_mode='Adam',learning_rate=1e-4,save_always=True,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
         end = time.time()
     
         print('Time taken {} = {}'.format(n,  end - start))
     
-        fig = plt.figure()
-        plt.scatter(grid.detach().numpy().reshape(-1), model(grid).detach().numpy().reshape(-1))
+        #fig = plt.figure()
+        #plt.scatter(grid.detach().numpy().reshape(-1), model(grid).detach().numpy().reshape(-1))
         # analytical sln is 1/2*(-1 + 3*t**2)
-        plt.scatter(grid.detach().numpy().reshape(-1), legendre(n)(grid.detach().numpy()).reshape(-1))
-        plt.show()
+        #plt.scatter(grid.detach().numpy().reshape(-1), legendre(n)(grid.detach().numpy()).reshape(-1))
+        #plt.show()
         
         error_rmse=torch.sqrt(torch.mean((legendre(n)(grid.detach())-model(grid))**2))
         print('RMSE {}= {}'.format(n, error_rmse))
         
         exp_dict_list.append({'grid_res':100,'time':end - start,'RMSE':error_rmse.detach().numpy(),'type':'L'+str(n),'cache':str(CACHE)})
 
-import pandas as pd
-df=pd.DataFrame(exp_dict_list)
-df.boxplot(by='type',column='RMSE',figsize=(20,10),fontsize=42,showfliers=False)
-df.boxplot(by='type',column='time',figsize=(20,10),fontsize=42,showfliers=False)
-df.to_csv('benchmarking_data/legendre_poly_exp_autograd.csv')
+#import pandas as pd
+#df=pd.DataFrame(exp_dict_list)
+#df.boxplot(by='type',column='RMSE',figsize=(20,10),fontsize=42,showfliers=False)
+#df.boxplot(by='type',column='time',figsize=(20,10),fontsize=42,showfliers=False)
+#df.to_csv('benchmarking_data/legendre_poly_exp_autograd.csv')
 
 #full paper plot
 

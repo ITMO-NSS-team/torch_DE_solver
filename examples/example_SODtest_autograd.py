@@ -189,8 +189,14 @@ start = time.time()
 
 equation = Equation(grid, gas_eq, bconds,h=h).set_strategy('autograd')
 
+
+img_dir=os.path.join(os.path.dirname( __file__ ), 'SOD_autograd_img')
+
+if not(os.path.isdir(img_dir)):
+    os.mkdir(img_dir)
+
 model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=100, use_cache=True, verbose=True, print_every=None,
-                              cache_verbose=False, abs_loss=0.0001, learning_rate=1e-3)
+                              cache_verbose=False, abs_loss=0.0001, learning_rate=1e-3,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
 
 end = time.time()
 print('Time taken = {}'.format(end - start))
@@ -289,17 +295,18 @@ def exact_solution_print(grid, u_exact):
     ax2 = fig2.add_subplot(projection='3d')
     fig3 = plt.figure()
     ax3 = fig3.add_subplot(projection='3d')
-    ax1.plot_trisurf(grid[:, 0].reshape(-1), grid[:, 1].reshape(-1), u_exact[:, 0].reshape(-1), cmap='Blues',
+    grid_plot=grid.detach().numpy()
+    ax1.plot_trisurf(grid_plot[:, 0].reshape(-1), grid_plot[:, 1].reshape(-1), u_exact[:, 0].reshape(-1), cmap='Blues',
                      linewidth=0.2, alpha=1)
-    ax1.plot_trisurf(grid[:, 0].reshape(-1), grid[:, 1].reshape(-1), model(grid)[:, 0].detach().numpy().reshape(-1),
+    ax1.plot_trisurf(grid_plot[:, 0].reshape(-1), grid_plot[:, 1].reshape(-1), model(grid)[:, 0].detach().numpy().reshape(-1),
                      cmap=cm.jet, linewidth=0.2, alpha=1)
-    ax2.plot_trisurf(grid[:, 0].reshape(-1), grid[:, 1].reshape(-1), u_exact[:, 1].reshape(-1), cmap='Blues',
+    ax2.plot_trisurf(grid_plot[:, 0].reshape(-1), grid_plot[:, 1].reshape(-1), u_exact[:, 1].reshape(-1), cmap='Blues',
                      linewidth=0.2, alpha=1)
-    ax2.plot_trisurf(grid[:, 0].reshape(-1), grid[:, 1].reshape(-1), model(grid)[:, 1].detach().numpy().reshape(-1),
+    ax2.plot_trisurf(grid_plot[:, 0].reshape(-1), grid_plot[:, 1].reshape(-1), model(grid)[:, 1].detach().numpy().reshape(-1),
                      cmap=cm.jet, linewidth=0.2, alpha=1)
-    ax3.plot_trisurf(grid[:, 0].reshape(-1), grid[:, 1].reshape(-1), u_exact[:, 2].reshape(-1), cmap='Blues',
+    ax3.plot_trisurf(grid_plot[:, 0].reshape(-1), grid_plot[:, 1].reshape(-1), u_exact[:, 2].reshape(-1), cmap='Blues',
                      linewidth=0.2, alpha=1)
-    ax3.plot_trisurf(grid[:, 0].reshape(-1), grid[:, 1].reshape(-1), model(grid)[:, 2].detach().numpy().reshape(-1),
+    ax3.plot_trisurf(grid_plot[:, 0].reshape(-1), grid_plot[:, 1].reshape(-1), model(grid)[:, 2].detach().numpy().reshape(-1),
                      cmap=cm.jet, linewidth=0.2, alpha=1)
     ax1.set_xlabel("x")
     ax1.set_ylabel("t")

@@ -462,7 +462,7 @@ class Equation_autograd(EquationMixin):
         autograd_op=[]
         for term in unified_operator:
             coeff1 = term[0]
-            if type(coeff1) == int:
+            if type(coeff1) == int or type(coeff1) == float:
                 coeff = coeff1
             elif callable(coeff1):
                 coeff = coeff1(grid)
