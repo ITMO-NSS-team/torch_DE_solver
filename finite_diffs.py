@@ -1,39 +1,61 @@
 from copy import copy
+from typing import Union
 
 flatten_list = lambda t: [item for sublist in t for item in sublist]
 
 
 class Finite_diffs():
+    """
+    Implements the Finite Difference method
+    """
     # the idea is simple - central difference changes [0]->([1]-[-1])/(2h) (in terms of grid nodes position)
     @staticmethod
-    def finite_diff_shift(diff, axis, mode):
-        """
-        we do the [0]->([1]-[-1])/(2h) transitions to the axes we need
-        as an example d2u/dxdt
-        u=[0,0]
-        u-> du/dx:
+    def finite_diff_shift(diff, axis: int, mode: str) -> list:
+        """ 1st order shift
 
-        [0,0]->([1,0]-[-1,0])/(2h)
+        Parameters
+        ----------
+        diff
+            values of finite differences
+        axis
+            axis
+        mode
+            the finite difference type (i.e., forward, backward, central)
 
-        du/dx->d2u/dxdt:
-
-        [1,0]->([1,1]-[1,-1])/(2h*2tau)
-
-        [-1,0]->([-1,1]-[-1,-1])/(2h*2tau)
-
-        But we do not want to take signs into account (too complex), so
-
-        u-> du/dx:
-
-        [0,0]->[[1,0],[-1,0]]
-
-        du/dx->d2u/dxdt:
-
-        [[1,0],[-1,0]]->[[1,1],[1,-1],[-1,1],[-1,-1]]
-
-        Since order is preserved we can compute signs afterwards
+        Returns
+        -------
+        diff_list
+            list with differences
 
         """
+
+        # """
+        # we do the [0]->([1]-[-1])/(2h) transitions to the axes we need
+        # as an example d2u/dxdt
+        # u=[0,0]
+        # u-> du/dx:
+        #
+        # [0,0]->([1,0]-[-1,0])/(2h)
+        #
+        # du/dx->d2u/dxdt:
+        #
+        # [1,0]->([1,1]-[1,-1])/(2h*2tau)
+        #
+        # [-1,0]->([-1,1]-[-1,-1])/(2h*2tau)
+        #
+        # But we do not want to take signs into account (too complex), so
+        #
+        # u-> du/dx:
+        #
+        # [0,0]->[[1,0],[-1,0]]
+        #
+        # du/dx->d2u/dxdt:
+        #
+        # [[1,0],[-1,0]]->[[1,1],[1,-1],[-1,1],[-1,-1]]
+        #
+        # Since order is preserved we can compute signs afterwards
+        #
+        # """
 
         diff_p = copy(diff)
         diff_m = copy(diff)
@@ -47,7 +69,27 @@ class Finite_diffs():
         return [diff_p, diff_m]
 
     @staticmethod
-    def scheme_build(axes, varn, axes_mode):
+    def scheme_build(axes: list, varn: int, axes_mode: str) -> tuple[list, list] :
+        """
+        Building first order finite-difference stencil.
+
+        Parameters
+        ----------
+        axes
+            axes that transforms using FDM. (operator in conventional form)
+        varn
+            Dimensionality of the problem.
+        axes_mode
+            'central' or combination of 'f' and 'b'.
+
+        Returns
+        -------
+        finite_diff
+            transformed axes due to finite difference method.
+        direction_list
+            list, which contains directions (i.e, 'central', 'f', 'b').
+
+        """
         order = len(axes)
         finite_diff = []
         direction_list = []
@@ -72,15 +114,31 @@ class Finite_diffs():
                     # or add to the existing pool
                     for diffs in f_diff:
                         diff_list.append(diffs)
-            # the we go to the next differential if needed
+            # there we go to the next differential if needed
             finite_diff = diff_list
             direction_list.append(axes_mode[axes[i]])
         return finite_diff, direction_list
 
     @staticmethod
-    def sign_order(order, mode, h=1 / 2):
+    def sign_order(order, mode: str, h = 1 / 2) -> list:
         """
-        From transormations above, we always start from +1 (1)
+        Determines the sign of the derivative for the corresponding transformation from Finite_diffs.scheme_build()
+
+        Parameters
+        ----------
+        order:
+            order of differentiation.
+        mode:
+            calculation type of finite difference.
+        h:
+
+
+        Returns
+        -------
+
+        """
+        """
+        From transformations above, we always start from +1 (1)
 
         Every +1 changes to ->[+1,-1] when order of differential rises
 

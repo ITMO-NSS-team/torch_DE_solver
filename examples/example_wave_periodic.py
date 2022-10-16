@@ -18,7 +18,7 @@ from cache import Model_prepare
 from input_preprocessing import Equation
 import time
 
-device = torch.device('cpu')
+device = torch.device('mps')
 # Grid
 x_grid = np.linspace(0,1,21)
 t_grid = np.linspace(0,1,21)
@@ -116,7 +116,7 @@ if not(os.path.isdir(img_dir)):
 
 model = Solver(grid, equation, model, 'NN').solve(lambda_bound=1000, verbose=1, learning_rate=1e-2,
                                     eps=1e-6, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
-                                    save_always=True,no_improvement_patience=500,print_every=None,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
+                                    save_always=True,no_improvement_patience=500,print_every=500,step_plot_print=500,step_plot_save=True,image_save_dir=img_dir)
 
 end = time.time()
 print('Time taken 10= ', end - start)
