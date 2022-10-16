@@ -1,5 +1,7 @@
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
+import scipy
 import pandas as pd
 
 import os
@@ -11,15 +13,16 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from tedeous.solver import Solver
-from tedeous.input_preprocessing import Equation
+from solver import Solver
+from cache import Model_prepare
+from input_preprocessing import Equation
 
 result = []
-device = torch.device('cpu')
-res_i = {"n_iter": [], "grid": [], "u": [], "v": [], 'time': []}
-grd = [10, 20, 30, 40, 50]
-for n in grd:
+# for n in range(10,60,10):
+for n in range(10,11):
+    res_i = [] # model(grid)[i]
     for i in range(10):
+        device = torch.device('mps')
 
         x_grid = np.linspace(-5,5,n+1)
         t_grid = np.linspace(0,np.pi/2,n+1)
@@ -191,22 +194,16 @@ for n in grd:
         schrodinger_eq = [schrodinger_eq_real,schrodinger_eq_imag]
 
         model = torch.nn.Sequential(
-            torch.nn.Linear(2, 100),
-            torch.nn.Tanh(),
-            torch.nn.Linear(100, 100),
-            torch.nn.Tanh(),
-            torch.nn.Linear(100, 100),
-            torch.nn.Tanh(),
-            torch.nn.Linear(100, 100),
-            torch.nn.Tanh(),
-            torch.nn.Linear(100, 100),
-            torch.nn.Tanh(),
-            torch.nn.Linear(100, 100),
-            torch.nn.Tanh(),
-            torch.nn.Linear(100, 2)
-        )
+                torch.nn.Linear(2, 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, 2)
+            )
 
-        equation = Equation(grid, schrodinger_eq, bconds).set_strategy('autograd')
+        equation = Equation(grid, schrodinger_eq, bconds).set_strategy('NN')
 
         img_dir=os.path.join(os.path.dirname( __file__ ), 'schrodinger_img')
 
@@ -214,24 +211,13 @@ for n in grd:
             os.mkdir(img_dir)
 
         start = time.time()
-        model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=1, verbose=True, learning_rate=0.8,
-                                            eps=1e-6, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
-                                            save_always=False,no_improvement_patience=500,print_every = 100,optimizer_mode='LBFGS',step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
+        model = Solver(grid, equation, model, 'NN').solve(lambda_bound=1000, verbose=1, learning_rate=1e-3,
+                                            eps=1e-6, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True,
+                                            save_always=True,no_improvement_patience=500,print_every = 500,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
         end = time.time()
-        print('Time taken for n_iter: {} and grid_res:{} = {}'.format(i, n,  end - start))
-
-        val = model(grid).detach().numpy()
-        u = val[0:,0]
-        v = val[0:,1]
-        n_iter = [i for j in range(len(u))]
-        N = [n for j in range(len(u))]
-        time_iter = [end - start for i in range(len(u))]
-        res_i['n_iter'].extend(n_iter)
-        res_i['grid'].extend(N)
-        res_i['v'].extend(v)
-        res_i['u'].extend(u)
-        res_i['time'].extend(time_iter)
-    result.extend(res_i)
-
-df = pd.DataFrame(res_i)
-df.to_csv(f'benchmarking_data/schrodinger_experiment_{grd}_cache=False.csv',index=False)
+        print('Time taken {} = {}'.format(n,  end - start))
+        res_i.append(model(grid))
+    result.append({'n': n, 'values': res_i, 'time': start - end})
+df = pd.DataFrame(result)
+df.to_csv('benchmarking_data/example_schrodinger.csv')
+# error_rmse = torch.sqrt(torch.mean(((grid)-model(grid))**2))
