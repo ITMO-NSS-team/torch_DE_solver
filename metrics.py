@@ -1,28 +1,34 @@
 import torch
 import numpy as np
+from typing import Union
+
+from torch import Tensor
 
 from points_type import Points_type
+
 flatten_list = lambda t: [item for sublist in t for item in sublist]
 
+
 class DerivativeInt():
-    def take_derivative(self, value): 
+    def take_derivative(self, value):
         raise NotImplementedError
+
 
 class Derivative_NN(DerivativeInt):
     def __init__(self, grid, model):
         self.grid = grid
         self.model = model
-    
-    def take_derivative (self, term):
+
+    def take_derivative(self, term: Union[list, int, torch.Tensor]) -> torch.Tensor:
         """
-        Axiluary function serves for single differential operator resulting field
+        Auxiliary function serves for single differential operator resulting field
         derivation
 
         Parameters
         ----------
-        model : torch.Sequential
+        model: torch.Sequential
             Neural network.
-        term : TYPE
+        term:
             differential operator in conventional form.
 
         Returns
@@ -42,76 +48,127 @@ class Derivative_NN(DerivativeInt):
         # number of variables in equation
         variables = term[4]
         # initially it is an ones field
-        der_term = (torch.zeros_like(self.model(shift_grid_list[0][0])[0:,0]) + 1).reshape(-1,1)
-        
+        der_term = (torch.zeros_like(self.model(shift_grid_list[0][0])[0:, 0]) + 1).reshape(-1, 1)
+
         for j, scheme in enumerate(shift_grid_list):
-            # every shift in grid we should add with correspoiding sign, so we start
+            # every shift in grid we should add with corresponding sign, so we start
             # from zeros
-            grid_sum = torch.zeros_like(self.model(scheme[0]))[0:,0].reshape(-1,1) #почему схема от 0?
+            grid_sum = torch.zeros_like(self.model(scheme[0]))[0:, 0].reshape(-1, 1)
             for k, grid in enumerate(scheme):
                 # and add grid sequentially
-                grid_sum += (self.model(grid)[0:,variables[j]]).reshape(-1,1) * s_order_norm_list[j][k]
+                grid_sum += (self.model(grid)[0:, variables[j]]).reshape(-1, 1) * s_order_norm_list[j][k]
                 # Here we want to apply differential operators for every term in the product
             der_term = der_term * grid_sum ** power[j]
         der_term = coeff * der_term
 
-            
         return der_term
 
+
 class Derivative_autograd(DerivativeInt):
+    """
+    Applies derivative for autograd method.
+    """
+
     def __init__(self, grid, model):
         self.grid = grid
         self.model = model
-    
+
     @staticmethod
-    def nn_autograd_simple(model, points, order,axis=0):
-        points.requires_grad=True
+    def nn_autograd_simple(model: torch.nn.Sequential, points: torch.Tensor, order, axis=0) -> torch.Tensor:
+        """
+
+        Parameters
+        ----------
+        model:
+            neural network
+        points:
+
+        order:
+
+        axis:
+
+
+        Returns
+        -------
+        gradient_full
+
+        """
+        points.requires_grad = True
         gradient_full = []
         f = model(points).sum(0)
         for i in range(len(f)):
             fi = f[i]
             for j in range(order):
                 grads, = torch.autograd.grad(fi, points, create_graph=True)
-                fi = grads[:,axis].sum()
-            gradient_full.append(grads[:,axis].reshape(-1,1))
+                fi = grads[:, axis].sum()
+            gradient_full.append(grads[:, axis].reshape(-1, 1))
         gradient_full = torch.hstack(gradient_full)
         return gradient_full
 
     @staticmethod
-    def nn_autograd_mixed(model, points,axis=[0]):
-        points.requires_grad=True
+    def nn_autograd_mixed(model: torch.nn.Sequential, points, axis=[0]):
+        """
+        Computes derivative on the grid using autograd method.
+
+        Parameters
+        ----------
+        model:
+            neural network
+        points:
+            points, where numerical derivative is calculated
+        axis:
+
+
+
+        Returns
+        -------
+        gradient_full
+
+                """
+        points.requires_grad = True
         gradient_full = []
         f = model(points).sum(0)
         for i in range(len(f)):
             fi = f[i]
             for ax in axis:
                 grads, = torch.autograd.grad(fi, points, create_graph=True)
-                fi = grads[:,ax].sum()
-            gradient_full.append(grads[:,axis[-1]].reshape(-1,1))
+                fi = grads[:, ax].sum()
+            gradient_full.append(grads[:, axis[-1]].reshape(-1, 1))
         gradient_full = torch.hstack(gradient_full)
         return gradient_full
 
-
     def nn_autograd(self, *args, axis=0):
-        model=args[0]
-        points=args[1]
-        if len(args)==3:
-            order=args[2]
-            grads=self.nn_autograd_simple(model, points, order,axis=axis)
-        else:
-            grads=self.nn_autograd_mixed(model, points,axis=axis)
-        return grads
+        """
+        Wrap just for convenience metrics.Derivative_autograd.nn_autograd_simple and
+        metrics.Derivative_autograd.nn_autograd_mixed in one function.
 
+        Parameters
+        ----------
+        args
+            could be 2 or 3 arguments. It depends on which function will be used.
+        axis
+
+
+        Returns
+        -------
+
+        """
+        model = args[0]
+        points = args[1]
+        if len(args) == 3:
+            order = args[2]
+            grads = self.nn_autograd_simple(model, points, order, axis=axis)
+        else:
+            grads = self.nn_autograd_mixed(model, points, axis=axis)
+        return grads
 
     def take_derivative(self, term):
         """
-        Axiluary function serves for single differential operator resulting field
+        Auxiliary function serves for single differential operator resulting field
         derivation
 
         Parameters
         ----------
-        model : torch.Sequential
-            Neural network.
         term : TYPE
             differential operator in conventional form.
 
@@ -143,139 +200,148 @@ class Derivative_autograd(DerivativeInt):
 
         return der_term
 
+
 class Derivative_mat(DerivativeInt):
     def __init__(self, grid, model):
         self.grid = grid
         self.model = model
-    
+
     @staticmethod
-    def derivative_1d(model,grid):
+    def derivative_1d(model: torch.Tensor, grid: torch.Tensor):
+        """
+        Computes derivative in one dimension for matrix method.
+
+        Parameters
+        ----------
+        model
+
+        grid
+
+        Returns
+        -------
+
+        """
         # print('1d>2d')
-        u=model.reshape(-1)
-        x=grid.reshape(-1)
-        
+        u = model.reshape(-1)
+        x = grid.reshape(-1)
+
         # du_forward = (u-torch.roll(u, -1)) / (x-torch.roll(x, -1))
-        
+
         # du_backward = (torch.roll(u, 1) - u) / (torch.roll(x, 1) - x)
-        du =  (torch.roll(u, 1) - torch.roll(u, -1))/(torch.roll(x, 1)-torch.roll(x, -1))
-        du[0] = (u[0]-u[1])/(x[0]-x[1])
-        du[-1] = (u[-1]-u[-2])/(x[-1]-x[-2])
-        
-        du=du.reshape(model.shape)
-        
+        du = (torch.roll(u, 1) - torch.roll(u, -1)) / (torch.roll(x, 1) - torch.roll(x, -1))
+        du[0] = (u[0] - u[1]) / (x[0] - x[1])
+        du[-1] = (u[-1] - u[-2]) / (x[-1] - x[-2])
+
+        du = du.reshape(model.shape)
+
         return du
 
     @staticmethod
     def derivative(u_tensor, h_tensor, axis, scheme_order=1, boundary_order=1):
-        #print('shape=',u_tensor.shape)
-        if (u_tensor.shape[0]==1):
-            du = Derivative_mat.derivative_1d(u_tensor,h_tensor)
+        # print('shape=',u_tensor.shape)
+        if (u_tensor.shape[0] == 1):
+            du = Derivative_mat.derivative_1d(u_tensor, h_tensor)
             return du
 
         u_tensor = torch.transpose(u_tensor, 0, axis)
         h_tensor = torch.transpose(h_tensor, 0, axis)
-        
-        
-        if scheme_order==1:
+
+        if scheme_order == 1:
             du_forward = (-torch.roll(u_tensor, -1) + u_tensor) / \
-                        (-torch.roll(h_tensor, -1) + h_tensor)
-        
+                         (-torch.roll(h_tensor, -1) + h_tensor)
+
             du_backward = (torch.roll(u_tensor, 1) - u_tensor) / \
-                        (torch.roll(h_tensor, 1) - h_tensor)
+                          (torch.roll(h_tensor, 1) - h_tensor)
             du = (1 / 2) * (du_forward + du_backward)
-        
+
         # dh=h_tensor[0,1]-h_tensor[0,0]
-        
-        if scheme_order==2:
+
+        if scheme_order == 2:
             u_shift_down_1 = torch.roll(u_tensor, 1)
             u_shift_down_2 = torch.roll(u_tensor, 2)
             u_shift_up_1 = torch.roll(u_tensor, -1)
             u_shift_up_2 = torch.roll(u_tensor, -2)
-            
+
             h_shift_down_1 = torch.roll(h_tensor, 1)
             h_shift_down_2 = torch.roll(h_tensor, 2)
             h_shift_up_1 = torch.roll(h_tensor, -1)
             h_shift_up_2 = torch.roll(h_tensor, -2)
-            
-            h1_up=h_shift_up_1-h_tensor
-            h2_up=h_shift_up_2-h_shift_up_1
-            
-            h1_down=h_tensor-h_shift_down_1
-            h2_down=h_shift_down_1-h_shift_down_2
-        
-            a_up=-(2*h1_up+h2_up)/(h1_up*(h1_up+h2_up))
-            b_up=(h2_up+h1_up)/(h1_up*h2_up)
-            c_up=-h1_up/(h2_up*(h1_up+h2_up))
-            
-            a_down=(2*h1_down+h2_down)/(h1_down*(h1_down+h2_down))
-            b_down=-(h2_down+h1_down)/(h1_down*h2_down)
-            c_down=h1_down/(h2_down*(h1_down+h2_down))
-            
-            du_forward=a_up*u_tensor+b_up*u_shift_up_1+c_up*u_shift_up_2
-            du_backward=a_down*u_tensor+b_down*u_shift_down_1+c_down*u_shift_down_2
+
+            h1_up = h_shift_up_1 - h_tensor
+            h2_up = h_shift_up_2 - h_shift_up_1
+
+            h1_down = h_tensor - h_shift_down_1
+            h2_down = h_shift_down_1 - h_shift_down_2
+
+            a_up = -(2 * h1_up + h2_up) / (h1_up * (h1_up + h2_up))
+            b_up = (h2_up + h1_up) / (h1_up * h2_up)
+            c_up = -h1_up / (h2_up * (h1_up + h2_up))
+
+            a_down = (2 * h1_down + h2_down) / (h1_down * (h1_down + h2_down))
+            b_down = -(h2_down + h1_down) / (h1_down * h2_down)
+            c_down = h1_down / (h2_down * (h1_down + h2_down))
+
+            du_forward = a_up * u_tensor + b_up * u_shift_up_1 + c_up * u_shift_up_2
+            du_backward = a_down * u_tensor + b_down * u_shift_down_1 + c_down * u_shift_down_2
             du = (1 / 2) * (du_forward + du_backward)
-            
-            
-        if boundary_order==1:
-            if scheme_order==1:
+
+        if boundary_order == 1:
+            if scheme_order == 1:
                 du[:, 0] = du_forward[:, 0]
                 du[:, -1] = du_backward[:, -1]
-            elif scheme_order==2:
+            elif scheme_order == 2:
                 du_forward = (-torch.roll(u_tensor, -1) + u_tensor) / \
-                            (-torch.roll(h_tensor, -1) + h_tensor)
-            
+                             (-torch.roll(h_tensor, -1) + h_tensor)
+
                 du_backward = (torch.roll(u_tensor, 1) - u_tensor) / \
-                            (torch.roll(h_tensor, 1) - h_tensor)
+                              (torch.roll(h_tensor, 1) - h_tensor)
                 du[:, 0] = du_forward[:, 0]
                 du[:, 1] = du_forward[:, 1]
                 du[:, -1] = du_backward[:, -1]
                 du[:, -2] = du_backward[:, -2]
-        elif boundary_order==2:
-            if scheme_order==2:
+        elif boundary_order == 2:
+            if scheme_order == 2:
                 du[:, 0] = du_forward[:, 0]
                 du[:, 1] = du_forward[:, 1]
                 du[:, -1] = du_backward[:, -1]
                 du[:, -2] = du_backward[:, -2]
-            elif scheme_order==1:
+            elif scheme_order == 1:
                 u_shift_down_1 = torch.roll(u_tensor, 1)
                 u_shift_down_2 = torch.roll(u_tensor, 2)
                 u_shift_up_1 = torch.roll(u_tensor, -1)
                 u_shift_up_2 = torch.roll(u_tensor, -2)
-                
+
                 h_shift_down_1 = torch.roll(h_tensor, 1)
                 h_shift_down_2 = torch.roll(h_tensor, 2)
                 h_shift_up_1 = torch.roll(h_tensor, -1)
                 h_shift_up_2 = torch.roll(h_tensor, -2)
-                
-                h1_up=h_shift_up_1-h_tensor
-                h2_up=h_shift_up_2-h_shift_up_1
-                
-                h1_down=h_tensor-h_shift_down_1
-                h2_down=h_shift_down_1-h_shift_down_2
-            
-        
-                a_up=-(2*h1_up+h2_up)/(h1_up*(h1_up+h2_up))
-                b_up=(h2_up+h1_up)/(h1_up*h2_up)
-                c_up=-h1_up/(h2_up*(h1_up+h2_up))
-                
-                a_down=(2*h1_up+h2_up)/(h1_down*(h1_down+h2_down))
-                b_down=-(h2_down+h1_down)/(h1_down*h2_down)
-                c_down=h1_down/(h2_down*(h1_down+h2_down))
-            
-                
-                du_forward=a_up*u_tensor+b_up*u_shift_up_1+c_up*u_shift_up_2
-                du_backward=a_down*u_tensor+b_down*u_shift_down_1+c_down*u_shift_down_2
+
+                h1_up = h_shift_up_1 - h_tensor
+                h2_up = h_shift_up_2 - h_shift_up_1
+
+                h1_down = h_tensor - h_shift_down_1
+                h2_down = h_shift_down_1 - h_shift_down_2
+
+                a_up = -(2 * h1_up + h2_up) / (h1_up * (h1_up + h2_up))
+                b_up = (h2_up + h1_up) / (h1_up * h2_up)
+                c_up = -h1_up / (h2_up * (h1_up + h2_up))
+
+                a_down = (2 * h1_up + h2_up) / (h1_down * (h1_down + h2_down))
+                b_down = -(h2_down + h1_down) / (h1_down * h2_down)
+                c_down = h1_down / (h2_down * (h1_down + h2_down))
+
+                du_forward = a_up * u_tensor + b_up * u_shift_up_1 + c_up * u_shift_up_2
+                du_backward = a_down * u_tensor + b_down * u_shift_down_1 + c_down * u_shift_down_2
                 du[:, 0] = du_forward[:, 0]
                 du[:, -1] = du_backward[:, -1]
-                
+
         du = torch.transpose(du, 0, axis)
 
         return du
 
-
     def take_derivative(self, term):
         """
-        Axiluary function serves for single differential operator resulting field
+        Auxiliary function serves for single differential operator resulting field
         derivation
 
         Parameters
@@ -300,13 +366,13 @@ class Derivative_mat(DerivativeInt):
         # initially it is an ones field
         der_term = torch.zeros_like(self.model) + 1
         for j, scheme in enumerate(operator_product):
-            prod=self.model
-            if scheme!=[None]:
+            prod = self.model
+            if scheme != [None]:
                 for axis in scheme:
                     if axis is None:
                         continue
                     h = self.grid[axis]
-                    prod=self.derivative(prod, h, axis, scheme_order=1, boundary_order=1)
+                    prod = self.derivative(prod, h, axis, scheme_order=1, boundary_order=1)
             der_term = der_term * prod ** power[j]
         if callable(coeff) is True:
             der_term = coeff(self.grid) * der_term
@@ -314,17 +380,33 @@ class Derivative_mat(DerivativeInt):
             der_term = coeff * der_term
         return der_term
 
+
 class Derivative():
     def __init__(self, grid, model):
         self.grid = grid
         self.model = model
 
     def set_strategy(self, strategy):
+        """
+        Setting the calculation method.
+
+        Parameters
+        ----------
+        strategy: str
+            Calculation method. (i.e., "NN", "autograd", "mat")
+
+        Returns
+        -------
+        prepared_equation :
+            equation in input form for a given calculation method
+
+
+        """
         if strategy == 'NN':
             return Derivative_NN(self.grid, self.model)
 
         elif strategy == 'autograd':
-            return  Derivative_autograd(self.grid, self.model)
+            return Derivative_autograd(self.grid, self.model)
 
         elif strategy == 'mat':
             return Derivative_mat(self.grid, self.model)
@@ -365,19 +447,22 @@ class Solution():
                 total = dif
         return total
 
-    def apply_bconds_set(self, operator_set):
+    def apply_bconds_set(self, operator_set) -> torch.Tensor:
         """
         Deciphers equation in a whole grid to a field.
+
         Parameters
         ----------
         model : torch.Sequential
             Neural network.
-        operator : list
+        operator_set : list
             Multiple (len(subset)>=1) operators in input form. See 
             input_preprocessing.operator_prepare()
         Returns
         -------
-        total : torch.Tensor
+        field_part:
+
+
         """
         field_part = []
         for operator in operator_set:
@@ -385,19 +470,32 @@ class Solution():
         field_part = torch.cat(field_part)
         return field_part
 
-    def b_op_val_calc(self, bcond):
+    def b_op_val_calc(self, bcond: list) -> torch.Tensor:
+        """
+        Auxiliary function. Serves only to evaluate operator on the boundary.
+
+        Parameters
+        ----------
+        bcond:
+            terms of prepared boundary conditions (see input_preprocessing.bnd_prepare) in input form.
+        Returns
+        -------
+        b_op_val
+            calculated operator on the boundary.
+
+        """
         b_pos = bcond[0]
         bop = bcond[1]
-        truebval = bcond[2].reshape(-1,1)
+        truebval = bcond[2].reshape(-1, 1)
         var = bcond[3]
         btype = bcond[4]
         if bop == None or bop == [[1, [None], 1]]:
             if self.mode == 'NN':
                 grid_dict = Points_type.grid_sort(self.grid)
                 sorted_grid = torch.cat(list(grid_dict.values()))
-                b_op_val = self.model(sorted_grid)[:,var].reshape(-1,1)
+                b_op_val = self.model(sorted_grid)[:, var].reshape(-1, 1)
             elif self.mode == 'autograd':
-                b_op_val = self.model(self.grid)[:,var].reshape(-1,1)
+                b_op_val = self.model(self.grid)[:, var].reshape(-1, 1)
             elif self.mode == 'mat':
                 b_op_val = self.model
         else:
@@ -407,16 +505,26 @@ class Solution():
                 b_op_val = self.apply_operator(bop)
         return b_op_val
 
-    def apply_bconds_operator(self):
+    def apply_bconds_operator(self) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Auxiliary function. Serves only to evaluate boundary values and true boundary values.
+
+        Returns
+        -------
+        b_val:
+            calculated model boundary values
+        true_b_val:
+            true grid boundary values
+        """
         true_b_val_list = []
         b_val_list = []
-        
+
         # we apply no  boundary conditions operators if they are all None
 
         for bcond in self.prepared_bconds:
             b_pos = bcond[0]
             bop = bcond[1]
-            truebval = bcond[2].reshape(-1,1)
+            truebval = bcond[2].reshape(-1, 1)
             var = bcond[3]
             btype = bcond[4]
             if btype == 'boundary values':
@@ -438,11 +546,25 @@ class Solution():
                     b_val -= b_op_val[b_pos[i]]
                 b_val_list.append(b_val)
         true_b_val = torch.cat(true_b_val_list)
-        b_val=torch.cat(b_val_list).reshape(-1,1)
+        b_val = torch.cat(b_val_list).reshape(-1, 1)
 
         return b_val, true_b_val
 
-    def loss_evaluation(self, lambda_bound=10):
+    def loss_evaluation(self, lambda_bound=10) -> Tensor:
+        """
+        Computes loss
+
+        Parameters
+        ----------
+        lambda_bound: int
+            an arbitrary chosen constant, influence only convergence speed
+
+        Returns
+        -------
+        loss
+            loss
+
+        """
         if self.mode == 'mat' or self.mode == 'autograd':
             if self.prepared_bconds == None:
                 print('No bconds is not possible, returning infinite loss')
@@ -458,10 +580,9 @@ class Solution():
             for i in range(num_of_eq):
                 op_list.append(self.apply_operator(self.prepared_operator[i]))
 
-            op = torch.cat(op_list,1)
+            op = torch.cat(op_list, 1)
             if self.prepared_bconds == None:
                 return torch.sum(torch.mean((op) ** 2, 0))
-    
 
         # we apply no  boundary conditions operators if they are all None
 
@@ -476,10 +597,10 @@ class Solution():
         # l1_lambda = 0.001
         # l1_norm =sum(p.abs().sum() for p in model.parameters())
         # loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)+ l1_lambda * l1_norm
-        if self.mode=='mat':
+        if self.mode == 'mat':
             loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)
         else:
-            loss = torch.sum(torch.mean((op) ** 2, 0)) + lambda_bound * torch.sum(torch.mean((b_val - true_b_val) ** 2, 0))
+            loss = torch.sum(torch.mean((op) ** 2, 0)) + lambda_bound * torch.sum(
+                torch.mean((b_val - true_b_val) ** 2, 0))
 
         return loss
-
