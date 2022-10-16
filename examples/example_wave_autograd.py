@@ -143,5 +143,5 @@ img_dir=os.path.join(os.path.dirname( __file__ ), 'wave_autograd_img')
 if not(os.path.isdir(img_dir)):
     os.mkdir(img_dir)
 
-model=Solver(grid, equation, model, 'autograd').solve(use_cache=True,verbose=True,print_every=None,cache_verbose=True,abs_loss=0.001,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
+model=Solver(grid, equation, model, 'autograd').solve(use_cache=True,verbose=True,print_every=500,cache_verbose=True,abs_loss=0.001,step_plot_print=500,step_plot_save=True,image_save_dir=img_dir)
 
