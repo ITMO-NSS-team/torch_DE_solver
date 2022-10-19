@@ -18,11 +18,10 @@ from cache import Model_prepare
 from input_preprocessing import Equation
 
 result = []
-# for n in range(10,60,10):
-for n in range(10,11):
-    res_i = [] # model(grid)[i]
+device = torch.device('cpu')
+res_i = {"n_iter": [], "grid": [], "u": [], "v": []}
+for n in range(10,60,10):
     for i in range(10):
-        device = torch.device('mps')
 
         x_grid = np.linspace(-5,5,n+1)
         t_grid = np.linspace(0,np.pi/2,n+1)
@@ -211,13 +210,22 @@ for n in range(10,11):
             os.mkdir(img_dir)
 
         start = time.time()
-        model = Solver(grid, equation, model, 'NN').solve(lambda_bound=1000, verbose=1, learning_rate=1e-3,
-                                            eps=1e-6, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True,
-                                            save_always=True,no_improvement_patience=500,print_every = 500,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
+        model = Solver(grid, equation, model, 'NN').solve(lambda_bound=1000, verbose=True, learning_rate=1e-3,
+                                            eps=1e-6, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
+                                            save_always=True,no_improvement_patience=500,print_every = None,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
         end = time.time()
-        print('Time taken {} = {}'.format(n,  end - start))
-        res_i.append(model(grid))
-    result.append({'n': n, 'values': res_i, 'time': start - end})
-df = pd.DataFrame(result)
-df.to_csv('benchmarking_data/example_schrodinger.csv')
-# error_rmse = torch.sqrt(torch.mean(((grid)-model(grid))**2))
+        print('Time taken for n_iter: {} and grid_res:{} = {}'.format(i, n,  end - start))
+
+        val = model(grid).detach().numpy()
+        u = val[0:,0]
+        v = val[0:,1]
+        n_iter = [i for j in range(len(u))]
+        N = [n for j in range(len(u))]
+        res_i['n_iter'].extend(n_iter)
+        res_i['grid'].extend(N)
+        res_i['v'].extend(v)
+        res_i['u'].extend(u)
+    result.extend(res_i)
+
+df = pd.DataFrame(res_i)
+df.to_csv('benchmarking_data/schrodinger_experiment_10_50_cache=False.csv',index=False)
