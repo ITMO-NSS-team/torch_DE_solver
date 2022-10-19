@@ -10,17 +10,36 @@ import torch
 import os 
 import glob
 import numpy as np
+from typing import Union
 
 from metrics import Solution
 from input_preprocessing import Equation, EquationMixin
 
 class Model_prepare(Solution):
+    """
+    Prepares initial model. Serves for computing acceleration.\n
+    Saves the trained model to the cache, and subsequently it is possible to use pre-trained model (if \\\
+    it saved and if the new model is structurally similar) to sped up computing.\n
+    If there isn't pre-trained model in cache, the training process will start from the beginning.
+    """
     def __init__(self, grid, equal_cls, model, mode):
         super().__init__(grid, equal_cls, model, mode)
         self.equal_cls = equal_cls    
     
     @staticmethod
-    def create_random_fn(eps):
+    def create_random_fn(eps: Union[int,float]):
+        """
+        Creates a random model parameters (weights, biases) multiplied with a given randomize parameter.
+
+        Parameters
+        ----------
+        eps:
+            randomize parameter
+
+        Returns
+        -------
+
+        """
         def randomize_params(m):
             if type(m)==torch.nn.Linear or type(m)==torch.nn.Conv2d:
                 m.weight.data=m.weight.data+(2*torch.randn(m.weight.size())-1)*eps#Random weight initialisation
@@ -28,8 +47,30 @@ class Model_prepare(Solution):
         return randomize_params
 
 
-    def cache_lookup(self, lambda_bound=0.001, cache_dir='../cache/', nmodels=None, cache_verbose=False):
-        
+    def cache_lookup(self, lambda_bound = 0.001, cache_dir: str = '../cache/',
+                nmodels: Union[int, None] = None, cache_verbose: bool = False) -> Union[dict, torch.Tensor]:
+        '''
+        Looking for a saved cache.
+
+        Parameters
+        ----------
+        lambda_bound: float
+            an arbitrary chosen constant, influence only convergence speed.
+        cache_dir: str
+            directory where saved cache in.
+        nmodels:
+            ?
+        cache_verbose: bool
+            more detailed info about models in cache.
+
+        Returns
+        -------
+        best_checkpoint
+
+        min_loss
+            minimum error in pre-trained error
+
+        '''
         files=glob.glob(cache_dir+'*.tar')
         # if files not found
         if len(files)==0:
@@ -92,7 +133,24 @@ class Model_prepare(Solution):
         return best_checkpoint,min_loss
 
 
-    def save_model(self, prep_model, state, optimizer_state, cache_dir='../cache/', name=None):
+    def save_model(self, prep_model: torch.nn.Sequential, state: dict, optimizer_state: dict,
+                   cache_dir = '../cache/', name: Union[str,None] = None):
+        """
+        Saved model in a cache (uses for 'NN' and 'autograd' methods).
+
+        Parameters
+        ----------
+        prep_model
+            model to save
+        state
+            a dict holding current model state (i.e., dictionary that maps each layer to its parameter tensor).
+        optimizer_state
+            a dict holding current optimization state (i.e., values, hyperparameters).
+        cache_dir
+            directory where saved cache in.
+        name
+            name for a model
+        """
         if name==None:
             name=str(datetime.datetime.now().timestamp())
         if os.path.isdir(cache_dir):
@@ -103,7 +161,20 @@ class Model_prepare(Solution):
             torch.save({'model':prep_model, 'model_state_dict': state,
                     'optimizer_state_dict': optimizer_state}, cache_dir+name+'.tar')
         
-    def save_model_mat(self, cache_dir='../cache/', name=None, cache_model=None):
+    def save_model_mat(self, cache_dir: str = '../cache/', name: Union[str, None] = None,
+                       cache_model: torch.nn.Sequential = None):
+        """
+        Saved model in a cache (uses for 'mat' method).
+
+        Parameters
+        ----------
+        cache_dir
+            a directory where saved cache in.
+        name
+            name for a model
+        cache_model
+            model to save
+        """
         NN_grid=torch.from_numpy(np.vstack([self.grid[i].reshape(-1) for i in range(self.grid.shape[0])]).T).float()
         if cache_model==None:
             cache_model = torch.nn.Sequential(
@@ -132,7 +203,23 @@ class Model_prepare(Solution):
 
         self.save_model(cache_model,cache_model.state_dict(),optimizer.state_dict(),cache_dir=cache_dir, name=name)
 
-    def scheme_interp(self, trained_model, cache_verbose=False):
+    def scheme_interp(self, trained_model: torch.nn.Sequential, cache_verbose: bool = False) -> Union[torch.nn.Sequential, dict]:
+        """
+        ???
+
+        Parameters
+        ----------
+        trained_model
+            ???
+        cache_verbose:
+            more detailed info about models in cache.
+
+        Returns
+        -------
+        model
+        optimizer.state_dict
+
+        """
         optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
 
         loss = torch.mean(torch.square(trained_model(self.grid)-self.model(self.grid)))
@@ -153,11 +240,27 @@ class Model_prepare(Solution):
         return self.model, optimizer.state_dict()
 
 
-    def cache_retrain(self, cache_checkpoint, cache_verbose=False):
+    def cache_retrain(self, cache_checkpoint, cache_verbose: bool = False) -> Union[torch.nn.Sequential, dict]:
+        """
+        ???
+
+        Parameters
+        ----------
+        cache_checkpoint
+            ???
+        cache_verbose
+            more detailed info about models in cache.
+
+        Returns
+        -------
+        model
+        optimizer_state
+        """
         # do nothing if cache is empty
         if cache_checkpoint==None:
             optimizer_state = None
             return self.model,optimizer_state
+
         # if models have the same structure use the cache model state
         if str(cache_checkpoint['model']) == str(self.model):
             self.model = cache_checkpoint['model']
@@ -176,14 +279,38 @@ class Model_prepare(Solution):
             self.model, optimizer_state = self.scheme_interp(cache_model, cache_verbose=cache_verbose)
         return self.model, optimizer_state
 
-    def cache(self, cache_dir, nmodels, lambda_bound, cache_verbose, model_randomize_parameter, cache_model):
-        r =self.create_random_fn(model_randomize_parameter) 
+    def cache(self, cache_dir: str, nmodels: Union[int, None], lambda_bound: float,
+              cache_verbose: bool,model_randomize_parameter: Union[float, None],
+              cache_model: torch.nn.Sequential) -> Union[torch.nn.Sequential, torch.Tensor]:
+        """
+        Restores the model from the cache and uses it for retraining.
+
+        Parameters
+        ----------
+        cache_dir
+            a directory where saved cache in.
+        nmodels
+         ???
+        lambda_bound
+            an arbitrary chosen constant, influence only convergence speed.
+        cache_verbose
+            more detailed info about models in cache.
+        model_randomize_parameter
+            Creates a random model parameters (weights, biases) multiplied with a given randomize parameter.
+        cache_model
+            cached model
+
+        Returns
+        -------
+        model
+        min_loss
+
+        """
+        r = self.create_random_fn(model_randomize_parameter)
         if self.mode == 'NN' or self.mode == 'autograd':
             cache_checkpoint, min_loss=self.cache_lookup(cache_dir=cache_dir, nmodels=nmodels, cache_verbose=cache_verbose, lambda_bound=lambda_bound)
             self.model, optimizer_state = self.cache_retrain(cache_checkpoint, cache_verbose=cache_verbose)
-
             self.model.apply(r)
-
             return self.model, min_loss
 
         elif self.mode == 'mat':
