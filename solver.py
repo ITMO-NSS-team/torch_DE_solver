@@ -30,9 +30,9 @@ def grid_format_prepare(coord_list, mode='NN'):
     return grid
 
 class Solver(Model_prepare):
-    def __init__(self, grid, equal_cls, model, mode):
+    def __init__(self, grid, equal_cls, model, mode, weak_form=None):
         super().__init__(grid, equal_cls, model, mode)
-
+        self.weak_form = weak_form
 
     def optimizer_choice(self, optimizer, learning_rate):
         if optimizer=='Adam':
@@ -77,7 +77,7 @@ class Solver(Model_prepare):
                     ax1 = fig.add_subplot(1,nvars_model,i+1)
                     if title!=None:
                         ax1.set_title(title+' variable {}'.format(i))
-                    ax1.scatter(self.grid.detach().numpy().reshape(-1), self.model(self.grid).detach().numpy().reshape(-1))
+                    ax1.scatter(self.grid.detach().numpy().reshape(-1),  self.model(self.grid)[:,i].detach().numpy().reshape(-1))
                 else:
                     ax1 = fig.add_subplot(1,nvars_model,i+1,projection='3d')
 
@@ -141,7 +141,7 @@ class Solver(Model_prepare):
         
         if True:
         #if not use_cache:
-            min_loss = self.loss_evaluation(lambda_bound=lambda_bound)   
+            min_loss = self.loss_evaluation(lambda_bound=lambda_bound, weak_form=self.weak_form)    
     
         save_cache=False
     
@@ -161,7 +161,7 @@ class Solver(Model_prepare):
         def closure():
             nonlocal cur_loss
             optimizer.zero_grad()
-            loss = self.loss_evaluation(lambda_bound=lambda_bound)
+            loss = self.loss_evaluation(lambda_bound=lambda_bound, weak_form=self.weak_form)
             
             loss.backward()
             cur_loss = loss.item()
