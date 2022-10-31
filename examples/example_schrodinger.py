@@ -19,8 +19,9 @@ from input_preprocessing import Equation
 
 result = []
 device = torch.device('cpu')
-res_i = {"n_iter": [], "grid": [], "u": [], "v": []}
-for n in range(10,60,10):
+res_i = {"n_iter": [], "grid": [], "u": [], "v": [], 'time': []}
+grd = [10, 20, 30, 40]
+for n in grd:
     for i in range(10):
 
         x_grid = np.linspace(-5,5,n+1)
@@ -221,11 +222,13 @@ for n in range(10,60,10):
         v = val[0:,1]
         n_iter = [i for j in range(len(u))]
         N = [n for j in range(len(u))]
+        time_iter = [end - start for i in range(len(u))]
         res_i['n_iter'].extend(n_iter)
         res_i['grid'].extend(N)
         res_i['v'].extend(v)
         res_i['u'].extend(u)
+        res_i['time'].extend(time_iter)
     result.extend(res_i)
 
 df = pd.DataFrame(res_i)
-df.to_csv('benchmarking_data/schrodinger_experiment_10_50_cache=False.csv',index=False)
+df.to_csv(f'benchmarking_data/schrodinger_experiment_{grd}_cache=False.csv',index=False)
