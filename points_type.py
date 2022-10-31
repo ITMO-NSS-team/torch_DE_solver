@@ -9,21 +9,23 @@ class Points_type():
     """
     @staticmethod
     def shift_points(grid: torch.Tensor, axis: int, shift: float) -> torch.Tensor:
-        """Shifts all values of an array 'grid' on a value 'shift' in a direcion of
-        axis 'axis', somewhat is equivalent to a np.roll
+        """
+        Shifts all values of an array 'grid' on a value 'shift' in a direction of
+        axis 'axis', somewhat is equivalent to a np.roll.
+
         Parameters
         ----------
         grid: torch.Tensor (torch.float64)
-            array of a n-D points
+            array of a n-D points.
         axis:int
-            axis to which the shift is applied
+            axis to which the shift is applied.
         shift: float
-            shift value
+            shift value.
 
         Returns
         -------
         grid_shift: torch.Tensor (torch.float64)
-            shifted array of a n-D points
+            shifted array of a n-D points.
 
         """
         grid_shift = grid.clone()
@@ -32,19 +34,20 @@ class Points_type():
     
     @staticmethod
     def in_hull(p: torch.Tensor, hull: torch.Tensor) -> np.ndarray:
-        """Test if points in `p` are in `hull`
+        """
+        Test if points in `p` are in `hull`
 
         `p` should be a `NxK` coordinates of `N` points in `K` dimensions
         `hull` is either a scipy.spatial.Delaunay object or the `MxK` array of the 
         coordinates of `M` points in `K`dimensions for which Delaunay triangulation
-        will be computed
+        will be computed.
 
         Parameters
         ----------
         p: torch.Tensor (torch.float64)
-            shifted array of a n-D points
+            shifted array of a n-D points.
         hull:
-            initial array of a n-D points
+            initial array of a n-D points.
         Returns
         -------
         in_hull_array:
@@ -65,13 +68,14 @@ class Points_type():
             return np.array(((p <= upbound) & (p >= lowbound)).reshape(-1))
 
     @staticmethod    
-    def point_typization(grid:torch.Tensor) -> dict:
-        """Allocating subsets for FD (i.e., 'f', 'b', 'central').
+    def point_typization(grid: torch.Tensor) -> dict:
+        """
+        Allocating subsets for FD (i.e., 'f', 'b', 'central').
 
         Parameters
         ----------
         grid : torch.Tensor (torch.float64)
-            array of a n-D points
+            array of a n-D points.
 
         Returns
         -------
@@ -83,7 +87,7 @@ class Points_type():
             'f' means that if we add small number to a position of corresponding
             coordinate we stay in the 'hull'
             'b' means that if we subtract small number from o a position 
-            of corresponding coordinate we stay in the 'hull'
+            of corresponding coordinate we stay in the 'hull'.
         """
         direction_list = []
         for axis in range(grid.shape[1]):
@@ -117,18 +121,17 @@ class Points_type():
     @staticmethod    
     def grid_sort(grid: torch.Tensor) -> dict:
         """
-        Sorting grid points for each subset
+        Sorting grid points for each subset from result Points_type.point_typization.
 
         Parameters
         ----------
         grid : torch.Tensor (torch.float64)
-            array of a n-D points
-
+            array of a n-D points.
 
         Returns
         -------
         grid_dict : dict
-           sorted grid in each subset (see Points_type.point_typization)
+           sorted grid in each subset (see Points_type.point_typization).
         """
         point_type = Points_type.point_typization(grid)
         point_types = set(point_type.values())
