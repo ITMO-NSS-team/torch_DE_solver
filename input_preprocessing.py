@@ -8,79 +8,82 @@ from finite_diffs import Finite_diffs
 
 class EquationMixin():
     """
-    Auxiliary class. This one contains some functions that uses in other classes
+    Auxiliary class. This one contains some functions that uses in other classes.
     """
     @staticmethod   
     def operator_unify(operator: list) -> list:
-            """
-            This one allows to make operator form simpler.
-
-            Parameters
-            ----------
-            operator : list
-                operator in input form
-
-            Returns
-            -------
-            unified_operator : list
-                operator in unified form for preprocessing
-
-            """
-            unified_operator = []
-            for term in operator:
-                const = term[0]
-                vars_set = term[1]
-                power = term[2]
-                variables=[]
-                if len(term)==4:
-                    variables = term[3]
-                elif isinstance(power,(int,float)):
-                    variables=0
-                elif type(power)==list:
-                    for _ in range(len(power)):
-                        variables.append(0)
-                if variables is None:
-                    if type(power) is list:
-                        unified_operator.append([const, vars_set, power,0])
-                    else:
-                        unified_operator.append([const, [vars_set], [power],[0]])
-                else:
-                    if type(power) is list:
-                        unified_operator.append([const, vars_set, power,variables])
-                    else:
-                        unified_operator.append([const, [vars_set], [power],[variables]])
-            return unified_operator
-
-    @staticmethod
-    def op_dict_to_list(opdict: dict) -> list:
-        """Transform operator in dict form to list
+        """
+        This one allows to make operator form simpler.
 
         Parameters
         ----------
-        opdict: dict
-            operator in dict form
+        operator
+            operator in input form.
 
         Returns
         -------
-        oplist: list
-            operator in list (input) form
+        unified_operator
+            operator in unified form for preprocessing.
+
+        """
+        unified_operator = []
+        for term in operator:
+            const = term[0]
+            vars_set = term[1]
+            power = term[2]
+            variables=[]
+            if len(term)==4:
+                variables = term[3]
+            elif isinstance(power,(int,float)):
+                variables=0
+            elif type(power)==list:
+                for _ in range(len(power)):
+                    variables.append(0)
+            if variables is None:
+                if type(power) is list:
+                    unified_operator.append([const, vars_set, power,0])
+                else:
+                    unified_operator.append([const, [vars_set], [power],[0]])
+            else:
+                if type(power) is list:
+                    unified_operator.append([const, vars_set, power,variables])
+                else:
+                    unified_operator.append([const, [vars_set], [power],[variables]])
+        return unified_operator
+
+    @staticmethod
+    def op_dict_to_list(opdict: dict) -> list:
+        """
+        Transform operator in dict form to list.
+
+        Parameters
+        ----------
+        opdict
+            operator in dict form.
+
+        Returns
+        -------
+        oplist
+            operator in list (input) form.
 
         """
         return list([list(term.values()) for term in opdict.values()])
 
     @staticmethod
     def closest_point(grid: torch.Tensor, target_point: float) -> int:
-        """Defines the closest boundary point to the grid. Auxiliary function.
+        """
+        Defines the closest boundary point to the grid. Auxiliary function.
+
         Parameters
         ----------
         grid
-            array of a n-D points
+            array of a n-D points.
         target_point
-            boundary point
+            boundary point.
         Returns
         -------
         min_pos
-            position of the boundary point on the grid
+            position of the boundary point on the grid.
         """
         min_dist = np.inf
         pos = 0
@@ -96,18 +99,18 @@ class EquationMixin():
     @staticmethod
     def bndpos(grid: torch.Tensor, bnd: torch.Tensor) -> Union[list, int]:
         """
-        Returns the position of the boundary points on the grid
+        Returns the position of the boundary points on the grid.
         
         Parameters
         ----------
-        grid : torch.Tensor
-            grid for coefficient in form of torch.Tensor mapping
-        bnd : torch.Tensor
-            boundary
+        grid
+            grid for coefficient in form of torch.Tensor mapping.
+        bnd
+            boundary conditions.
         Returns
         -------
         bndposlist
-            list of positions of the boundary points on the grid
+            list of positions of the boundary points on the grid.
         """
         if grid.shape[0] == 1:
             grid = grid.reshape(-1,1)
@@ -143,21 +146,19 @@ class EquationMixin():
         return bndposlist
 
     @staticmethod
-    def bnd_unify(bconds):
+    def bnd_unify(bconds: list) -> list:
         """
-        Serves to add None instead of empty operator
+        Serves to add None instead of empty operator.
 
         Parameters
         ----------
-        bconds : list
-
-            boundary in conventional form (see examples)
+        bconds
+            boundary in conventional form (see examples).
 
         Returns
         -------
-        unified_bconds : list
-            
-            boundary in input-friendly form
+        unified_bconds
+            boundary in input-friendly form.
 
         """
         if bconds==None:
@@ -203,9 +204,30 @@ class EquationInt():
 
 
 class Equation_NN(EquationMixin, Points_type, Finite_diffs):
-    """Prepares equation, boundary conditions for NN method.
     """
-    def __init__(self, grid, operator, bconds, h=0.001, inner_order=1, boundary_order=2):
+    Prepares equation, boundary conditions for NN method.
+    """
+    def __init__(self, grid: torch.Tensor, operator: Union[dict, list], bconds: list,
+                 h: float = 0.001, inner_order: int = 1, boundary_order: int = 2):
+        """
+        Prepares equation, boundary conditions for NN method.
+
+        Parameters
+        ----------
+        grid:
+            array of a n-D points.
+        operator:
+            equation.
+        bconds:
+            boundary conditions.
+        h
+            discretizing parameter in finite difference method (i.e., grid resolution for scheme).
+        inner_order:
+            accuracy inner order for finite difference. Default = 1
+        boundary_order:
+            accuracy boundary order for finite difference. Default = 2
+
+        """
         self.grid = grid
         self.operator = operator
         self.bconds = bconds
@@ -213,31 +235,20 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
         self.inner_order = inner_order
         self.boundary_order = boundary_order
         
-    def operator_to_type_op(self, unified_operator, nvars, axes_scheme_type) -> list:
+    def operator_to_type_op(self, unified_operator: list, nvars: int, axes_scheme_type: str) -> list:
         """
         Function serves applying different schemes to a different point types for
         entire operator
 
-        Parameters
-        ----------
-        unified_operator : list
-            operator in a proper form
-        nvars : int
-            Dimensionality of the problem.
-        axes_scheme_type : string
-            'central' or combination of 'f' and 'b'.
-        h : float, optional
-            Derivative precision parameter (to simplify h in the expression
-                                            (f(x+h)-f(x))/h). The default is 1/2.
-        boundary_order : int, optional
-            Order of finite difference scheme taken at the domain boundary points. 
-            The default is 1.
+        Args:
+            unified_operator: operator in a proper form.
+            nvars: dimensionality of the problem.
+            axes_scheme_type: 'central' or combination of 'f' and 'b'.
 
-        Returns
-        -------
-        fin_diff_op : list
-            list, where the conventional operator changed to steps and signs
-            (see scheme_build function description).
+        Returns:
+            fin_diff_op: list, where the conventional operator changed to steps and signs (see scheme_build function description).
+
+
 
         """
         fin_diff_op = []
@@ -249,7 +260,7 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
             power = term[2]
             variables = term[3]
             for k, term in enumerate(vars_set):
-                # None is for case where we need the fuction without derivatives
+                # None is for case where we need the function without derivatives
                 if term != [None]:
                     if axes_scheme_type == 'central':
                         if self.inner_order==1:
@@ -273,24 +284,18 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
             fin_diff_op.append([const, fin_diff_list, s_order_list, power,variables])
         return fin_diff_op
 
-    def finite_diff_scheme_to_grid_list(self, finite_diff_scheme, grid_points):
+    def finite_diff_scheme_to_grid_list(self, finite_diff_scheme: list, grid_points: torch.Tensor) -> list:
         """
         Auxiliary function that converts integer grid steps in term described in
         finite-difference scheme to a grids with shifted points, i.e.
         from field (x,y) -> (x,y+h).
 
-        Parameters
-        ----------
-        finite_diff_scheme : list
-            operator_to_type_op one term
-        grid : torch.Tensor
-        h : float
-            derivative precision parameter. The default is 0.001.
+        Args:
+            finite_diff_scheme: operator_to_type_op one term.
+            grid: array of a n-D points.
 
-        Returns
-        -------
-        s_grid_list : list
-            list, where the steps and signs changed to grid and signs
+        Returns:
+            s_grid_list: list, where the steps and signs changed to grid and signs.
         """
         s_grid_list = []
         for i, shifts in enumerate(finite_diff_scheme):
@@ -301,25 +306,22 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
             s_grid_list.append(s_grid)
         return s_grid_list
 
-    def type_op_to_grid_shift_op(self, fin_diff_op, grid_points):
+    def type_op_to_grid_shift_op(self, fin_diff_op: list, grid_points: torch.Tensor) -> list:
         """
         Converts operator to a grid_shift form. Includes term coefficient
         conversion.
         Coeff may be integer, function or array, last two are mapped to a 
-        subgrid that corresponds point type
+        subgrid that corresponds point type.
 
-        Parameters
-        ----------
-        fin_diff_op : list
-            operator_to_type_op result.
-        grid_points : torch.Tensor
-            grid with sorted nodes.
+        Args:
+            fin_diff_op: operator_to_type_op result.
+            grid_points: grid with sorted nodes.
 
-        Returns
-        -------
-        shift_grid_op : list
-            final form of differential operator used in the algorithm for single 
-            grid type
+
+        Returns:
+            shift_grid_op: final form of differential operator used in the algorithm for single grid type.
+
+
         """
         shift_grid_op = []
         for term1 in fin_diff_op:
@@ -353,18 +355,15 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
         """
         Applies all transformations to operator.
 
-        Parameters
-        ----------
-        unified_operator : list
-            operator_unify result.
-        grid_dict : dict
-            result Points_type.grid_sort
+        Args:
+            unified_operator: operator_unify result.
+            grid_dict: result Points_type.grid_sort
 
-        Returns
-        -------
-        operator_list :  list
-            final form of differential operator used in the algorithm for subset 
-            grid types.
+
+        Returns:
+            operator_list: final form of differential operator used in the algorithm for subset grid types.
+
+
 
         """
         operator_list = []
@@ -378,25 +377,12 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
 
     def operator_prepare(self) -> list:
         """
-        Changes the operator in conventional form to the input one
-        
-        Parameters
-        ----------
-        op : list
-            operator in conventional form.
-        grid : torch.Tensor
-            grid with sotred nodes (see grid_prepare)
-        h : float
-            derivative precision parameter. The default is 0.001.
-        subset : list, optional
-            grid subsets used for the operator ,e.g. ['central','fb','ff']
-        true_grid : torch.Tensor, optional
-            initial grid for coefficient in form of torch.Tensor mapping
-        Returns
-        -------
-        operator_list :  list
-            final form of differential operator used in the algorithm for subset 
-            grid types
+        Changes the operator in conventional form to the input one.
+
+        Returns:
+            operator_list: final form of differential operator used in the algorithm for subset grid types.
+
+
 
         """
         grid_dict = self.grid_sort(self.grid)
@@ -422,19 +408,12 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
 
     def bnd_prepare(self):
         """
-        Parameters
-        ----------
-        bconds : list
-            boundary in conventional form (see examples)
-        grid : torch.Tensor
-            grid with sorted nodes (see grid_prepare)
-        h : float
-            derivative precision parameter. The default is 0.001.
+        Prepares boundary conditions from conventional form to input form.
 
         Returns
         -------
         prepared_bcond : list
-            boundary in input form
+            boundary in input form.
 
         """
         grid_dict = self.grid_sort(self.grid)
@@ -465,30 +444,42 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
 
 
 class Equation_autograd(EquationMixin):
-    """ Prepares equation for autograd method (i.e., from conventional form to input form).
     """
-    def __init__(self, grid, operator, bconds):
+    Prepares equation for autograd method (i.e., from conventional form to input form).
+    """
+    def __init__(self, grid: torch.Tensor, operator: Union[list, dict], bconds: list):
+        """
+        Prepares equation for autograd method (i.e., from conventional form to input form).
+
+        Parameters
+        ----------
+        grid
+            array of a n-D points.
+        operator:
+            equation.
+        bconds:
+            boundary conditions.
+        """
         self.grid = grid
         self.operator = operator
         self.bconds = bconds
     
     @staticmethod
     def expand_coeffs_autograd(unified_operator: list, grid: torch.Tensor) -> list:
-        """Prepares equation's coefficients for autograd method.
+        """
+        Prepares equation's coefficients for autograd method.
 
         Parameters
         ----------
         unified_operator
-            result input_preprocessing.EquationMixin.operator_unify
+            result input_preprocessing.EquationMixin.operator_unify.
         grid
-            array of a n-D points
+            array of a n-D points.
 
         Returns
         -------
         autograd_op
-            prepared autograd operator
-
-
+            prepared autograd operator.
         """
         autograd_op=[]
         for term in unified_operator:
@@ -508,16 +499,12 @@ class Equation_autograd(EquationMixin):
 
     def operator_prepare(self):
         """
-        Changes the operator in conventional form to the input one
-        
-        Parameters
-        ----------
-        op : list
-            operator in conventional form.
+        Changes the operator in conventional form to the input one.
+
         Returns
         -------
         operator_list :  list
-            final form of differential operator used in the algorithm 
+            final form of differential operator used in the algorithm.
 
         """
         if type(self.operator) is list and type(self.operator[0]) is dict:
@@ -536,13 +523,12 @@ class Equation_autograd(EquationMixin):
 
     def bnd_prepare(self):
         """
-        Prepares boundary conditions from conventional form to input form
+        Prepares boundary conditions from conventional form to input form.
 
         Returns
         -------
         prepared_bconds : list
-            boundary in input form
-
+            boundary in input form.
         """
         bconds = self.bnd_unify(self.bconds)
         if bconds==None:
@@ -572,6 +558,18 @@ class Equation_mat(EquationMixin):
     Prepares equation for matrix optimization method (i.e., from conventional form to input form).
     """
     def __init__(self, grid, operator, bconds):
+        """
+        Prepares equation for matrix optimization method (i.e., from conventional form to input form).
+
+        Parameters
+        ----------
+        grid:
+            array of a n-D points.
+        operator:
+            equation.
+        bconds:
+            boundary conditions.
+        """
         self.grid = grid
         self.operator = operator
         self.bconds = bconds
@@ -585,7 +583,6 @@ class Equation_mat(EquationMixin):
         prepared_operator
             final form of differential operator used in the algorithm
 
-
         """
         if type(self.operator) == dict:
             operator_list = self.op_dict_to_list(self.operator)
@@ -594,12 +591,12 @@ class Equation_mat(EquationMixin):
 
     def bnd_prepare(self) -> list:
         """
-        Prepares boundary conditions from conventional form to input form
+        Prepares boundary conditions from conventional form to input form.
 
         Returns
         -------
         prepared_bconds
-            final form of boundary conditions used in the algorithm
+            final form of boundary conditions used in the algorithm.
 
         """
         prepared_bconds=[]
@@ -630,19 +627,29 @@ class Equation_mat(EquationMixin):
 
 
 class Equation():
-    def __init__(self, grid: torch.Tensor, operator: Union[dict, list], bconds: list, h = 0.001, inner_order = 1, boundary_order = 2):
+    """
+    Interface for preparing equations due to chosen calculation method.
+    """
+    def __init__(self, grid: torch.Tensor, operator: Union[dict, list], bconds: list,
+                 h: float = 0.001, inner_order: int = 1, boundary_order: int = 2):
         """
+        Interface for preparing equations due to chosen calculation method.
 
         Parameters
         ----------
-        grid
-
-        operator
-
-        bconds
+        grid:
+            array of a n-D points.
+        operator:
+            equation.
+        bconds:
+            boundary conditions.
         h
-        inner_order
-        boundary_order
+            discretizing parameter in finite difference method (i.e., grid resolution for scheme).
+        inner_order:
+            accuracy inner order for finite difference. Default = 1
+        boundary_order:
+            accuracy boundary order for finite difference. Default = 2
+
         """
         self.grid = grid
         self.operator = operator
@@ -651,19 +658,18 @@ class Equation():
         self.inner_order = inner_order
         self.boundary_order = boundary_order
     def set_strategy(self, strategy: str) -> Union[Equation_NN, Equation_mat, Equation_autograd]:
-        """Setting the calculation method.
+        """
+        Setting the calculation method.
 
         Parameters
         ----------
         strategy: str
-            Calculation method. (i.e., "NN", "autograd", "mat")
+            Calculation method. (i.e., "NN", "autograd", "mat").
 
         Returns
         -------
         chosen_method :
-            A given calculation method
-
-
+            A given calculation method.
         """
         if strategy == 'NN':
             return Equation_NN(self.grid, self.operator, self.bconds, h=self.h, inner_order=self.inner_order, boundary_order=self.boundary_order)
