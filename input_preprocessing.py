@@ -6,8 +6,6 @@ import numpy as np
 from points_type import Points_type
 from finite_diffs import Finite_diffs
 
-device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-
 class EquationMixin():
     @staticmethod   
     def operator_unify(operator):
@@ -65,7 +63,7 @@ class EquationMixin():
         pos=0
         min_pos=0
         for point in grid:
-            dist=torch.linalg.norm(point-target_point.to(device))
+            dist=torch.linalg.norm(point-target_point)
             if dist<min_dist:
                 min_dist=dist
                 min_pos=pos

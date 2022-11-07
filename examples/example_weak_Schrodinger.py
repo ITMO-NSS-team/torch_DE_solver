@@ -202,6 +202,6 @@ weak_form=[v]
 
 equation = Equation(grid, schrodinger_eq, bconds).set_strategy('NN')
 
-model = Solver(grid, equation, model, 'NN', weak_form=weak_form).solve(lambda_bound=1000, verbose=1, learning_rate=1e-3,
+model = Solver(grid, equation, model, 'NN', weak_form=weak_form).solve(lambda_bound=1, verbose=1, learning_rate=0.8,
                                     eps=1e-6, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True,
-                                    save_always=False,no_improvement_patience=500,step_plot_print=100)
+                                    save_always=False,no_improvement_patience=500,step_plot_print=100, optimizer_mode='LBFGS')

@@ -14,8 +14,6 @@ import numpy as np
 from metrics import Solution
 from input_preprocessing import Equation, EquationMixin
 
-device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-
 class Model_prepare(Solution):
     def __init__(self, grid, equal_cls, model, mode):
         super().__init__(grid, equal_cls, model, mode)
@@ -25,8 +23,8 @@ class Model_prepare(Solution):
     def create_random_fn(eps):
         def randomize_params(m):
             if type(m)==torch.nn.Linear or type(m)==torch.nn.Conv2d:
-                m.weight.data=m.weight.data+(2*torch.randn(m.weight.size())-1).to(device)*eps#Random weight initialisation
-                m.bias.data=m.bias.data+(2*torch.randn(m.bias.size())-1).to(device)*eps
+                m.weight.data=m.weight.data+(2*torch.randn(m.weight.size())-1)*eps#Random weight initialisation
+                m.bias.data=m.bias.data+(2*torch.randn(m.bias.size())-1)*eps
         return randomize_params
 
 

@@ -15,7 +15,7 @@ from solver import Solver
 from cache import Model_prepare
 from input_preprocessing import Equation
 
-device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+device = torch.device("cpu")
 
 x_grid = np.linspace(-5,5,41)
 t_grid = np.linspace(0,np.pi/2,41)
@@ -59,34 +59,25 @@ bndval1_real = fun(bnd1_real[:,0])
 #  v(x,0) = 0
 bndval1_imag = torch.from_numpy(np.zeros_like(bnd1_imag[:,0]))
 
-bnd1_real = bnd1_real.to(device)
-bnd1_imag = bnd1_imag.to(device)
-bndval1_real = bndval1_real.to(device)
-bndval1_imag = bndval1_imag.to(device)
 
 # u(-5,t) = u(5,t)
 bnd2_real_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.float64)), t).float()
 bnd2_real_right = torch.cartesian_prod(torch.from_numpy(np.array([5], dtype=np.float64)), t).float()
 bnd2_real = [bnd2_real_left,bnd2_real_right]
 
-bnd2_real_left = bnd2_real_left.to(device)
-bnd2_real_right = bnd2_real_right.to(device)
 
 # v(-5,t) = v(5,t)
 bnd2_imag_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.float64)), t).float()
 bnd2_imag_right = torch.cartesian_prod(torch.from_numpy(np.array([5], dtype=np.float64)), t).float()
 bnd2_imag = [bnd2_imag_left,bnd2_imag_right]
 
-bnd2_imag_left = bnd2_imag_left.to(device)
-bnd2_imag_right = bnd2_imag_right.to(device)
 
 # du/dx (-5,t) = du/dx (5,t)
 bnd3_real_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.float64)), t).float()
 bnd3_real_right = torch.cartesian_prod(torch.from_numpy(np.array([5], dtype=np.float64)), t).float()
 bnd3_real = [bnd3_real_left, bnd3_real_right]
 
-bnd3_real_left = bnd3_real_left.to(device)
-bnd3_real_right = bnd3_real_right.to(device)
+
 
 bop3_real = {
             'du/dx':
@@ -102,8 +93,6 @@ bnd3_imag_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.f
 bnd3_imag_right = torch.cartesian_prod(torch.from_numpy(np.array([5], dtype=np.float64)), t).float()
 bnd3_imag = [bnd3_imag_left,bnd3_imag_right]
 
-bnd3_imag_left = bnd3_imag_left.to(device)
-bnd3_imag_right = bnd3_imag_right.to(device)
 
 bop3_imag = {
             'dv/dx':
@@ -217,7 +206,6 @@ model = torch.nn.Sequential(
         torch.nn.Linear(100, 2)
     )
 
-model = model.to(device)
 
 equation = Equation(grid, schrodinger_eq, bconds).set_strategy('autograd')
 
@@ -226,7 +214,7 @@ img_dir=os.path.join(os.path.dirname( __file__ ), 'schrodinger_img')
 if not(os.path.isdir(img_dir)):
     os.mkdir(img_dir)
 
-model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=1, verbose=1, learning_rate=1,
+model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=1, verbose=1, learning_rate=0.8,
                                     eps=1e-6, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
-                                    save_always=False,no_improvement_patience=500,print_every = 100,step_plot_print=True, optimizer_mode='LBFGS')
+                                    save_always=False,no_improvement_patience=500, print_every = 100,step_plot_print=True, optimizer_mode='LBFGS')
 

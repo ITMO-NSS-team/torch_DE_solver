@@ -27,9 +27,9 @@ class Points_type():
         """
         if p.shape[1] > 1:
             if not isinstance(hull, Delaunay):
-                hull = Delaunay(hull.cpu())
+                hull = Delaunay(hull)
 
-            return hull.find_simplex(p.cpu()) >= 0
+            return hull.find_simplex(p) >= 0
         elif p.shape[1] == 1:
             """
             this one is not a snippet from a stackexchange it does the same 
