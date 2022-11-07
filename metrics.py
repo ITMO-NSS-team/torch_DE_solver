@@ -4,6 +4,8 @@ import numpy as np
 from points_type import Points_type
 flatten_list = lambda t: [item for sublist in t for item in sublist]
 
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
 class DerivativeInt():
     def take_derivative(self, value): 
         raise NotImplementedError
@@ -416,7 +418,7 @@ class Solution():
         for bcond in self.prepared_bconds:
             b_pos = bcond[0]
             bop = bcond[1]
-            truebval = bcond[2].reshape(-1,1)
+            truebval = bcond[2].reshape(-1,1).to(device)
             var = bcond[3]
             btype = bcond[4]
             if btype == 'boundary values':

@@ -77,15 +77,15 @@ class Solver(Model_prepare):
                     ax1 = fig.add_subplot(1,nvars_model,i+1)
                     if title!=None:
                         ax1.set_title(title+' variable {}'.format(i))
-                    ax1.scatter(self.grid.detach().numpy().reshape(-1),  self.model(self.grid)[:,i].detach().numpy().reshape(-1))
+                    ax1.scatter(self.grid.cpu().detach().numpy().reshape(-1),  self.model(self.grid).cpu()[:,i].detach().numpy().reshape(-1))
                 else:
                     ax1 = fig.add_subplot(1,nvars_model,i+1,projection='3d')
 
                     if title!=None:
                         ax1.set_title(title+' variable {}'.format(i))
 
-                    ax1.plot_trisurf(self.grid[:, 0].detach().numpy().reshape(-1), self.grid[:, 1].detach().numpy().reshape(-1),
-                                self.model(self.grid)[:,i].detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
+                    ax1.plot_trisurf(self.grid[:, 0].cpu().detach().numpy().reshape(-1), self.grid[:, 1].cpu().detach().numpy().reshape(-1),
+                                self.model(self.grid)[:,i].cpu().detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
                     ax1.set_xlabel("x1")
                     ax1.set_ylabel("x2")
             if solution_print:
@@ -98,7 +98,7 @@ class Solver(Model_prepare):
 
             if nparams == 1:
                 fig = plt.figure()
-                plt.scatter(self.grid.reshape(-1), self.model.detach().numpy().reshape(-1))
+                plt.scatter(self.grid.cpu().reshape(-1), self.model.cpu().detach().numpy().reshape(-1))
                 if solution_print:
                     plt.show()
                 if solution_save:
@@ -109,8 +109,8 @@ class Solver(Model_prepare):
                 ax = fig.add_subplot(111, projection='3d')
                 if title!=None:
                     ax.set_title(title)
-                ax.plot_trisurf(self.grid[0].reshape(-1), self.grid[1].reshape(-1),
-                                self.model.reshape(-1).detach().numpy(), cmap=cm.jet, linewidth=0.2, alpha=1)
+                ax.plot_trisurf(self.grid[0].cpu().reshape(-1), self.grid[1].cpu().reshape(-1),
+                                self.model.cpu().reshape(-1).detach().numpy(), cmap=cm.jet, linewidth=0.2, alpha=1)
                 ax.set_xlabel("x1")
                 ax.set_ylabel("x2")
                 if solution_print:

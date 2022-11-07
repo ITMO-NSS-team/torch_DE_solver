@@ -1,3 +1,21 @@
+"""
+                               U_t + AU_x = 0,         (x,t) in (0,1)x(0,0.2]
+                              (rho,u,p)_t=0 = (1.0,0.0,1.0) 0 <= x < 0.5
+                              (rho,u,p)_t=0 = (0.125,0.0,0.1) 0.5 <= x <=1
+with Dirichlet boundary conditions which take the values of the initial condition at the boundaries
+                               U = [ rho ]       and       A =  [    u, rho, 0    ]
+                                   [  u  ]                      [   0,  u, 1/rho  ]
+                                   [  p  ]                      [   0, gamma*p, u ]
+rho -- Density of the fluid
+u   -- Velocity of the fluid - x direction
+p   -- Pressure of the fluid
+E   --  Total energy of fluid
+We relate the pressure and energy by the equation of state of the form
+                                             p = (gamma - 1) ( rho*E - 0.5*rho||u||^2)
+For this problem we use gamma = 1.4
+
+"""
+
 import torch
 import numpy as np
 import os
