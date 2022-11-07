@@ -16,7 +16,7 @@ from cache import Model_prepare
 from input_preprocessing import Equation
 
 
-device = torch.device("cuda") #if torch.cuda.is_available() else torch.device("cpu")
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 x_grid = np.linspace(-5,5,41)
 t_grid = np.linspace(0,np.pi/2,41)
@@ -26,7 +26,7 @@ t = torch.from_numpy(t_grid)
 
 grid = torch.cartesian_prod(x, t).float()
 
-grid.to(device)
+grid= grid.to(device)
 
 """
 To solve schrodinger equation we have to solve system because of its complexity. 
