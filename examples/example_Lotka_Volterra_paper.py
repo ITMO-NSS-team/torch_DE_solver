@@ -159,7 +159,7 @@ def Lotka_experiment(grid_res, CACHE):
 
     u_exact = exact()
 
-    torch.from_numpy(u_exact)
+    u_exact=torch.from_numpy(u_exact)
 
     error_rmse=torch.sqrt(torch.mean((u_exact-model(rmse_grid))**2, 0).sum())
     
