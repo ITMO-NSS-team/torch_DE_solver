@@ -15,18 +15,17 @@ from solver import Solver
 from cache import Model_prepare
 from input_preprocessing import Equation
 
+device = torch.device("cpu")
 
-device = torch.device('cpu')
-
-x_grid = np.linspace(-5,5,11)
-t_grid = np.linspace(0,np.pi/2,11)
+x_grid = np.linspace(-5,5,41)
+t_grid = np.linspace(0,np.pi/2,41)
 
 x = torch.from_numpy(x_grid)
 t = torch.from_numpy(t_grid)
 
 grid = torch.cartesian_prod(x, t).float()
 
-grid.to(device)
+grid = grid.to(device)
 
 """
 To solve schrodinger equation we have to solve system because of its complexity. 
@@ -66,6 +65,7 @@ bnd2_real_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.f
 bnd2_real_right = torch.cartesian_prod(torch.from_numpy(np.array([5], dtype=np.float64)), t).float()
 bnd2_real = [bnd2_real_left,bnd2_real_right]
 
+
 # v(-5,t) = v(5,t)
 bnd2_imag_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.float64)), t).float()
 bnd2_imag_right = torch.cartesian_prod(torch.from_numpy(np.array([5], dtype=np.float64)), t).float()
@@ -76,6 +76,8 @@ bnd2_imag = [bnd2_imag_left,bnd2_imag_right]
 bnd3_real_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.float64)), t).float()
 bnd3_real_right = torch.cartesian_prod(torch.from_numpy(np.array([5], dtype=np.float64)), t).float()
 bnd3_real = [bnd3_real_left, bnd3_real_right]
+
+
 
 bop3_real = {
             'du/dx':
@@ -90,6 +92,7 @@ bop3_real = {
 bnd3_imag_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.float64)), t).float()
 bnd3_imag_right = torch.cartesian_prod(torch.from_numpy(np.array([5], dtype=np.float64)), t).float()
 bnd3_imag = [bnd3_imag_left,bnd3_imag_right]
+
 
 bop3_imag = {
             'dv/dx':
@@ -194,17 +197,26 @@ model = torch.nn.Sequential(
         torch.nn.Tanh(),
         torch.nn.Linear(100, 100),
         torch.nn.Tanh(),
+        torch.nn.Linear(100, 100),
+        torch.nn.Tanh(),
+        torch.nn.Linear(100, 100),
+        torch.nn.Tanh(),
+        torch.nn.Linear(100, 100),
+        torch.nn.Tanh(),
         torch.nn.Linear(100, 2)
     )
 
-equation = Equation(grid, schrodinger_eq, bconds).set_strategy('NN')
+
+equation = Equation(grid, schrodinger_eq, bconds).set_strategy('autograd')
 
 img_dir=os.path.join(os.path.dirname( __file__ ), 'schrodinger_img')
 
 if not(os.path.isdir(img_dir)):
     os.mkdir(img_dir)
 
-model = Solver(grid, equation, model, 'NN').solve(lambda_bound=1000, verbose=1, learning_rate=1e-3,
-                                    eps=1e-6, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True,
-                                    save_always=True,no_improvement_patience=500,print_every = None,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
+model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=1, verbose=1, learning_rate=0.8,
+                                    eps=1e-6, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
+                                    save_always=False,no_improvement_patience=500,print_every = 100, optimizer_mode='LBFGS',step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
+                                    
+
 

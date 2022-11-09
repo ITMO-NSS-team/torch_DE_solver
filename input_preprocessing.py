@@ -6,8 +6,6 @@ import numpy as np
 from points_type import Points_type
 from finite_diffs import Finite_diffs
 
-
-
 class EquationMixin():
     @staticmethod   
     def operator_unify(operator):
