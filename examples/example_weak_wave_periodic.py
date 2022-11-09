@@ -113,7 +113,7 @@ start = time.time()
 
 equation = Equation(grid, wave_eq, bconds, h=0.01).set_strategy('NN')
 
-img_dir=os.path.join(os.path.dirname( __file__ ), 'wave_periodic_img')
+img_dir=os.path.join(os.path.dirname( __file__ ), 'wave_periodic_weak_img')
 
 if not(os.path.isdir(img_dir)):
     os.mkdir(img_dir)
@@ -121,7 +121,7 @@ if not(os.path.isdir(img_dir)):
 
 model = Solver(grid, equation, model, 'NN', weak_form=weak_form).solve(lambda_bound=1000, verbose=1, learning_rate=1e-2,
                                     eps=1e-6, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
-                                    save_always=False,no_improvement_patience=500,print_every=100,step_plot_print=True,step_plot_save=False)
+                                    save_always=False,no_improvement_patience=500,print_every=100,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
 
 end = time.time()
 print('Time taken 10= ', end - start)
