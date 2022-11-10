@@ -59,8 +59,7 @@ class Solver(Model_prepare):
         """
         High-level interface for solving equations.
 
-        Parameters
-        ----------
+        Args:
         grid
             array of a n-D points.
         equal_cls
@@ -75,15 +74,13 @@ class Solver(Model_prepare):
     def optimizer_choice(self, optimizer: str, learning_rate: float) -> \
             Union[torch.optim.Adam, torch.optim.SGD, torch.optim.LBFGS]:
         """
-        Parameters
-        ----------
+        Args:
         optimizer:
             optimizer choice (Adam, SGD, LBFGS).
         learning_rate:
             determines the step size at each iteration while moving toward a minimum of a loss function.
 
-        Returns
-        -------
+        Returns:
         optimizer
             torch.optimizer object as is.
 
@@ -117,8 +114,7 @@ class Solver(Model_prepare):
         """
         Visualizes the resulting solution.
 
-        Parameters
-        ----------
+        Args:
         title
             as is.
         solution_print
@@ -201,8 +197,7 @@ class Solver(Model_prepare):
         """
         High-level interface for solving equations.
 
-        Parameters
-        ----------
+        Args:
         lambda_bound
             an arbitrary chosen constant, influence only convergence speed.
         verbose
@@ -249,8 +244,7 @@ class Solver(Model_prepare):
         image_save_dir
             a directory where saved figure in.
 
-        Returns
-        -------
+        Returns:
         model
             neural network.
 
