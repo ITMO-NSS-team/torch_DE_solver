@@ -13,19 +13,14 @@ class Points_type():
         Shifts all values of an array 'grid' on a value 'shift' in a direction of
         axis 'axis', somewhat is equivalent to a np.roll.
 
-        Parameters
-        ----------
-        grid: torch.Tensor (torch.float64)
-            array of a n-D points.
-        axis:int
-            axis to which the shift is applied.
-        shift: float
-            shift value.
+        Args:
+            grid: array of a n-D points.
+            axis: axis to which the shift is applied.
+            shift: shift value.
 
-        Returns
-        -------
-        grid_shift: torch.Tensor (torch.float64)
-            shifted array of a n-D points.
+        Returns:
+            grid_shift: shifted array of a n-D points.
+
 
         """
         grid_shift = grid.clone()
@@ -42,16 +37,13 @@ class Points_type():
         coordinates of `M` points in `K`dimensions for which Delaunay triangulation
         will be computed.
 
-        Parameters
-        ----------
-        p: torch.Tensor (torch.float64)
-            shifted array of a n-D points.
-        hull:
-            initial array of a n-D points.
-        Returns
-        -------
-        in_hull_array:
-             array of a n-D boolean type points. True - if 'p' in 'hull', False - otherwise.
+        Args:
+            p: shifted array of a n-D points.
+            hull: initial array of a n-D points.
+
+        Returns:
+            in_hull_array: array of a n-D boolean type points. True - if 'p' in 'hull', False - otherwise.
+
         """
         if p.shape[1] > 1:
             if not isinstance(hull, Delaunay):
@@ -72,22 +64,15 @@ class Points_type():
         """
         Allocating subsets for FD (i.e., 'f', 'b', 'central').
 
-        Parameters
-        ----------
-        grid : torch.Tensor (torch.float64)
-            array of a n-D points.
+        Args:
+            grid: array of a n-D points.
 
-        Returns
-        -------
-        point_type : dict
-            dictionary point:type with a points in a 'grid' above
-            type may be 'central' - inner point
-            and string of 'f' and 'b', where the length of the string 
-            is a dimension n
-            'f' means that if we add small number to a position of corresponding
-            coordinate we stay in the 'hull'
-            'b' means that if we subtract small number from o a position 
-            of corresponding coordinate we stay in the 'hull'.
+        Returns:
+            point_type: type with a points in a 'grid' above. Type may be 'central' - inner point
+                        and string of 'f' and 'b', where the length of the string is a dimension n. 'f' means that if we add
+                        small number to a position of corresponding coordinate we stay in the 'hull'. 'b' means that if we
+                        subtract small number from o a position of corresponding coordinate we stay in the 'hull'.
+
         """
         direction_list = []
         for axis in range(grid.shape[1]):
@@ -123,15 +108,12 @@ class Points_type():
         """
         Sorting grid points for each subset from result Points_type.point_typization.
 
-        Parameters
-        ----------
-        grid : torch.Tensor (torch.float64)
-            array of a n-D points.
+        Args:
+            grid: tarray of a n-D points.
 
-        Returns
-        -------
-        grid_dict : dict
-           sorted grid in each subset (see Points_type.point_typization).
+        Returns:
+            grid_dict: sorted grid in each subset (see Points_type.point_typization).
+
         """
         point_type = Points_type.point_typization(grid)
         point_types = set(point_type.values())

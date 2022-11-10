@@ -22,8 +22,7 @@ class Finite_diffs():
             mode: the finite difference mode (i.e., forward, backward, central).
 
         Returns:
-            diff_list: list with shifted points
-
+            diff_list: list with shifted points.
         """
 
         # """
@@ -75,12 +74,9 @@ class Finite_diffs():
             varn: Dimensionality of the problem.
             axes_mode: 'central' or combination of 'f' and 'b'.
 
-
         Returns:
             - finite_diff: transformed axes due to finite difference mode.
             - direction_list: list, which contains directions (i.e, 'central', 'f', 'b').
-
-
         """
         order = len(axes)
         finite_diff = []
@@ -164,7 +160,6 @@ class Finite_diffs():
 
         Returns:
             diff_list: list with shifted points.
-
         """
         diff_1 = copy(diff)
         diff_2 = copy(diff)
@@ -193,8 +188,6 @@ class Finite_diffs():
         Returns:
             - finite_diff: transformed axes due to finite difference mode.
             - direction_list: list, which contains directions (i.e, 'central', 'f', 'b').
-
-
         """
         order = len(axes)
         finite_diff = []
@@ -238,8 +231,6 @@ class Finite_diffs():
 
         Returns:
             sign_list: list, with signs for corresponding points.
-
-
         """
         sign_list = [1]
         for i in range(order):
