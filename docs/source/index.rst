@@ -2,7 +2,7 @@ Welcome to TEDEouS documentation!\
 ==================================
 .. container::
 
-   | There is contained main documentation for the \strokec5 `TEDEouS framework <https://github.com/ITMO-NSS-team/torch_DE_solver/>`__.
+   | There is contained main documentation for the `TEDEouS framework <https://github.com/ITMO-NSS-team/torch_DE_solver/>`__.
 
 Content: 
 ========
