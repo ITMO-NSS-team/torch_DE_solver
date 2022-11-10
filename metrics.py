@@ -20,12 +20,10 @@ class Derivative_NN(DerivativeInt):
         """
         Taking numerical derivative for 'NN' method.
 
-        Parameters
-        ----------
-        grid:
-            array of a n-D points.
-        model:
-            neural network.
+        Args:
+            grid: array of a n-D points.
+            model:  neural network.
+
         """
         self.grid = grid
         self.model = model
@@ -35,15 +33,10 @@ class Derivative_NN(DerivativeInt):
         Auxiliary function serves for single differential operator resulting field
         derivation.
 
-        Parameters
-        ----------
-        term
-            differential operator in conventional form.
-
-        Returns
-        -------
-        der_term
-            resulting field, computed on a grid.
+        Args:
+            term: differential operator in conventional form.
+        Returns:
+            der_term: resulting field, computed on a grid.
 
         """
         # it is may be int, function of grid or torch.Tensor
@@ -82,68 +75,28 @@ class Derivative_autograd(DerivativeInt):
         """
         Taking numerical derivative for 'autograd' method.
 
-        Parameters
-        ----------
-        grid:
-            array of a n-D points.
-        model:
-            neural network.
+        Args:
+            grid: array of a n-D points.
+            model: neural network.
+
         """
         self.grid = grid
         self.model = model
 
-    @staticmethod
-    def nn_autograd_simple(model: torch.nn.Sequential, points: torch.Tensor, order, axis=0) -> torch.Tensor:
-        """
-
-        Parameters
-        ----------
-        model:
-            neural network
-        points:
-
-        order:
-
-        axis:
-
-
-        Returns
-        -------
-        gradient_full
-
-        """
-        points.requires_grad = True
-        gradient_full = []
-        f = model(points).sum(0)
-        for i in range(len(f)):
-            fi = f[i]
-            for j in range(order):
-                grads, = torch.autograd.grad(fi, points, create_graph=True)
-                fi = grads[:, axis].sum()
-            gradient_full.append(grads[:, axis].reshape(-1, 1))
-        gradient_full = torch.hstack(gradient_full)
-        return gradient_full
 
     @staticmethod
     def nn_autograd_mixed(model: torch.nn.Sequential, points, axis=[0]):
         """
         Computes derivative on the grid using autograd method.
 
-        Parameters
-        ----------
-        model:
-            neural network
-        points:
-            points, where numerical derivative is calculated
-        axis:
+        Args:
+            model: neural network
+            points: points, where numerical derivative is calculated
+            axis: smth
 
-
-
-        Returns
-        -------
-        gradient_full
-
-                """
+        Returns:
+            gradient_full: smth
+        """
         points.requires_grad = True
         gradient_full = []
         f = model(points).sum(0)
@@ -156,32 +109,6 @@ class Derivative_autograd(DerivativeInt):
         gradient_full = torch.hstack(gradient_full)
         return gradient_full
 
-    def nn_autograd(self, *args, axis=0) -> torch.Tensor:
-        """
-        Wrap just for convenience metrics.Derivative_autograd.nn_autograd_simple and
-        metrics.Derivative_autograd.nn_autograd_mixed in one function.
-
-        Parameters
-        ----------
-        args
-            could be 2 or 3 arguments. It depends on which function will be used.
-        axis
-
-
-        Returns
-        -------
-        grads
-
-
-        """
-        model = args[0]
-        points = args[1]
-        if len(args) == 3:
-            order = args[2]
-            grads = self.nn_autograd_simple(model, points, order, axis=axis)
-        else:
-            grads = self.nn_autograd_mixed(model, points, axis=axis)
-        return grads
 
     def take_derivative(self, term) -> torch.Tensor:
         """
@@ -191,11 +118,8 @@ class Derivative_autograd(DerivativeInt):
         Args:
             term: differential operator in conventional form.
 
-
         Returns:
             der_term: resulting field, computed on a grid.
-
-
         """
         # it is may be int, function of grid or torch.Tensor
         coeff = term[0]
@@ -211,7 +135,7 @@ class Derivative_autograd(DerivativeInt):
             if derivative == [None]:
                 der = self.model(self.grid)[:, variables[j]].reshape(-1, 1)
             else:
-                der = self.nn_autograd(self.model, self.grid, axis=derivative)[0:, variables[j]].reshape(-1, 1)
+                der = self.nn_autograd_mixed(self.model, self.grid, axis=derivative)[0:, variables[j]].reshape(-1, 1)
 
             der_term = der_term * der ** power[j]
 
@@ -265,26 +189,17 @@ class Derivative_mat(DerivativeInt):
     def derivative(u_tensor: torch.Tensor, h_tensor: torch.Tensor, axis: int,
                    scheme_order: int = 1, boundary_order: int = 1) -> torch.Tensor:
         """
+        Computing derivative for 'matrix' method.
 
-        Parameters
-        ----------
-        u_tensor
+        Args:
+            u_tensor: smth.
+            h_tensor: smth.
+            axis: axis along which the derivative is calculated.
+            scheme_order: accuracy inner order for finite difference. Default = 1
+            boundary_order: accuracy boundary order for finite difference. Default = 2
 
-        h_tensor
-
-        axis
-            axis along which the derivative is calculated.
-        scheme_order
-            accuracy inner order for finite difference. Default = 1
-        boundary_order
-            accuracy boundary order for finite difference. Default = 2
-
-        Returns
-        -------
-        du
-             computed derivative.
-
-
+        Returns:
+            du: computed derivative.
         """
         # print('shape=',u_tensor.shape)
         if (u_tensor.shape[0] == 1):
@@ -390,18 +305,13 @@ class Derivative_mat(DerivativeInt):
     def take_derivative(self, term) -> torch.Tensor:
         """
         Auxiliary function serves for single differential operator resulting field
-        derivation
+        derivation.
 
-        Parameters
-        ----------
-        term : TYPE
-            differential operator in conventional form.
+        Args:
+            term: differential operator in conventional form.
 
-        Returns
-        -------
-        der_term
-            resulting field, computed on a grid.
-
+        Returns:
+            der_term: resulting field, computed on a grid.
         """
         # it is may be int, function of grid or torch.Tensor
         coeff = term[0]
@@ -432,12 +342,9 @@ class Derivative():
         """
         Interface for taking numerical derivative due to chosen calculation method.
 
-        Parameters
-        ----------
-        grid
-            array of a n-D points.
-        model
-            neural network or matrix depending on the selected mode.
+        Args:
+            grid: array of a n-D points.
+            model: neural network or matrix depending on the selected mode.
         """
         self.grid = grid
         self.model = model
@@ -446,15 +353,11 @@ class Derivative():
         """
         Setting the calculation method.
 
-        Parameters
-        ----------
-        strategy
-            Calculation method. (i.e., "NN", "autograd", "mat")
+        Args:
+            strategy: Calculation method. (i.e., "NN", "autograd", "mat").
 
-        Returns
-        -------
-        prepared_equation
-            equation in input form for a given calculation method
+        Returns:
+            prepared_equation: equation in input form for a given calculation method.
         """
         if strategy == 'NN':
             return Derivative_NN(self.grid, self.model)
@@ -473,16 +376,12 @@ class Solution():
         """
         Interface for computing loss due to chosen calculation method.
 
-        Parameters
-        ----------
-        grid
-            array of a n-D points.
-        equal_cls
-            object from input_preprocessing (see input_preprocessing.Equation).
-        model
-            neural network or matrix depending on the selected mode.
-        mode
-            a given calculation method.
+        Args:
+            grid: array of a n-D points.
+            equal_cls:  object from input_preprocessing (see input_preprocessing.Equation).
+            model: neural network or matrix depending on the selected mode.
+            mode: a given calculation method.
+
         """
         self.grid = grid
         self.prepared_operator = equal_cls.operator_prepare()
@@ -494,15 +393,12 @@ class Solution():
         """
         Deciphers equation in a single grid subset to a field.
 
-        Parameters
-        ----------
-        operator
-            Single (len(subset)==1) operator in input form. See 
+        Args:
+            operator: Single (len(subset)==1) operator in input form. See
             input_preprocessing.operator_prepare()
 
-        Returns
-        -------
-        total
+        Returns:
+            total: smth
 
         """
         derivative = Derivative(self.grid, self.model).set_strategy(self.mode).take_derivative
@@ -519,16 +415,12 @@ class Solution():
         """
         Deciphers equation in a whole grid to a field.
 
-        Parameters
-        ----------
-        operator_set
-            Multiple (len(subset)>=1) operators in input form. See 
+        Args:
+            operator_set: Multiple (len(subset)>=1) operators in input form. See
             input_preprocessing.operator_prepare().
-        Returns
-        -------
-        field_part:
 
-
+        Returns:
+            field_part: smth
         """
         field_part = []
         for operator in operator_set:
@@ -540,15 +432,11 @@ class Solution():
         """
         Auxiliary function. Serves only to evaluate operator on the boundary.
 
-        Parameters
-        ----------
-        bcond
-            terms of prepared boundary conditions (see input_preprocessing.bnd_prepare) in input form.
-        Returns
-        -------
-        b_op_val
-            calculated operator on the boundary.
+        Args:
+            bcond:  terms of prepared boundary conditions (see input_preprocessing.bnd_prepare) in input form.
 
+        Returns:
+            b_op_val: calculated operator on the boundary.
         """
         b_pos = bcond[0]
         bop = bcond[1]
@@ -575,12 +463,9 @@ class Solution():
         """
         Auxiliary function. Serves only to evaluate boundary values and true boundary values.
 
-        Returns
-        -------
-        b_val
-            calculated model boundary values.
-        true_b_val
-            true grid boundary values.
+        Returns:
+            b_val: calculated model boundary values.
+            true_b_val: true grid boundary values.
         """
         true_b_val_list = []
         b_val_list = []
@@ -620,16 +505,11 @@ class Solution():
         """
         Computes loss.
 
-        Parameters
-        ----------
-        lambda_bound
-            an arbitrary chosen constant, influence only convergence speed.
+        Args:
+            lambda_bound: an arbitrary chosen constant, influence only convergence speed.
 
-        Returns
-        -------
-        loss
-            loss.
-
+        Returns:
+            loss: loss.
         """
         if self.mode == 'mat' or self.mode == 'autograd':
             if self.prepared_bconds == None:

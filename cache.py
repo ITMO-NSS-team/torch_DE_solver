@@ -10,7 +10,9 @@ import torch
 import os 
 import glob
 import numpy as np
-from typing import Union
+from typing import Union, Tuple, Any
+
+from torch import Tensor
 
 from metrics import Solution
 from input_preprocessing import Equation, EquationMixin
@@ -31,14 +33,11 @@ class Model_prepare(Solution):
         """
         Creates a random model parameters (weights, biases) multiplied with a given randomize parameter.
 
-        Parameters
-        ----------
-        eps:
-            randomize parameter
+        Args:
+            eps: randomize parameter
 
-        Returns
-        -------
-
+        Returns:
+            randomize_params: smth
         """
         def randomize_params(m):
             if type(m)==torch.nn.Linear or type(m)==torch.nn.Conv2d:
@@ -47,13 +46,12 @@ class Model_prepare(Solution):
         return randomize_params
 
 
-    def cache_lookup(self, lambda_bound = 0.001, cache_dir: str = '../cache/',
+    def cache_lookup(self, lambda_bound: float = 0.001, cache_dir: str = '../cache/',
                 nmodels: Union[int, None] = None, cache_verbose: bool = False) -> Union[dict, torch.Tensor]:
         '''
         Looking for a saved cache.
 
-        Parameters
-        ----------
+        Args:
         lambda_bound: float
             an arbitrary chosen constant, influence only convergence speed.
         cache_dir: str
@@ -63,8 +61,7 @@ class Model_prepare(Solution):
         cache_verbose: bool
             more detailed info about models in cache.
 
-        Returns
-        -------
+        Returns:
         best_checkpoint
 
         min_loss
@@ -138,18 +135,12 @@ class Model_prepare(Solution):
         """
         Saved model in a cache (uses for 'NN' and 'autograd' methods).
 
-        Parameters
-        ----------
-        prep_model
-            model to save
-        state
-            a dict holding current model state (i.e., dictionary that maps each layer to its parameter tensor).
-        optimizer_state
-            a dict holding current optimization state (i.e., values, hyperparameters).
-        cache_dir
-            directory where saved cache in.
-        name
-            name for a model
+        Args:
+            prep_model: model to save.
+            state: a dict holding current model state (i.e., dictionary that maps each layer to its parameter tensor).
+            optimizer_state: a dict holding current optimization state (i.e., values, hyperparameters).
+            cache_dir: directory where saved cache in.
+            name: name for a model.
         """
         if name==None:
             name=str(datetime.datetime.now().timestamp())
@@ -166,8 +157,7 @@ class Model_prepare(Solution):
         """
         Saved model in a cache (uses for 'mat' method).
 
-        Parameters
-        ----------
+        Args:
         cache_dir
             a directory where saved cache in.
         name
@@ -203,21 +193,17 @@ class Model_prepare(Solution):
 
         self.save_model(cache_model,cache_model.state_dict(),optimizer.state_dict(),cache_dir=cache_dir, name=name)
 
-    def scheme_interp(self, trained_model: torch.nn.Sequential, cache_verbose: bool = False) -> Union[torch.nn.Sequential, dict]:
+    def scheme_interp(self, trained_model: torch.nn.Sequential, cache_verbose: bool = False) -> tuple[Any, dict]:
         """
-        ???
+        Smth
 
-        Parameters
-        ----------
-        trained_model
-            ???
-        cache_verbose:
-            more detailed info about models in cache.
+        Args:
+            trained_model: smth
+            cache_verbose: more detailed info about models in cache.
 
-        Returns
-        -------
-        model
-        optimizer.state_dict
+        Returns:
+            model: NN or mat
+            optimizer.state_dict: dict
 
         """
         optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
@@ -240,21 +226,18 @@ class Model_prepare(Solution):
         return self.model, optimizer.state_dict()
 
 
-    def cache_retrain(self, cache_checkpoint, cache_verbose: bool = False) -> Union[torch.nn.Sequential, dict]:
+    def cache_retrain(self, cache_checkpoint, cache_verbose: bool = False) -> Union[
+        tuple[Any, None], tuple[Any, Union[dict, Any]]]:
         """
-        ???
+        Smth
 
-        Parameters
-        ----------
-        cache_checkpoint
-            ???
-        cache_verbose
-            more detailed info about models in cache.
+        Args:
+            cache_checkpoint: smth
+            cache_verbose: more detailed info about models in cache.
 
-        Returns
-        -------
-        model
-        optimizer_state
+        Returns:
+            model:
+            optimizer_state:
         """
         # do nothing if cache is empty
         if cache_checkpoint==None:
@@ -281,29 +264,23 @@ class Model_prepare(Solution):
 
     def cache(self, cache_dir: str, nmodels: Union[int, None], lambda_bound: float,
               cache_verbose: bool,model_randomize_parameter: Union[float, None],
-              cache_model: torch.nn.Sequential) -> Union[torch.nn.Sequential, torch.Tensor]:
+              cache_model: torch.nn.Sequential) -> Union[tuple[Any, Any], tuple[Any, Tensor]]:
         """
         Restores the model from the cache and uses it for retraining.
 
-        Parameters
-        ----------
-        cache_dir
-            a directory where saved cache in.
-        nmodels
-         ???
-        lambda_bound
-            an arbitrary chosen constant, influence only convergence speed.
-        cache_verbose
-            more detailed info about models in cache.
-        model_randomize_parameter
-            Creates a random model parameters (weights, biases) multiplied with a given randomize parameter.
-        cache_model
-            cached model
+        Args:
+            cache_dir: a directory where saved cache in.
+            nmodels: smth
+            lambda_bound: an arbitrary chosen constant, influence only convergence speed.
+            cache_verbose: more detailed info about models in cache.
+            model_randomize_parameter:  Creates a random model parameters (weights, biases) multiplied with a given
+                                        randomize parameter.
+            cache_model: cached model
 
-        Returns
-        -------
-        model
-        min_loss
+
+        Returns:
+            model: NN or mat
+            min_loss: min loss as is.
 
         """
         r = self.create_random_fn(model_randomize_parameter)

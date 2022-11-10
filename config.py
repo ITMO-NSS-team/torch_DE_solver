@@ -117,13 +117,11 @@ class Config:
         If there is passed path to a custom config, we try to load it and change
         default parameters
 
-        Parameters
-        ----------
+        Args:
         config_path: str, optional
             path to a custom config
 
-        Returns
-        -------
+        Returns:
         self: Config
             config used in solver.optimization_solver function
         """
@@ -157,8 +155,7 @@ class Config:
 
         We run checks to see we set them corretly
 
-        Parameters
-        ----------
+        Args:
         parameter_string:
             string in format 'module.parameter'
 

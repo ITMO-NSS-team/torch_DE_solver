@@ -17,16 +17,11 @@ class EquationMixin():
         """
         This one allows to make operator form simpler.
 
-        Parameters
-        ----------
-        operator
-            operator in input form.
+        Args:
+            operator: operator in input form.
 
-        Returns
-        -------
-        unified_operator
-            operator in unified form for preprocessing.
-
+        Returns:
+            unified_operator: operator in unified form for preprocessing.
         """
         unified_operator = []
         for term in operator:
@@ -58,16 +53,11 @@ class EquationMixin():
         """
         Transform operator in dict form to list.
 
-        Parameters
-        ----------
-        opdict
-            operator in dict form.
+        Args:
+            opdict: operator in dict form.
 
-        Returns
-        -------
-        oplist
-            operator in list (input) form.
-
+        Returns:
+            oplist: operator in list (input) form.
         """
         return list([list(term.values()) for term in opdict.values()])
 
@@ -76,16 +66,12 @@ class EquationMixin():
         """
         Defines the closest boundary point to the grid. Auxiliary function.
 
-        Parameters
-        ----------
-        grid
-            array of a n-D points.
-        target_point
-            boundary point.
-        Returns
-        -------
-        min_pos
-            position of the boundary point on the grid.
+        Args:
+            grid: array of a n-D points.
+            target_point: boundary point.
+
+        Returns:
+            min_pos: position of the boundary point on the grid.
         """
         min_dist = np.inf
         pos = 0
@@ -103,16 +89,12 @@ class EquationMixin():
         """
         Returns the position of the boundary points on the grid.
         
-        Parameters
-        ----------
-        grid
-            grid for coefficient in form of torch.Tensor mapping.
-        bnd
-            boundary conditions.
-        Returns
-        -------
-        bndposlist
-            list of positions of the boundary points on the grid.
+        Args:
+            grid:  grid for coefficient in form of torch.Tensor mapping.
+            bnd: boundary conditions.
+
+        Returns:
+            bndposlist: list of positions of the boundary points on the grid.
         """
         if grid.shape[0] == 1:
             grid = grid.reshape(-1,1)
@@ -152,16 +134,11 @@ class EquationMixin():
         """
         Serves to add None instead of empty operator.
 
-        Parameters
-        ----------
-        bconds
-            boundary in conventional form (see examples).
+        Args:
+            bconds: boundary in conventional form (see examples).
 
-        Returns
-        -------
-        unified_bconds
-            boundary in input-friendly form.
-
+        Returns:
+            unified_bconds: boundary in input-friendly form.
         """
         if bconds==None:
             return None
@@ -214,21 +191,13 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
         """
         Prepares equation, boundary conditions for NN method.
 
-        Parameters
-        ----------
-        grid:
-            array of a n-D points.
-        operator:
-            equation.
-        bconds:
-            boundary conditions.
-        h
-            discretizing parameter in finite difference method (i.e., grid resolution for scheme).
-        inner_order:
-            accuracy inner order for finite difference. Default = 1
-        boundary_order:
-            accuracy boundary order for finite difference. Default = 2
-
+        Args:
+            grid:  array of a n-D points.
+            operator:  equation.
+            bconds: boundary conditions.
+            h: discretizing parameter in finite difference method (i.e., grid resolution for scheme).
+            inner_order: accuracy inner order for finite difference. Default = 1
+            boundary_order: accuracy boundary order for finite difference. Default = 2
         """
         self.grid = grid
         self.operator = operator
@@ -249,9 +218,6 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
 
         Returns:
             fin_diff_op: list, where the conventional operator changed to steps and signs (see scheme_build function description).
-
-
-
         """
         fin_diff_op = []
         for term in unified_operator:
@@ -319,11 +285,8 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
             fin_diff_op: operator_to_type_op result.
             grid_points: grid with sorted nodes.
 
-
         Returns:
             shift_grid_op: final form of differential operator used in the algorithm for single grid type.
-
-
         """
         shift_grid_op = []
         for term1 in fin_diff_op:
@@ -361,12 +324,8 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
             unified_operator: operator_unify result.
             grid_dict: result Points_type.grid_sort
 
-
         Returns:
             operator_list: final form of differential operator used in the algorithm for subset grid types.
-
-
-
         """
         operator_list = []
         nvars = list(grid_dict.values())[0].shape[-1]
@@ -412,11 +371,8 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
         """
         Prepares boundary conditions from conventional form to input form.
 
-        Returns
-        -------
-        prepared_bcond : list
-            boundary in input form.
-
+        Returns:
+            prepared_bcond: boundary in input form.
         """
         grid_dict = self.grid_sort(self.grid)
         sorted_grid = torch.cat(list(grid_dict.values()))
@@ -453,14 +409,11 @@ class Equation_autograd(EquationMixin):
         """
         Prepares equation for autograd method (i.e., from conventional form to input form).
 
-        Parameters
-        ----------
-        grid
-            array of a n-D points.
-        operator:
-            equation.
-        bconds:
-            boundary conditions.
+        Args:
+            grid: array of a n-D points.
+            operator:  equation.
+            bconds: boundary conditions.
+
         """
         self.grid = grid
         self.operator = operator
@@ -471,17 +424,13 @@ class Equation_autograd(EquationMixin):
         """
         Prepares equation's coefficients for autograd method.
 
-        Parameters
-        ----------
-        unified_operator
-            result input_preprocessing.EquationMixin.operator_unify.
-        grid
-            array of a n-D points.
+        Args:
+            unified_operator: result input_preprocessing.EquationMixin.operator_unify.
+            grid: array of a n-D points.
 
-        Returns
-        -------
-        autograd_op
-            prepared autograd operator.
+        Returns:
+            autograd_op: prepared autograd operator.
+
         """
         autograd_op=[]
         for term in unified_operator:
@@ -503,11 +452,8 @@ class Equation_autograd(EquationMixin):
         """
         Changes the operator in conventional form to the input one.
 
-        Returns
-        -------
-        operator_list :  list
-            final form of differential operator used in the algorithm.
-
+        Returns:
+            operator_list: final form of differential operator used in the algorithm.
         """
         if type(self.operator) is list and type(self.operator[0]) is dict:
             num_of_eq = len(self.operator)
@@ -527,10 +473,8 @@ class Equation_autograd(EquationMixin):
         """
         Prepares boundary conditions from conventional form to input form.
 
-        Returns
-        -------
-        prepared_bconds : list
-            boundary in input form.
+        Returns:
+            prepared_bconds: boundary in input form.
         """
         bconds = self.bnd_unify(self.bconds)
         if bconds==None:
@@ -563,14 +507,10 @@ class Equation_mat(EquationMixin):
         """
         Prepares equation for matrix optimization method (i.e., from conventional form to input form).
 
-        Parameters
-        ----------
-        grid:
-            array of a n-D points.
-        operator:
-            equation.
-        bconds:
-            boundary conditions.
+        Args:
+            grid: array of a n-D points.
+            operator: equation.
+            bconds: boundary conditions.
         """
         self.grid = grid
         self.operator = operator
@@ -580,11 +520,8 @@ class Equation_mat(EquationMixin):
         """
         Prepares operator from conventional form to input form
 
-        Returns
-        -------
-        prepared_operator
-            final form of differential operator used in the algorithm
-
+        Returns:
+            prepared_operator:  final form of differential operator used in the algorithm.
         """
         if type(self.operator) == dict:
             operator_list = self.op_dict_to_list(self.operator)
@@ -595,10 +532,8 @@ class Equation_mat(EquationMixin):
         """
         Prepares boundary conditions from conventional form to input form.
 
-        Returns
-        -------
-        prepared_bconds
-            final form of boundary conditions used in the algorithm.
+        Returns:
+            prepared_bconds: final form of boundary conditions used in the algorithm.
 
         """
         prepared_bconds=[]
@@ -637,21 +572,13 @@ class Equation():
         """
         Interface for preparing equations due to chosen calculation method.
 
-        Parameters
-        ----------
-        grid:
-            array of a n-D points.
-        operator:
-            equation.
-        bconds:
-            boundary conditions.
-        h
-            discretizing parameter in finite difference method (i.e., grid resolution for scheme).
-        inner_order:
-            accuracy inner order for finite difference. Default = 1
-        boundary_order:
-            accuracy boundary order for finite difference. Default = 2
-
+        Args:
+            grid: array of a n-D points.
+            operator: equation.
+            bconds: boundary conditions.
+            h: discretizing parameter in finite difference method (i.e., grid resolution for scheme).
+            inner_order: accuracy inner order for finite difference. Default = 1
+            boundary_order:  accuracy boundary order for finite difference. Default = 2
         """
         self.grid = grid
         self.operator = operator
@@ -663,15 +590,11 @@ class Equation():
         """
         Setting the calculation method.
 
-        Parameters
-        ----------
-        strategy: str
-            Calculation method. (i.e., "NN", "autograd", "mat").
+        Args:
+            strategy: Calculation method. (i.e., "NN", "autograd", "mat").
 
-        Returns
-        -------
-        chosen_method :
-            A given calculation method.
+        Returns:
+            chosen_method:  A given calculation method.
         """
         if strategy == 'NN':
             return Equation_NN(self.grid, self.operator, self.bconds, h=self.h, inner_order=self.inner_order, boundary_order=self.boundary_order)
