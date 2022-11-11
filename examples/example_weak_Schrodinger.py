@@ -193,6 +193,14 @@ model = torch.nn.Sequential(
         torch.nn.Tanh(),
         torch.nn.Linear(100, 100),
         torch.nn.Tanh(),
+        torch.nn.Linear(100, 100),
+        torch.nn.Tanh(),
+        torch.nn.Linear(100, 100),
+        torch.nn.Tanh(),
+        torch.nn.Linear(100, 100),
+        torch.nn.Tanh(),
+        #torch.nn.Linear(100, 100), for more accurate
+        #torch.nn.Tanh(),
         torch.nn.Linear(100, 2)
     )
 
@@ -201,8 +209,8 @@ def v(grid):
 
 weak_form=[v]
 
-equation = Equation(grid, schrodinger_eq, bconds).set_strategy('NN')
+equation = Equation(grid, schrodinger_eq, bconds).set_strategy('autograd')
 
-model = Solver(grid, equation, model, 'NN', weak_form=weak_form).solve(lambda_bound=1, verbose=1, learning_rate=0.8,
+model = Solver(grid, equation, model, 'autograd', weak_form=weak_form).solve(lambda_bound=1, verbose=1, learning_rate=0.9,
                                     eps=1e-6, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True,
-                                    save_always=False,no_improvement_patience=500,step_plot_print=100, optimizer_mode='LBFGS')
+                                    save_always=False,no_improvement_patience=500,step_plot_print=True,print_every=10, optimizer_mode='LBFGS', patience=2)
