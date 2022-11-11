@@ -176,7 +176,7 @@ class Solver(Model_prepare):
             optimizer.step(closure)
 
             if cur_loss!=cur_loss:
-                print('Loss is equal to NaN, something went wrong (LGBFS+high leraning rate could be the problem)')
+                print('Loss is equal to NaN, something went wrong (LBFGS+high leraning rate and pytorch<1.12 could be the problem)')
                 break
 
             last_loss[(t-1)%loss_oscillation_window]=cur_loss
