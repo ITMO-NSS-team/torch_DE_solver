@@ -561,7 +561,7 @@ class Solution():
                     if k==0:
                         op_list[i], grid_central1 = integration(op_list[i], grid_central1, pow='sqrt')
                     else:
-                        op_list[i], grid_central1 = integration(op_list[i], grid_central1, pow='abs')
+                        op_list[i], grid_central1 = integration(op_list[i], grid_central1, pow='sqrt')
             op_integr = torch.cat(op_list)
             if self.prepared_bconds == None:
                 return op_integr
