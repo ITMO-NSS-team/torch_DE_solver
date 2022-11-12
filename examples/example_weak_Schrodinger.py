@@ -218,4 +218,4 @@ if not(os.path.isdir(img_dir)):
 
 model = Solver(grid, equation, model, 'autograd', weak_form=weak_form).solve(lambda_bound=1, verbose=1, learning_rate=0.9,
                                     eps=1e-6, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
-                                    save_always=False,no_improvement_patience=500, print_every=10, optimizer_mode='LBFGS',step_plot_print=True, step_plot_save=True, image_save_dir=img_dir)
+                                    save_always=False,no_improvement_patience=10,loss_oscillation_window=10, print_every=10, optimizer_mode='LBFGS',step_plot_print=False, step_plot_save=True, image_save_dir=img_dir)
