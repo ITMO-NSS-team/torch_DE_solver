@@ -20,7 +20,7 @@ from input_preprocessing import Equation
 result = []
 device = torch.device('cpu')
 res_i = {"n_iter": [], "grid": [], "u": [], "v": [], 'time': []}
-grd = [10]
+grd = [10, 20, 30, 40, 50]
 for n in grd:
     for i in range(10):
 
@@ -209,7 +209,7 @@ for n in grd:
             torch.nn.Linear(100, 2)
         )
 
-        equation = Equation(grid, schrodinger_eq, bconds).set_strategy('NN')
+        equation = Equation(grid, schrodinger_eq, bconds).set_strategy('autograd')
 
         img_dir=os.path.join(os.path.dirname( __file__ ), 'schrodinger_img')
 
@@ -217,9 +217,9 @@ for n in grd:
             os.mkdir(img_dir)
 
         start = time.time()
-        model = Solver(grid, equation, model, 'NN').solve(lambda_bound=1, verbose=True, learning_rate=0.8,
+        model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=1, verbose=True, learning_rate=0.8,
                                             eps=1e-6, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
-                                            save_always=True,no_improvement_patience=500,print_every = 100,optimizer_mode='LBFGS',step_plot_print=100,step_plot_save=True,image_save_dir=img_dir)
+                                            save_always=False,no_improvement_patience=500,print_every = 100,optimizer_mode='LBFGS',step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
         end = time.time()
         print('Time taken for n_iter: {} and grid_res:{} = {}'.format(i, n,  end - start))
 
