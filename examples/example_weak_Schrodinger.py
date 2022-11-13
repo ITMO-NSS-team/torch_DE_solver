@@ -17,8 +17,8 @@ from input_preprocessing import Equation
 
 device = torch.device('cpu')
 
-x_grid = np.linspace(-5,5,11)
-t_grid = np.linspace(0,np.pi/2,11)
+x_grid = np.linspace(-5,5,41)
+t_grid = np.linspace(0,np.pi/2,41)
 
 x = torch.from_numpy(x_grid)
 t = torch.from_numpy(t_grid)
@@ -199,11 +199,13 @@ model = torch.nn.Sequential(
         torch.nn.Tanh(),
         torch.nn.Linear(100, 100),
         torch.nn.Tanh(),
+        #torch.nn.Linear(100, 100), for more accurate
+        #torch.nn.Tanh(),
         torch.nn.Linear(100, 2)
     )
 
 def v(grid):
-    return torch.sin(grid[:,0])+torch.sin(2*grid[:,0])+torch.sin(3*grid[:,0])+grid[:,1]
+    return torch.cos(grid[:,0] + grid[:,1]) # torch.ones_like(grid[:,0]) + torch.cos(grid[:,0] + grid[:,1]) # for more accurate in more time
 
 weak_form=[v]
 
@@ -214,6 +216,6 @@ img_dir=os.path.join(os.path.dirname( __file__ ), 'schroedinger_weak_img')
 if not(os.path.isdir(img_dir)):
     os.mkdir(img_dir)
 
-model = Solver(grid, equation, model, 'autograd', weak_form=weak_form).solve(lambda_bound=1, verbose=1, learning_rate=0.8,
+model = Solver(grid, equation, model, 'autograd', weak_form=weak_form).solve(lambda_bound=1, verbose=1, learning_rate=0.9,
                                     eps=1e-6, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
-                                    save_always=False,no_improvement_patience=500, print_every = 100, optimizer_mode='LBFGS',step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
+                                    save_always=False,no_improvement_patience=10,loss_oscillation_window=10, print_every=10, optimizer_mode='LBFGS',step_plot_print=False, step_plot_save=True, image_save_dir=img_dir)
