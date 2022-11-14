@@ -334,6 +334,8 @@ class Derivative():
 class Solution():
     def __init__(self, grid, equal_cls, model, mode):
         self.grid = grid
+        self.grid_dict = Points_type.grid_sort(self.grid)
+        self.sorted_grid = torch.cat(list(self.grid_dict.values()))
         self.prepared_operator = equal_cls.operator_prepare()
         self.prepared_bconds = equal_cls.bnd_prepare()
         self.model = model
@@ -394,9 +396,7 @@ class Solution():
         btype = bcond[4]
         if bop == None or bop == [[1, [None], 1]]:
             if self.mode == 'NN':
-                grid_dict = Points_type.grid_sort(self.grid)
-                sorted_grid = torch.cat(list(grid_dict.values()))
-                b_op_val = self.model(sorted_grid)[:,var].reshape(-1,1)
+                b_op_val = self.model(self.sorted_grid)[:,var].reshape(-1,1)
             elif self.mode == 'autograd':
                 b_op_val = self.model(self.grid)[:,var].reshape(-1,1)
             elif self.mode == 'mat':
@@ -531,7 +531,7 @@ class Solution():
                 return result, grid
         
         if self.mode=='NN':
-            grid_central = Points_type.grid_sort(self.grid)['central']
+            grid_central = self.grid_dict['central']
         elif self.mode=='autograd':
             grid_central = self.grid
         if self.mode == 'mat' or self.mode == 'autograd':
