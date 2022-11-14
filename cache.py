@@ -28,7 +28,7 @@ class Model_prepare(Solution):
         return randomize_params
 
 
-    def cache_lookup(self, lambda_bound=0.001, cache_dir='../cache/', nmodels=None, cache_verbose=False):
+    def cache_lookup(self, lambda_bound=0.001, weak_form=None, cache_dir='../cache/', nmodels=None, cache_verbose=False):
         
         files=glob.glob(cache_dir+'*.tar')
         # if files not found
@@ -78,7 +78,7 @@ class Model_prepare(Solution):
                 continue
             # model[0] = torch.nn.Linear(prepared_grid.shape[-1], model[0].out_features)
             # model.eval()
-            l=self.loss_evaluation(lambda_bound=lambda_bound)      
+            l=self.loss_evaluation(lambda_bound=lambda_bound, weak_form=weak_form)      
             if l<min_loss:
                 min_loss=l
                 best_checkpoint['model']=model
@@ -176,10 +176,10 @@ class Model_prepare(Solution):
             self.model, optimizer_state = self.scheme_interp(cache_model, cache_verbose=cache_verbose)
         return self.model, optimizer_state
 
-    def cache(self, cache_dir, nmodels, lambda_bound, cache_verbose, model_randomize_parameter, cache_model):
+    def cache(self, cache_dir, nmodels, lambda_bound, cache_verbose, model_randomize_parameter, cache_model, weak_form=None):
         r =self.create_random_fn(model_randomize_parameter) 
         if self.mode == 'NN' or self.mode == 'autograd':
-            cache_checkpoint, min_loss=self.cache_lookup(cache_dir=cache_dir, nmodels=nmodels, cache_verbose=cache_verbose, lambda_bound=lambda_bound)
+            cache_checkpoint, min_loss=self.cache_lookup(cache_dir=cache_dir, nmodels=nmodels, cache_verbose=cache_verbose, lambda_bound=lambda_bound, weak_form=weak_form)
             self.model, optimizer_state = self.cache_retrain(cache_checkpoint, cache_verbose=cache_verbose)
 
             self.model.apply(r)

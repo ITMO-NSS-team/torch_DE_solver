@@ -334,12 +334,13 @@ class Derivative():
 class Solution():
     def __init__(self, grid, equal_cls, model, mode):
         self.grid = grid
-        self.grid_dict = Points_type.grid_sort(self.grid)
-        self.sorted_grid = torch.cat(list(self.grid_dict.values()))
         self.prepared_operator = equal_cls.operator_prepare()
         self.prepared_bconds = equal_cls.bnd_prepare()
         self.model = model
         self.mode = mode
+        if self.mode=='NN':
+            self.grid_dict = Points_type.grid_sort(self.grid)
+            self.sorted_grid = torch.cat(list(self.grid_dict.values()))
 
     def apply_operator(self, operator):
         """

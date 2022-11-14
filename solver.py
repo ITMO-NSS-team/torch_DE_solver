@@ -133,6 +133,7 @@ class Solver(Model_prepare):
             self.model, min_loss = self.cache(cache_dir=cache_dir,
                                               nmodels=nmodels,
                                               lambda_bound=lambda_bound,
+                                              weak_form=self.weak_form,
                                               cache_verbose=cache_verbose,
                                               model_randomize_parameter=model_randomize_parameter,
                                               cache_model=cache_model)
