@@ -10,7 +10,7 @@ Content:
    :maxdepth: 1
 
    tedeous/index
-   Modules/index
+   modules/index
    faq
    about
    
