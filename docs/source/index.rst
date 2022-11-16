@@ -9,11 +9,10 @@ Content:
 .. toctree::
    :maxdepth: 1
 
-   tedeous/index\
-   Modules/index\
-   examples\
-   faq\
-   about\
+   tedeous/index
+   Modules/index
+   faq
+   about
    
 **TEDEouS** (**T**\orch **E**\xhaustive **D**\ifferential **E**\quation **S**\olver)
 Combines power of torch, numerical methods and math overall to conquer and solve ALL {O,P}DEs.
