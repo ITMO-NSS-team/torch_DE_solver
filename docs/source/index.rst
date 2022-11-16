@@ -11,7 +11,6 @@ Content:
 
    tedeous/index\
    Modules/index\
-   examples\
    faq\
    about\
    
