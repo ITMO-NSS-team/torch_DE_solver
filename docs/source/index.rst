@@ -10,9 +10,8 @@ Content:
    :maxdepth: 1
 
    tedeous/index\
-   Install and setup\
    Modules/index\
-   Examples\
+   examples\
    faq\
    about\
    
