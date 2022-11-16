@@ -1,5 +1,5 @@
 Metrics
 =======
-.. automodule:: metrics
+..automodule:: metrics
   :members:
   :no-undoc-members:

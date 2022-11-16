@@ -1,6 +1,6 @@
 Finite difference method
 ========================
 
-.. automodule:: finite_diffs
+..automodule:: finite_diffs
   :members:
   :no-undoc-members:

@@ -1,5 +1,5 @@
 Solver
 
-.. automodule:: solver
+..automodule:: solver
   :members:
   :no-undoc-members:

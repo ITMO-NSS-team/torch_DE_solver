@@ -1,6 +1,6 @@
 Config
 ======
 
-.. automodule:: config
+..automodule:: config
   :members:
   :no-undoc-members:

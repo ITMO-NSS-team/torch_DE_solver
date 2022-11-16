@@ -1,6 +1,6 @@
 Cache
 =====
 
-.. automodule:: cache
+..automodule:: cache
   :members:
   :no-undoc-members:
