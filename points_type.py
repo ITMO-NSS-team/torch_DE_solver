@@ -20,8 +20,6 @@ class Points_type():
 
         Returns:
             grid_shift: shifted array of a n-D points.
-
-
         """
         grid_shift = grid.clone()
         grid_shift[:, axis] = grid[:, axis] + shift
@@ -68,10 +66,10 @@ class Points_type():
             grid: array of a n-D points.
 
         Returns:
-            point_type: type with a points in a 'grid' above. Type may be 'central' - inner point
-                        and string of 'f' and 'b', where the length of the string is a dimension n. 'f' means that if we add
-                        small number to a position of corresponding coordinate we stay in the 'hull'. 'b' means that if we
-                        subtract small number from o a position of corresponding coordinate we stay in the 'hull'.
+            type with a points in a 'grid' above. Type may be 'central' - inner point
+            and string of 'f' and 'b', where the length of the string is a dimension n. 'f' means that if we add
+            small number to a position of corresponding coordinate we stay in the 'hull'. 'b' means that if we
+            subtract small number from o a position of corresponding coordinate we stay in the 'hull'.
 
         """
         direction_list = []
@@ -109,7 +107,7 @@ class Points_type():
         Sorting grid points for each subset from result Points_type.point_typization.
 
         Args:
-            grid: tarray of a n-D points.
+            grid: array of a n-D points.
 
         Returns:
             grid_dict: sorted grid in each subset (see Points_type.point_typization).

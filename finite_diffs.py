@@ -24,35 +24,6 @@ class Finite_diffs():
         Returns:
             diff_list: list with shifted points.
         """
-
-        # """
-        # we do the [0]->([1]-[-1])/(2h) transitions to the axes we need
-        # as an example d2u/dxdt
-        # u=[0,0]
-        # u-> du/dx:
-        #
-        # [0,0]->([1,0]-[-1,0])/(2h)
-        #
-        # du/dx->d2u/dxdt:
-        #
-        # [1,0]->([1,1]-[1,-1])/(2h*2tau)
-        #
-        # [-1,0]->([-1,1]-[-1,-1])/(2h*2tau)
-        #
-        # But we do not want to take signs into account (too complex), so
-        #
-        # u-> du/dx:
-        #
-        # [0,0]->[[1,0],[-1,0]]
-        #
-        # du/dx->d2u/dxdt:
-        #
-        # [[1,0],[-1,0]]->[[1,1],[1,-1],[-1,1],[-1,-1]]
-        #
-        # Since order is preserved we can compute signs afterwards
-        #
-        # """
-
         diff_p = copy(diff)
         diff_m = copy(diff)
         if mode == 'central':
@@ -121,18 +92,6 @@ class Finite_diffs():
             sign_list: list, with signs for corresponding points.
 
         """
-        """
-        From transformations above, we always start from +1 (1)
-
-        Every +1 changes to ->[+1,-1] when order of differential rises
-
-        [0,0] (+1) ->([1,0]-[-1,0]) ([+1,-1])
-
-        Every -1 changes to [-1,+1]
-
-        [[1,0],[-1,0]] ([+1,-1])->[[1,1],[1,-1],[-1,1],[-1,-1]] ([+1,-1,-1,+1])
-
-        """
         sign_list = [1]
         for i in range(order):
             start_list = []
@@ -143,10 +102,6 @@ class Finite_diffs():
                     start_list.append([sign / h, -sign / h])
             sign_list = flatten_list(start_list)
         return sign_list
-
-    """
-    The following functions are forward and backward schemes combined
-    """
 
     @staticmethod
     def second_order_shift(diff: list, axis: int, mode: str) -> list:
@@ -184,10 +139,9 @@ class Finite_diffs():
             varn: dimensionality of the problem.
             axes_mode: 'central' or combination of 'f' and 'b'.
 
-
         Returns:
-            - finite_diff: transformed axes due to finite difference mode.
-            - direction_list: list, which contains directions (i.e, 'central', 'f', 'b').
+            finite_diff: transformed axes due to finite difference mode.
+            direction_list: list, which contains directions (i.e, 'central', 'f', 'b').
         """
         order = len(axes)
         finite_diff = []

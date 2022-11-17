@@ -1,12 +1,5 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sun Mar 13 14:13:37 2022
-
-@author: Sashka
-"""
-
 from email.policy import default
-from typing import Union
+from typing import Union, Optional
 import json
 
 
@@ -14,7 +7,6 @@ def read_config(name):
     with open(name, 'r') as config_file:
         config_data = json.load(config_file)
     return config_data
-
 
 DEFAULT_CONFIG = """
 {
@@ -63,16 +55,11 @@ def check_module_name(module_name: str) -> bool:
     Check correctness of the 'first' level of config parameter name
     we call it module.
 
-    Parameters
-    ----------
-    module_name: str
-        first level of a parameter of a custom config.
+    Args:
+        module_name: first level of a parameter of a custom config.
 
-    Returns
-    -------
-    module_correctness : bool
-        true if module presents in 'default' config.
-
+    Returns:
+        module_correctness: if module presents in 'default' config.
     """
     if module_name in default_config.keys():
         return True
@@ -85,45 +72,32 @@ def check_param_name(module_name: str, param_name: str) -> bool:
     Check correctness of the 'first' level of config parameter name
     we call it module.
 
-    Parameters
-    ----------
-    module_name: str
-        first level of a parameter of a custom config.
+    Args:
+        module_name: first level of a parameter of a custom config.
+        param_name: specific parameter name.
 
-    Returns
-    -------
-    module_correctness : bool
-        true if module presents in 'default' config.
-
+    Returns:
+        module_correctness: true if module presents in 'default' config.
     """
     if param_name in default_config[module_name].keys():
         return True
     else:
         return False
 
-
-'''
-We can use old json load. However, it is good to check if the parameters named correctly
-So, we make the full 'default' version of the config and load 'non-default' parameters
-either from file or using method 'change_parameter'
-'''
-
-
 class Config:
-    def __init__(self, *args):
+    def __init__(self: Union[str, Optional], *args):
         """
-        We init config with default one
+        We initialize config with default one
 
         If there is passed path to a custom config, we try to load it and change
         default parameters
 
         Args:
-        config_path: str, optional
-            path to a custom config
+            config_path: path to a custom config
 
         Returns:
-        self: Config
-            config used in solver.optimization_solver function
+            self: config used in solver.optimization_solver function
+
         """
 
         self.params = default_config
@@ -153,14 +127,12 @@ class Config:
         We may want to just change default config parameters manually, without loading
         the .json
 
-        We run checks to see we set them corretly
+        We run checks to see we set them correctly
 
         Args:
-        parameter_string:
-            string in format 'module.parameter'
+            parameter_string: string in format 'module.parameter'.
+            value: value for the parameter.
 
-        value
-            value for the parameter
         """
 
         module_name, param = parameter_string.split('.')
