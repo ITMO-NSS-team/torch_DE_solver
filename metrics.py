@@ -78,7 +78,6 @@ class Derivative_autograd(DerivativeInt):
         Args:
             grid: array of a n-D points.
             model: neural network.
-
         """
         self.grid = grid
         self.model = model
@@ -170,13 +169,9 @@ class Derivative_mat(DerivativeInt):
             du: computed derivative along one dimension.
 
         """
-        # print('1d>2d')
         u = model.reshape(-1)
         x = grid.reshape(-1)
 
-        # du_forward = (u-torch.roll(u, -1)) / (x-torch.roll(x, -1))
-
-        # du_backward = (torch.roll(u, 1) - u) / (torch.roll(x, 1) - x)
         du = (torch.roll(u, 1) - torch.roll(u, -1)) / (torch.roll(x, 1) - torch.roll(x, -1))
         du[0] = (u[0] - u[1]) / (x[0] - x[1])
         du[-1] = (u[-1] - u[-2]) / (x[-1] - x[-2])
@@ -217,7 +212,6 @@ class Derivative_mat(DerivativeInt):
                           (torch.roll(h_tensor, 1) - h_tensor)
             du = (1 / 2) * (du_forward + du_backward)
 
-        # dh=h_tensor[0,1]-h_tensor[0,0]
 
         if scheme_order == 2:
             u_shift_down_1 = torch.roll(u_tensor, 1)
@@ -533,16 +527,7 @@ class Solution():
         # we apply no  boundary conditions operators if they are all None
 
         b_val, true_b_val = self.apply_bconds_operator()
-        """
-        actually, we can use L2 norm for the operator and L1 for boundary
-        since L2>L1 and thus, boundary values become not so signifnicant, 
-        so the NN converges faster. On the other hand - boundary conditions is the
-        crucial thing for all that stuff, so we should increase significance of the
-        coundary conditions
-        """
-        # l1_lambda = 0.001
-        # l1_norm =sum(p.abs().sum() for p in model.parameters())
-        # loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)+ l1_lambda * l1_norm
+
         if self.mode == 'mat':
             loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)
         else:
