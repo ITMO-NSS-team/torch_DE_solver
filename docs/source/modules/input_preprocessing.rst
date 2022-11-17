@@ -22,6 +22,7 @@ class Equation_mat
 .. automodule:: input_preprocessing.Equation_mat
 
 class Equation_autograd
+~~~~~~~~~~~~~~~~~~~~~~~
 
 .. automodule:: input_preprocessing.Equation_autograd
 
