@@ -1,3 +1,5 @@
+TEDEouS
+=======
 **This is all about TEDEouS**
 
 .. toctree::
