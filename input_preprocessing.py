@@ -1,4 +1,3 @@
-
 import torch
 import numpy as np
 from typing import Union
@@ -340,9 +339,6 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
 
         Returns:
             operator_list: final form of differential operator used in the algorithm for subset grid types.
-
-
-
         """
         grid_dict = self.grid_sort(self.grid)
         nvars = self.grid.shape[-1]

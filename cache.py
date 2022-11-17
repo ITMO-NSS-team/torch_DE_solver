@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Aug 24 11:50:12 2021
-
-@author: user
-"""
 import pickle
 import datetime
 import torch
@@ -66,7 +60,6 @@ class Model_prepare(Solution):
 
         min_loss
             minimum error in pre-trained error
-
         '''
         files=glob.glob(cache_dir+'*.tar')
         # if files not found
@@ -153,17 +146,14 @@ class Model_prepare(Solution):
                     'optimizer_state_dict': optimizer_state}, cache_dir+name+'.tar')
         
     def save_model_mat(self, cache_dir: str = '../cache/', name: Union[str, None] = None,
-                       cache_model: torch.nn.Sequential = None):
+                       cache_model: torch.nn.Sequential = None) -> None:
         """
         Saved model in a cache (uses for 'mat' method).
 
         Args:
-        cache_dir
-            a directory where saved cache in.
-        name
-            name for a model
-        cache_model
-            model to save
+            cache_dir: a directory where saved cache in.
+            name: name for a model
+            cache_model: model to save
         """
         NN_grid=torch.from_numpy(np.vstack([self.grid[i].reshape(-1) for i in range(self.grid.shape[0])]).T).float()
         if cache_model==None:
