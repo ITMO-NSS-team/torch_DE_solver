@@ -1,5 +1,8 @@
 Metrics
 =======
-.. automodule:: metrics
-  :members:
-  :no-undoc-members:
+
+class Derivative_NN
+~~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: tedeous.metrics.Derivative_NN
+ 
