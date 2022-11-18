@@ -6,8 +6,6 @@ Created on Mon May 31 12:33:44 2021
 """
 import torch
 import numpy as np
-import matplotlib.pyplot as plt
-import scipy
 
 import os
 import sys
@@ -17,8 +15,8 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from input_preprocessing import Equation
-from solver import Solver
+from tedeous.input_preprocessing import Equation
+from tedeous.solver import Solver
 
 from scipy.special import legendre
 import time

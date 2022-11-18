@@ -11,7 +11,6 @@
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy
 from scipy import integrate
 
 import os
@@ -22,8 +21,8 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from input_preprocessing import Equation
-from solver import Solver
+from tedeous.input_preprocessing import Equation
+from tedeous.solver import Solver
 
 import time
 

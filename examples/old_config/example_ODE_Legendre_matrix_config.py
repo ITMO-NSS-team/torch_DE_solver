@@ -17,17 +17,13 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 sys.path.append('../')
 
 import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from mpl_toolkits.mplot3d import Axes3D
-from solver import lbfgs_solution,matrix_optimizer,grid_format_prepare
+from tedeous.solver import grid_format_prepare
 import time
 from scipy.special import legendre
-from solver import matrix_cache_lookup
+
 device = torch.device('cpu')
-from cache import save_model
-from solver import optimization_solver
-from config import Config
+from tedeous.solver import optimization_solver
+from tedeous.config import Config
 """
 Preparing grid
 

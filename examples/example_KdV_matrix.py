@@ -8,9 +8,7 @@ import os
 import numpy as np
 import torch
 import time
-import pandas as pd
-import matplotlib.pyplot as plt
-from scipy.spatial import Delaunay
+
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 import sys
@@ -19,9 +17,9 @@ sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 sys.path.append('../')
 
-from solver import Solver, grid_format_prepare
-from input_preprocessing import Equation
-from metrics import Solution
+from tedeous.solver import Solver, grid_format_prepare
+from tedeous.input_preprocessing import Equation
+from tedeous.metrics import Solution
 
 
 

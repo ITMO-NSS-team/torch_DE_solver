@@ -6,11 +6,6 @@ Created on Mon May 31 12:33:44 2021
 """
 import torch
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from mpl_toolkits.mplot3d import Axes3D
-import scipy
 
 import os
 import sys
@@ -24,9 +19,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 sys.path.append('../')
 
 
-from solver import Solver
-from metrics import Solution
-from input_preprocessing import Equation
+from tedeous.solver import Solver
+from tedeous.metrics import Solution
+from tedeous.input_preprocessing import Equation
 import time
 
 

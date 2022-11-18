@@ -6,7 +6,6 @@ Created on Wed Mar 30 13:25:13 2022
 """
 import numpy as np
 import torch
-import matplotlib.pyplot as plt
 
 import sys
 import os
@@ -20,8 +19,8 @@ sys.path.append('../')
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from input_preprocessing import Equation
-from solver import Solver
+from tedeous.input_preprocessing import Equation
+from tedeous.solver import Solver
 
 
 

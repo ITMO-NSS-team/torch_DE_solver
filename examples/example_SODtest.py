@@ -4,9 +4,7 @@ import os
 import time
 import matplotlib.pyplot as plt
 from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from mpl_toolkits.mplot3d import Axes3D
-from scipy.spatial import Delaunay
+
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 import sys
@@ -18,8 +16,8 @@ sys.path.append('../')
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from input_preprocessing import Equation
-from solver import Solver
+from tedeous.input_preprocessing import Equation
+from tedeous.solver import Solver
 
 
 device = torch.device('cpu')

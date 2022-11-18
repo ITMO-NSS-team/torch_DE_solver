@@ -3,8 +3,8 @@ import torch
 import numpy as np
 
 
-from points_type import Points_type
-from finite_diffs import Finite_diffs
+from tedeous.points_type import Points_type
+from tedeous.finite_diffs import Finite_diffs
 
 class EquationMixin():
     @staticmethod   

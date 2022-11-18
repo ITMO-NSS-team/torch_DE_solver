@@ -4,8 +4,6 @@ Created on Mon May 31 12:33:44 2021
 
 @author: user
 """
-import torch
-import numpy as np
 import os
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -16,12 +14,7 @@ import sys
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from mpl_toolkits.mplot3d import Axes3D
-from solver import *
+from tedeous.solver import *
 import time
 
 

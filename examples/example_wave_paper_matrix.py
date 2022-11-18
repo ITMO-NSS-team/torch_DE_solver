@@ -8,7 +8,7 @@ import torch
 import numpy as np
 import os
 import time
-import pandas as pd
+
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 import sys
@@ -18,9 +18,9 @@ sys.path.append('../')
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from solver import Solver, grid_format_prepare
-from input_preprocessing import Equation
-from metrics import Solution
+from tedeous.solver import Solver, grid_format_prepare
+from tedeous.input_preprocessing import Equation
+from tedeous.metrics import Solution
 """
 Preparing grid
 
