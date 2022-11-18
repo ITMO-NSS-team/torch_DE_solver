@@ -2,10 +2,8 @@ import torch
 import numpy as np
 from typing import Union
 
-from torch import Tensor
-
-import input_preprocessing
-from points_type import Points_type
+from tedeous import input_preprocessing
+from tedeous import points_type
 
 flatten_list = lambda t: [item for sublist in t for item in sublist]
 
@@ -365,7 +363,7 @@ class Derivative():
 
 class Solution():
     def __init__(self, grid: torch.Tensor, equal_cls: Union[input_preprocessing.Equation_NN,
-                input_preprocessing.Equation_mat, input_preprocessing.Equation_autograd],
+                                                            input_preprocessing.Equation_mat, input_preprocessing.Equation_autograd],
                  model: Union[torch.nn.Sequential, torch.Tensor], mode: str):
         """
         Interface for computing loss due to chosen calculation method.
@@ -439,7 +437,7 @@ class Solution():
         btype = bcond[4]
         if bop == None or bop == [[1, [None], 1]]:
             if self.mode == 'NN':
-                grid_dict = Points_type.grid_sort(self.grid)
+                grid_dict = points_type.Points_type.grid_sort(self.grid)
                 sorted_grid = torch.cat(list(grid_dict.values()))
                 b_op_val = self.model(sorted_grid)[:, var].reshape(-1, 1)
             elif self.mode == 'autograd':

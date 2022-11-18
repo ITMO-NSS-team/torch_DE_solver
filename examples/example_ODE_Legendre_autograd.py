@@ -7,10 +7,6 @@ Created on Mon May 31 12:33:44 2021
 import torch
 import numpy as np
 import os
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from mpl_toolkits.mplot3d import Axes3D
 from scipy.special import legendre
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -23,9 +19,8 @@ sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
 
-from solver import Solver, grid_format_prepare
-from metrics import Solution
-from input_preprocessing import Equation
+from tedeous.solver import Solver, grid_format_prepare
+from tedeous.input_preprocessing import Equation
 import time
 
 device = torch.device('cpu')
