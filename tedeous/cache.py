@@ -8,8 +8,8 @@ from typing import Union, Tuple, Any
 
 from torch import Tensor
 
-from metrics import Solution
-from input_preprocessing import Equation, EquationMixin
+from tedeous.metrics import Solution
+from tedeous.input_preprocessing import Equation, EquationMixin
 
 class Model_prepare(Solution):
     """

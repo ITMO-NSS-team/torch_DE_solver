@@ -16,9 +16,9 @@ sys.path.append('../')
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from input_preprocessing import Equation
-from solver import Solver
-from metrics import Solution
+from tedeous.input_preprocessing import Equation
+from tedeous.solver import Solver
+from tedeous.metrics import Solution
 import time
 
 

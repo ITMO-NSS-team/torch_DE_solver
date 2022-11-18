@@ -4,13 +4,6 @@ Created on Mon May 31 12:33:44 2021
 
 @author: user
 """
-import torch
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from mpl_toolkits.mplot3d import Axes3D
-import scipy
 
 import os
 import sys
@@ -22,10 +15,8 @@ sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 sys.path.append('../')
 
-from config import Config
-from solver import *
-import time
-
+from tedeous.config import Config
+from tedeous.solver import *
 
 t=np.array([0.     , 0.00025, 0.0005 , 0.00075, 0.001  , 0.00125, 0.0015 ,
        0.00175, 0.002  , 0.00225, 0.0025 , 0.00275, 0.003  , 0.00325,

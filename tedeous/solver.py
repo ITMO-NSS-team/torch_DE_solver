@@ -3,11 +3,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
 
-import input_preprocessing
-from cache import Model_prepare
+from tedeous import input_preprocessing
+from tedeous.cache import Model_prepare
 from typing import Union
 import os
-import sys
 import datetime
 
 
@@ -54,7 +53,7 @@ class Solver(Model_prepare):
     High-level interface for solving equations.
     """
     def __init__(self, grid: torch.Tensor, equal_cls: Union[input_preprocessing.Equation_NN,
-                input_preprocessing.Equation_mat, input_preprocessing.Equation_autograd],
+                                                            input_preprocessing.Equation_mat, input_preprocessing.Equation_autograd],
                  model: torch.nn.Sequential, mode: str):
         """
         High-level interface for solving equations.
