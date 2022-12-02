@@ -493,16 +493,7 @@ class Solution():
 
         return b_val, true_b_val
 
-    def loss_evaluation(self, lambda_bound: int = 10) -> torch.Tensor:
-        """
-        Computes loss.
-
-        Args:
-            lambda_bound: an arbitrary chosen constant, influence only convergence speed.
-
-        Returns:
-            loss: loss.
-        """
+    def l2_loss(self, lambda_bound=10):
         if self.mode == 'mat' or self.mode == 'autograd':
             if self.prepared_bconds == None:
                 print('No bconds is not possible, returning infinite loss')
@@ -517,7 +508,6 @@ class Solution():
             op_list = []
             for i in range(num_of_eq):
                 op_list.append(self.apply_operator(self.prepared_operator[i]))
-
             op = torch.cat(op_list, 1)
             if self.prepared_bconds == None:
                 return torch.sum(torch.mean((op) ** 2, 0))
@@ -525,11 +515,123 @@ class Solution():
         # we apply no  boundary conditions operators if they are all None
 
         b_val, true_b_val = self.apply_bconds_operator()
-
+        """
+        actually, we can use L2 norm for the operator and L1 for boundary
+        since L2>L1 and thus, boundary values become not so signifnicant, 
+        so the NN converges faster. On the other hand - boundary conditions is the
+        crucial thing for all that stuff, so we should increase significance of the
+        coundary conditions
+        """
+        # l1_lambda = 0.001
+        # l1_norm =sum(p.abs().sum() for p in model.parameters())
+        # loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)+ l1_lambda * l1_norm
         if self.mode == 'mat':
             loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)
         else:
             loss = torch.sum(torch.mean((op) ** 2, 0)) + lambda_bound * torch.sum(
                 torch.mean((b_val - true_b_val) ** 2, 0))
+        return loss
+
+    def weak_loss(self, weak_form, lambda_bound=10):
+        '''
+        Weak solution of O/PDE problem.
+        Parameters:
+        ---------
+        weak_form: list of basis functions
+        lambda_bound: const regularization parameter
+        ---------
+        '''
+
+        def integration(func, grid, pow='sqrt'):
+            '''
+            Function realize 1-space/multiple integrands,
+            where func=(L(u)-f)*weak_form subintegrands function and
+            definite integral parameter is grid
+            Parameters:
+            ----------
+            func: torch.tensor
+            grid: torch.tensor
+            pow: string (sqrt ar abs) power of func points
+            ----------
+            '''
+            if grid.shape[-1] == 1:
+                column = -1
+            else:
+                column = -2
+            marker = grid[0][column]
+            index = [0]
+            result = []
+            U = 0
+            for i in range(1, len(grid)):
+                if grid[i][column] == marker or column == -1:
+                    if pow == 'sqrt':
+                        U += (grid[i][-1] - grid[i - 1][-1]).item() * (func[i] ** 2 + func[i - 1] ** 2) / 2
+                    elif pow == 'abs':
+                        U += (grid[i][-1] - grid[i - 1][-1]).item() * (func[i] + func[i - 1]) / 2
+                else:
+                    result.append(U)
+                    marker = grid[i][column]
+                    index.append(i)
+                    U = 0
+            if column == -1:
+                return U, 0
+            else:
+                result.append(U)
+                grid = grid[index, :-1]
+                return result, grid
+
+        if self.mode == 'NN':
+            grid_central = self.grid_dict['central']
+        elif self.mode == 'autograd':
+            grid_central = self.grid
+        if self.mode == 'mat' or self.mode == 'autograd':
+            if self.prepared_bconds == None:
+                print('No bconds is not possible, returning infinite loss')
+                return np.inf
+
+        num_of_eq = len(self.prepared_operator)
+        if num_of_eq == 1:
+            op = self.apply_operator(self.prepared_operator[0])
+            for i in weak_form:
+                op = op * (i(grid_central)).reshape(-1, 1)
+            for _ in range(grid_central.shape[-1]):
+                op, grid_central = integration(op, grid_central)
+            op_integr = op
+            if self.prepared_bconds == None:
+                return op_integr
+        else:
+            op_list = []
+            for i in range(num_of_eq):
+                op_list.append(self.apply_operator(self.prepared_operator[i]))
+                for j in weak_form:
+                    op_list[-1] = op_list[-1] * (j(grid_central)).reshape(-1, 1)
+            for i in range(num_of_eq):
+                grid_central1 = torch.clone(grid_central)
+                for k in range(grid_central.shape[-1]):
+                    if k == 0:
+                        op_list[i], grid_central1 = integration(op_list[i], grid_central1, pow='sqrt')
+                    else:
+                        op_list[i], grid_central1 = integration(op_list[i], grid_central1, pow='sqrt')
+            op_integr = torch.cat(op_list)
+            if self.prepared_bconds == None:
+                return op_integr
+
+        # we apply no  boundary conditions operators if they are all None
+
+        b_val, true_b_val = self.apply_bconds_operator()
+        """
+        actually, we can use L2 norm for the operator and L1 for boundary
+        since L2>L1 and thus, boundary values become not so signifnicant, 
+        so the NN converges faster. On the other hand - boundary conditions is the
+        crucial thing for all that stuff, so we should increase significance of the
+        coundary conditions
+        """
+        loss = torch.sum(op_integr) + lambda_bound * torch.sum(torch.mean((b_val - true_b_val) ** 2, 0))
 
         return loss
+
+    def loss_evaluation(self, lambda_bound=10, weak_form=None):
+        if weak_form == None or weak_form == []:
+            return self.l2_loss(lambda_bound=lambda_bound)
+        else:
+            return self.weak_loss(weak_form, lambda_bound=lambda_bound)
