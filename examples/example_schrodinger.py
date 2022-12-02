@@ -215,8 +215,8 @@ for n in grd:
 
         start = time.time()
         model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=1, verbose=True, learning_rate=0.8,
-                                            eps=1e-6, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
-                                            save_always=False,no_improvement_patience=500,print_every = 100,optimizer_mode='LBFGS',step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
+                                            eps=1e-6, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True,
+                                            save_always=False,no_improvement_patience=500,print_every = None,optimizer_mode='LBFGS',step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
         end = time.time()
         print('Time taken for n_iter: {} and grid_res:{} = {}'.format(i, n,  end - start))
 
@@ -234,4 +234,4 @@ for n in grd:
     result.extend(res_i)
 
 df = pd.DataFrame(res_i)
-df.to_csv(f'benchmarking_data/schrodinger_experiment_{grd}_cache=False.csv',index=False)
+df.to_csv(f'benchmarking_data/schrodinger_experiment_{grd}_cache=True.csv',index=False)
