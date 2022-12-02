@@ -54,7 +54,7 @@ class Solver(Model_prepare):
     """
     def __init__(self, grid: torch.Tensor, equal_cls: Union[input_preprocessing.Equation_NN,
                                                             input_preprocessing.Equation_mat, input_preprocessing.Equation_autograd],
-                 model: torch.nn.Sequential, mode: str):
+                 model: torch.nn.Sequential, mode: str, weak_form: None = None):
         """
         High-level interface for solving equations.
 
@@ -69,6 +69,7 @@ class Solver(Model_prepare):
             Calculation method. (i.e., "NN", "autograd", "mat").
         """
         super().__init__(grid, equal_cls, model, mode)
+        self.weak_form = weak_form
 
     def optimizer_choice(self, optimizer: str, learning_rate: float) -> \
             Union[torch.optim.Adam, torch.optim.SGD, torch.optim.LBFGS]:
@@ -258,13 +259,14 @@ class Solver(Model_prepare):
                                               lambda_bound=lambda_bound,
                                               cache_verbose=cache_verbose,
                                               model_randomize_parameter=model_randomize_parameter,
-                                              cache_model=cache_model)
+                                              cache_model=cache_model,
+                                              weak_form = self.weak_form)
 
         optimizer = self.optimizer_choice(optimizer_mode, learning_rate)
 
         if True:
             # if not use_cache:
-            min_loss = self.loss_evaluation(lambda_bound=lambda_bound)
+            min_loss = self.loss_evaluation(lambda_bound=lambda_bound, weak_form=self.weak_form)
 
         save_cache = False
 
@@ -283,7 +285,7 @@ class Solver(Model_prepare):
         def closure():
             nonlocal cur_loss
             optimizer.zero_grad()
-            loss = self.loss_evaluation(lambda_bound=lambda_bound)
+            loss = self.loss_evaluation(lambda_bound=lambda_bound, weak_form=self.weak_form)
 
             loss.backward()
             cur_loss = loss.item()

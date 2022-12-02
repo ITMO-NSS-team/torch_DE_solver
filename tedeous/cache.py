@@ -40,7 +40,7 @@ class Model_prepare(Solution):
         return randomize_params
 
 
-    def cache_lookup(self, lambda_bound: float = 0.001, cache_dir: str = '../cache/',
+    def cache_lookup(self, lambda_bound: float = 0.001, weak_form: None = None, cache_dir: str = '../cache/',
                 nmodels: Union[int, None] = None, cache_verbose: bool = False) -> Union[dict, torch.Tensor]:
         '''
         Looking for a saved cache.
@@ -109,7 +109,7 @@ class Model_prepare(Solution):
                 continue
             # model[0] = torch.nn.Linear(prepared_grid.shape[-1], model[0].out_features)
             # model.eval()
-            l=self.loss_evaluation(lambda_bound=lambda_bound)      
+            l=self.loss_evaluation(lambda_bound=lambda_bound, weak_form = weak_form)
             if l<min_loss:
                 min_loss=l
                 best_checkpoint['model']=model
@@ -254,7 +254,7 @@ class Model_prepare(Solution):
 
     def cache(self, cache_dir: str, nmodels: Union[int, None], lambda_bound: float,
               cache_verbose: bool,model_randomize_parameter: Union[float, None],
-              cache_model: torch.nn.Sequential) -> Union[tuple[Any, Any], tuple[Any, Tensor]]:
+              cache_model: torch.nn.Sequential, weak_form: None = None) -> Union[tuple[Any, Any], tuple[Any, Tensor]]:
         """
         Restores the model from the cache and uses it for retraining.
 
@@ -266,6 +266,7 @@ class Model_prepare(Solution):
             model_randomize_parameter:  Creates a random model parameters (weights, biases) multiplied with a given
                                         randomize parameter.
             cache_model: cached model
+            weak_form: weak form of differential equation
 
 
         Returns:
@@ -301,7 +302,7 @@ class Model_prepare(Solution):
             
             equal = Equation(NN_grid, operator_NN, self.equal_cls.bconds).set_strategy('NN')
             model_cls = Model_prepare(NN_grid, equal, cache_model, 'NN')
-            cache_checkpoint, min_loss = model_cls.cache_lookup(cache_dir=cache_dir, nmodels=nmodels, cache_verbose=cache_verbose, lambda_bound=lambda_bound)
+            cache_checkpoint, min_loss = model_cls.cache_lookup(cache_dir=cache_dir, nmodels=nmodels, cache_verbose=cache_verbose, lambda_bound=lambda_bound, weak_form = weak_form)
             prepared_model, optimizer_state = model_cls.cache_retrain(cache_checkpoint, cache_verbose=cache_verbose)
 
             prepared_model.apply(r)
