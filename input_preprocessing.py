@@ -423,7 +423,7 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
 
         """
         grid_dict = self.grid_sort(self.grid)
-        sorted_grid = torch.cat(list(grid_dict.values()))
+        #sorted_grid = torch.cat(list(grid_dict.values()))
         bconds1 = self.bnd_unify(self.bconds)
         if bconds1==None:
             return None
@@ -434,17 +434,20 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
             bval = bcond[2]
             bvar = bcond[3]
             btype = bcond[4]
-            bpos = self.bndpos(sorted_grid, b_coord)
+            bnd_dict = self.bnd_sort(grid_dict, b_coord)
             if bop == [[1, [None], 1]]:
                 bop = None
             if bop != None:
                 if type(bop)==dict:
                     bop=self.op_dict_to_list(bop)
                 bop1 = self.operator_unify(bop)
-                bop2 = self.apply_all_operators(bop1, grid_dict)
+                if type(bnd_dict) is list:
+                    bop2 = [self.apply_all_operators(bop1, bnd_dict0) for bnd_dict0 in bnd_dict]
+                else:
+                    bop2 = self.apply_all_operators(bop1, bnd_dict)
             else:
                 bop2 = None
-            prepared_bnd.append([bpos, bop2, bval, bvar, btype])
+            prepared_bnd.append([b_coord, bop2, bval, bvar, btype])
 
         return prepared_bnd
 
@@ -532,7 +535,7 @@ class Equation_autograd(EquationMixin):
             bval = bcond[2]
             var = bcond[3]
             btype = bcond[4]
-            bpos = self.bndpos(self.grid, b_coord)
+            #bpos = self.bndpos(self.grid, b_coord)
             if bop == [[1, [None], 1]]:
                 bop = None
             if bop != None:
@@ -541,7 +544,7 @@ class Equation_autograd(EquationMixin):
                 bop1 = self.operator_unify(bop)
             else:
                 bop1 = None
-            prepared_bnd.append([bpos, bop1, bval, var, btype])
+            prepared_bnd.append([b_coord, bop1, bval, var, btype])
         return prepared_bnd
 
 

@@ -46,9 +46,9 @@ grid.to(device)
 h = (t[1]-t[0]).item()
 #h = 0.0001
 #initial conditions
-bnd1_0 = torch.from_numpy(np.array([[0]], dtype=np.float64))
+bnd1_0 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
 bndval1_0 = torch.from_numpy(np.array([[x0]], dtype=np.float64))
-bnd1_1 = torch.from_numpy(np.array([[0]], dtype=np.float64))
+bnd1_1 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
 bndval1_1  = torch.from_numpy(np.array([[y0]], dtype=np.float64))
 
 bconds = [[bnd1_0, bndval1_0, 0],

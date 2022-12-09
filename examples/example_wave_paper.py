@@ -53,6 +53,8 @@ def wave_experiment(grid_res,CACHE):
     x = torch.from_numpy(x_grid)
     t = torch.from_numpy(t_grid)
     
+    h=abs((t[1]-t[0]).item())
+
     grid = torch.cartesian_prod(x, t).float()
     
     grid.to(device)
@@ -186,7 +188,7 @@ def wave_experiment(grid_res,CACHE):
     start = time.time()
     
 
-    equation = Equation(grid, wave_eq, bconds).set_strategy('NN')
+    equation = Equation(grid, wave_eq, bconds,h=h).set_strategy('NN')
     
     img_dir=os.path.join(os.path.dirname( __file__ ), 'wave_example_paper_img')
 

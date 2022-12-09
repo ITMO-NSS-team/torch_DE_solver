@@ -49,13 +49,13 @@ def Lotka_experiment(grid_res, CACHE):
 
     grid.to(device)
 
-    h = 0.0001
+    h = (t[1]-t[0]).item()
 
     #initial conditions
 
-    bnd1_0 = torch.from_numpy(np.array([[0]], dtype=np.float64))
+    bnd1_0 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
     bndval1_0 = torch.from_numpy(np.array([[x0]], dtype=np.float64))
-    bnd1_1 = torch.from_numpy(np.array([[0]], dtype=np.float64))
+    bnd1_1 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
     bndval1_1  = torch.from_numpy(np.array([[y0]], dtype=np.float64))
 
     bconds = [[bnd1_0, bndval1_0, 0],
@@ -134,7 +134,7 @@ def Lotka_experiment(grid_res, CACHE):
                                          verbose=True, learning_rate=1e-4, eps=1e-6, tmin=1000, tmax=5e6,
                                          use_cache=False,cache_dir='../cache/',cache_verbose=True,
                                          save_always=True,print_every=None,
-                                         patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
+                                         patience=3,loss_oscillation_window=100,no_improvement_patience=500,
                                          model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=None)
 
     end = time.time()

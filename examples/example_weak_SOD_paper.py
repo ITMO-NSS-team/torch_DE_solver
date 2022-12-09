@@ -233,9 +233,10 @@ def SOD_experiment(grid_res, CACHE):
 
 
     model = Solver(grid, equation, model, 'NN', weak_form=weak_form).solve(
-                                lambda_bound=100, verbose=True, learning_rate=1e-3,
+                                lambda_bound=100, verbose=True, learning_rate=1e-2,
                                 eps=1e-6, tmin=1000, tmax=1e5, use_cache=CACHE, cache_dir='../cache/', cache_verbose=False,
-                                save_always=True,no_improvement_patience=500,print_every=None)
+                                save_always=True, patience=2, abs_loss=0.0035, no_improvement_patience=500,print_every=None,
+                                model_randomize_parameter=1e-5)
 
     end = time.time()
 
