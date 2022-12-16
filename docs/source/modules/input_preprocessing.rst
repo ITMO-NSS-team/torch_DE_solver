@@ -5,7 +5,7 @@ Input preprocessing
 class Equation
 ~~~~~~~~~~~~~~
 
-.. automodule:: input_preprocessing.Equation
+.. autoclass:: tedeous.input_preprocessing.Equation
   :members:
   :no-undoc-members:
    
@@ -13,14 +13,14 @@ class Equation
 class EquationMixin
 ~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: input_preprocessing.EquationMixin
+.. autoclass:: tedeous.input_preprocessing.EquationMixin
   :members:
   :no-undoc-members:
    
    
 class EquationInt
 ~~~~~~~~~~~~~~~~~
-.. automodule:: input_preprocessing.EquationInt
+.. autoclass:: tedeous.input_preprocessing.EquationInt
   :members:
   :no-undoc-members:
    
@@ -28,7 +28,7 @@ class EquationInt
 class Equation_NN
 ~~~~~~~~~~~~~~~~~
 
-.. automodule:: input_preprocessing.Equation_NN
+.. autoclass:: tedeous.input_preprocessing.Equation_NN
   :members:
   :no-undoc-members:
    
@@ -36,7 +36,7 @@ class Equation_NN
 class Equation_mat
 ~~~~~~~~~~~~~~~~~~
 
-.. automodule:: input_preprocessing.Equation_mat
+.. autoclass:: tedeous.input_preprocessing.Equation_mat
   :members:
   :no-undoc-members:
 
@@ -44,7 +44,7 @@ class Equation_mat
 class Equation_autograd
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: input_preprocessing.Equation_autograd
+.. autoclass:: tedeous.input_preprocessing.Equation_autograd
   :members:
   :no-undoc-members:
 
