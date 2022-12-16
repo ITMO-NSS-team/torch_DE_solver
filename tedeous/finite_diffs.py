@@ -140,34 +140,27 @@ class Finite_diffs():
             axes_mode: 'central' or combination of 'f' and 'b'.
 
         Returns:
-            finite_diff: transformed axes due to finite difference mode.
-            direction_list: list, which contains directions (i.e, 'central', 'f', 'b').
+            Transformed axes due to finite difference mode;\n
+            List, which contains directions (i.e, 'central', 'f', 'b').
         """
         order = len(axes)
         finite_diff = []
         direction_list = []
-        # we generate [0,0,0,...] for number of variables (varn)
         for i in range(varn):
             finite_diff += [0]
-        # just to make this [[0,0,...]]
         finite_diff = [finite_diff]
-        # when we increase differential order
         for i in range(order):
             diff_list = []
             for diff in finite_diff:
-                # we use [0,0]->[[1,0],[-1,0]] rule for the axis
                 if axes_mode == 'central':
                     f_diff = Finite_diffs.second_order_shift(diff, axes[i], 'central')
                 else:
                     f_diff = Finite_diffs.second_order_shift(diff, axes[i], axes_mode[axes[i]])
                 if len(diff_list) == 0:
-                    # and put it to the pool of differentials if it is empty
                     diff_list = f_diff
                 else:
-                    # or add to the existing pool
                     for diffs in f_diff:
                         diff_list.append(diffs)
-            # the we go to the next differential if needed
             finite_diff = diff_list
             direction_list.append(axes_mode[axes[i]])
         return finite_diff, direction_list

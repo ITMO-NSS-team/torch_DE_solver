@@ -64,6 +64,7 @@ class Solver(Model_prepare):
         super().__init__(grid, equal_cls, model, mode)
         self.weak_form = weak_form
 
+
     def optimizer_choice(self, optimizer: str, learning_rate: float) -> \
             Union[torch.optim.Adam, torch.optim.SGD, torch.optim.LBFGS]:
         """
@@ -99,6 +100,7 @@ class Solver(Model_prepare):
             return self.model
 
         return optimizer
+
 
     def solution_print(self, title: Union[str, None] = None, solution_print: bool = False,
                        solution_save: bool = True, save_dir: Union[str, None] = None):
