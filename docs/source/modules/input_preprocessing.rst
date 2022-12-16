@@ -2,7 +2,7 @@
 Input preprocessing
 ===================
 
-class Equation
+Equation
 ~~~~~~~~~~~~~~
 
 .. autoclass:: tedeous.input_preprocessing.Equation
