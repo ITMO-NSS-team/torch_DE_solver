@@ -1,4 +1,6 @@
+======
 Solver
+======
 
 .. autoclass:: tedeous.solver.Solver
   :no-inherited-members:
