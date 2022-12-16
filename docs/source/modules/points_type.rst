@@ -5,6 +5,6 @@ Points type
 Points type
 ~~~~~~~~~~~
 
-.. automodule:: tedeous.points_type.Points_type
-  :members:
+.. autoclass:: tedeous.points_type.Points_type
+  :no-inherited-members:
   :no-undoc-members:
