@@ -5,3 +5,4 @@ scipy
 seaborn
 torch
 autodocsumm
+typing
