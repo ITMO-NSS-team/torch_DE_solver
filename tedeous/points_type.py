@@ -19,7 +19,7 @@ class Points_type():
             shift: shift value.
 
         Returns:
-            grid_shift: shifted array of a n-D points.
+            shifted array of a n-D points.
         """
         grid_shift = grid.clone()
         grid_shift[:, axis] = grid[:, axis] + shift
@@ -40,7 +40,7 @@ class Points_type():
             hull: initial array of a n-D points.
 
         Returns:
-            in_hull_array: array of a n-D boolean type points. True - if 'p' in 'hull', False - otherwise.
+            array of a n-D boolean type points. True - if 'p' in 'hull', False - otherwise.
 
         """
         if p.shape[1] > 1:
@@ -110,7 +110,7 @@ class Points_type():
             grid: array of a n-D points.
 
         Returns:
-            grid_dict: sorted grid in each subset (see Points_type.point_typization).
+            sorted grid in each subset (see Points_type.point_typization).
 
         """
         point_type = Points_type.point_typization(grid)

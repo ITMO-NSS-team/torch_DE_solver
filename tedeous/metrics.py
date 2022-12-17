@@ -1,9 +1,9 @@
 import torch
 import numpy as np
-from typing import Union
+from typing import Union, Tuple
 
 from tedeous import input_preprocessing
-from tedeous import points_type
+from tedeous.points_type import Points_type
 
 flatten_list = lambda t: [item for sublist in t for item in sublist]
 
@@ -360,6 +360,9 @@ class Solution():
         self.prepared_bconds = equal_cls.bnd_prepare()
         self.model = model
         self.mode = mode
+        if self.mode == 'NN':
+            self.grid_dict = Points_type.grid_sort(self.grid)
+            self.sorted_grid = torch.cat(list(self.grid_dict.values()))
 
     def apply_operator(self, operator: list) -> torch.Tensor:
         """
@@ -415,9 +418,7 @@ class Solution():
 
         if bop == None or bop == [[1, [None], 1]]:
             if self.mode == 'NN':
-                grid_dict = points_type.Points_type.grid_sort(self.grid)
-                sorted_grid = torch.cat(list(grid_dict.values()))
-                b_op_val = self.model(sorted_grid)[:, var].reshape(-1, 1)
+                b_op_val = self.model(self.sorted_grid)[:, var].reshape(-1, 1)
             elif self.mode == 'autograd':
                 b_op_val = self.model(self.grid)[:, var].reshape(-1, 1)
             elif self.mode == 'mat':
@@ -429,7 +430,7 @@ class Solution():
                 b_op_val = self.apply_operator(bop)
         return b_op_val
 
-    def apply_bconds_operator(self) -> tuple[torch.Tensor, torch.Tensor]:
+    def apply_bconds_operator(self) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Auxiliary function. Serves only to evaluate boundary values and true boundary values.
 
@@ -516,7 +517,7 @@ class Solution():
                 torch.mean((b_val - true_b_val) ** 2, 0))
         return loss
 
-    def weak_loss(self, weak_form: list, lambda_bound: Union[int, float] = 10) -> torch.Tensor:
+    def weak_loss(self, weak_form: Union[None, list], lambda_bound: Union[int, float] = 10) -> torch.Tensor:
         """
         Weak solution of O/PDE problem.
 
