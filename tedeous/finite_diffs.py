@@ -130,7 +130,7 @@ class Finite_diffs():
         return [diff_3, diff_2, diff_1]
 
     @staticmethod
-    def second_order_scheme_build(axes: list, varn: int, axes_mode: str) -> tuple[list, list]:
+    def second_order_scheme_build(axes: list, varn: int, axes_mode: str) -> Tuple[list, list]:
         """
         Building second order (in terms of accuracy) finite-difference stencil.
 

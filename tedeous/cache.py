@@ -183,7 +183,7 @@ class Model_prepare(Solution):
 
         self.save_model(cache_model,cache_model.state_dict(),optimizer.state_dict(),cache_dir=cache_dir, name=name)
 
-    def scheme_interp(self, trained_model: torch.nn.Sequential, cache_verbose: bool = False) -> tuple[Any, dict]:
+    def scheme_interp(self, trained_model: torch.nn.Sequential, cache_verbose: bool = False) -> Tuple[Any, dict]:
         """
         Smth
 
@@ -217,7 +217,7 @@ class Model_prepare(Solution):
 
 
     def cache_retrain(self, cache_checkpoint, cache_verbose: bool = False) -> Union[
-        tuple[Any, None], tuple[Any, Union[dict, Any]]]:
+        Tuple[Any, None], Tuple[Any, Union[dict, Any]]]:
         """
         Smth
 
@@ -254,7 +254,7 @@ class Model_prepare(Solution):
 
     def cache(self, cache_dir: str, nmodels: Union[int, None], lambda_bound: float,
               cache_verbose: bool,model_randomize_parameter: Union[float, None],
-              cache_model: torch.nn.Sequential, weak_form: None = None) -> Union[tuple[Any, Any], tuple[Any, Tensor]]:
+              cache_model: torch.nn.Sequential, weak_form: None = None) -> Union[Tuple[Any, Any], Tuple[Any, Tensor]]:
         """
         Restores the model from the cache and uses it for retraining.
 

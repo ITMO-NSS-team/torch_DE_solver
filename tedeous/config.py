@@ -85,7 +85,7 @@ def check_param_name(module_name: str, param_name: str) -> bool:
         return False
 
 class Config:
-    def __init__(self: Union[str, Optional], *args):
+    def __init__(self, *args):
         """
         We initialize config with default one
 
@@ -122,7 +122,7 @@ class Config:
         elif len(args) > 1:
             print('Too much initialization args, using default config')
 
-    def set_parameter(self, parameter_string: str, value: Union[bool,float, int, None]):
+    def set_parameter(self, parameter_string: str, value: Union[bool, float, int, None]):
         """
         We may want to just change default config parameters manually, without loading
         the .json
