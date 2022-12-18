@@ -52,10 +52,9 @@ class Model_prepare(Solution):
             cache_verbose: more detailed info about models in cache.
 
         Returns:
-            best_checkpoint
+            * **best_checkpoint** -- smth.\n
+            * **min_loss** -- minimum error in pre-trained error.
 
-        min_loss
-            minimum error in pre-trained error
         '''
         files=glob.glob(cache_dir+'*.tar')
         # if files not found
@@ -185,11 +184,11 @@ class Model_prepare(Solution):
 
         Args:
             trained_model: smth
-            cache_verbose: more detailed info about models in cache.
+            cache_verbose: detailed info about models in cache.
 
         Returns:
-            model: NN or mat
-            optimizer.state_dict: dict
+            * **model**  -- NN or mat.\n
+            * **optimizer_state** -- dict.
 
         """
         optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
@@ -219,11 +218,11 @@ class Model_prepare(Solution):
 
         Args:
             cache_checkpoint: smth
-            cache_verbose: more detailed info about models in cache.
+            cache_verbose: detailed info about models in cache.
 
         Returns:
-            model:
-            optimizer_state:
+            * **model** -- model.\n
+            * **optimizer_state** -- smth
         """
         # do nothing if cache is empty
         if cache_checkpoint==None:
@@ -266,8 +265,8 @@ class Model_prepare(Solution):
 
 
         Returns:
-            * **model** - NN or mat
-            * **min_loss** - min loss as is.
+            * **model** -- NN or mat.\n
+            * **min_loss** -- min loss as is.
 
         """
         r = self.create_random_fn(model_randomize_parameter)
