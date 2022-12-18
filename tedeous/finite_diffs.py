@@ -140,8 +140,8 @@ class Finite_diffs():
             axes_mode: 'central' or combination of 'f' and 'b'.
 
         Returns:
-            Transformed axes due to finite difference mode;\n
-            List, which contains directions (i.e, 'central', 'f', 'b').
+            **finite_diff**: Transformed axes due to finite difference mode;\n
+            **direction_list**: List, which contains directions (i.e, 'central', 'f', 'b').
         """
         order = len(axes)
         finite_diff = []
@@ -177,7 +177,7 @@ class Finite_diffs():
             h: discretizing parameter in finite difference method (i.e., grid resolution for scheme).
 
         Returns:
-            sign_list: list, with signs for corresponding points.
+            list, with signs for corresponding points.
         """
         sign_list = [1]
         for i in range(order):

@@ -20,7 +20,7 @@ def grid_format_prepare(coord_list: Union[torch.Tensor, list, np.ndarray], mode:
         mode: Calculation method. (i.e., "NN", "autograd", "mat").
             
     Returns:
-        grid: grid in a general form.
+        grid in a general form.
     """
     
     if type(coord_list) == torch.Tensor:
@@ -75,7 +75,7 @@ class Solver(Model_prepare):
             learning_rate: determines the step size at each iteration while moving toward a minimum of a loss function.
 
         Returns:
-            optimizer:  torch.optimizer object as is.
+            torch.optimizer object as is.
         """
         if optimizer == 'Adam':
             if self.mode == 'NN' or self.mode == 'autograd':
@@ -212,8 +212,7 @@ class Solver(Model_prepare):
             image_save_dir: a directory where saved figure in.
                
         Returns:
-            model: neural network.
-
+            neural network.
         """
  
         r = self.create_random_fn(model_randomize_parameter)

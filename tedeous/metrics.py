@@ -20,7 +20,7 @@ class Derivative_NN(DerivativeInt):
 
         Args:
             grid: array of a n-D points.
-            model:  neural network.
+            model: neural network.
 
         """
         self.grid = grid
@@ -34,8 +34,7 @@ class Derivative_NN(DerivativeInt):
         Args:
             term: differential operator in conventional form.
         Returns:
-            der_term: resulting field, computed on a grid.
-
+            resulting field, computed on a grid.
         """
 
         coeff = term[0]
@@ -82,7 +81,7 @@ class Derivative_autograd(DerivativeInt):
             axis: smth
 
         Returns:
-            gradient_full: smth
+            smth
         """
         points.requires_grad = True
         gradient_full = []
@@ -106,7 +105,7 @@ class Derivative_autograd(DerivativeInt):
             term: differential operator in conventional form.
 
         Returns:
-            der_term: resulting field, computed on a grid.
+            resulting field, computed on a grid.
         """
 
         coeff = term[0]
@@ -133,7 +132,6 @@ class Derivative_mat(DerivativeInt):
         Args:
             grid: array of a n-D points.
             model: random matrix.
-
         """
         self.grid = grid
         self.model = model
@@ -148,7 +146,7 @@ class Derivative_mat(DerivativeInt):
             grid: array of a n-D points.
 
         Returns:
-            du: computed derivative along one dimension.
+            computed derivative along one dimension.
 
         """
         u = model.reshape(-1)
@@ -176,7 +174,7 @@ class Derivative_mat(DerivativeInt):
             boundary_order: accuracy boundary order for finite difference. Default = 2
 
         Returns:
-            du: computed derivative.
+            computed derivative.
         """
 
         if (u_tensor.shape[0] == 1):
@@ -287,7 +285,7 @@ class Derivative_mat(DerivativeInt):
             term: differential operator in conventional form.
 
         Returns:
-            der_term: resulting field, computed on a grid.
+            resulting field, computed on a grid.
         """
 
         coeff = term[0]
@@ -330,7 +328,7 @@ class Derivative():
             strategy: Calculation method. (i.e., "NN", "autograd", "mat").
 
         Returns:
-            prepared_equation: equation in input form for a given calculation method.
+            equation in input form for a given calculation method.
         """
         if strategy == 'NN':
             return Derivative_NN(self.grid, self.model)
@@ -373,7 +371,7 @@ class Solution():
             input_preprocessing.operator_prepare()
 
         Returns:
-            total: smth
+            smth
 
         """
         derivative = Derivative(self.grid, self.model).set_strategy(self.mode).take_derivative
@@ -395,7 +393,7 @@ class Solution():
             input_preprocessing.operator_prepare().
 
         Returns:
-            field_part: smth
+            smth
         """
         field_part = []
         for operator in operator_set:
@@ -411,7 +409,7 @@ class Solution():
             bcond:  terms of prepared boundary conditions (see input_preprocessing.bnd_prepare) in input form.
 
         Returns:
-            b_op_val: calculated operator on the boundary.
+            calculated operator on the boundary.
         """
         bop = bcond[1]
         var = bcond[3]
@@ -479,7 +477,7 @@ class Solution():
         Args:
             lambda_bound: an arbitrary chosen constant, influence only convergence speed.
         Returns:
-            loss: model loss.
+            model loss.
         """
         if self.mode == 'mat' or self.mode == 'autograd':
             if self.prepared_bconds == None:
@@ -525,7 +523,7 @@ class Solution():
             weak_form: list of basis functions.
             lambda_bound: const regularization parameter.
         Returns:
-            loss: model loss.
+            model loss.
         """
 
         def integration(func, grid, pow='sqrt'):
@@ -623,3 +621,4 @@ class Solution():
             return self.l2_loss(lambda_bound=lambda_bound)
         else:
             return self.weak_loss(weak_form, lambda_bound=lambda_bound)
+
