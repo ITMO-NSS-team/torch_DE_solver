@@ -433,8 +433,8 @@ class Solution():
         Auxiliary function. Serves only to evaluate boundary values and true boundary values.
 
         Returns:
-            b_val: calculated model boundary values.
-            true_b_val: true grid boundary values.
+            * **b_val** -- calculated model boundary values.\n
+            * **true_b_val** -- true grid boundary values.
         """
         true_b_val_list = []
         b_val_list = []

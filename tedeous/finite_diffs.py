@@ -140,8 +140,8 @@ class Finite_diffs():
             axes_mode: 'central' or combination of 'f' and 'b'.
 
         Returns:
-            **finite_diff**: Transformed axes due to finite difference mode;\n
-            **direction_list**: List, which contains directions (i.e, 'central', 'f', 'b').
+            * **finite_diff** -- Transformed axes due to finite difference mode;\n
+            * **direction_list** -- List, which contains directions (i.e, 'central', 'f', 'b').
         """
         order = len(axes)
         finite_diff = []

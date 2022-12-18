@@ -140,8 +140,8 @@ class Config:
         We run checks to see we set them correctly
 
         Args:
-            * **parameter_string** - string in format 'module.parameter'.\n
-            * **value** - value for the parameter.
+            parameter_string: string in format 'module.parameter'.
+            value: value for the parameter.
 
         """
 
