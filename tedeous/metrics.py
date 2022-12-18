@@ -76,8 +76,8 @@ class Derivative_autograd(DerivativeInt):
         Computes derivative on the grid using autograd method.
 
         Args:
-            model: neural network
-            points: points, where numerical derivative is calculated
+            model: neural network.
+            points: points, where numerical derivative is calculated.
             axis: smth
 
         Returns:
@@ -99,7 +99,7 @@ class Derivative_autograd(DerivativeInt):
     def take_derivative(self, term) -> torch.Tensor:
         """
         Auxiliary function serves for single differential operator resulting field
-        derivation
+        derivation.
 
         Args:
             term: differential operator in conventional form.
@@ -526,7 +526,16 @@ class Solution():
             model loss.
         """
 
-        def integration(func, grid, pow='sqrt'):
+        def integration(func: torch.Tensor, grid: torch.Tensor, pow: str ='sqrt'):
+            """
+            Function realize 1-space/multiple integrands, where func=(L(u)-f)*weak_form subintegrands function and
+            definite integral parameter is grid.
+
+            Args:
+                func: basis function.
+                grid: array of a n-D points.
+                pow: (sqrt ar abs) power of func points.
+            """
 
             if grid.shape[-1] == 1:
                 column = -1

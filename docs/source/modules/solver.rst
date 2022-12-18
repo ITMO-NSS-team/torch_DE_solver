@@ -12,7 +12,7 @@ Solver
 Auxiliary functions
 ~~~~~~~~~~~~~~~~~~~
 
-.. autofunction:: tedeous.solver.grid_format_prepare
+.. automodule:: tedeous.solver
   :no-inherited-members:
   :no-undoc-members:
 
