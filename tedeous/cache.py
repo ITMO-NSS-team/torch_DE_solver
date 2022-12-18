@@ -41,22 +41,18 @@ class Model_prepare(Solution):
 
 
     def cache_lookup(self, lambda_bound: float = 0.001, weak_form: None = None, cache_dir: str = '../cache/',
-                nmodels: Union[int, None] = None, cache_verbose: bool = False) -> Union[dict, torch.Tensor]:
+                nmodels: Union[int, None] = None, cache_verbose: bool = False) -> Tuple[dict, torch.Tensor]:
         '''
         Looking for a saved cache.
 
         Args:
-        lambda_bound: float
-            an arbitrary chosen constant, influence only convergence speed.
-        cache_dir: str
-            directory where saved cache in.
-        nmodels:
-            ?
-        cache_verbose: bool
-            more detailed info about models in cache.
+            lambda_bound: an arbitrary chosen constant, influence only convergence speed.
+            cache_dir: directory where saved cache in.
+            nmodels: smth
+            cache_verbose: more detailed info about models in cache.
 
         Returns:
-        best_checkpoint
+            best_checkpoint
 
         min_loss
             minimum error in pre-trained error
@@ -270,8 +266,8 @@ class Model_prepare(Solution):
 
 
         Returns:
-            model: NN or mat
-            min_loss: min loss as is.
+            * **model** - NN or mat
+            * **min_loss** - min loss as is.
 
         """
         r = self.create_random_fn(model_randomize_parameter)
