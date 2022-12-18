@@ -9,9 +9,9 @@ Equation
   :no-inherited-members:
   :no-undoc-members:
 
-Equation_Mixin
+EquationMixin
 ~~~~~~~~~~~~~~
-.. autoclass:: tedeous.input_preprocessing.Equation_Mixin
+.. autoclass:: tedeous.input_preprocessing.EquationMixin
   :no-inherited-members:
   :no-undoc-members:
 
