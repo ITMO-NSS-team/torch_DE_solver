@@ -1,4 +1,3 @@
-Quick guide
+Quickstart
 ===========
 
-TBA...
