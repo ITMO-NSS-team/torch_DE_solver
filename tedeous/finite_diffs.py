@@ -79,7 +79,7 @@ class Finite_diffs():
         return finite_diff, direction_list
 
     @staticmethod
-    def sign_order(order: list, mode: str, h: float = 1 / 2) -> list:
+    def sign_order(order: Union[int, list], mode: str, h: float = 1 / 2) -> list:
         """
         Determines the sign of the derivative for the corresponding transformation from Finite_diffs.scheme_build()
 
@@ -166,7 +166,7 @@ class Finite_diffs():
         return finite_diff, direction_list
 
     @staticmethod
-    def second_order_sign_order(order: list, mode: str, h: float = 1/2) -> list:
+    def second_order_sign_order(order: Union[int,list], mode: str, h: float = 1/2) -> list:
         """
         Determines the sign of the derivative for the corresponding point transformation from `Finite_diffs.scheme_build`.\n
         Same as `sign_order`, but more precise due to second order of accuracy.

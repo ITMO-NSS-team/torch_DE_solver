@@ -4,6 +4,9 @@ from typing import Union
 
 from tedeous.points_type import Points_type
 from tedeous.finite_diffs import Finite_diffs
+from tedeous.device import set_device
+
+device = set_device()
 
 class EquationMixin():
     """
@@ -70,6 +73,7 @@ class EquationMixin():
         Returns:
             position of the boundary point on the grid.
         """
+        grid = grid.to(device)
         min_dist = np.inf
         pos = 0
         min_pos = 0
@@ -94,19 +98,19 @@ class EquationMixin():
             list of positions of the boundary points on the grid.
         """
         if grid.shape[0] == 1:
-            grid = grid.reshape(-1,1)
-        grid = grid.double()
+            grid = grid.reshape(-1,1).to(device)
+        grid = grid.double().to(device)
 
         def convert_to_double(bnd):
             if type(bnd) == list:
                 for i, cur_bnd in enumerate(bnd):
-                    bnd[i] = convert_to_double(cur_bnd)
+                    bnd[i] = convert_to_double(cur_bnd).to(device)
                 return bnd
             elif type(bnd) == np.array:
-                return torch.from_numpy(bnd).double()
-            return bnd.double()
+                return torch.from_numpy(bnd).double().to(device)
+            return bnd.double().to(device)
 
-        bnd = convert_to_double(bnd)
+        bnd = convert_to_double(bnd).to(device)
 
         def search_pos(bnd):
             if type(bnd) == list:
@@ -127,7 +131,7 @@ class EquationMixin():
         return bndposlist
 
     @staticmethod
-    def bnd_unify(bconds: list) -> list:
+    def bnd_unify(bconds: list) -> Union[None, list]:
         """
         Serves to add None instead of empty operator.
 

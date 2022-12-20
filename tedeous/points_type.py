@@ -1,8 +1,9 @@
 import numpy as np
 import torch
 from scipy.spatial import Delaunay
+from tedeous.device import set_device
 
-
+device = set_device()
 class Points_type():
     """
     Discretizing the grid and allocating subsets for Finite Difference method.
@@ -21,9 +22,9 @@ class Points_type():
         Returns:
             shifted array of a n-D points.
         """
-        grid_shift = grid.clone()
+        grid_shift = grid.clone().to(device)
         grid_shift[:, axis] = grid[:, axis] + shift
-        return grid_shift
+        return grid_shift.to(device)
     
     @staticmethod
     def in_hull(p: torch.Tensor, hull: torch.Tensor) -> np.ndarray:
@@ -75,7 +76,7 @@ class Points_type():
         direction_list = []
         for axis in range(grid.shape[1]):
             for direction in range(2):
-                direction_list.append(Points_type.in_hull(Points_type.shift_points(grid, axis, (-1) ** direction * 0.0001), grid))
+                direction_list.append(Points_type.in_hull(Points_type.shift_points(grid.to(device), axis, (-1) ** direction * 0.0001), grid.to(device)))
 
         direction_list = np.array(direction_list)
         direction_list = np.transpose(direction_list)
@@ -113,7 +114,7 @@ class Points_type():
             sorted grid in each subset (see Points_type.point_typization).
 
         """
-        point_type = Points_type.point_typization(grid)
+        point_type = Points_type.point_typization(grid.to(device))
         point_types = set(point_type.values())
         grid_dict = {}
         for p_type in point_types:
