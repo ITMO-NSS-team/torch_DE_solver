@@ -32,7 +32,10 @@ class Derivative_NN(DerivativeInt):
 
         """
         # it is may be int, function of grid or torch.Tensor
-        coeff = term[0]
+        if type(term[0]) is tuple:
+            coeff = term[0][0](term[0][1]).reshape(-1,1)
+        else:
+            coeff = term[0]
         # this one contains shifted grids (see input_preprocessing module)
         shift_grid_list = term[1]
         # signs corresponding to a grid
@@ -91,7 +94,10 @@ class Derivative_autograd(DerivativeInt):
 
         """
         # it is may be int, function of grid or torch.Tensor
-        coeff = term[0]
+        if callable(term[0]):
+            coeff = term[0](grid_points).reshape(-1,1)
+        else:
+            coeff = term[0]
         # this one contains shifted grids (see input_preprocessing module)
         product = term[1]
         # float that represents power of the differential term

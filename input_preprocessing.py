@@ -308,8 +308,7 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
             if type(coeff1) == int or type(coeff1) == float:
                 coeff = coeff1
             elif callable(coeff1):
-                coeff = coeff1(grid_points)
-                coeff = coeff.reshape(-1, 1)
+                coeff = (coeff1, grid_points)
             elif type(coeff1) == torch.Tensor:
                 pos = self.bndpos(self.grid, grid_points)
 
@@ -459,15 +458,14 @@ class Equation_autograd(EquationMixin):
         self.bconds = bconds
     
     @staticmethod
-    def expand_coeffs_autograd(unified_operator, grid):
+    def expand_coeffs_autograd(unified_operator):
         autograd_op=[]
         for term in unified_operator:
             coeff1 = term[0]
             if type(coeff1) == int or type(coeff1) == float:
                 coeff = coeff1
             elif callable(coeff1):
-                coeff = coeff1(grid)
-                coeff = coeff.reshape(-1,1)
+                coeff = coeff1
             elif type(coeff1) == torch.Tensor:
                 coeff = coeff1.reshape(-1,1)
             
@@ -497,13 +495,13 @@ class Equation_autograd(EquationMixin):
             for i in range(num_of_eq):
                 op0 = self.op_dict_to_list(self.operator[i])
                 unified_operator = self.operator_unify(op0)
-                prepared_operator.append(self.expand_coeffs_autograd(unified_operator,self.grid))
+                prepared_operator.append(self.expand_coeffs_autograd(unified_operator))
         else:
             if type(self.operator) == dict:
                 op = self.op_dict_to_list(self.operator)
             unified_operator = self.operator_unify(op)
 
-            prepared_operator = [self.expand_coeffs_autograd(unified_operator, self.grid)]
+            prepared_operator = [self.expand_coeffs_autograd(unified_operator)]
         
         return prepared_operator
 
