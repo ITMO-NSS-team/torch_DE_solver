@@ -1,3 +1,3 @@
-Quickstart
-===========
+How it works
+============
 
