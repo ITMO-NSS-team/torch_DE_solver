@@ -1,4 +1,4 @@
 How to solve
 ============
 
-.. image:: img/Solver.png
+.. image:: ../../img/Solver.png
