@@ -192,9 +192,6 @@ def wave_experiment(grid_res,CACHE):
     
     img_dir=os.path.join(os.path.dirname( __file__ ), 'wave_example_paper_img')
 
-    if not(os.path.isdir(img_dir)):
-        os.mkdir(img_dir)
-
     model = Solver(grid, equation, model, 'NN').solve(lambda_bound=100,verbose=1, learning_rate=1e-4,
                                             eps=1e-8, tmin=1000, tmax=1e6,use_cache=CACHE,cache_verbose=True,
                                             save_always=True,print_every=None,model_randomize_parameter=1e-5,

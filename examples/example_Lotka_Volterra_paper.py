@@ -124,6 +124,8 @@ def Lotka_experiment(grid_res, CACHE):
 
     equation = Equation(grid, Lotka, bconds, h=h).set_strategy('NN')
 
+    img_dir=os.path.join(os.path.dirname( __file__ ), 'img_Lotka_Volterra_paper')
+
     start = time.time()
 
     model = Solver(grid, equation, model, 'NN').solve(lambda_bound=100,
@@ -131,7 +133,8 @@ def Lotka_experiment(grid_res, CACHE):
                                          use_cache=False,cache_dir='../cache/',cache_verbose=True,
                                          save_always=True,print_every=None,
                                          patience=3,loss_oscillation_window=100,no_improvement_patience=500,
-                                         model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=None)
+                                         model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=None,
+                                    step_plot_print=False, step_plot_save=True, image_save_dir=img_dir)
 
     end = time.time()
     

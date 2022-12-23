@@ -67,8 +67,8 @@ class Solver(Model_prepare):
                 os.mkdir(img_dir)
             directory=os.path.abspath(os.path.join(img_dir,str(datetime.datetime.now().timestamp())+'.png'))
         else:
-            if not(os.path.isdir(img_dir)):
-                os.mkdir(img_dir)
+            if not(os.path.isdir(save_dir)):
+                os.mkdir(save_dir)
             directory=os.path.join(save_dir, str(datetime.datetime.now().timestamp())+'.png')
         if self.mode == 'NN' or self.mode == 'autograd':
             nvars_model = self.model(self.grid).shape[-1]

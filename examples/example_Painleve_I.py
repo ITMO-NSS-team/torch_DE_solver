@@ -178,8 +178,6 @@ def p_I_exp(grid_res,nruns,CACHE):
 
         img_dir=os.path.join(os.path.dirname( __file__ ), 'PI_NN_img')
 
-        if not(os.path.isdir(img_dir)):
-            os.mkdir(img_dir)
 
         model = Solver(grid, equation, model, 'NN').solve(lambda_bound=100, verbose=True, learning_rate=1e-4,
                                         eps=1e-7, tmin=1000, tmax=1e5,use_cache=CACHE,cache_dir='../cache/',cache_verbose=False
