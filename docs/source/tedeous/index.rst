@@ -8,5 +8,6 @@ TEDEouS
    :maxdepth: 1
 
    guide
+   solve
    install
    examples
