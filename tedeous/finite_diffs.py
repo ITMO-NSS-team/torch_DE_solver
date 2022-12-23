@@ -46,8 +46,8 @@ class Finite_diffs():
             axes_mode: 'central' or combination of 'f' and 'b'.
 
         Returns:
-            - finite_diff: transformed axes due to finite difference mode.
-            - direction_list: list, which contains directions (i.e, 'central', 'f', 'b').
+            * **finite_diff** -- Transformed axes due to finite difference mode;\n
+            * **direction_list** -- List, which contains directions (i.e, 'central', 'f', 'b').
         """
         order = len(axes)
         finite_diff = []
@@ -79,7 +79,7 @@ class Finite_diffs():
         return finite_diff, direction_list
 
     @staticmethod
-    def sign_order(order: list, mode: str, h: float = 1 / 2) -> list:
+    def sign_order(order: Union[int, list], mode: str, h: float = 1 / 2) -> list:
         """
         Determines the sign of the derivative for the corresponding transformation from Finite_diffs.scheme_build()
 
@@ -89,7 +89,7 @@ class Finite_diffs():
             h: discretizing parameter in finite difference method (i.e., grid resolution for scheme).
 
         Returns:
-            sign_list: list, with signs for corresponding points.
+            list, with signs for corresponding points.
 
         """
         sign_list = [1]
@@ -114,7 +114,7 @@ class Finite_diffs():
             mode: the finite difference mode (i.e., forward, backward, central).
 
         Returns:
-            diff_list: list with shifted points.
+            list with shifted points.
         """
         diff_1 = copy(diff)
         diff_2 = copy(diff)
@@ -130,7 +130,7 @@ class Finite_diffs():
         return [diff_3, diff_2, diff_1]
 
     @staticmethod
-    def second_order_scheme_build(axes: list, varn: int, axes_mode: str) -> tuple[list, list]:
+    def second_order_scheme_build(axes: list, varn: int, axes_mode: str) -> Tuple[list, list]:
         """
         Building second order (in terms of accuracy) finite-difference stencil.
 
@@ -140,40 +140,33 @@ class Finite_diffs():
             axes_mode: 'central' or combination of 'f' and 'b'.
 
         Returns:
-            finite_diff: transformed axes due to finite difference mode.
-            direction_list: list, which contains directions (i.e, 'central', 'f', 'b').
+            * **finite_diff** -- Transformed axes due to finite difference mode;\n
+            * **direction_list** -- List, which contains directions (i.e, 'central', 'f', 'b').
         """
         order = len(axes)
         finite_diff = []
         direction_list = []
-        # we generate [0,0,0,...] for number of variables (varn)
         for i in range(varn):
             finite_diff += [0]
-        # just to make this [[0,0,...]]
         finite_diff = [finite_diff]
-        # when we increase differential order
         for i in range(order):
             diff_list = []
             for diff in finite_diff:
-                # we use [0,0]->[[1,0],[-1,0]] rule for the axis
                 if axes_mode == 'central':
                     f_diff = Finite_diffs.second_order_shift(diff, axes[i], 'central')
                 else:
                     f_diff = Finite_diffs.second_order_shift(diff, axes[i], axes_mode[axes[i]])
                 if len(diff_list) == 0:
-                    # and put it to the pool of differentials if it is empty
                     diff_list = f_diff
                 else:
-                    # or add to the existing pool
                     for diffs in f_diff:
                         diff_list.append(diffs)
-            # the we go to the next differential if needed
             finite_diff = diff_list
             direction_list.append(axes_mode[axes[i]])
         return finite_diff, direction_list
 
     @staticmethod
-    def second_order_sign_order(order: list, mode: str, h: float = 1/2) -> list:
+    def second_order_sign_order(order: Union[int,list], mode: str, h: float = 1/2) -> list:
         """
         Determines the sign of the derivative for the corresponding point transformation from `Finite_diffs.scheme_build`.\n
         Same as `sign_order`, but more precise due to second order of accuracy.
@@ -184,7 +177,7 @@ class Finite_diffs():
             h: discretizing parameter in finite difference method (i.e., grid resolution for scheme).
 
         Returns:
-            sign_list: list, with signs for corresponding points.
+            list, with signs for corresponding points.
         """
         sign_list = [1]
         for i in range(order):

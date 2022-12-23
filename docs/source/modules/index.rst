@@ -4,8 +4,7 @@ Modules
 This one contain everything about modules into TEDEouS
 
 .. toctree::
-   :glob:
-   :maxdepth: 2
+   :maxdepth: 1
 
    config
    points_type

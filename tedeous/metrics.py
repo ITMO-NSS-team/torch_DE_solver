@@ -1,9 +1,9 @@
 import torch
 import numpy as np
-from typing import Union
+from typing import Union, Tuple
 
 from tedeous import input_preprocessing
-from tedeous import points_type
+from tedeous.points_type import Points_type
 
 flatten_list = lambda t: [item for sublist in t for item in sublist]
 
@@ -20,7 +20,7 @@ class Derivative_NN(DerivativeInt):
 
         Args:
             grid: array of a n-D points.
-            model:  neural network.
+            model: neural network.
 
         """
         self.grid = grid
@@ -34,30 +34,19 @@ class Derivative_NN(DerivativeInt):
         Args:
             term: differential operator in conventional form.
         Returns:
-            der_term: resulting field, computed on a grid.
-
+            resulting field, computed on a grid.
         """
-        # it is may be int, function of grid or torch.Tensor
-        coeff = term[0]
-        # this one contains shifted grids (see input_preprocessing module)
-        shift_grid_list = term[1]
-        # signs corresponding to a grid
-        s_order_norm_list = term[2]
-        # float that represents power of the differential term
-        power = term[3]
-        # number of variables in equation
-        variables = term[4]
-        # initially it is an ones field
-        der_term = (torch.zeros_like(self.model(shift_grid_list[0][0])[0:, 0]) + 1).reshape(-1, 1)
 
+        coeff = term[0]
+        shift_grid_list = term[1]
+        s_order_norm_list = term[2]
+        power = term[3]
+        variables = term[4]
+        der_term = (torch.zeros_like(self.model(shift_grid_list[0][0])[0:, 0]) + 1).reshape(-1, 1)
         for j, scheme in enumerate(shift_grid_list):
-            # every shift in grid we should add with corresponding sign, so we start
-            # from zeros
             grid_sum = torch.zeros_like(self.model(scheme[0]))[0:, 0].reshape(-1, 1)
             for k, grid in enumerate(scheme):
-                # and add grid sequentially
                 grid_sum += (self.model(grid)[0:, variables[j]]).reshape(-1, 1) * s_order_norm_list[j][k]
-                # Here we want to apply differential operators for every term in the product
             der_term = der_term * grid_sum ** power[j]
         der_term = coeff * der_term
 
@@ -87,12 +76,12 @@ class Derivative_autograd(DerivativeInt):
         Computes derivative on the grid using autograd method.
 
         Args:
-            model: neural network
-            points: points, where numerical derivative is calculated
+            model: neural network.
+            points: points, where numerical derivative is calculated.
             axis: smth
 
         Returns:
-            gradient_full: smth
+            smth
         """
         points.requires_grad = True
         gradient_full = []
@@ -110,32 +99,26 @@ class Derivative_autograd(DerivativeInt):
     def take_derivative(self, term) -> torch.Tensor:
         """
         Auxiliary function serves for single differential operator resulting field
-        derivation
+        derivation.
 
         Args:
             term: differential operator in conventional form.
 
         Returns:
-            der_term: resulting field, computed on a grid.
+            resulting field, computed on a grid.
         """
-        # it is may be int, function of grid or torch.Tensor
+
         coeff = term[0]
-        # this one contains shifted grids (see input_preprocessing module)
         product = term[1]
-        # float that represents power of the differential term
         power = term[2]
-        # list that represent using variables
         variables = term[3]
-        # initially it is an ones field
         der_term = (torch.zeros_like(self.model(self.grid))[0:, 0] + 1).reshape(-1, 1)
         for j, derivative in enumerate(product):
             if derivative == [None]:
                 der = self.model(self.grid)[:, variables[j]].reshape(-1, 1)
             else:
                 der = self.nn_autograd_mixed(self.model, self.grid, axis=derivative)[0:, variables[j]].reshape(-1, 1)
-
             der_term = der_term * der ** power[j]
-
         der_term = coeff * der_term
 
         return der_term
@@ -149,7 +132,6 @@ class Derivative_mat(DerivativeInt):
         Args:
             grid: array of a n-D points.
             model: random matrix.
-
         """
         self.grid = grid
         self.model = model
@@ -164,7 +146,7 @@ class Derivative_mat(DerivativeInt):
             grid: array of a n-D points.
 
         Returns:
-            du: computed derivative along one dimension.
+            computed derivative along one dimension.
 
         """
         u = model.reshape(-1)
@@ -192,9 +174,9 @@ class Derivative_mat(DerivativeInt):
             boundary_order: accuracy boundary order for finite difference. Default = 2
 
         Returns:
-            du: computed derivative.
+            computed derivative.
         """
-        # print('shape=',u_tensor.shape)
+
         if (u_tensor.shape[0] == 1):
             du = Derivative_mat.derivative_1d(u_tensor, h_tensor)
             return du
@@ -303,15 +285,12 @@ class Derivative_mat(DerivativeInt):
             term: differential operator in conventional form.
 
         Returns:
-            der_term: resulting field, computed on a grid.
+            resulting field, computed on a grid.
         """
-        # it is may be int, function of grid or torch.Tensor
+
         coeff = term[0]
-        # this one contains product of differential operator
         operator_product = term[1]
-        # float that represents power of the differential term
         power = term[2]
-        # initially it is an ones field
         der_term = torch.zeros_like(self.model) + 1
         for j, scheme in enumerate(operator_product):
             prod = self.model
@@ -349,7 +328,7 @@ class Derivative():
             strategy: Calculation method. (i.e., "NN", "autograd", "mat").
 
         Returns:
-            prepared_equation: equation in input form for a given calculation method.
+            equation in input form for a given calculation method.
         """
         if strategy == 'NN':
             return Derivative_NN(self.grid, self.model)
@@ -373,13 +352,15 @@ class Solution():
             equal_cls:  object from input_preprocessing (see input_preprocessing.Equation).
             model: neural network or matrix depending on the selected mode.
             mode: a given calculation method.
-
         """
         self.grid = grid
         self.prepared_operator = equal_cls.operator_prepare()
         self.prepared_bconds = equal_cls.bnd_prepare()
         self.model = model
         self.mode = mode
+        if self.mode == 'NN':
+            self.grid_dict = Points_type.grid_sort(self.grid)
+            self.sorted_grid = torch.cat(list(self.grid_dict.values()))
 
     def apply_operator(self, operator: list) -> torch.Tensor:
         """
@@ -390,7 +371,7 @@ class Solution():
             input_preprocessing.operator_prepare()
 
         Returns:
-            total: smth
+            smth
 
         """
         derivative = Derivative(self.grid, self.model).set_strategy(self.mode).take_derivative
@@ -412,7 +393,7 @@ class Solution():
             input_preprocessing.operator_prepare().
 
         Returns:
-            field_part: smth
+            smth
         """
         field_part = []
         for operator in operator_set:
@@ -428,18 +409,14 @@ class Solution():
             bcond:  terms of prepared boundary conditions (see input_preprocessing.bnd_prepare) in input form.
 
         Returns:
-            b_op_val: calculated operator on the boundary.
+            calculated operator on the boundary.
         """
-        b_pos = bcond[0]
         bop = bcond[1]
-        truebval = bcond[2].reshape(-1, 1)
         var = bcond[3]
-        btype = bcond[4]
+
         if bop == None or bop == [[1, [None], 1]]:
             if self.mode == 'NN':
-                grid_dict = points_type.Points_type.grid_sort(self.grid)
-                sorted_grid = torch.cat(list(grid_dict.values()))
-                b_op_val = self.model(sorted_grid)[:, var].reshape(-1, 1)
+                b_op_val = self.model(self.sorted_grid)[:, var].reshape(-1, 1)
             elif self.mode == 'autograd':
                 b_op_val = self.model(self.grid)[:, var].reshape(-1, 1)
             elif self.mode == 'mat':
@@ -451,13 +428,13 @@ class Solution():
                 b_op_val = self.apply_operator(bop)
         return b_op_val
 
-    def apply_bconds_operator(self) -> tuple[torch.Tensor, torch.Tensor]:
+    def apply_bconds_operator(self) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Auxiliary function. Serves only to evaluate boundary values and true boundary values.
 
         Returns:
-            b_val: calculated model boundary values.
-            true_b_val: true grid boundary values.
+            * **b_val** -- calculated model boundary values.\n
+            * **true_b_val** -- true grid boundary values.
         """
         true_b_val_list = []
         b_val_list = []
@@ -493,7 +470,15 @@ class Solution():
 
         return b_val, true_b_val
 
-    def l2_loss(self, lambda_bound=10):
+    def l2_loss(self, lambda_bound: Union[int, float] = 10) -> torch.Tensor:
+        """
+        Computes l2 loss.
+
+        Args:
+            lambda_bound: an arbitrary chosen constant, influence only convergence speed.
+        Returns:
+            model loss.
+        """
         if self.mode == 'mat' or self.mode == 'autograd':
             if self.prepared_bconds == None:
                 print('No bconds is not possible, returning infinite loss')
@@ -522,9 +507,7 @@ class Solution():
         crucial thing for all that stuff, so we should increase significance of the
         coundary conditions
         """
-        # l1_lambda = 0.001
-        # l1_norm =sum(p.abs().sum() for p in model.parameters())
-        # loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)+ l1_lambda * l1_norm
+
         if self.mode == 'mat':
             loss = torch.mean((op) ** 2) + lambda_bound * torch.mean((b_val - true_b_val) ** 2)
         else:
@@ -532,28 +515,28 @@ class Solution():
                 torch.mean((b_val - true_b_val) ** 2, 0))
         return loss
 
-    def weak_loss(self, weak_form, lambda_bound=10):
-        '''
+    def weak_loss(self, weak_form: Union[None, list], lambda_bound: Union[int, float] = 10) -> torch.Tensor:
+        """
         Weak solution of O/PDE problem.
-        Parameters:
-        ---------
-        weak_form: list of basis functions
-        lambda_bound: const regularization parameter
-        ---------
-        '''
 
-        def integration(func, grid, pow='sqrt'):
-            '''
-            Function realize 1-space/multiple integrands,
-            where func=(L(u)-f)*weak_form subintegrands function and
-            definite integral parameter is grid
-            Parameters:
-            ----------
-            func: torch.tensor
-            grid: torch.tensor
-            pow: string (sqrt ar abs) power of func points
-            ----------
-            '''
+        Args:
+            weak_form: list of basis functions.
+            lambda_bound: const regularization parameter.
+        Returns:
+            model loss.
+        """
+
+        def integration(func: torch.Tensor, grid: torch.Tensor, pow: str ='sqrt'):
+            """
+            Function realize 1-space/multiple integrands, where func=(L(u)-f)*weak_form subintegrands function and
+            definite integral parameter is grid.
+
+            Args:
+                func: basis function.
+                grid: array of a n-D points.
+                pow: (sqrt ar abs) power of func points.
+            """
+
             if grid.shape[-1] == 1:
                 column = -1
             else:
@@ -630,8 +613,21 @@ class Solution():
 
         return loss
 
-    def loss_evaluation(self, lambda_bound=10, weak_form=None):
+    def loss_evaluation(self, lambda_bound: Union[int, float] = 10, weak_form: Union[None, list] = None) \
+            -> Union[l2_loss, weak_loss]:
+        """
+        Setting the required loss calculation method.
+
+        Args:
+            lambda_bound: an arbitrary chosen constant, influence only convergence speed.
+            weak_form: list of basis functions.
+
+        Returns:
+            A given calculation method.
+
+        """
         if weak_form == None or weak_form == []:
             return self.l2_loss(lambda_bound=lambda_bound)
         else:
             return self.weak_loss(weak_form, lambda_bound=lambda_bound)
+

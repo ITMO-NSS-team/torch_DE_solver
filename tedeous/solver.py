@@ -15,18 +15,14 @@ def grid_format_prepare(coord_list: Union[torch.Tensor, list, np.ndarray], mode:
     Prepares grid to a general form. Further, formatted grid can be processed
     by Points_type.point_typization for 'NN' and 'autograd' methods.
 
-    Parameters
-    ----------
-    coord_list
-        list with coordinates.
-    mode
-        Calculation method. (i.e., "NN", "autograd", "mat")
-
-    Returns
-    -------
-    grid
-        grid in a general form
+    Args:
+        coord_list: list with coordinates.
+        mode: Calculation method. (i.e., "NN", "autograd", "mat").
+            
+    Returns:
+        grid in a general form.
     """
+    
     if type(coord_list) == torch.Tensor:
         print('Grid is a tensor, assuming old format, no action performed')
         return coord_list
@@ -54,36 +50,32 @@ class Solver(Model_prepare):
     """
     def __init__(self, grid: torch.Tensor, equal_cls: Union[input_preprocessing.Equation_NN,
                                                             input_preprocessing.Equation_mat, input_preprocessing.Equation_autograd],
-                 model: torch.nn.Sequential, mode: str, weak_form: None = None):
+                 model: torch.nn.Sequential, mode: str, weak_form: Union[None, list] = None):
         """
         High-level interface for solving equations.
 
         Args:
-        grid
-            array of a n-D points.
-        equal_cls
-            object from input_preprocessing (see input_preprocessing.Equation).
-        model
-            neural network.
-        mode
-            Calculation method. (i.e., "NN", "autograd", "mat").
+            grid: array of a n-D points.
+            equal_cls: object from input_preprocessing (see input_preprocessing.Equation). 
+            model: neural network. 
+            mode: calculation method. (i.e., "NN", "autograd", "mat").
+            weak_form: list of basis functions.
         """
         super().__init__(grid, equal_cls, model, mode)
         self.weak_form = weak_form
 
+
     def optimizer_choice(self, optimizer: str, learning_rate: float) -> \
             Union[torch.optim.Adam, torch.optim.SGD, torch.optim.LBFGS]:
         """
+        Setting optimizer.
+        
         Args:
-        optimizer:
-            optimizer choice (Adam, SGD, LBFGS).
-        learning_rate:
-            determines the step size at each iteration while moving toward a minimum of a loss function.
+            optimizer: optimizer choice (Adam, SGD, LBFGS).   
+            learning_rate: determines the step size at each iteration while moving toward a minimum of a loss function.
 
         Returns:
-        optimizer
             torch.optimizer object as is.
-
         """
         if optimizer == 'Adam':
             if self.mode == 'NN' or self.mode == 'autograd':
@@ -109,21 +101,19 @@ class Solver(Model_prepare):
 
         return optimizer
 
+
     def solution_print(self, title: Union[str, None] = None, solution_print: bool = False,
                        solution_save: bool = True, save_dir: Union[str, None] = None):
         """
         Visualizes the resulting solution.
 
         Args:
-        title
-            as is.
-        solution_print
-            draws a figure.
-        solution_save:
-            saves figure.
-        save_dir:
-            a directory where saved figure in.
+            title: as is.
+            solution_print: draws a figure.
+            solution_save: saves figure.
+            save_dir:  a directory where saved figure in.
         """
+        
         if save_dir == None:
             img_dir = os.path.join(os.path.dirname(__file__), 'img')
             if not (os.path.isdir(img_dir)):
@@ -198,61 +188,34 @@ class Solver(Model_prepare):
         High-level interface for solving equations.
 
         Args:
-        lambda_bound
-            an arbitrary chosen constant, influence only convergence speed.
-        verbose
-            more detailed info about training process.
-        learning_rate
-            determines the step size at each iteration while moving toward a minimum of a loss function.
-        eps
-            arbitrarily small number that uses for loss comparison criterion.
-        tmax
-            maximum execution time.
-        nmodels
-            ?
-        name
-            model name if saved.
-        abs_loss: Union[None, float]
-            absolute loss???.
-        use_cache
-            as is.
-        cache_dir
-            directory where saved cache in.
-        cache_verbose
-            more detailed info about models in cache.
-        save_always
-            ????
-        print_every
-            prints the state of each given iteration to the command line.
-        cache_model
-            model that uses in cache
-        patience
-            if the loss is less than a certain value, then the counter increases,
-            when it reaches the given patience, the calculation stops.
-        loss_oscillation_window
-
-        no_improvement_patience
-
-        model_randomize_parameter
-            creates a random model parameters (weights, biases) multiplied with a given randomize parameter.
-        optimizer_mode
-            optimizer choice (Adam, SGD, LBFGS).
-        step_plot_print
-            draws a figure through each given step.
-        step_plot_save
-            saves a figure through each given step.
-        image_save_dir
-            a directory where saved figure in.
-
+            lambda_bound: an arbitrary chosen constant, influence only convergence speed.
+            verbose: detailed info about training process.
+            learning_rate: determines the step size at each iteration while moving toward a minimum of a loss function.
+            eps: arbitrarily small number that uses for loss comparison criterion.
+            tmax: maximum execution time.
+            nmodels: smth
+            name: model name if saved.
+            abs_loss: absolute loss. 
+            use_cache: as is.
+            cache_dir: directory where saved cache in.
+            cache_verbose: detailed info about models in cache.
+            save_always: smth
+            print_every: prints the state of each given iteration to the command line.
+            cache_model: model that uses in cache
+            patience:if the loss is less than a certain value, then the counter increases when it reaches the given patience, the calculation stops.
+            loss_oscillation_window: smth
+            no_improvement_patience: smth
+            model_randomize_parameter: creates a random model parameters (weights, biases) multiplied with a given randomize parameter.
+            optimizer_mode: optimizer choice (Adam, SGD, LBFGS).
+            step_plot_print: draws a figure through each given step.
+            step_plot_save: saves a figure through each given step.
+            image_save_dir: a directory where saved figure in.
+               
         Returns:
-        model
             neural network.
-
-
         """
-        # prepare input data to uniform format 
+ 
         r = self.create_random_fn(model_randomize_parameter)
-        #  use cache if needed
         if use_cache:
             self.model, min_loss = self.cache(cache_dir=cache_dir,
                                               nmodels=nmodels,
@@ -265,7 +228,6 @@ class Solver(Model_prepare):
         optimizer = self.optimizer_choice(optimizer_mode, learning_rate)
 
         if True:
-            # if not use_cache:
             min_loss = self.loss_evaluation(lambda_bound=lambda_bound, weak_form=self.weak_form)
 
         save_cache = False
@@ -273,7 +235,6 @@ class Solver(Model_prepare):
         if min_loss > 0.1 or save_always:  # why 0.1?
             save_cache = True
 
-        # standard NN stuff
         if verbose:
             print('[{}] initial (min) loss is {}'.format(datetime.datetime.now(), min_loss))
 
@@ -286,16 +247,14 @@ class Solver(Model_prepare):
             nonlocal cur_loss
             optimizer.zero_grad()
             loss = self.loss_evaluation(lambda_bound=lambda_bound, weak_form=self.weak_form)
-
             loss.backward()
             cur_loss = loss.item()
             return loss
 
         stop_dings = 0
         t_imp_start = 0
-        # to stop train proceduce we fit the line in the loss data
-        # if line is flat enough 5 times, we stop the procedure
         cur_loss = min_loss
+        
         while stop_dings <= patience:
             optimizer.step(closure)
 

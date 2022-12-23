@@ -3,7 +3,17 @@ from typing import Union, Optional
 import json
 
 
-def read_config(name):
+def read_config(name: str) -> json:
+    """
+    Read some config
+
+    Args:
+        name: config name.
+
+    Returns:
+        json config.
+
+    """
     with open(name, 'r') as config_file:
         config_data = json.load(config_file)
     return config_data
@@ -59,7 +69,7 @@ def check_module_name(module_name: str) -> bool:
         module_name: first level of a parameter of a custom config.
 
     Returns:
-        module_correctness: if module presents in 'default' config.
+        if module presents in 'default' config.
     """
     if module_name in default_config.keys():
         return True
@@ -77,7 +87,7 @@ def check_param_name(module_name: str, param_name: str) -> bool:
         param_name: specific parameter name.
 
     Returns:
-        module_correctness: true if module presents in 'default' config.
+       true if module presents in 'default' config.
     """
     if param_name in default_config[module_name].keys():
         return True
@@ -85,7 +95,7 @@ def check_param_name(module_name: str, param_name: str) -> bool:
         return False
 
 class Config:
-    def __init__(self: Union[str, Optional], *args):
+    def __init__(self, *args):
         """
         We initialize config with default one
 
@@ -96,7 +106,7 @@ class Config:
             config_path: path to a custom config
 
         Returns:
-            self: config used in solver.optimization_solver function
+            config used in solver.optimization_solver function
 
         """
 
@@ -122,7 +132,7 @@ class Config:
         elif len(args) > 1:
             print('Too much initialization args, using default config')
 
-    def set_parameter(self, parameter_string: str, value: Union[bool,float, int, None]):
+    def set_parameter(self, parameter_string: str, value: Union[bool, float, int, None]):
         """
         We may want to just change default config parameters manually, without loading
         the .json

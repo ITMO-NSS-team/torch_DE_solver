@@ -2,49 +2,33 @@
 Input preprocessing
 ===================
 
-class Equation
+Equation
 ~~~~~~~~~~~~~~
 
-.. automodule:: input_preprocessing.Equation
-  :members:
+.. autoclass:: tedeous.input_preprocessing.Equation
+  :no-inherited-members:
   :no-undoc-members:
-   
 
-class EquationMixin
-~~~~~~~~~~~~~~~~~~~~
-
-.. automodule:: input_preprocessing.EquationMixin
-  :members:
+EquationMixin
+~~~~~~~~~~~~~~
+.. autoclass:: tedeous.input_preprocessing.EquationMixin
+  :no-inherited-members:
   :no-undoc-members:
-   
-   
-class EquationInt
+
+Equation_NN
+~~~~~~~~~~~
+.. autoclass:: tedeous.input_preprocessing.Equation_NN
+  :no-inherited-members:
+  :no-undoc-members:
+
+Equation_autograd
 ~~~~~~~~~~~~~~~~~
-.. automodule:: input_preprocessing.EquationInt
-  :members:
+.. autoclass:: tedeous.input_preprocessing.Equation_autograd
+  :no-inherited-members:
   :no-undoc-members:
-   
-   
-class Equation_NN
+
+Equation_mat
 ~~~~~~~~~~~~~~~~~
-
-.. automodule:: input_preprocessing.Equation_NN
-  :members:
+.. autoclass:: tedeous.input_preprocessing.Equation_mat
+  :no-inherited-members:
   :no-undoc-members:
-   
-
-class Equation_mat
-~~~~~~~~~~~~~~~~~~
-
-.. automodule:: input_preprocessing.Equation_mat
-  :members:
-  :no-undoc-members:
-
-
-class Equation_autograd
-~~~~~~~~~~~~~~~~~~~~~~~
-
-.. automodule:: input_preprocessing.Equation_autograd
-  :members:
-  :no-undoc-members:
-

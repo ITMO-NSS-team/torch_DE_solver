@@ -4,6 +4,9 @@ from typing import Union
 
 from tedeous.points_type import Points_type
 from tedeous.finite_diffs import Finite_diffs
+from tedeous.device import set_device
+
+device = set_device()
 
 class EquationMixin():
     """
@@ -18,7 +21,7 @@ class EquationMixin():
             operator: operator in input form.
 
         Returns:
-            unified_operator: operator in unified form for preprocessing.
+            operator in unified form for preprocessing.
         """
         unified_operator = []
         for term in operator:
@@ -54,7 +57,7 @@ class EquationMixin():
             opdict: operator in dict form.
 
         Returns:
-            oplist: operator in list (input) form.
+            operator in list (input) form.
         """
         return list([list(term.values()) for term in opdict.values()])
 
@@ -68,8 +71,9 @@ class EquationMixin():
             target_point: boundary point.
 
         Returns:
-            min_pos: position of the boundary point on the grid.
+            position of the boundary point on the grid.
         """
+        grid = grid.to(device)
         min_dist = np.inf
         pos = 0
         min_pos = 0
@@ -91,22 +95,22 @@ class EquationMixin():
             bnd: boundary conditions.
 
         Returns:
-            bndposlist: list of positions of the boundary points on the grid.
+            list of positions of the boundary points on the grid.
         """
         if grid.shape[0] == 1:
-            grid = grid.reshape(-1,1)
-        grid = grid.double()
+            grid = grid.reshape(-1,1).to(device)
+        grid = grid.double().to(device)
 
         def convert_to_double(bnd):
             if type(bnd) == list:
                 for i, cur_bnd in enumerate(bnd):
-                    bnd[i] = convert_to_double(cur_bnd)
+                    bnd[i] = convert_to_double(cur_bnd).to(device)
                 return bnd
             elif type(bnd) == np.array:
-                return torch.from_numpy(bnd).double()
-            return bnd.double()
+                return torch.from_numpy(bnd).double().to(device)
+            return bnd.double().to(device)
 
-        bnd = convert_to_double(bnd)
+        bnd = convert_to_double(bnd).to(device)
 
         def search_pos(bnd):
             if type(bnd) == list:
@@ -127,7 +131,7 @@ class EquationMixin():
         return bndposlist
 
     @staticmethod
-    def bnd_unify(bconds: list) -> list:
+    def bnd_unify(bconds: list) -> Union[None, list]:
         """
         Serves to add None instead of empty operator.
 
@@ -135,7 +139,7 @@ class EquationMixin():
             bconds: boundary in conventional form (see examples).
 
         Returns:
-            unified_bconds: boundary in input-friendly form.
+            boundary in input-friendly form.
         """
         if bconds==None:
             return None
@@ -214,7 +218,7 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
             axes_scheme_type: 'central' or combination of 'f' and 'b'.
 
         Returns:
-            fin_diff_op: list, where the conventional operator changed to steps and signs (see scheme_build function description).
+            list, where the conventional operator changed to steps and signs (see scheme_build function description).
         """
         fin_diff_op = []
         for term in unified_operator:
@@ -260,7 +264,7 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
             grid: array of a n-D points.
 
         Returns:
-            s_grid_list: list, where the steps and signs changed to grid and signs.
+            list, where the steps and signs changed to grid and signs.
         """
         s_grid_list = []
         for i, shifts in enumerate(finite_diff_scheme):
@@ -283,7 +287,7 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
             grid_points: grid with sorted nodes.
 
         Returns:
-            shift_grid_op: final form of differential operator used in the algorithm for single grid type.
+            final form of differential operator used in the algorithm for single grid type.
         """
         shift_grid_op = []
         for term1 in fin_diff_op:
@@ -322,7 +326,7 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
             grid_dict: result Points_type.grid_sort
 
         Returns:
-            operator_list: final form of differential operator used in the algorithm for subset grid types.
+            final form of differential operator used in the algorithm for subset grid types.
         """
         operator_list = []
         nvars = list(grid_dict.values())[0].shape[-1]
@@ -338,7 +342,7 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
         Changes the operator in conventional form to the input one.
 
         Returns:
-            operator_list: final form of differential operator used in the algorithm for subset grid types.
+            final form of differential operator used in the algorithm for subset grid types.
         """
         grid_dict = self.grid_sort(self.grid)
         nvars = self.grid.shape[-1]
@@ -366,7 +370,7 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
         Prepares boundary conditions from conventional form to input form.
 
         Returns:
-            prepared_bcond: boundary in input form.
+            boundary in input form.
         """
         grid_dict = self.grid_sort(self.grid)
         sorted_grid = torch.cat(list(grid_dict.values()))
@@ -407,7 +411,6 @@ class Equation_autograd(EquationMixin):
             grid: array of a n-D points.
             operator:  equation.
             bconds: boundary conditions.
-
         """
         self.grid = grid
         self.operator = operator
@@ -423,8 +426,7 @@ class Equation_autograd(EquationMixin):
             grid: array of a n-D points.
 
         Returns:
-            autograd_op: prepared autograd operator.
-
+            prepared autograd operator.
         """
         autograd_op=[]
         for term in unified_operator:
@@ -447,7 +449,7 @@ class Equation_autograd(EquationMixin):
         Changes the operator in conventional form to the input one.
 
         Returns:
-            operator_list: final form of differential operator used in the algorithm.
+            final form of differential operator used in the algorithm.
         """
         if type(self.operator) is list and type(self.operator[0]) is dict:
             num_of_eq = len(self.operator)
@@ -468,7 +470,7 @@ class Equation_autograd(EquationMixin):
         Prepares boundary conditions from conventional form to input form.
 
         Returns:
-            prepared_bconds: boundary in input form.
+            boundary in input form.
         """
         bconds = self.bnd_unify(self.bconds)
         if bconds==None:
@@ -527,8 +529,7 @@ class Equation_mat(EquationMixin):
         Prepares boundary conditions from conventional form to input form.
 
         Returns:
-            prepared_bconds: final form of boundary conditions used in the algorithm.
-
+            final form of boundary conditions used in the algorithm.
         """
         prepared_bconds=[]
         bconds = self.bnd_unify(self.bconds)
@@ -588,7 +589,7 @@ class Equation():
             strategy: Calculation method. (i.e., "NN", "autograd", "mat").
 
         Returns:
-            chosen_method:  A given calculation method.
+            A given calculation method.
         """
         if strategy == 'NN':
             return Equation_NN(self.grid, self.operator, self.bconds, h=self.h, inner_order=self.inner_order, boundary_order=self.boundary_order)

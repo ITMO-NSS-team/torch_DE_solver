@@ -1,4 +1,3 @@
-Quick guide
-===========
+How it works
+============
 
-TBA...

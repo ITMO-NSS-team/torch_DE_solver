@@ -41,25 +41,20 @@ class Model_prepare(Solution):
 
 
     def cache_lookup(self, lambda_bound: float = 0.001, weak_form: None = None, cache_dir: str = '../cache/',
-                nmodels: Union[int, None] = None, cache_verbose: bool = False) -> Union[dict, torch.Tensor]:
+                nmodels: Union[int, None] = None, cache_verbose: bool = False) -> Tuple[dict, torch.Tensor]:
         '''
         Looking for a saved cache.
 
         Args:
-        lambda_bound: float
-            an arbitrary chosen constant, influence only convergence speed.
-        cache_dir: str
-            directory where saved cache in.
-        nmodels:
-            ?
-        cache_verbose: bool
-            more detailed info about models in cache.
+            lambda_bound: an arbitrary chosen constant, influence only convergence speed.
+            cache_dir: directory where saved cache in.
+            nmodels: smth
+            cache_verbose: more detailed info about models in cache.
 
         Returns:
-        best_checkpoint
+            * **best_checkpoint** -- smth.\n
+            * **min_loss** -- minimum error in pre-trained error.
 
-        min_loss
-            minimum error in pre-trained error
         '''
         files=glob.glob(cache_dir+'*.tar')
         # if files not found
@@ -183,17 +178,17 @@ class Model_prepare(Solution):
 
         self.save_model(cache_model,cache_model.state_dict(),optimizer.state_dict(),cache_dir=cache_dir, name=name)
 
-    def scheme_interp(self, trained_model: torch.nn.Sequential, cache_verbose: bool = False) -> tuple[Any, dict]:
+    def scheme_interp(self, trained_model: torch.nn.Sequential, cache_verbose: bool = False) -> Tuple[Any, dict]:
         """
         Smth
 
         Args:
             trained_model: smth
-            cache_verbose: more detailed info about models in cache.
+            cache_verbose: detailed info about models in cache.
 
         Returns:
-            model: NN or mat
-            optimizer.state_dict: dict
+            * **model**  -- NN or mat.\n
+            * **optimizer_state** -- dict.
 
         """
         optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
@@ -217,17 +212,17 @@ class Model_prepare(Solution):
 
 
     def cache_retrain(self, cache_checkpoint, cache_verbose: bool = False) -> Union[
-        tuple[Any, None], tuple[Any, Union[dict, Any]]]:
+        Tuple[Any, None], Tuple[Any, Union[dict, Any]]]:
         """
         Smth
 
         Args:
             cache_checkpoint: smth
-            cache_verbose: more detailed info about models in cache.
+            cache_verbose: detailed info about models in cache.
 
         Returns:
-            model:
-            optimizer_state:
+            * **model** -- model.\n
+            * **optimizer_state** -- smth
         """
         # do nothing if cache is empty
         if cache_checkpoint==None:
@@ -254,7 +249,7 @@ class Model_prepare(Solution):
 
     def cache(self, cache_dir: str, nmodels: Union[int, None], lambda_bound: float,
               cache_verbose: bool,model_randomize_parameter: Union[float, None],
-              cache_model: torch.nn.Sequential, weak_form: None = None) -> Union[tuple[Any, Any], tuple[Any, Tensor]]:
+              cache_model: torch.nn.Sequential, weak_form: None = None) -> Union[Tuple[Any, Any], Tuple[Any, Tensor]]:
         """
         Restores the model from the cache and uses it for retraining.
 
@@ -270,8 +265,8 @@ class Model_prepare(Solution):
 
 
         Returns:
-            model: NN or mat
-            min_loss: min loss as is.
+            * **model** -- NN or mat.\n
+            * **min_loss** -- min loss as is.
 
         """
         r = self.create_random_fn(model_randomize_parameter)
