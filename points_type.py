@@ -124,3 +124,25 @@ class Points_type():
         for p_type in point_types:
             grid_dict[p_type] = torch.stack(grid_dict[p_type])
         return grid_dict
+
+    @staticmethod
+    def bnd_sort(grid_dict, b_coord):
+
+        def bnd_to_dict(grid_dict, b_coord):
+            bnd_dict = {}
+            for k,v in grid_dict.items():
+                bnd_dict[k] = []
+                for bnd in b_coord:
+                    if ((bnd==v).all(axis=1)).any():
+                        bnd_dict[k].append(bnd)
+                if bnd_dict[k]==[]:
+                    del bnd_dict[k]
+                else:
+                    bnd_dict[k] = torch.stack(bnd_dict[k])
+            return bnd_dict
+
+        if type(b_coord)==list:
+            bnd_dict_list = [bnd_to_dict(grid_dict, bnd) for bnd in b_coord]
+            return bnd_dict_list
+        else:
+            return bnd_to_dict(grid_dict, b_coord)

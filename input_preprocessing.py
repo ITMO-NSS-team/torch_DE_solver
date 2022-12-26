@@ -308,8 +308,7 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
             if type(coeff1) == int or type(coeff1) == float:
                 coeff = coeff1
             elif callable(coeff1):
-                coeff = coeff1(grid_points)
-                coeff = coeff.reshape(-1, 1)
+                coeff = (coeff1, grid_points)
             elif type(coeff1) == torch.Tensor:
                 pos = self.bndpos(self.grid, grid_points)
 
@@ -423,7 +422,6 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
 
         """
         grid_dict = self.grid_sort(self.grid)
-        sorted_grid = torch.cat(list(grid_dict.values()))
         bconds1 = self.bnd_unify(self.bconds)
         if bconds1==None:
             return None
@@ -434,17 +432,20 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
             bval = bcond[2]
             bvar = bcond[3]
             btype = bcond[4]
-            bpos = self.bndpos(sorted_grid, b_coord)
+            bnd_dict = self.bnd_sort(grid_dict, b_coord)
             if bop == [[1, [None], 1]]:
                 bop = None
             if bop != None:
                 if type(bop)==dict:
                     bop=self.op_dict_to_list(bop)
                 bop1 = self.operator_unify(bop)
-                bop2 = self.apply_all_operators(bop1, grid_dict)
+                if type(bnd_dict) is list:
+                    bop2 = [self.apply_all_operators(bop1, bnd_dict0) for bnd_dict0 in bnd_dict]
+                else:
+                    bop2 = self.apply_all_operators(bop1, bnd_dict)
             else:
                 bop2 = None
-            prepared_bnd.append([bpos, bop2, bval, bvar, btype])
+            prepared_bnd.append([b_coord, bop2, bval, bvar, btype])
 
         return prepared_bnd
 
@@ -456,15 +457,14 @@ class Equation_autograd(EquationMixin):
         self.bconds = bconds
     
     @staticmethod
-    def expand_coeffs_autograd(unified_operator, grid):
+    def expand_coeffs_autograd(unified_operator):
         autograd_op=[]
         for term in unified_operator:
             coeff1 = term[0]
             if type(coeff1) == int or type(coeff1) == float:
                 coeff = coeff1
             elif callable(coeff1):
-                coeff = coeff1(grid)
-                coeff = coeff.reshape(-1,1)
+                coeff = coeff1
             elif type(coeff1) == torch.Tensor:
                 coeff = coeff1.reshape(-1,1)
             
@@ -494,13 +494,13 @@ class Equation_autograd(EquationMixin):
             for i in range(num_of_eq):
                 op0 = self.op_dict_to_list(self.operator[i])
                 unified_operator = self.operator_unify(op0)
-                prepared_operator.append(self.expand_coeffs_autograd(unified_operator,self.grid))
+                prepared_operator.append(self.expand_coeffs_autograd(unified_operator))
         else:
             if type(self.operator) == dict:
                 op = self.op_dict_to_list(self.operator)
             unified_operator = self.operator_unify(op)
 
-            prepared_operator = [self.expand_coeffs_autograd(unified_operator, self.grid)]
+            prepared_operator = [self.expand_coeffs_autograd(unified_operator)]
         
         return prepared_operator
 
@@ -532,7 +532,7 @@ class Equation_autograd(EquationMixin):
             bval = bcond[2]
             var = bcond[3]
             btype = bcond[4]
-            bpos = self.bndpos(self.grid, b_coord)
+            #bpos = self.bndpos(self.grid, b_coord)
             if bop == [[1, [None], 1]]:
                 bop = None
             if bop != None:
@@ -541,7 +541,7 @@ class Equation_autograd(EquationMixin):
                 bop1 = self.operator_unify(bop)
             else:
                 bop1 = None
-            prepared_bnd.append([bpos, bop1, bval, var, btype])
+            prepared_bnd.append([b_coord, bop1, bval, var, btype])
         return prepared_bnd
 
 

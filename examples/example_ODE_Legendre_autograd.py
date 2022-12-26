@@ -79,13 +79,13 @@ for n in range(3,10):
     """
     
     # point t=0
-    bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64))
+    bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
     
     #  So u(0)=-1/2
     bndval1 = legendre(n)(bnd1)
     
     # point t=1
-    bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64))
+    bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64)).float()
     
     # d/dt
     bop2 = {
@@ -228,8 +228,6 @@ for n in range(3,10):
 
         img_dir=os.path.join(os.path.dirname( __file__ ), 'leg_img_autograd')
 
-        if not(os.path.isdir(img_dir)):
-            os.mkdir(img_dir)
 
         model = Solver(grid, equation, model, 'autograd').solve(use_cache=True,verbose=True,
                                       print_every=None, cache_verbose=False, abs_loss=1e-3,

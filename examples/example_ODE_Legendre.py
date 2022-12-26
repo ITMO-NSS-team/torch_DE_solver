@@ -73,14 +73,14 @@ for n in range(3,11):
     """
     
     # point t=0
-    bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64))
+    bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
     
     
     #  So u(0)=-1/2
     bndval1 = legendre(n)(bnd1)
     
     # point t=1
-    bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64))
+    bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64)).float()
     
     # d/dt
     bop2 = {
@@ -209,8 +209,6 @@ for n in range(3,11):
 
         img_dir=os.path.join(os.path.dirname( __file__ ), 'leg_img')
 
-        if not(os.path.isdir(img_dir)):
-            os.mkdir(img_dir)
 
         model = Solver(grid, equation, model, 'NN').solve(lambda_bound=10, verbose=True, learning_rate=1e-3,
                                         eps=1e-5, tmin=1000, tmax=1e5,use_cache=True,cache_verbose=True

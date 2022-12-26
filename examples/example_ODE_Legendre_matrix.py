@@ -78,14 +78,14 @@ for n in range(3,10):
     """
     
     # point t=0
-    bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64))
+    bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
     
     
     #  So u(0)=-1/2
     bndval1 = legendre(n)(bnd1)
     
     # point t=1
-    bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64))
+    bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64)).float()
     
     # d/dt
     bop2 = {

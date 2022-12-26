@@ -10,11 +10,10 @@ class DerivativeInt():
         raise NotImplementedError
 
 class Derivative_NN(DerivativeInt):
-    def __init__(self, grid, model):
-        self.grid = grid
+    def __init__(self, model):
         self.model = model
     
-    def take_derivative (self, term):
+    def take_derivative (self, term, *args):
         """
         Axiluary function serves for single differential operator resulting field
         derivation
@@ -33,7 +32,10 @@ class Derivative_NN(DerivativeInt):
 
         """
         # it is may be int, function of grid or torch.Tensor
-        coeff = term[0]
+        if type(term[0]) is tuple:
+            coeff = term[0][0](term[0][1]).reshape(-1,1)
+        else:
+            coeff = term[0]
         # this one contains shifted grids (see input_preprocessing module)
         shift_grid_list = term[1]
         # signs corresponding to a grid
@@ -43,68 +45,37 @@ class Derivative_NN(DerivativeInt):
         # number of variables in equation
         variables = term[4]
         # initially it is an ones field
-        der_term = (torch.zeros_like(self.model(shift_grid_list[0][0])[0:,0]) + 1).reshape(-1,1)
-        
+
+        der_term = 1.
         for j, scheme in enumerate(shift_grid_list):
             # every shift in grid we should add with correspoiding sign, so we start
             # from zeros
-            grid_sum = torch.zeros_like(self.model(scheme[0]))[0:,0].reshape(-1,1) #почему схема от 0?
+            grid_sum = 0. 
             for k, grid in enumerate(scheme):
                 # and add grid sequentially
-                grid_sum += (self.model(grid)[0:,variables[j]]).reshape(-1,1) * s_order_norm_list[j][k]
+                grid_sum += self.model(grid)[:,variables[j]].reshape(-1,1) * s_order_norm_list[j][k]
                 # Here we want to apply differential operators for every term in the product
             der_term = der_term * grid_sum ** power[j]
         der_term = coeff * der_term
 
-            
         return der_term
 
 class Derivative_autograd(DerivativeInt):
-    def __init__(self, grid, model):
-        self.grid = grid
+    def __init__(self, model):
         self.model = model
     
     @staticmethod
-    def nn_autograd_simple(model, points, order,axis=0):
+    def nn_autograd(model, points, var, axis=[0]):
         points.requires_grad=True
-        gradient_full = []
-        f = model(points).sum(0)
-        for i in range(len(f)):
-            fi = f[i]
-            for j in range(order):
-                grads, = torch.autograd.grad(fi, points, create_graph=True)
-                fi = grads[:,axis].sum()
-            gradient_full.append(grads[:,axis].reshape(-1,1))
-        gradient_full = torch.hstack(gradient_full)
-        return gradient_full
-
-    @staticmethod
-    def nn_autograd_mixed(model, points,axis=[0]):
-        points.requires_grad=True
-        gradient_full = []
-        f = model(points).sum(0)
-        for i in range(len(f)):
-            fi = f[i]
-            for ax in axis:
-                grads, = torch.autograd.grad(fi, points, create_graph=True)
-                fi = grads[:,ax].sum()
-            gradient_full.append(grads[:,axis[-1]].reshape(-1,1))
-        gradient_full = torch.hstack(gradient_full)
+        fi = model(points)[:,var].sum(0)
+        for ax in axis:
+            grads, = torch.autograd.grad(fi, points, create_graph=True)
+            fi = grads[:,ax].sum()
+        gradient_full = grads[:,axis[-1]].reshape(-1,1)
         return gradient_full
 
 
-    def nn_autograd(self, *args, axis=0):
-        model=args[0]
-        points=args[1]
-        if len(args)==3:
-            order=args[2]
-            grads=self.nn_autograd_simple(model, points, order,axis=axis)
-        else:
-            grads=self.nn_autograd_mixed(model, points,axis=axis)
-        return grads
-
-
-    def take_derivative(self, term):
+    def take_derivative(self, term, grid_points):
         """
         Axiluary function serves for single differential operator resulting field
         derivation
@@ -123,7 +94,10 @@ class Derivative_autograd(DerivativeInt):
 
         """
         # it is may be int, function of grid or torch.Tensor
-        coeff = term[0]
+        if callable(term[0]):
+            coeff = term[0](grid_points).reshape(-1,1)
+        else:
+            coeff = term[0]
         # this one contains shifted grids (see input_preprocessing module)
         product = term[1]
         # float that represents power of the differential term
@@ -131,12 +105,12 @@ class Derivative_autograd(DerivativeInt):
         # list that represent using variables
         variables = term[3]
         # initially it is an ones field
-        der_term = (torch.zeros_like(self.model(self.grid))[0:, 0] + 1).reshape(-1, 1)
+        der_term = 1.
         for j, derivative in enumerate(product):
             if derivative == [None]:
-                der = self.model(self.grid)[:, variables[j]].reshape(-1, 1)
+                der = self.model(grid_points)[:, variables[j]].reshape(-1, 1)
             else:
-                der = self.nn_autograd(self.model, self.grid, axis=derivative)[0:, variables[j]].reshape(-1, 1)
+                der = self.nn_autograd(self.model, grid_points, variables[j], axis=derivative)
 
             der_term = der_term * der ** power[j]
 
@@ -145,8 +119,7 @@ class Derivative_autograd(DerivativeInt):
         return der_term
 
 class Derivative_mat(DerivativeInt):
-    def __init__(self, grid, model):
-        self.grid = grid
+    def __init__(self, model):
         self.model = model
     
     @staticmethod
@@ -274,7 +247,7 @@ class Derivative_mat(DerivativeInt):
         return du
 
 
-    def take_derivative(self, term):
+    def take_derivative(self, term, grid_points):
         """
         Axiluary function serves for single differential operator resulting field
         derivation
@@ -306,29 +279,28 @@ class Derivative_mat(DerivativeInt):
                 for axis in scheme:
                     if axis is None:
                         continue
-                    h = self.grid[axis]
+                    h = grid_points[axis]
                     prod=self.derivative(prod, h, axis, scheme_order=1, boundary_order=1)
             der_term = der_term * prod ** power[j]
         if callable(coeff) is True:
-            der_term = coeff(self.grid) * der_term
+            der_term = coeff(grid_points) * der_term
         else:
             der_term = coeff * der_term
         return der_term
 
 class Derivative():
-    def __init__(self, grid, model):
-        self.grid = grid
+    def __init__(self, model):
         self.model = model
 
     def set_strategy(self, strategy):
         if strategy == 'NN':
-            return Derivative_NN(self.grid, self.model)
+            return Derivative_NN(self.model)
 
         elif strategy == 'autograd':
-            return  Derivative_autograd(self.grid, self.model)
+            return  Derivative_autograd(self.model)
 
         elif strategy == 'mat':
-            return Derivative_mat(self.grid, self.model)
+            return Derivative_mat(self.model)
 
 
 class Solution():
@@ -341,8 +313,10 @@ class Solution():
         if self.mode=='NN':
             self.grid_dict = Points_type.grid_sort(self.grid)
             self.sorted_grid = torch.cat(list(self.grid_dict.values()))
+        elif self.mode=='autograd' or self.mode=='mat':
+            self.sorted_grid = self.grid
 
-    def apply_operator(self, operator):
+    def apply_operator(self, operator, grid_points):
         """
         Deciphers equation in a single grid subset to a field.
 
@@ -359,10 +333,10 @@ class Solution():
         total : torch.Tensor
 
         """
-        derivative = Derivative(self.grid, self.model).set_strategy(self.mode).take_derivative
+        derivative = Derivative(self.model).set_strategy(self.mode).take_derivative
 
         for term in operator:
-            dif = derivative(term)
+            dif = derivative(term, grid_points)
             try:
                 total += dif
             except NameError:
@@ -385,62 +359,77 @@ class Solution():
         """
         field_part = []
         for operator in operator_set:
-            field_part.append(self.apply_operator(operator))
+            field_part.append(self.apply_operator(operator, None))
         field_part = torch.cat(field_part)
         return field_part
 
     def b_op_val_calc(self, bcond):
-        b_pos = bcond[0]
+        b_coord = bcond[0]
         bop = bcond[1]
-        truebval = bcond[2].reshape(-1,1)
         var = bcond[3]
         btype = bcond[4]
+
         if bop == None or bop == [[1, [None], 1]]:
-            if self.mode == 'NN':
-                b_op_val = self.model(self.sorted_grid)[:,var].reshape(-1,1)
-            elif self.mode == 'autograd':
-                b_op_val = self.model(self.grid)[:,var].reshape(-1,1)
+            if self.mode == 'NN' or self.mode=='autograd':
+                if btype=='boundary values':
+                    b_op_val = self.model(b_coord)[:,var].reshape(-1,1)
+                else:
+                    b_op_val = self.model(b_coord[0])[:,var].reshape(-1,1)
+                    for i in range(1, len(b_coord)):
+                        b_op_val -= self.model(b_coord[i])[:,var].reshape(-1,1)
+
             elif self.mode == 'mat':
-                b_op_val = self.model
+                b_op_val=[]
+                for position in b_coord:
+                    if self.grid.dim() == 1 or min(self.grid.shape) == 1:
+                        b_op_val.append(self.model[:, position])
+                    else:
+                        b_op_val.append(self.model[position])
+                b_op_val = torch.cat(b_op_val).reshape(-1,1)
         else:
             if self.mode == 'NN':
-                b_op_val = self.apply_bconds_set(bop)
-            elif self.mode == 'autograd' or self.mode == 'mat':
-                b_op_val = self.apply_operator(bop)
+                if btype=='boundary values':
+                    b_op_val = self.apply_bconds_set(bop)
+                else:
+                    b_op_val = self.apply_bconds_set(bop[0])
+                    for i in range(1, len(bop)):
+                        b_op_val -= self.apply_bconds_set(bop[i])
+            elif self.mode == 'autograd':
+                if btype=='boundary values':
+                    b_op_val = self.apply_operator(bop, b_coord)
+                else:
+                    b_op_val = self.apply_operator(bop, b_coord[0])
+                    for i in range(1, len(b_coord)):
+                        b_op_val -= self.apply_operator(bop, b_coord[i])
+            elif self.mode == 'mat':
+                b_op_val = self.apply_operator(bop, self.grid)
+                b_val=[]
+                for position in b_coord:
+                    if self.grid.dim() == 1 or min(self.grid.shape) == 1:
+                        b_val.append(b_op_val[:, position])
+                    else:
+                        b_val.append(b_op_val[position])
+                b_op_val = torch.cat(b_val).reshape(-1,1)
+
         return b_op_val
 
     def apply_bconds_operator(self):
         true_b_val_list = []
         b_val_list = []
-        
+
         # we apply no  boundary conditions operators if they are all None
 
         for bcond in self.prepared_bconds:
-            b_pos = bcond[0]
-            bop = bcond[1]
             truebval = bcond[2].reshape(-1,1)
-            var = bcond[3]
-            btype = bcond[4]
-            if btype == 'boundary values':
-                true_b_val_list.append(truebval)
-                b_op_val = self.b_op_val_calc(bcond)
-                if self.mode == 'mat':
-                    for position in b_pos:
-                        if self.grid.dim() == 1 or min(self.grid.shape) == 1:
-                            b_val_list.append(b_op_val[:, position])
-                        else:
-                            b_val_list.append(b_op_val[position])
-                else:
-                    b_val_list.append(b_op_val[b_pos])
-            if btype == 'periodic':
-                true_b_val_list.append(truebval)
-                b_op_val = self.b_op_val_calc(bcond)
-                b_val = b_op_val[b_pos[0]]
-                for i in range(1, len(b_pos)):
-                    b_val -= b_op_val[b_pos[i]]
-                b_val_list.append(b_val)
+
+            true_b_val_list.append(truebval)
+
+            b_op_val = self.b_op_val_calc(bcond)
+            
+            b_val_list.append(b_op_val)
+
         true_b_val = torch.cat(true_b_val_list)
-        b_val=torch.cat(b_val_list).reshape(-1,1)
+        b_val = torch.cat(b_val_list).reshape(-1,1)
 
         return b_val, true_b_val
 
@@ -453,13 +442,13 @@ class Solution():
 
         num_of_eq = len(self.prepared_operator)
         if num_of_eq == 1:
-            op = self.apply_operator(self.prepared_operator[0])
+            op = self.apply_operator(self.prepared_operator[0], self.sorted_grid)
             if self.prepared_bconds == None:
                 return torch.mean((op) ** 2)
         else:
             op_list = []
             for i in range(num_of_eq):
-                op_list.append(self.apply_operator(self.prepared_operator[i]))
+                op_list.append(self.apply_operator(self.prepared_operator[i], self.sorted_grid))
             op = torch.cat(op_list,1)
             if self.prepared_bconds == None:
                 return torch.sum(torch.mean((op) ** 2, 0))
@@ -542,7 +531,7 @@ class Solution():
 
         num_of_eq = len(self.prepared_operator)
         if num_of_eq == 1:
-            op = self.apply_operator(self.prepared_operator[0])
+            op = self.apply_operator(self.prepared_operator[0], self.sorted_grid)
             for i in weak_form:
                 op = op*(i(grid_central)).reshape(-1,1)
             for _ in range(grid_central.shape[-1]):
@@ -553,7 +542,7 @@ class Solution():
         else:
             op_list = []
             for i in range(num_of_eq):
-                op_list.append(self.apply_operator(self.prepared_operator[i]))
+                op_list.append(self.apply_operator(self.prepared_operator[i], self.sorted_grid))
                 for j in weak_form:
                     op_list[-1] = op_list[-1]*(j(grid_central)).reshape(-1,1)
             for i in range(num_of_eq):
