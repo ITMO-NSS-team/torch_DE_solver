@@ -422,7 +422,6 @@ class Equation_NN(EquationMixin, Points_type, Finite_diffs):
 
         """
         grid_dict = self.grid_sort(self.grid)
-        #sorted_grid = torch.cat(list(grid_dict.values()))
         bconds1 = self.bnd_unify(self.bconds)
         if bconds1==None:
             return None
