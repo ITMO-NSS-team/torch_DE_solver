@@ -42,9 +42,8 @@ class Model_prepare(Solution):
 
     def cache_lookup(self, lambda_bound: float = 0.001, weak_form: None = None, cache_dir: str = '../cache/',
                 nmodels: Union[int, None] = None, cache_verbose: bool = False) -> Tuple[dict, torch.Tensor]:
-        '''
+        """
         Looking for a saved cache.
-
         Args:
             lambda_bound: an arbitrary chosen constant, influence only convergence speed.
             cache_dir: directory where saved cache in.
@@ -55,7 +54,7 @@ class Model_prepare(Solution):
             * **best_checkpoint** -- smth.\n
             * **min_loss** -- minimum error in pre-trained error.
 
-        '''
+        """
         files=glob.glob(cache_dir+'*.tar')
         # if files not found
         if len(files)==0:

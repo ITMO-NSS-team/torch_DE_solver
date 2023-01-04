@@ -1,7 +1,9 @@
 import torch
 import numpy as np
+from typing import Union, Any, Tuple
 
-from points_type import Points_type
+from tedeous.points_type import Points_type
+from tedeous.input_preprocessing import *
 flatten_list = lambda t: [item for sublist in t for item in sublist]
 
 
@@ -10,26 +12,24 @@ class DerivativeInt():
         raise NotImplementedError
 
 class Derivative_NN(DerivativeInt):
-    def __init__(self, model):
+    def __init__(self, model: torch.nn.Sequential):
+        """
+        Taking numerical derivative for 'NN' method.
+        Args:
+             grid: array of a n-D points.
+             model: neural network.
+        """
         self.model = model
     
-    def take_derivative (self, term, *args):
+    def take_derivative (self, term: Union[list, int, torch.Tensor], *args) -> torch.Tensor:
         """
-        Axiluary function serves for single differential operator resulting field
-        derivation
+        Auxiliary function serves for single differential operator resulting field
+        derivation.
 
-        Parameters
-        ----------
-        model : torch.Sequential
-            Neural network.
-        term : TYPE
-            differential operator in conventional form.
-
-        Returns
-        -------
-        der_term : torch.Tensor
+        Args:
+            term: differential operator in conventional form.
+        Returns:
             resulting field, computed on a grid.
-
         """
         # it is may be int, function of grid or torch.Tensor
         if type(term[0]) is tuple:
@@ -57,15 +57,26 @@ class Derivative_NN(DerivativeInt):
                 # Here we want to apply differential operators for every term in the product
             der_term = der_term * grid_sum ** power[j]
         der_term = coeff * der_term
-
         return der_term
 
 class Derivative_autograd(DerivativeInt):
+    """
+    Taking numerical derivative for 'autograd' method.
+    """
     def __init__(self, model):
         self.model = model
     
     @staticmethod
-    def nn_autograd(model, points, var, axis=[0]):
+    def nn_autograd(model: torch.nn.Sequential, points: torch.Tensor, var: int, axis: list = [0]) -> torch.Tensor :
+        """
+        Computes derivative on the grid using autograd method.
+        Args:
+            model: neural network.
+            points: points, where numerical derivative is calculated.
+            axis: smth
+        Returns:
+            smth
+        """
         points.requires_grad=True
         fi = model(points)[:,var].sum(0)
         for ax in axis:
@@ -75,23 +86,15 @@ class Derivative_autograd(DerivativeInt):
         return gradient_full
 
 
-    def take_derivative(self, term, grid_points):
+    def take_derivative(self, term: Any, grid_points: torch.Tensor) -> torch.Tensor:
         """
-        Axiluary function serves for single differential operator resulting field
-        derivation
+        Auxiliary function serves for single differential operator resulting field
+        derivation.
 
-        Parameters
-        ----------
-        model : torch.Sequential
-            Neural network.
-        term : TYPE
-            differential operator in conventional form.
-
-        Returns
-        -------
-        der_term : torch.Tensor
+        Args:
+            term: differential operator in conventional form.
+        Returns:
             resulting field, computed on a grid.
-
         """
         # it is may be int, function of grid or torch.Tensor
         if callable(term[0]):
@@ -111,20 +114,29 @@ class Derivative_autograd(DerivativeInt):
                 der = self.model(grid_points)[:, variables[j]].reshape(-1, 1)
             else:
                 der = self.nn_autograd(self.model, grid_points, variables[j], axis=derivative)
-
             der_term = der_term * der ** power[j]
-
         der_term = coeff * der_term
-
         return der_term
 
 class Derivative_mat(DerivativeInt):
-    def __init__(self, model):
+    def __init__(self, model: torch.Tensor):
+        """
+        Taking numerical derivative for 'mat' method.
+        Args:
+            model: random matrix.
+        """
         self.model = model
     
     @staticmethod
-    def derivative_1d(model,grid):
-        # print('1d>2d')
+    def derivative_1d(model: torch.Tensor, grid: torch.Tensor) -> torch.Tensor:
+        """
+        Computes derivative in one dimension for matrix method.
+        Args:
+            model: random matrix.
+            grid: array of a n-D points.
+        Returns:
+            computed derivative along one dimension.
+        """
         u=model.reshape(-1)
         x=grid.reshape(-1)
         
@@ -140,8 +152,20 @@ class Derivative_mat(DerivativeInt):
         return du
 
     @staticmethod
-    def derivative(u_tensor, h_tensor, axis, scheme_order=1, boundary_order=1):
-        #print('shape=',u_tensor.shape)
+    def derivative(u_tensor: torch.Tensor, h_tensor: torch.Tensor, axis: int,
+                   scheme_order: int = 1, boundary_order: int = 1) -> torch.Tensor:
+        """
+        Computing derivative for 'matrix' method.
+        Args:
+            u_tensor: smth.
+            h_tensor: smth.
+            axis: axis along which the derivative is calculated.
+            scheme_order: accuracy inner order for finite difference. Default = 1
+            boundary_order: accuracy boundary order for finite difference. Default = 2
+        Returns:
+            computed derivative.
+        """
+
         if (u_tensor.shape[0]==1):
             du = Derivative_mat.derivative_1d(u_tensor,h_tensor)
             return du
@@ -247,28 +271,23 @@ class Derivative_mat(DerivativeInt):
         return du
 
 
-    def take_derivative(self, term, grid_points):
+    def take_derivative(self, term: Any, grid_points: torch.Tensor) -> torch.Tensor:
         """
-        Axiluary function serves for single differential operator resulting field
-        derivation
+        Auxiliary function serves for single differential operator resulting field
+        derivation.
 
-        Parameters
-        ----------
-        model : torch.Sequential
-            Neural network.
-        term : TYPE
-            differential operator in conventional form.
-
-        Returns
-        -------
-        der_term : torch.Tensor
+        Args:
+            term: differential operator in conventional form.
+            grid_points: grid points
+        Returns:
             resulting field, computed on a grid.
-
         """
+
         # it is may be int, function of grid or torch.Tensor
         coeff = term[0]
         # this one contains product of differential operator
         operator_product = term[1]
+        print(type(grid_points))
         # float that represents power of the differential term
         power = term[2]
         # initially it is an ones field
@@ -290,9 +309,24 @@ class Derivative_mat(DerivativeInt):
 
 class Derivative():
     def __init__(self, model):
+        """
+        Interface for taking numerical derivative due to chosen calculation method.
+
+        Args:
+            model: neural network or matrix depending on the selected mode.
+        """
         self.model = model
 
-    def set_strategy(self, strategy):
+    def set_strategy(self, strategy: str) -> Union[Derivative_NN, Derivative_autograd, Derivative_mat]:
+        """
+        Setting the calculation method.
+
+        Args:
+            strategy: Calculation method. (i.e., "NN", "autograd", "mat").
+        Returns:
+            equation in input form for a given calculation method.
+        """
+
         if strategy == 'NN':
             return Derivative_NN(self.model)
 
@@ -304,7 +338,9 @@ class Derivative():
 
 
 class Solution():
-    def __init__(self, grid, equal_cls, model, mode):
+    def __init__(self, grid: torch.Tensor, equal_cls: Union[Equation_NN,
+                 Equation_mat,Equation_autograd],
+                 model: Union[torch.nn.Sequential, torch.Tensor], mode: str):
         self.grid = grid
         self.prepared_operator = equal_cls.operator_prepare()
         self.prepared_bconds = equal_cls.bnd_prepare()
@@ -316,22 +352,15 @@ class Solution():
         elif self.mode=='autograd' or self.mode=='mat':
             self.sorted_grid = self.grid
 
-    def apply_operator(self, operator, grid_points):
+    def apply_operator(self, operator: list, grid_points) -> torch.Tensor:
         """
         Deciphers equation in a single grid subset to a field.
-
-        Parameters
-        ----------
-        model : torch.Sequential
-            Neural network.
-        operator : list
-            Single (len(subset)==1) operator in input form. See 
+        Args:
+            operator: Single (len(subset)==1) operator in input form. See
             input_preprocessing.operator_prepare()
-
-        Returns
-        -------
-        total : torch.Tensor
-
+            grid_points: grid points
+        Returns:
+            smth
         """
         derivative = Derivative(self.model).set_strategy(self.mode).take_derivative
 
@@ -343,27 +372,29 @@ class Solution():
                 total = dif
         return total
 
-    def apply_bconds_set(self, operator_set):
+    def apply_bconds_set(self, operator_set: list) -> torch.Tensor:
         """
         Deciphers equation in a whole grid to a field.
-        Parameters
-        ----------
-        model : torch.Sequential
-            Neural network.
-        operator : list
-            Multiple (len(subset)>=1) operators in input form. See 
-            input_preprocessing.operator_prepare()
-        Returns
-        -------
-        total : torch.Tensor
-        """
+        Args:
+            operator_set: Multiple (len(subset)>=1) operators in input form. See
+            input_preprocessing.operator_prepare().
+        Returns:
+            smth
+       """
         field_part = []
         for operator in operator_set:
             field_part.append(self.apply_operator(operator, None))
         field_part = torch.cat(field_part)
         return field_part
 
-    def b_op_val_calc(self, bcond):
+    def b_op_val_calc(self, bcond: list) -> torch.Tensor:
+        """
+        Auxiliary function. Serves only to evaluate operator on the boundary.
+        Args:
+            bcond:  terms of prepared boundary conditions (see input_preprocessing.bnd_prepare) in input form.
+        Returns:
+            calculated operator on the boundary.
+        """
         b_coord = bcond[0]
         bop = bcond[1]
         var = bcond[3]
@@ -413,7 +444,13 @@ class Solution():
 
         return b_op_val
 
-    def apply_bconds_operator(self):
+    def apply_bconds_operator(self) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Auxiliary function. Serves only to evaluate boundary values and true boundary values.
+        Returns:
+            * **b_val** -- calculated model boundary values.\n
+            * **true_b_val** -- true grid boundary values.
+        """
         true_b_val_list = []
         b_val_list = []
 
@@ -434,7 +471,14 @@ class Solution():
         return b_val, true_b_val
 
     
-    def l2_loss(self, lambda_bound=10):
+    def l2_loss(self, lambda_bound:  Union[int, float] = 10) -> torch.Tensor:
+        """
+        Computes l2 loss.
+        Args:
+            lambda_bound: an arbitrary chosen constant, influence only convergence speed.
+        Returns:
+            model loss.
+        """
         if self.mode == 'mat' or self.mode == 'autograd':
             if self.prepared_bconds == None:
                 print('No bconds is not possible, returning infinite loss')
@@ -472,28 +516,24 @@ class Solution():
             loss = torch.sum(torch.mean((op) ** 2, 0)) + lambda_bound * torch.sum(torch.mean((b_val - true_b_val) ** 2, 0))
         return loss
 
-    def weak_loss(self, weak_form, lambda_bound=10):
-        '''
+    def weak_loss(self, weak_form: Union[None, list], lambda_bound: Union[int, float] = 10) -> torch.Tensor:
+        """
         Weak solution of O/PDE problem.
-
-        Parameters:
-        ---------
-        weak_form: list of basis functions
-        lambda_bound: const regularization parameter
-        ---------
-        '''
-        def integration(func, grid, pow='sqrt'):
-            '''
-            Function realize 1-space/multiple integrands,
-            where func=(L(u)-f)*weak_form subintegrands function and
-            definite integral parameter is grid
-            Parameters:
-            ----------
-            func: torch.tensor
-            grid: torch.tensor
-            pow: string (sqrt ar abs) power of func points
-            ----------
-            '''
+        Args:
+            weak_form: list of basis functions.
+            lambda_bound: const regularization parameter.
+        Returns:
+            model loss.
+        """
+        def integration(func: torch.Tensor, grid: torch.Tensor, pow: str ='sqrt'):
+            """
+            Function realize 1-space/multiple integrands, where func=(L(u)-f)*weak_form subintegrands function and
+            definite integral parameter is grid.
+            Args:
+                func: basis function.
+                grid: array of a n-D points.
+                pow: (sqrt ar abs) power of func points.
+            """
             if grid.shape[-1]==1:
                 column = -1
             else:
@@ -570,7 +610,15 @@ class Solution():
 
         return loss
 
-    def loss_evaluation(self, lambda_bound=10, weak_form=None):
+    def loss_evaluation(self, lambda_bound: Union[int, float] = 10, weak_form: Union[None, list] = None) -> Union[l2_loss, weak_loss]:
+        """
+        Setting the required loss calculation method.
+        Args:
+            lambda_bound: an arbitrary chosen constant, influence only convergence speed.
+            weak_form: list of basis functions.
+        Returns:
+            A given calculation method.
+        """
         if weak_form == None or weak_form == []:
             return self.l2_loss(lambda_bound=lambda_bound)
         else:

@@ -1,9 +1,11 @@
 import numpy as np
 import torch
 from scipy.spatial import Delaunay
+
+from typing import Union
 from tedeous.device import set_device
 
-device = set_device()
+device = set_device('cpu')
 class Points_type():
     """
     Discretizing the grid and allocating subsets for Finite Difference method.
@@ -127,7 +129,17 @@ class Points_type():
         return grid_dict
 
     @staticmethod
-    def bnd_sort(grid_dict, b_coord):
+    def bnd_sort(grid_dict: dict, b_coord: torch.Tensor) -> Union[dict, list]:
+        """
+        smth
+
+        Args:
+            grid_dict:
+            b_coord:
+        Returns:
+            sorted bnd
+
+        """
 
         def bnd_to_dict(grid_dict, b_coord):
             bnd_dict = {}

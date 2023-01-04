@@ -39,3 +39,9 @@ We collect all required parameters to equation interface. Interface includes sev
 **Boundary and initial conditions**
 
 In the classical solvers, we work with canonical types such as prescribed values (Dirichlet type boundary conditions, it may be a function of boundary) of field or normal differential values (Neumann type boundary conditions) for the entire boundary. Initial conditions are also prescribed values or function at 𝑡 = 0.
+
+Solution
+~~~~~~~~
+
+Differenatation
+~~~~~~~~~~~~~~~

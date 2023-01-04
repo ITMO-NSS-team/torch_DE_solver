@@ -9,5 +9,6 @@ def set_device(*args):
         else:
             return torch.device('cpu')
     if len(args) == 1:
+        global device
         device = args[0]
         return torch.device(device)
