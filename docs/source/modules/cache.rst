@@ -1,6 +1,6 @@
 Cache
 =====
 
-..automodule:: cache
-  :members:
+.. autoclass:: tedeous.cache.Model_prepare
+  :no-inherited-members:
   :no-undoc-members:

@@ -2,6 +2,9 @@
 Solver
 ======
 
-..automodule:: solver
-  :members:
+Solver
+~~~~~~
+
+.. automodule:: tedeous.solver
+  :no-inherited-members:
   :no-undoc-members:

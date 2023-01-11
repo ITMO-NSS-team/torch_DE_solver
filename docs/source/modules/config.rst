@@ -1,6 +1,6 @@
 Config
 ======
 
-..automodule:: config
-  :members:
+.. autoclass:: tedeous.config.Config
+  :no-inherited-members:
   :no-undoc-members:

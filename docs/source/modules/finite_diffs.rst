@@ -1,6 +1,6 @@
 Finite difference method
 ========================
 
-..automodule:: finite_diffs
-  :members:
+.. automodule:: tedeous.finite_diffs.Finite_diffs
+  :no-inherited-members:
   :no-undoc-members:
