@@ -58,7 +58,7 @@ class Solution():
         equal_copy = deepcopy(equal_cls)
         self.prepared_operator = equal_copy.operator_prepare()
         self.prepared_bconds = equal_copy.bnd_prepare()
-        self.model = model
+        self.model = model.to(device_type())
         self.mode = mode
         if self.mode=='NN':
             self.grid_dict = Points_type(self.grid).grid_sort()
