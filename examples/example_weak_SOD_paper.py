@@ -40,9 +40,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 from input_preprocessing import Equation
 from solver import Solver
 from metrics import Solution
+from device import solver_device
 
-
-device = torch.device('cpu')
+solver_device('cpu')
 # constannts for PDE system
 p_l = 1
 v_l = 0
@@ -70,7 +70,6 @@ def SOD_experiment(grid_res, CACHE):
 
     grid = torch.cartesian_prod(x, t).float()
 
-    grid.to(device)
 
     ## BOUNDARY AND INITIAL CONDITIONS
     # p:0, v:1, Ro:2
@@ -117,15 +116,15 @@ def SOD_experiment(grid_res, CACHE):
 
 
     # Putting all bconds together
-    bconds = [[bnd1, bndval1_0, 0],
-            [bnd1, bndval1_1, 1],
-            [bnd1, bndval1_2, 2],
-            [bnd2, bndval2_0, 0],
-            [bnd2, bndval2_1, 1],
-            [bnd2, bndval2_2, 2],
-            [bnd3, bndval3_0, 0],
-            [bnd3, bndval3_1, 1],
-            [bnd3, bndval3_2, 2]]
+    bconds = [[bnd1, bndval1_0, 0, 'dirichlet'],
+            [bnd1, bndval1_1, 1, 'dirichlet'],
+            [bnd1, bndval1_2, 2, 'dirichlet'],
+            [bnd2, bndval2_0, 0, 'dirichlet'],
+            [bnd2, bndval2_1, 1, 'dirichlet'],
+            [bnd2, bndval2_2, 2, 'dirichlet'],
+            [bnd3, bndval3_0, 0, 'dirichlet'],
+            [bnd3, bndval3_1, 1, 'dirichlet'],
+            [bnd3, bndval3_2, 2, 'dirichlet']]
 
 
     '''
@@ -136,69 +135,69 @@ def SOD_experiment(grid_res, CACHE):
     gas_eq1={
             'dro/dt':
             {
-                'const': 1,
+                'coeff': 1,
                 'term': [1],
-                'power': 1,
+                'pow': 1,
                 'var': 2
             },
             'v*dro/dx':
             {
-                'const': 1,
+                'coeff': 1,
                 'term': [[None], [0]],
-                'power': [1, 1],
+                'pow': [1, 1],
                 'var': [1, 2]
             },
             'ro*dv/dx':
             {
-                'const': 1,
+                'coeff': 1,
                 'term': [[None], [0]],
-                'power': [1, 1],
+                'pow': [1, 1],
                 'var': [2, 1]
             }
         }
     gas_eq2 = {
             'ro*dv/dt':
             {
-                'const': 1,
+                'coeff': 1,
                 'term': [[None], [1]],
-                'power': [1, 1],
+                'pow': [1, 1],
                 'var': [2, 1]
             },
             'ro*v*dv/dx':
             {
-                'const': 1,
+                'coeff': 1,
                 'term': [[None],[None], [0]],
-                'power': [1, 1, 1],
+                'pow': [1, 1, 1],
                 'var': [2, 1, 1]
             },
             'dp/dx':
             {
-                'const': 1,
+                'coeff': 1,
                 'term': [0],
-                'power': 1,
+                'pow': 1,
                 'var': 0
             }
         }
     gas_eq3 =  {
             'dp/dt':
             {
-                'const': 1,
+                'coeff': 1,
                 'term': [1],
-                'power': 1,
+                'pow': 1,
                 'var': 0
             },
             'gam*p*dv/dx':
             {
-                'const': gam_l,
+                'coeff': gam_l,
                 'term': [[None], [0]],
-                'power': [1, 1],
+                'pow': [1, 1],
                 'var': [0, 1]
             },
             'v*dp/dx':
             {
-                'const': 1,
+                'coeff': 1,
                 'term': [[None], [0]],
-                'power': [1, 1],
+                'pow': [1, 1],
                 'var': [1, 0]
             }
 

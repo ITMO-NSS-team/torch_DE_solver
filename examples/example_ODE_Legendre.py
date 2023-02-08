@@ -8,9 +8,11 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy
-
 import os
 import sys
+import time
+from scipy.special import legendre
+
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
@@ -19,10 +21,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 
 from input_preprocessing import Equation
 from solver import Solver
+from device import solver_device
 
-from scipy.special import legendre
-import time
-device = torch.device('cpu')
+
+solver_device('cpu')
 
 """
 Preparing grid
@@ -86,7 +88,7 @@ for n in range(3,11):
     bop2 = {
         '1*du/dt**1':
             {
-                'coefficient': 1,
+                'coeff': 1,
                 'du/dt': [0],
                 'pow': 1,
                 'var':0
@@ -97,7 +99,8 @@ for n in range(3,11):
     bndval2 = torch.from_numpy(legendre(n).deriv(1)(bnd2))
     
     # Putting all bconds together
-    bconds = [[bnd1, bndval1], [bnd2, bop2, bndval2]]
+    bconds = [[bnd1, bndval1, 'dirichlet'],
+              [bnd2, bop2, bndval2, 'operator']]
     
     """
     Defining Legendre polynomials generating equations

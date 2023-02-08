@@ -9,9 +9,11 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 from scipy.spatial import Delaunay
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
 import sys
+import time
+
+
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 # sys.path.append('../')
 sys.path.pop()
@@ -20,9 +22,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 from solver import Solver
 from metrics import  Solution
 from input_preprocessing import Equation
-import time
+from device import solver_device
 
-device = torch.device('cpu')
+solver_device('cpu')
 
 
 
@@ -33,9 +35,8 @@ def p_I_exp(grid_res,nruns,CACHE):
     t = torch.from_numpy(np.linspace(0, 1, grid_res+1))
     
     grid = t.reshape(-1, 1).float()
-    
-    grid.to(device)
-    
+
+
     """
     Preparing boundary conditions (BC)
     
@@ -91,7 +92,8 @@ def p_I_exp(grid_res,nruns,CACHE):
     bndval2 = torch.from_numpy(np.array([[0]], dtype=np.float64))
     
     # Putting all bconds together
-    bconds = [[bnd1, bndval1], [bnd2, bop2, bndval2]]
+    bconds = [[bnd1, bndval1, 'dirichlet'],
+              [bnd2, bop2, bndval2, 'operator']]
     
     """
     Defining Legendre polynomials generating equations

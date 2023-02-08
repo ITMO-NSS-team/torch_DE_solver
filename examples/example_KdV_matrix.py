@@ -22,11 +22,11 @@ sys.path.append('../')
 from solver import Solver, grid_format_prepare
 from input_preprocessing import Equation
 from metrics import Solution
+from device import solver_device
 
 
 
-
-device = torch.device('cpu')
+solver_device('cpu')
 
 exp_dict_list=[]
 
@@ -99,19 +99,19 @@ for grid_res in [20,30]:
     bop1 = {
         'a1*d2u/dx2':
             {
-                'a1': a1,
+                'coeff': a1,
                 'd2u/dx2': [0, 0],
                 'pow': 1
             },
         'a2*du/dx':
             {
-                'a2': a2,
+                'coeff': a2,
                 'du/dx': [0],
                 'pow': 1
             },
         'a3*u':
             {
-                'a3': a3,
+                'coeff': a3,
                 'u': [None],
                 'pow': 1
             }
@@ -133,19 +133,19 @@ for grid_res in [20,30]:
     bop2 = {
         'b1*d2u/dx2':
             {
-                'a1': b1,
+                'coeff': b1,
                 'd2u/dx2': [0, 0],
                 'pow': 1
             },
         'b2*du/dx':
             {
-                'a2': b2,
+                'coeff': b2,
                 'du/dx': [0],
                 'pow': 1
             },
         'b3*u':
             {
-                'a3': b3,
+                'coeff': b3,
                 'u': [None],
                 'pow': 1
             }
@@ -165,13 +165,13 @@ for grid_res in [20,30]:
     bop3 = {
         'r1*du/dx':
             {
-                'r1': r1,
+                'coeff': r1,
                 'du/dx': [0],
                 'pow': 1
             },
         'r2*u':
             {
-                'r2': r2,
+                'coeff': r2,
                 'u': [None],
                 'pow': 1
             }
@@ -196,7 +196,10 @@ for grid_res in [20,30]:
     
     
     # Putting all bconds together
-    bconds = [[bnd1, bop1, bndval1], [bnd2, bop2, bndval2], [bnd3, bop3, bndval3], [bnd4, bndval4]]
+    bconds = [[bnd1, bop1, bndval1, 'operator'],
+              [bnd2, bop2, bndval2, 'operator'],
+              [bnd3, bop3, bndval3, 'operator'],
+              [bnd4, bndval4, 'dirichlet']]
     
     """
     Defining kdv equation
@@ -250,7 +253,7 @@ for grid_res in [20,30]:
             },
         '-sin(x)cos(t)':
             {
-                '-sin(x)cos(t)': c1(grid),
+                'coeff': c1(grid),
                 'u': [None],
                 'pow': 0
             }

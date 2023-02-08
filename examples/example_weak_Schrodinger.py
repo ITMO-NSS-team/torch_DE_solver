@@ -2,7 +2,6 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy
-
 import os
 import sys
 
@@ -14,8 +13,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 from solver import Solver
 from cache import Model_prepare
 from input_preprocessing import Equation
+from device import solver_device
 
-device = torch.device('cpu')
+
+solver_device('cpu')
 
 x_grid = np.linspace(-5,5,41)
 t_grid = np.linspace(0,np.pi/2,41)
@@ -25,7 +26,6 @@ t = torch.from_numpy(t_grid)
 
 grid = torch.cartesian_prod(x, t).float()
 
-grid.to(device)
 
 """
 To solve schrodinger equation we have to solve system because of its complexity. 
@@ -103,8 +103,8 @@ bop3_imag = {
 
 bcond_type = 'periodic'
 
-bconds = [[bnd1_real, bndval1_real, 0],
-          [bnd1_imag, bndval1_imag, 1],
+bconds = [[bnd1_real, bndval1_real, 0, 'dirichlet'],
+          [bnd1_imag, bndval1_imag, 1, 'dirichlet'],
           [bnd2_real, 0, bcond_type],
           [bnd2_imag, 1, bcond_type],
           [bnd3_real, bop3_real, bcond_type],
@@ -124,30 +124,30 @@ v = var:1
 schrodinger_eq_real = {
     'du/dt':
         {
-            'const': 1,
+            'coeff': 1,
             'term': [1],
-            'power': 1,
+            'pow': 1,
             'var': 0
         },
     '1/2*d2v/dx2':
         {
-            'const': 1 / 2,
+            'coeff': 1 / 2,
             'term': [0, 0],
-            'power': 1,
+            'pow': 1,
             'var': 1
         },
     'v * u**2':
         {
-            'const': 1,
+            'coeff': 1,
             'term': [[None], [None]],
-            'power': [1, 2],
+            'pow': [1, 2],
             'var': [1, 0]
         },
     'v**3':
         {
-            'const': 1,
+            'coeff': 1,
             'term': [None],
-            'power': 3,
+            'pow': 3,
             'var': 1
         }
 
@@ -155,30 +155,30 @@ schrodinger_eq_real = {
 schrodinger_eq_imag = {
     'dv/dt':
         {
-            'const': 1,
+            'coeff': 1,
             'term': [1],
-            'power': 1,
+            'pow': 1,
             'var': 1
         },
     '-1/2*d2u/dx2':
         {
-            'const': - 1 / 2,
+            'coeff': - 1 / 2,
             'term': [0, 0],
-            'power': 1,
+            'pow': 1,
             'var': 0
         },
     '-u * v ** 2':
         {
-            'const': -1,
+            'coeff': -1,
             'term': [[None], [None]],
-            'power': [1, 2],
+            'pow': [1, 2],
             'var': [0, 1]
         },
     '-u ** 3':
         {
-            'const': -1,
+            'coeff': -1,
             'term': [None],
-            'power': 3,
+            'pow': 3,
             'var': 0
         }
 

@@ -7,12 +7,11 @@ Created on Wed Mar 30 13:25:13 2022
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-
 import sys
 import os
 
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 sys.path.append('../')
 
@@ -22,9 +21,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 
 from input_preprocessing import Equation
 from solver import Solver
+from device import solver_device
 
 
-
+solver_device('cuda')
 wave_eq = {
     '4*d2u/dx2**1':
         {
@@ -91,7 +91,10 @@ bnd4 = torch.cartesian_prod(torch.from_numpy(np.array([1], dtype=np.float64)), t
 bndval4 = torch.from_numpy(np.zeros(len(bnd4), dtype=np.float64))
 
 # Putting all bconds together
-bconds = [[bnd1, bndval1], [bnd2, bndval2], [bnd3, bndval3], [bnd4, bndval4]]
+bconds = [[bnd1, bndval1, 'dirichlet'],
+          [bnd2, bndval2, 'dirichlet'],
+          [bnd3, bndval3, 'dirichlet'],
+          [bnd4, bndval4, 'dirichlet']]
 
 """
 Defining wave equation
@@ -143,5 +146,7 @@ img_dir=os.path.join(os.path.dirname( __file__ ), 'wave_autograd_img')
 if not(os.path.isdir(img_dir)):
     os.mkdir(img_dir)
 
-model=Solver(grid, equation, model, 'autograd').solve(use_cache=True,verbose=True,print_every=None,cache_verbose=True,abs_loss=0.001,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
+model=Solver(grid, equation, model, 'autograd').solve(use_cache=True, verbose=True, print_every=None,
+                                                      cache_verbose=True, abs_loss=0.001, step_plot_print=False,
+                                                      step_plot_save=True,image_save_dir=img_dir)
 

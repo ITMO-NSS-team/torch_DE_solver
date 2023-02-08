@@ -1,20 +1,19 @@
 import torch
 import numpy as np
 import os
-
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
 import sys
 
+
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 sys.path.append('../')
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
 from input_preprocessing import Equation
 from solver import Solver
-from metrics import Solution
-import time
+from device import solver_device
 
+solver_device('cpu')
 m = 0.2
 L = 1
 Q = -0.1
@@ -40,7 +39,8 @@ bndval1 = torch.zeros_like(x)+Swi0
 bnd2 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t).float()
 bndval2 = torch.zeros_like(t)+Sk
 
-bconds = [[bnd1, bndval1], [bnd2, bndval2]]
+bconds = [[bnd1, bndval1, 'dirichlet'],
+          [bnd2, bndval2, 'dirichlet']]
 
 model = torch.nn.Sequential(
     torch.nn.Linear(2, 100),

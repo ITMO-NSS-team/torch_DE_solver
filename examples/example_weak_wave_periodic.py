@@ -2,12 +2,12 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy
-
+import sys
 import os
+import time
+
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-import sys
 
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
@@ -16,9 +16,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 from solver import Solver
 from cache import Model_prepare
 from input_preprocessing import Equation
-import time
+from device import solver_device
 
-device = torch.device('cpu')
+solver_device('cpu')
 # Grid
 x_grid = np.linspace(0,1,21)
 t_grid = np.linspace(0,1,21)
@@ -28,7 +28,6 @@ t = torch.from_numpy(t_grid)
 
 grid = torch.cartesian_prod(x, t).float()
 
-grid.to(device)
 # Boundary and initial conditions
 
 # u(x,0)=1e4*sin^2(x(x-1)/10)
@@ -72,7 +71,10 @@ bop4= {
 }
 bcond_type = 'periodic'
 
-bconds = [[bnd1,bndval1],[bnd2,bop2,bndval2],[bnd3,bcond_type],[bnd4,bop4,bcond_type]]
+bconds = [[bnd1,bndval1, 'dirichlet'],
+          [bnd2, bop2, bndval2, 'operator'],
+          [bnd3, bcond_type],
+          [bnd4,bop4,bcond_type]]
 
 # wave equation is d2u/dt2-(1/4)*d2u/dx2=0
 C = 4

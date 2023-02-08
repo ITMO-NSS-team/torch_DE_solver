@@ -13,7 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy
 from scipy import integrate
-
+import time
 import os
 import sys
 
@@ -25,7 +25,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 from input_preprocessing import Equation
 from solver import Solver
 from metrics import Solution
-import time
+from device import solver_device
 
 alpha = 20.
 beta = 20.
@@ -36,12 +36,11 @@ y0 = 2.
 t0 = 0.
 tmax = 1.
 
-device = torch.device('cpu')
+solver_device('cpu')
 
 t = torch.from_numpy(np.linspace(t0, tmax, 111))
 grid = t.reshape(-1, 1).float()
 
-grid.to(device)
 
 h = (t[1]-t[0]).item()
 #h = 0.0001
@@ -51,50 +50,50 @@ bndval1_0 = torch.from_numpy(np.array([[x0]], dtype=np.float64))
 bnd1_1 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
 bndval1_1  = torch.from_numpy(np.array([[y0]], dtype=np.float64))
 
-bconds = [[bnd1_0, bndval1_0, 0],
-          [bnd1_1, bndval1_1, 1]]
+bconds = [[bnd1_0, bndval1_0, 0, 'dirichlet'],
+          [bnd1_1, bndval1_1, 1, 'dirichlet']]
 
 #equation system
 # x var: 0
 # y var:1
 eq1 = {
     'dx/dt':{
-        'coef': 1,
+        'coeff': 1,
         'term': [0],
-        'power': 1,
+        'pow': 1,
         'var': [0]
     },
     '-x*alpha':{
-        'coef': -alpha,
+        'coeff': -alpha,
         'term': [None],
-        'power': 1,
+        'pow': 1,
         'var': [0]
     },
     '+beta*x*y':{
-        'coef': beta,
+        'coeff': beta,
         'term': [[None], [None]],
-        'power': [1, 1],
+        'pow': [1, 1],
         'var': [0, 1]
     }
 }
 
 eq2 = {
     'dy/dt':{
-        'coef': 1,
+        'coeff': 1,
         'term': [0],
-        'power': 1,
+        'pow': 1,
         'var': [1]
     },
     '+y*delta':{
-        'coef': delta,
+        'coeff': delta,
         'term': [None],
-        'power': 1,
+        'pow': 1,
         'var': [1]
     },
     '-gamma*x*y':{
-        'coef': -gamma,
+        'coeff': -gamma,
         'term': [[None], [None]],
-        'power': [1, 1],
+        'pow': [1, 1],
         'var': [0, 1]
     }
 }
