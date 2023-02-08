@@ -2,10 +2,10 @@
 import torch
 
 def solver_device(device):
-    if device == 'cuda' and torch.cuda.is_available():
+    if device in ['cuda','gpu'] and torch.cuda.is_available():
         print('CUDA is available and used.')
         return torch.set_default_tensor_type('torch.cuda.FloatTensor')
-    elif device == 'cuda' and not torch.cuda.is_available():
+    elif device in ['cuda','gpu'] and not torch.cuda.is_available():
         print('CUDA is not available, cpu is used!')
         return torch.set_default_tensor_type('torch.FloatTensor')
     else:
