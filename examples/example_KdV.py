@@ -30,7 +30,7 @@ from input_preprocessing import Equation
 from device import solver_device
 
 
-solver_device('cpu')
+solver_device('gpu')
 
 exp_dict_list=[]
 
@@ -313,7 +313,7 @@ for grid_res in [10,20,30]:
         
         end_loss = Solution(grid, equation, model, 'NN').loss_evaluation(lambda_bound=100)
     
-        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'kdv_eqn','cache':True})
+        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().cpu().numpy(),'loss':end_loss.detach().cpu().numpy(),'type':'kdv_eqn','cache':True})
         
         print('Time taken {}= {}'.format(grid_res, end - start))
         print('RMSE {}= {}'.format(grid_res, error_rmse))
