@@ -291,7 +291,7 @@ for grid_res in [20,30]:
         end = time.time()
 
         model = torch.transpose(model, 0, 1)
-        error_rmse=np.sqrt(np.mean((sln_torch.numpy().reshape(-1)-model.detach().numpy().reshape(-1))**2))
+        error_rmse=np.sqrt(np.mean((sln_torch.cpu().numpy().reshape(-1)-model.detach().cpu().numpy().reshape(-1))**2))
 
         Solver(grid,equation, model, 'mat').solution_print()
 
