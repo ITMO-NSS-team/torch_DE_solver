@@ -23,7 +23,7 @@ from input_preprocessing import Equation
 from solver import Solver
 from device import solver_device, device_type
 
-solver_device('cuda')
+solver_device('gpu')
 
 p_l = 1
 v_l = 0

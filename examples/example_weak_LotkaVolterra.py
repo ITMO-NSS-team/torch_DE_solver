@@ -36,7 +36,7 @@ y0 = 2.
 t0 = 0.
 tmax = 1.
 
-solver_device('cpu')
+solver_device('cuda')
 
 t = torch.from_numpy(np.linspace(t0, tmax, 111))
 grid = t.reshape(-1, 1).float()
@@ -124,7 +124,7 @@ start = time.time()
 
 model = Solver(grid, equation, model, 'NN', weak_form=weak_form).solve(lambda_bound=100,
                                         verbose=True, learning_rate=1e-3, eps=1e-6, tmin=1000, tmax=5e6,
-                                        use_cache=False,cache_dir='../cache/',cache_verbose=True,
+                                        use_cache=True,cache_dir='../cache/',cache_verbose=True,
                                         save_always=False,print_every=None,
                                         patience=5,loss_oscillation_window=100,no_improvement_patience=500,
                                         model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=None,

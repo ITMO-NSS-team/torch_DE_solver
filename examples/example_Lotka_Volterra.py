@@ -27,7 +27,8 @@ from solver import Solver
 from device import solver_device
 
 
-solver_device('cuda')
+solver_device('сpu')
+
 alpha = 20.
 beta = 20.
 delta = 20.
@@ -125,7 +126,7 @@ start = time.time()
 
 model = Solver(grid, equation, model, 'NN').solve(lambda_bound=100,
                                          verbose=True, learning_rate=1e-4, eps=1e-6, tmin=1000, tmax=5e6,
-                                         use_cache=False,cache_dir='../cache/',cache_verbose=True,
+                                         use_cache=True,cache_dir='../cache/',cache_verbose=True,
                                          save_always=True,print_every=None,
                                          patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
                                          model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=None,

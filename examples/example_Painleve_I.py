@@ -22,7 +22,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 from solver import Solver
 from metrics import  Solution
 from input_preprocessing import Equation
-from device import solver_device
+from device import solver_device,check_device
 
 solver_device('cpu')
 
@@ -186,13 +186,13 @@ def p_I_exp(grid_res,nruns,CACHE):
                                         ,save_always=False,print_every=None,model_randomize_parameter=1e-6,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
         end = time.time()
 
-            
-        error_rmse=torch.sqrt(torch.mean((sln_torch1-model(grid))**2))
+
+        error_rmse=torch.sqrt(torch.mean((sln_torch1-model(check_device(grid)).detach().cpu())**2))
         
   
         end_loss = Solution(grid, equation, model, 'NN').loss_evaluation(lambda_bound=100)
 
-        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'PI','cache':CACHE})
+        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().cpu().numpy(),'loss':end_loss.detach().cpu().numpy(),'type':'PI','cache':CACHE})
         
         print('Time taken {}= {}'.format(grid_res, end - start))
         print('RMSE {}= {}'.format(grid_res, error_rmse))
@@ -204,7 +204,7 @@ nruns=10
 
 exp_dict_list=[]
 
-CACHE=False
+CACHE=True
 
 
 for grid_res in range(10,100,10):
