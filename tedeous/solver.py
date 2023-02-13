@@ -5,7 +5,7 @@ from matplotlib import cm
 
 from tedeous import input_preprocessing
 from tedeous.cache import Model_prepare
-from typing import Union
+from typing import Union, Any
 import os
 import datetime
 
@@ -183,7 +183,7 @@ class Solver(Model_prepare):
               patience: int = 5, loss_oscillation_window: int = 100, no_improvement_patience: int = 1000,
               model_randomize_parameter: Union[int,float] = 0, optimizer_mode: str = 'Adam',
               step_plot_print: Union[bool, int] = False, step_plot_save: Union[bool, int] = False,
-              image_save_dir: Union[str, None] = None) -> torch.nn.Sequential:
+              image_save_dir: Union[str, None] = None, adaptive_lambda = False) -> Any:
         """
         High-level interface for solving equations.
 
@@ -228,7 +228,7 @@ class Solver(Model_prepare):
         optimizer = self.optimizer_choice(optimizer_mode, learning_rate)
 
         if True:
-            min_loss = self.loss_evaluation(lambda_bound=lambda_bound, weak_form=self.weak_form)
+            min_loss = self.loss_evaluation(lambda_bound=lambda_bound, adaptive_lambda = adaptive_lambda, weak_form=self.weak_form)
 
         save_cache = False
 
@@ -246,7 +246,7 @@ class Solver(Model_prepare):
         def closure():
             nonlocal cur_loss
             optimizer.zero_grad()
-            loss = self.loss_evaluation(lambda_bound=lambda_bound, weak_form=self.weak_form)
+            loss = self.loss_evaluation(lambda_bound=lambda_bound,adaptive_lambda = adaptive_lambda, weak_form=self.weak_form)
             loss.backward()
             cur_loss = loss.item()
             return loss

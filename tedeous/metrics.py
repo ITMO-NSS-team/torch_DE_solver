@@ -4,6 +4,7 @@ from typing import Union, Any, Tuple
 
 from tedeous.points_type import Points_type
 from tedeous.input_preprocessing import *
+from tedeous.utils import *
 flatten_list = lambda t: [item for sublist in t for item in sublist]
 
 
@@ -471,7 +472,7 @@ class Solution():
         return b_val, true_b_val
 
     
-    def l2_loss(self, lambda_bound:  Union[int, float] = 10) -> torch.Tensor:
+    def l2_loss(self, lambda_bound:  Union[int, float] = 10, adaptive_lambda = False) -> torch.Tensor:
         """
         Computes l2 loss.
         Args:
@@ -500,6 +501,9 @@ class Solution():
         # we apply no  boundary conditions operators if they are all None
 
         b_val, true_b_val = self.apply_bconds_operator()
+        if adaptive_lambda:
+            lambda_bound = ComputeNTK(b_val - true_b_val, op, self.model).adapt_lambda()
+        # print(lambda_)
         """
         actually, we can use L2 norm for the operator and L1 for boundary
         since L2>L1 and thus, boundary values become not so signifnicant, 
@@ -610,7 +614,7 @@ class Solution():
 
         return loss
 
-    def loss_evaluation(self, lambda_bound: Union[int, float] = 10, weak_form: Union[None, list] = None) -> Union[l2_loss, weak_loss]:
+    def loss_evaluation(self, lambda_bound: Union[int, float] = 10, weak_form: Union[None, list] = None, adaptive_lambda = False) -> Union[l2_loss, weak_loss]:
         """
         Setting the required loss calculation method.
         Args:
@@ -620,7 +624,7 @@ class Solution():
             A given calculation method.
         """
         if weak_form == None or weak_form == []:
-            return self.l2_loss(lambda_bound=lambda_bound)
+            return self.l2_loss(lambda_bound=lambda_bound, adaptive_lambda = adaptive_lambda)
         else:
             return self.weak_loss(weak_form, lambda_bound=lambda_bound)
 
