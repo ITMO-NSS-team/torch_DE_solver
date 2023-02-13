@@ -2,12 +2,12 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy
-
+import sys
 import os
+import time
+
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-import sys
 
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
@@ -16,9 +16,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 from solver import Solver
 from cache import Model_prepare
 from input_preprocessing import Equation
-import time
+from device import solver_device
 
-device = torch.device('cpu')
+solver_device('cuda')
 # Grid
 x_grid = np.linspace(0,1,21)
 t_grid = np.linspace(0,1,21)
@@ -28,7 +28,8 @@ t = torch.from_numpy(t_grid)
 
 grid = torch.cartesian_prod(x, t).float()
 
-grid.to(device)
+#grid = list(torch.meshgrid(x, t, indexing='xy')) # for 'mat' method
+#grid = torch.stack(grid) # for 'mat' method
 # Boundary and initial conditions
 
 # u(x,0)=1e4*sin^2(x(x-1)/10)
@@ -72,7 +73,10 @@ bop4= {
 }
 bcond_type = 'periodic'
 
-bconds = [[bnd1,bndval1],[bnd2,bop2,bndval2],[bnd3,bcond_type],[bnd4,bop4,bcond_type]]
+bconds = [[bnd1, bndval1, 'dirichlet'],
+          [bnd2, bop2, bndval2, 'operator'],
+          [bnd3, bcond_type],
+          [bnd4, bop4, bcond_type]]
 
 # wave equation is d2u/dt2-(1/4)*d2u/dx2=0
 C = 4
@@ -103,6 +107,7 @@ model = torch.nn.Sequential(
         torch.nn.Tanh(),
         torch.nn.Linear(100, 1))
 
+#model = torch.rand(grid[0].shape) # for 'mat' method
 
 start = time.time()
 
@@ -115,8 +120,9 @@ if not(os.path.isdir(img_dir)):
 
 
 model = Solver(grid, equation, model, 'NN').solve(lambda_bound=1000, verbose=1, learning_rate=1e-2,
-                                    eps=1e-6, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
-                                    save_always=True,no_improvement_patience=500,print_every=None,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
+                                    eps=1e-6, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True,
+                                    save_always=True, no_improvement_patience=500, print_every=500, step_plot_print=False,
+                                    step_plot_save=True, image_save_dir=img_dir)
 
 end = time.time()
 print('Time taken 10= ', end - start)

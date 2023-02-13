@@ -13,7 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy
 from scipy import integrate
-
+import time
 import os
 import sys
 
@@ -25,9 +25,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 from input_preprocessing import Equation
 from solver import Solver
 from metrics import Solution
-import time
+from device import solver_device
 
-
+solver_device('cpu')
 alpha = 20.
 beta = 20.
 delta = 20.
@@ -41,13 +41,9 @@ def Lotka_experiment(grid_res, CACHE):
 
     Nt = grid_res+1
 
-    device = torch.device('cpu')
-
     t = torch.from_numpy(np.linspace(t0, tmax, Nt))
 
     grid = t.reshape(-1, 1).float()
-
-    grid.to(device)
 
     h = (t[1]-t[0]).item()
 
@@ -58,8 +54,8 @@ def Lotka_experiment(grid_res, CACHE):
     bnd1_1 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
     bndval1_1  = torch.from_numpy(np.array([[y0]], dtype=np.float64))
 
-    bconds = [[bnd1_0, bndval1_0, 0],
-            [bnd1_1, bndval1_1, 1]]
+    bconds = [[bnd1_0, bndval1_0, 0, 'dirichlet'],
+              [bnd1_1, bndval1_1, 1, 'dirichlet']]
 
     #equation system
     # eq1: dx/dt = x(alpha-beta*y)
@@ -70,42 +66,42 @@ def Lotka_experiment(grid_res, CACHE):
 
     eq1 = {
         'dx/dt':{
-            'coef': 1,
+            'coeff': 1,
             'term': [0],
-            'power': 1,
+            'pow': 1,
             'var': [0]
         },
         '-x*alpha':{
-            'coef': -alpha,
+            'coeff': -alpha,
             'term': [None],
-            'power': 1,
+            'pow': 1,
             'var': [0]
         },
         '+beta*x*y':{
-            'coef': beta,
+            'coeff': beta,
             'term': [[None], [None]],
-            'power': [1, 1],
+            'pow': [1, 1],
             'var': [0, 1]
         }
     }
 
     eq2 = {
         'dy/dt':{
-            'coef': 1,
+            'coeff': 1,
             'term': [0],
-            'power': 1,
+            'pow': 1,
             'var': [1]
         },
         '+y*delta':{
-            'coef': delta,
+            'coeff': delta,
             'term': [None],
-            'power': 1,
+            'pow': 1,
             'var': [1]
         },
         '-gamma*x*y':{
-            'coef': -gamma,
+            'coeff': -gamma,
             'term': [[None], [None]],
-            'power': [1, 1],
+            'pow': [1, 1],
             'var': [0, 1]
         }
     }
@@ -134,8 +130,8 @@ def Lotka_experiment(grid_res, CACHE):
 
     model = Solver(grid, equation, model, 'NN', weak_form=weak_form).solve(lambda_bound=100,
                                          verbose=True, learning_rate=1e-4, eps=1e-6, tmin=1000, tmax=5e6,
-                                         use_cache=False,cache_dir='../cache/',cache_verbose=True,
-                                         save_always=True,print_every=None,
+                                         use_cache=CACHE,cache_dir='../cache/',cache_verbose=True,
+                                         save_always=CACHE,print_every=None,
                                          patience=3,loss_oscillation_window=100,no_improvement_patience=500,
                                          model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=None,
                                          step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)

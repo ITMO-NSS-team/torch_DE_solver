@@ -9,9 +9,10 @@ import numpy as np
 import os
 import time
 import pandas as pd
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
 import sys
+
+
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 sys.path.append('../')
 
@@ -21,6 +22,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 from solver import Solver, grid_format_prepare
 from input_preprocessing import Equation
 from metrics import Solution
+from device import solver_device
+
 """
 Preparing grid
 
@@ -28,7 +31,7 @@ Grid is an essentially torch.Tensor  of a n-D points where n is the problem
 dimensionality
 """
 
-device = torch.device('cpu')
+solver_device('cpu')
 
 exp_dict_list=[]
 
@@ -82,7 +85,10 @@ for grid_res in range(40, 110, 10):
     bndval4 = torch.from_numpy(np.zeros(len(bnd4), dtype=np.float64))
     
     # Putting all bconds together
-    bconds = [[bnd1, bndval1], [bnd2, bndval2], [bnd3, bndval3], [bnd4, bndval4]]
+    bconds = [[bnd1, bndval1, 'dirichlet'],
+              [bnd2, bndval2, 'dirichlet'],
+              [bnd3, bndval3, 'dirichlet'],
+              [bnd4, bndval4, 'dirichlet']]
     
     """
     Defining wave equation

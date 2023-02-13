@@ -7,10 +7,11 @@ Created on Mon May 31 12:33:44 2021
 import torch
 import numpy as np
 import os
+import sys
+import time
+
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-import sys
 
 sys.path.append('../')
 
@@ -20,7 +21,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 from input_preprocessing import Equation
 from solver import Solver
 from metrics import Solution
-import time
+from device import solver_device
 
 """
 Preparing grid
@@ -29,12 +30,12 @@ Grid is an essentially torch.Tensor  of a n-D points where n is the problem
 dimensionality
 """
 
-device = torch.device('cpu')
+solver_device('cpu')
 
 
 
 A = 2
-C = np.sqrt(10)
+C = (10.)**(0.5)
 
 def func(grid):
     x, t = grid[:,0],grid[:,1]
@@ -57,7 +58,6 @@ def wave_experiment(grid_res,CACHE):
 
     grid = torch.cartesian_prod(x, t).float()
     
-    grid.to(device)
 
     """
     Preparing boundary conditions (BC)
@@ -112,7 +112,10 @@ def wave_experiment(grid_res,CACHE):
     bndval4 = func(bnd4)
     
     # Putting all bconds together
-    bconds = [[bnd1, bndval1], [bnd2, bndval2], [bnd3, bndval3], [bnd4, bndval4]]
+    bconds = [[bnd1, bndval1, 'dirichlet'],
+              [bnd2, bndval2, 'dirichlet'],
+              [bnd3, bndval3, 'dirichlet'],
+              [bnd4, bndval4, 'dirichlet']]
      
         
     """
@@ -146,7 +149,7 @@ def wave_experiment(grid_res,CACHE):
     wave_eq = {
         'd2u/dt2**1':
             {
-                'coeff': 1,
+                'coeff': 1.,
                 'd2u/dt2': [1,1],
                 'pow':1
             },
@@ -193,7 +196,7 @@ def wave_experiment(grid_res,CACHE):
     img_dir=os.path.join(os.path.dirname( __file__ ), 'wave_example_paper_img')
 
     model = Solver(grid, equation, model, 'NN').solve(lambda_bound=100,verbose=1, learning_rate=1e-4,
-                                            eps=1e-8, tmin=1000, tmax=1e6,use_cache=CACHE,cache_verbose=True,
+                                            eps=1e-8, tmin=1000, tmax=100,use_cache=CACHE,cache_verbose=True,
                                             save_always=True,print_every=None,model_randomize_parameter=1e-5,
                                             optimizer_mode='Adam',no_improvement_patience=1000,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
 
