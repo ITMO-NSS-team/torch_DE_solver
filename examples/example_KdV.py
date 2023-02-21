@@ -6,7 +6,12 @@ Created on Mon May 31 12:33:44 2021
 """
 import torch
 import numpy as np
-
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
+from mpl_toolkits.mplot3d import Axes3D
+import scipy
+import time
 import os
 import sys
 
@@ -19,15 +24,13 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 sys.path.append('../')
 
 
-from tedeous.solver import Solver
-from tedeous.metrics import Solution
-from tedeous.input_preprocessing import Equation
-import time
+from solver import Solver
+from metrics import Solution
+from input_preprocessing import Equation
+from device import solver_device
 
 
-
-
-device = torch.device('cpu')
+solver_device('gpu')
 
 exp_dict_list=[]
 
@@ -47,7 +50,6 @@ for grid_res in [10,20,30]:
     
     grid = torch.cartesian_prod(x, t).float()
     
-    grid.to(device)
     
     """
     Preparing boundary conditions (BC)
@@ -95,21 +97,21 @@ for grid_res in [10,20,30]:
     bop1 = {
         'a1*d2u/dx2':
             {
-                'a1': a1,
+                'coeff': a1,
                 'd2u/dx2': [0, 0],
                 'pow': 1,
                 'var': 0
             },
         'a2*du/dx':
             {
-                'a2': a2,
+                'coeff': a2,
                 'du/dx': [0],
                 'pow': 1,
                 'var': 0
             },
         'a3*u':
             {
-                'a3': a3,
+                'coeff': a3,
                 'u': [None],
                 'pow': 1,
                 'var': 0
@@ -132,21 +134,21 @@ for grid_res in [10,20,30]:
     bop2 = {
         'b1*d2u/dx2':
             {
-                'a1': b1,
+                'coeff': b1,
                 'd2u/dx2': [0, 0],
                 'pow': 1,
                 'var': 0 
             },
         'b2*du/dx':
             {
-                'a2': b2,
+                'coeff': b2,
                 'du/dx': [0],
                 'pow': 1,
                 'var': 0
             },
         'b3*u':
             {
-                'a3': b3,
+                'coeff': b3,
                 'u': [None],
                 'pow': 1,
                 'var':0
@@ -167,14 +169,14 @@ for grid_res in [10,20,30]:
     bop3 = {
         'r1*du/dx':
             {
-                'r1': r1,
+                'coeff': r1,
                 'du/dx': [0],
                 'pow': 1,
                 'var':0
             },
         'r2*u':
             {
-                'r2': r2,
+                'coeff': r2,
                 'u': [None],
                 'pow': 1,
                 'var': 0
@@ -199,7 +201,10 @@ for grid_res in [10,20,30]:
     
     
     # Putting all bconds together
-    bconds = [[bnd1, bop1, bndval1], [bnd2, bop2, bndval2], [bnd3, bop3, bndval3], [bnd4, bndval4]]
+    bconds = [[bnd1, bop1, bndval1, 'operator'],
+              [bnd2, bop2, bndval2, 'operator'],
+              [bnd3, bop3, bndval3, 'operator'],
+              [bnd4, bndval4, 'dirichlet']]
     
     """
     Defining kdv equation
@@ -256,7 +261,7 @@ for grid_res in [10,20,30]:
             },
         '-sin(x)cos(t)':
             {
-                '-sin(x)cos(t)': c1,
+                'coeff': c1,
                 'u': [None],
                 'pow': 0,
                 'var':0
@@ -308,7 +313,7 @@ for grid_res in [10,20,30]:
         
         end_loss = Solution(grid, equation, model, 'NN').loss_evaluation(lambda_bound=100)
     
-        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'kdv_eqn','cache':True})
+        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().cpu().numpy(),'loss':end_loss.detach().cpu().numpy(),'type':'kdv_eqn','cache':True})
         
         print('Time taken {}= {}'.format(grid_res, end - start))
         print('RMSE {}= {}'.format(grid_res, error_rmse))

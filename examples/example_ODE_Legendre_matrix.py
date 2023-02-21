@@ -7,10 +7,15 @@ Created on Mon May 31 12:33:44 2021
 import torch
 import numpy as np
 import os
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
+from mpl_toolkits.mplot3d import Axes3D
 from scipy.special import legendre
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
 import sys
+import time
+
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 
 sys.path.pop()
@@ -18,11 +23,12 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 sys.path.append('../')
 
 
-from tedeous.solver import Solver, grid_format_prepare
-from tedeous.input_preprocessing import Equation
-import time
+from solver import Solver, grid_format_prepare
+from input_preprocessing import Equation
+from metrics import Solution
+from device import solver_device
 
-device = torch.device('cpu')
+solver_device('cpu')
 
 """
 Preparing grid
@@ -86,7 +92,7 @@ for n in range(3,10):
     bop2 = {
         '1*du/dt**1':
             {
-                'coefficient': 1,
+                'coeff': 1,
                 'du/dt': [0],
                 'pow': 1
             }
@@ -96,7 +102,8 @@ for n in range(3,10):
     bndval2 = torch.from_numpy(legendre(n).deriv(1)(bnd2))
     
     # Putting all bconds together
-    bconds = [[bnd1, bndval1], [bnd2, bop2, bndval2]]
+    bconds = [[bnd1, bndval1, 'dirichlet'],
+              [bnd2, bop2, bndval2, 'operator']]
     
     """
     Defining Legendre polynomials generating equations

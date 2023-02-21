@@ -4,17 +4,24 @@ import os
 import time
 import matplotlib.pyplot as plt
 from matplotlib import cm
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
+from mpl_toolkits.mplot3d import Axes3D
+from scipy.spatial import Delaunay
+import sys
+
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
-import sys
+
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from tedeous.solver import Solver
-from tedeous.input_preprocessing import Equation
+from solver import Solver
+from input_preprocessing import Equation
+from device import solver_device, device_type
 
-device = torch.device('cpu')
+
+solver_device('cuda')
 
 p_l = 1
 v_l = 0
@@ -36,7 +43,6 @@ t = torch.from_numpy(t_grid)
 
 grid = torch.cartesian_prod(x, t).float()
 
-grid.to(device)
 
 
 ## BOUNDARY AND INITIAL CONDITIONS
@@ -86,15 +92,15 @@ bndval3_2 = torch.from_numpy(np.asarray([Ro_r for i in bnd3[:, 0]], dtype=np.flo
 
 
 # Putting all bconds together
-bconds = [[bnd1, bndval1_0, 0],
-          [bnd1, bndval1_1, 1],
-          [bnd1, bndval1_2, 2],
-          [bnd2, bndval2_0, 0],
-          [bnd2, bndval2_1, 1],
-          [bnd2, bndval2_2, 2],
-          [bnd3, bndval3_0, 0],
-          [bnd3, bndval3_1, 1],
-          [bnd3, bndval3_2, 2]]
+bconds = [[bnd1, bndval1_0, 0, 'dirichlet'],
+          [bnd1, bndval1_1, 1, 'dirichlet'],
+          [bnd1, bndval1_2, 2, 'dirichlet'],
+          [bnd2, bndval2_0, 0, 'dirichlet'],
+          [bnd2, bndval2_1, 1, 'dirichlet'],
+          [bnd2, bndval2_2, 2, 'dirichlet'],
+          [bnd3, bndval3_0, 0, 'dirichlet'],
+          [bnd3, bndval3_1, 1, 'dirichlet'],
+          [bnd3, bndval3_2, 2, 'dirichlet']]
 
 '''
 gas dynamic system equations:
@@ -104,69 +110,69 @@ Eiler's equations system for Sod test in shock tube
 gas_eq1={
         'dro/dt':
         {
-            'const': 1,
+            'coeff': 1,
             'term': [1],
-            'power': 1,
+            'pow': 1,
             'var': 2
         },
         'v*dro/dx':
         {
-            'const': 1,
+            'coeff': 1,
             'term': [[None], [0]],
-            'power': [1, 1],
+            'pow': [1, 1],
             'var': [1, 2]
         },
         'ro*dv/dx':
         {
-            'const': 1,
+            'coeff': 1,
             'term': [[None], [0]],
-            'power': [1, 1],
+            'pow': [1, 1],
             'var': [2, 1]
         }
      }
 gas_eq2 = {
         'ro*dv/dt':
         {
-            'const': 1,
+            'coeff': 1,
             'term': [[None], [1]],
-            'power': [1, 1],
+            'pow': [1, 1],
             'var': [2, 1]
         },
         'ro*v*dv/dx':
         {
-            'const': 1,
+            'coeff': 1,
             'term': [[None],[None], [0]],
-            'power': [1, 1, 1],
+            'pow': [1, 1, 1],
             'var': [2, 1, 1]
         },
         'dp/dx':
         {
-            'const': 1,
+            'coeff': 1,
             'term': [0],
-            'power': 1,
+            'pow': 1,
             'var': 0
         }
      }
 gas_eq3 =  {
         'dp/dt':
         {
-            'const': 1,
+            'coeff': 1,
             'term': [1],
-            'power': 1,
+            'pow': 1,
             'var': 0
         },
         'gam*p*dv/dx':
         {
-            'const': gam_l,
+            'coeff': gam_l,
             'term': [[None], [0]],
-            'power': [1, 1],
+            'pow': [1, 1],
             'var': [0, 1]
         },
         'v*dp/dx':
         {
-            'const': 1,
+            'coeff': 1,
             'term': [[None], [0]],
-            'power': [1, 1],
+            'pow': [1, 1],
             'var': [1, 0]
         }
 
@@ -193,12 +199,16 @@ img_dir=os.path.join(os.path.dirname( __file__ ), 'SOD_autograd_img')
 if not(os.path.isdir(img_dir)):
     os.mkdir(img_dir)
 
-model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=100, use_cache=True, verbose=True, print_every=None,
-                              cache_verbose=False, abs_loss=0.0001, learning_rate=1e-3,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
+model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=100, use_cache=True, verbose=True, print_every=1000,
+                              cache_verbose=False, save_always=True, abs_loss=0.0001, learning_rate=1e-3,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
 
 end = time.time()
 print('Time taken = {}'.format(end - start))
 
+solver_device('cpu')
+device = device_type()
+model = model.to(device)
+grid = grid.to(device)
 
 def exact(point):
     N = 100
@@ -336,3 +346,4 @@ plt.show()
 plt.title('density')
 plt.plot(grid1[:, 0], u_exact[:, 2])
 plt.plot(grid1[:, 0], model(grid1)[:, 2].detach().numpy().reshape(-1), '*')
+plt.show()

@@ -16,13 +16,14 @@ sys.path.append('../')
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver
-from tedeous.metrics import Solution
+from input_preprocessing import Equation
+from solver import Solver
+from metrics import Solution
+from device import solver_device
 import time
 
 
-device = torch.device('cpu')
+solver_device('cpu')
 
 
 def func(grid):
@@ -45,7 +46,6 @@ def heat_experiment(grid_res,CACHE):
     
     grid = torch.cartesian_prod(x, t).float()
     
-    grid.to(device)
 
     """
     Preparing boundary conditions (BC)
@@ -89,7 +89,7 @@ def heat_experiment(grid_res,CACHE):
     bop2= {
             'du/dx':
                 {
-                    'r1': 1,
+                    'coeff': 1,
                     'du/dx': [0],
                     'pow': 1
                 }
@@ -106,7 +106,9 @@ def heat_experiment(grid_res,CACHE):
     bndval3 = torch.from_numpy(np.zeros(len(bnd1), dtype=np.float64))
     
 
-    bconds = [[bnd1, bndval1], [bnd2, bop2, bndval2], [bnd3, bndval3]]
+    bconds = [[bnd1, bndval1, 'dirichlet'],
+              [bnd2, bop2, bndval2, 'operator'],
+              [bnd3, bndval3, 'dirichlet']]
      
         
     """
@@ -187,7 +189,7 @@ def heat_experiment(grid_res,CACHE):
     
     model = Solver(grid, equation, model, 'NN').solve(lambda_bound=10, verbose=2, learning_rate=1e-4,
                                     eps=1e-6, tmin=1000, tmax=1e6,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
-                                    ,save_always=True, print_every=None, model_randomize_parameter=1e-6,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
+                                    ,save_always=True, print_every=500, model_randomize_parameter=1e-6,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
     end = time.time()
     
     
