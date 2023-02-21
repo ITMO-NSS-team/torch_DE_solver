@@ -5,55 +5,43 @@ import torch.nn.functional as F
 
 
 class NN(nn.Module):
-    def __init__(self, input_layer_size, hidden_layer_sizes, output_layer_size, activations):
+    def __init__(self, input_layer_size, hidden_layer_sizes, output_layer_size, activations,
+                 fourier_features = False, sigma = None, mapping_size = None):
         super().__init__()
-        self.hidden_layers = nn.ModuleList()
-        self.activations = activations
-        self.relu = torch.nn.ReLU()
-        self.tanh = torch.nn.Tanh()
-        self.sigmoid = torch.nn.Sigmoid()
-
-        in_size = input_layer_size
-        for out_size in hidden_layer_sizes:
-            self.hidden_layers.append(nn.Linear(in_size, out_size))
-            in_size = out_size
-        self.output_layer = nn.Linear(in_size, output_layer_size)
-
-
-
-    def forward(self, x):
-        for layer in self.hidden_layers:
-            x = layer(x)
-            if self.activations == 'relu':
-                x = self.relu(x)
-            elif self.activations == 'tanh':
-                x = self.tanh(x)
-            elif self.activations == 'sigmoid':
-                x = self.sigmoid(x)
-            else:
-                raise ValueError(f"Invalid activation function: {self.activations}")
-        x = self.output_layer(x)
-        return x
-
-
-
-
-class FourierFeatureNetwork(NN):
-    def __init__(self, input_layer_size, hidden_layer_sizes, output_layer_size, activations, sigma):
-        super().__init__(input_layer_size, hidden_layer_sizes, output_layer_size, activations)
-        self.sigma = sigma
         self.input_layer_size = input_layer_size
         self.hidden_layer_sizes = hidden_layer_sizes
+        self.output_layer_size = output_layer_size
+        self.activations = activations
+        self.fourier_features = fourier_features
+        self.sigma = sigma
+        self.mapping_size = mapping_size
 
-    def get_fourier_features(self, x, sigma):
-        y = sigma * torch.normal(mean = 0, std = 1, size = [1, self.hidden_layer_sizes[0] // 2])
-        real = torch.cos(torch.mm(x, y))
-        imag = torch.sin(torch.mm(x, y))
-        fourier_features = torch.cat((real, imag), dim=1)
-        return fourier_features, y
+        if self.activations == 'relu':
+            self.activations = nn.ReLU()
+        elif self.activations == 'tanh':
+            self.activations = nn.Tanh()
 
-    def forward(self, x):
-        x, _ = self.get_fourier_features(x,self.sigma)
-        x = super().forward(x)
-        x = torch.cat(x, 1)
-        return super().forward(x)
+        if self.fourier_features:
+            self.input_layer_size = 2 * self.mapping_size
+
+        self.model = []
+        self.model.append(nn.Linear(self.input_layer_size, self.hidden_layer_sizes[0]))
+        self.model.append(self.activations)
+        for i in range(len(self.hidden_layer_sizes)):
+            self.model.append(nn.Linear(self.hidden_layer_sizes[i], self.hidden_layer_sizes[i]))
+            self.model.append(self.activations)
+        self.model.append(nn.Linear(self.hidden_layer_sizes[-1], self.output_layer_size))
+        self.model = nn.Sequential(*self.model)
+
+    def fourier_feature_mapping(self, x):
+        mapping_size = (self.mapping_size, x.shape[-1])
+        b = self.sigma * torch.normal(mean = 0, std = 1, size = mapping_size)
+        x_proj = (2.*np.pi*x) @ b.T
+        fourier_features = torch.cat([torch.sin(x_proj), torch.cos(x_proj)], dim=-1)
+        return fourier_features
+
+    def forward(self,x):
+        if self.fourier_features:
+            x = self.fourier_feature_mapping(x)
+        x = self.model(x)
+        return x
