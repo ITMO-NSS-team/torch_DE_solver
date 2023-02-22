@@ -13,7 +13,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 
 from tedeous.input_preprocessing import Equation
 from tedeous.solver import Solver
-from tedeous.metrics import Solution
+from tedeous.nn import NN
 from tedeous.device import solver_device
 
 
@@ -93,19 +93,7 @@ wave_eq = {
             }
     }
 
-model = torch.nn.Sequential(
-    torch.nn.Linear(2, 100),
-    torch.nn.ReLU(),
-    torch.nn.Linear(100, 100),
-    torch.nn.ReLU(),
-    # torch.nn.Linear(100, 100),
-    # torch.nn.ReLU(),
-    # torch.nn.Linear(100, 100),
-    # torch.nn.ReLU(),
-    torch.nn.Linear(100, 1)
-)
-
-start = time.time()
+model = NN(2,[100] * 3, 1,activations='tanh', fourier_features = True, sigma = 10, mapping_size = 256)
 
 equation = Equation(grid, wave_eq, bconds, h=h).set_strategy('NN')
 

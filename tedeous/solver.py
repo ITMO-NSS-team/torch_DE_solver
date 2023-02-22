@@ -187,7 +187,7 @@ class Solver():
             plt.show()
         plt.close()
 
-    def solve(self, lambda_bound: Union[int, float] = 10, verbose: bool = False, learning_rate: float = 1e-4,
+    def solve(self, lambda_bound: Union[int, float] = 10, adaptive_lambda = False, verbose: bool = False, learning_rate: float = 1e-4,
               eps: float = 1e-5, tmin: int = 1000, tmax: float = 1e5, nmodels: Union[int, None] = None,
               name: Union[str, None] = None, abs_loss: Union[None, float] = None, use_cache: bool = True,
               cache_dir: str = '../cache/', cache_verbose: bool = False, save_always: bool = False,
@@ -248,6 +248,7 @@ class Solver():
             Solution_class = Solution(self.grid, self.equal_cls,
                                       self.model, self.mode)
             min_loss = Solution_class.loss_evaluation(lambda_bound=lambda_bound,
+                                                      adaptive_lambda = adaptive_lambda,
                                                       weak_form=self.weak_form)
         
         optimizer = self.optimizer_choice(optimizer_mode, learning_rate)
@@ -266,7 +267,7 @@ class Solver():
             nonlocal cur_loss
             optimizer.zero_grad()
             loss = Solution_class.loss_evaluation(
-                lambda_bound = lambda_bound, weak_form=self.weak_form)
+                lambda_bound = lambda_bound,adaptive_lambda = adaptive_lambda, weak_form=self.weak_form)
             loss.backward()
             cur_loss = loss.item()
             return loss

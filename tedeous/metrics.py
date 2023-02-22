@@ -7,6 +7,7 @@ from tedeous.points_type import Points_type
 from tedeous.derivative import Derivative
 from tedeous.device import device_type, check_device
 import tedeous.input_preprocessing
+from tedeous.utils import *
 
 flatten_list = lambda t: [item for sublist in t for item in sublist]
 
@@ -243,7 +244,7 @@ class Solution():
         else:
             return torch.cat(sol_list)
 
-    def l2_loss(self, lambda_bound:  Union[int, float] = 10) -> torch.Tensor:
+    def l2_loss(self, lambda_bound:  Union[int, float] = 10, adaptive_lambda = False) -> torch.Tensor:
         """
         Computes l2 loss.
         Args:
@@ -256,6 +257,9 @@ class Solution():
             return torch.sum(torch.mean((op) ** 2, 0))
 
         b_val, true_b_val = self.apply_bconds_operator()
+
+        if adaptive_lambda:
+            lambda_bound = ComputeNTK(b_val - true_b_val, op, self.model).adapt_lambda()
 
         if self.mode == 'mat':
             loss = torch.mean((op) ** 2) + \
@@ -287,7 +291,7 @@ class Solution():
 
         return loss
 
-    def loss_evaluation(self, lambda_bound: Union[int, float] = 10, weak_form: Union[None, list] = None) -> Union[l2_loss, weak_loss]:
+    def loss_evaluation(self, lambda_bound: Union[int, float] = 10, weak_form: Union[None, list] = None, adaptive_lambda = False) -> Union[l2_loss, weak_loss]:
         """
         Setting the required loss calculation method.
         Args:
@@ -302,6 +306,6 @@ class Solution():
                 return np.inf
 
         if weak_form == None or weak_form == []:
-            return self.l2_loss(lambda_bound=lambda_bound)
+            return self.l2_loss(lambda_bound=lambda_bound, adaptive_lambda = adaptive_lambda)
         else:
             return self.weak_loss(weak_form, lambda_bound=lambda_bound)
