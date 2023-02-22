@@ -1,7 +1,5 @@
 import torch
 import numpy as np
-import matplotlib.pyplot as plt
-import scipy
 import sys
 import os
 import time
@@ -13,10 +11,9 @@ sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
 
-from solver import Solver
-from cache import Model_prepare
+from tedeous.solver import Solver
 from input_preprocessing import Equation
-from device import solver_device
+from tedeous.device import solver_device
 
 solver_device('cpu')
 # Grid

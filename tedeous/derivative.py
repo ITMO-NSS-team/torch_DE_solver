@@ -1,4 +1,5 @@
 import torch
+from typing import Any, Union
 import numpy as np
 
 
@@ -10,31 +11,24 @@ class DerivativeInt():
 
 class Derivative_NN(DerivativeInt):
     """
-    Class for taking derivatives by the 'NN' method.
-
-    Parameters:
-    -----------
-    model: torch.nn.Sequential
-        neural network
-
+    Taking numerical derivative for 'NN' method.
     """
 
-    def __init__(self, model):
+    def __init__(self, model: Any):
+        """
+        Args:
+            model: neural network.
+        """
         self.model = model
 
-    def take_derivative(self, term, *args):
+    def take_derivative(self, term: Union[list, int, torch.Tensor], *args) -> torch.Tensor:
         """
-        Nethod serves for single operator differentiation
-
-        Parameters
-        ----------
-        term : dict
-            differential operator in conventional form.
-        Returns
-        -------
-        der_term : torch.Tensor
+        Auxiliary function serves for single differential operator resulting field
+        derivation.
+        Args:
+            term: differential operator in conventional form.
+        Returns:
             resulting field, computed on a grid.
-
         """
 
         dif_dir = list(term.keys())[1]
@@ -57,13 +51,7 @@ class Derivative_NN(DerivativeInt):
 
 class Derivative_autograd(DerivativeInt):
     """
-    Class for taking derivatives by the 'autograd' method.
-
-    Parameters:
-    -----------
-    model: torch.nn.Sequential
-        neural network
-
+    Taking numerical derivative for 'autograd' method.
     """
 
     def __init__(self, model):
@@ -72,27 +60,15 @@ class Derivative_autograd(DerivativeInt):
     @staticmethod
     def nn_autograd(model, points, var, axis=[0]):
         """
-        Static Method for autograd differentiation
-
-        Parameters:
-        -----------
-        model: torch.nn.Module
-            Neural network
-        -----------
-        points: torch.Tensor
-            grid points where gradient needeed
-        -----------
-        var: int
-            in system case, var is number of desired function
-        ----------
-        axis: list
-            term of differentiation, example [0,0]->d2/dx2
-            if grid_points(x,y)
-
+        Computes derivative on the grid using autograd method.
+        Args:
+            model: neural network.
+            points: points, where numerical derivative is calculated.
+            axis: term of differentiation, example [0,0]->d2/dx2
+                  if grid_points(x,y)
         Returns:
-        ----------
-            the result of desired function deifferentiation
-            in corrsponding axis
+            the result of desired function differentiation
+                in corresponding axis.
 
         """
 
@@ -104,22 +80,15 @@ class Derivative_autograd(DerivativeInt):
         gradient_full = grads[:, axis[-1]].reshape(-1, 1)
         return gradient_full
 
-    def take_derivative(self, term, grid_points):
+    def take_derivative(self, term: dict, grid_points:  torch.Tensor) -> torch.Tensor:
         """
-        Axiluary function serves for single differential operator resulting
-        field derivation.
-
-        Parameters
-        ----------
-        model : torch.Sequential
-            Neural network.
-        term : dict
-            differential operator.
-        Returns
-        -------
-        der_term : torch.Tensor
+        Auxiliary function serves for single differential operator resulting field
+        derivation.
+        Args:
+            term: differential operator in conventional form.
+            grid_points: smth
+        Returns:
             resulting field, computed on a grid.
-
         """
 
         dif_dir = list(term.keys())[1]
@@ -144,19 +113,25 @@ class Derivative_autograd(DerivativeInt):
 
 class Derivative_mat(DerivativeInt):
     """
-    Class for taking derivatives by the 'mat' method.
-
-    Parameters:
-    -----------
-    model: torch.Tensor
-
+    Taking numerical derivative for 'mat' method.
     """
-
     def __init__(self, model):
+        """
+        Args:
+            model: random matrix.
+        """
         self.model = model
 
     @staticmethod
-    def derivative_1d(model, grid):
+    def derivative_1d(model: torch.Tensor, grid: torch.Tensor) -> torch.Tensor:
+        """
+        Computes derivative in one dimension for matrix method.
+        Args:
+            model: random matrix.
+            grid: array of a n-D points.
+        Returns:
+            computed derivative along one dimension.
+        """
         # print('1d>2d')
         u = model.reshape(-1)
         x = grid.reshape(-1)
@@ -174,7 +149,19 @@ class Derivative_mat(DerivativeInt):
         return du
 
     @staticmethod
-    def derivative(u_tensor, h_tensor, axis, scheme_order=1, boundary_order=1):
+    def derivative(u_tensor: torch.Tensor, h_tensor: torch.Tensor, axis: int,
+                   scheme_order: int = 1, boundary_order: int = 1) -> torch.Tensor:
+        """
+        Computing derivative for 'matrix' method.
+        Args:
+            u_tensor: smth.
+            h_tensor: smth.
+            axis: axis along which the derivative is calculated.
+            scheme_order: accuracy inner order for finite difference. Default = 1
+            boundary_order: accuracy boundary order for finite difference. Default = 2
+        Returns:
+            computed derivative.
+        """
         if (u_tensor.shape[0]==1):
             du = Derivative_mat.derivative_1d(u_tensor,h_tensor)
             return du
@@ -279,23 +266,15 @@ class Derivative_mat(DerivativeInt):
 
         return du
 
-    def take_derivative(self, term, grid_points):
+    def take_derivative(self, term: Any, grid_points: torch.Tensor) -> torch.Tensor:
         """
-        Axiluary function serves for single differential operator resulting
-        field derivation.
-
-        Parameters
-        ----------
-        model : torch.tensor
-
-        term : dict
-            differential operator.
-
-        Returns
-        -------
-        der_term : torch.Tensor
+        Auxiliary function serves for single differential operator resulting field
+        derivation.
+        Args:
+            term: differential operator in conventional form.
+            grid_points: grid points
+        Returns:
             resulting field, computed on a grid.
-
         """
 
         dif_dir = list(term.keys())[1]
@@ -317,10 +296,26 @@ class Derivative_mat(DerivativeInt):
 
 
 class Derivative():
+    """
+   Interface for taking numerical derivative due to chosen calculation method.
+
+   """
     def __init__(self, model):
+        """
+        Args:
+            model: neural network or matrix depending on the selected mode.
+
+        """
         self.model = model
 
-    def set_strategy(self, strategy):
+    def set_strategy(self, strategy: str) -> Union[Derivative_NN, Derivative_autograd, Derivative_mat]:
+        """
+        Setting the calculation method.
+        Args:
+            strategy: Calculation method. (i.e., "NN", "autograd", "mat").
+        Returns:
+            equation in input form for a given calculation method.
+        """
         if strategy == 'NN':
             return Derivative_NN(self.model)
 

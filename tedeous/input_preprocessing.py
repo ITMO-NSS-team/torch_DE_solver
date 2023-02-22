@@ -664,7 +664,7 @@ class Equation():
     """
     Interface for preparing equations due to chosen calculation method.
     """
-    def __init__(self, grid: torch.Tensor, operator: dict, bconds: dict, h: float = 0.001,
+    def __init__(self, grid: torch.Tensor, operator: dict, bconds: list, h: float = 0.001,
                  inner_order: str ='1', boundary_order: str ='2'):
         """
         Args:

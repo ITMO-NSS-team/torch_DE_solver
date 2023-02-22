@@ -20,11 +20,6 @@ import torch
 import numpy as np
 import os
 import time
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from mpl_toolkits.mplot3d import Axes3D
-from scipy.spatial import Delaunay
 import pandas as pd
 import sys
 
@@ -38,10 +33,10 @@ sys.path.append('../')
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from input_preprocessing import Equation
-from solver import Solver
-from metrics import Solution
-from device import solver_device
+from tedeous.input_preprocessing import Equation
+from tedeous.solver import Solver
+from tedeous.metrics import Solution
+from tedeous.device import solver_device
 
 solver_device('cpu')
 # constannts for PDE system

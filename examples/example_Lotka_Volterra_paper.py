@@ -11,7 +11,6 @@
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy
 from scipy import integrate
 import time
 import os
@@ -23,9 +22,9 @@ sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
 from input_preprocessing import Equation
-from solver import Solver
+from tedeous.solver import Solver
 from metrics import Solution
-from device import solver_device
+from tedeous.device import solver_device
 
 
 alpha = 20.

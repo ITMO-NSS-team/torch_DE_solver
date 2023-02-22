@@ -12,7 +12,7 @@ from tedeous.metrics import Solution
 import tedeous.input_preprocessing
 
 
-def grid_format_prepare(coord_list, mode='NN'):
+def grid_format_prepare(coord_list, mode='NN') -> torch.Tensor:
     """
     Prepares grid to a general form. Further, formatted grid can be processed
     by Points_type.point_typization for 'NN' and 'autograd' methods.
@@ -151,13 +151,8 @@ class Solver():
         """
         Path for save figures.
 
-        Parameters
-        ----------
-        save_dir: directory where saves in
-
-        Returns
-        -------
-
+        Args:
+            save_dir: directory where saves in
         """
         if save_dir == None:
             try:
@@ -200,7 +195,7 @@ class Solver():
               patience: int = 5, loss_oscillation_window: int = 100, no_improvement_patience: int = 1000,
               model_randomize_parameter: Union[int, float] = 0, optimizer_mode: str = 'Adam',
               step_plot_print: Union[bool, int] = False, step_plot_save: Union[bool, int] = False,
-              image_save_dir: Union[str, None] = None) -> torch.nn.Sequential:
+              image_save_dir: Union[str, None] = None) -> Any:
         """
         High-level interface for solving equations.
 
@@ -229,7 +224,7 @@ class Solver():
             image_save_dir: a directory where saved figure in.
 
         Returns:
-            neural network.
+            model.
         """
         
 

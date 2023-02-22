@@ -1,4 +1,3 @@
-
 import torch
 
 def solver_device(device):
