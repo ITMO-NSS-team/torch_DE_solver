@@ -42,6 +42,13 @@ class NN(nn.Module):
 
     def forward(self,x):
         if self.fourier_features:
-            x = self.fourier_feature_mapping(x)
+            # implements Spatio-Temporal Fourier Feature Mapping
+            if x.shape[-1] == 2:
+                x_spatial = self.fourier_feature_mapping(x[:,0].reshape(-1,1))
+                x_temporal = self.fourier_feature_mapping(x[:,1].reshape(-1,1))
+                x = torch.mul(x_spatial, x_temporal)
+            else:
+                # implements Fourier Feature Mapping
+                x = self.fourier_feature_mapping(x)
         x = self.model(x)
         return x
