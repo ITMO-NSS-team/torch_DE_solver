@@ -20,7 +20,7 @@ sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
 from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver
+from tedeous.solver import Solver, grid_format_prepare
 from tedeous.metrics import Solution
 from tedeous.device import solver_device
 
@@ -43,7 +43,7 @@ for grid_res in range(40, 110, 10):
     coord_list.append(x)
     coord_list.append(t)
 
-    grid=grid_format_prepare(coord_list,mode='mat')
+    grid = grid_format_prepare(coord_list,mode='mat')
 
 
     

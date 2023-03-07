@@ -3,7 +3,8 @@ import numpy as np
 import sys
 import os
 import time
-
+import matplotlib.pyplot as plt
+import scipy
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
@@ -12,7 +13,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 
 
 from tedeous.solver import Solver
-from input_preprocessing import Equation
+from tedeous.input_preprocessing import Equation
 from tedeous.device import solver_device
 
 solver_device('cpu')

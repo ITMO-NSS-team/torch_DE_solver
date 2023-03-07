@@ -22,7 +22,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 from tedeous.input_preprocessing import Equation
 from tedeous.solver import Solver
 from tedeous.metrics import Solution
-from tedeous.device import solver_device
+from tedeous.device import solver_device, device_type
 
 solver_device('gpu')
 

@@ -21,9 +21,9 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from input_preprocessing import Equation
+from tedeous.input_preprocessing import Equation
 from tedeous.solver import Solver
-from metrics import Solution
+from tedeous.metrics import Solution
 from tedeous.device import solver_device
 
 
