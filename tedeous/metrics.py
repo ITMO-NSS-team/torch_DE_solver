@@ -68,19 +68,18 @@ class Solution():
         elif self.mode == 'autograd' or self.mode == 'mat':
             self.sorted_grid = self.grid
 
-    def apply_operator(self, operator: list, grid_points) -> torch.Tensor:
+    def apply_operator(self, operator: list, grid_points: Union[torch.Tensor, None]) -> torch.Tensor:
         """
         Deciphers equation in a single grid subset to a field.
         Args:
-            operator: Single (len(subset)==1) operator in input form. See
+            operator: single (len(subset)==1) operator in input form. See
             input_preprocessing.operator_prepare()
-            grid_points: grid points
+            grid_points: Points, where numerical derivative is calculated. **Uses only in 'autograd' and 'mat' modes.**
         Returns:
-            smth
+            Decoded operator on a single grid subset
         """
         derivative = Derivative(self.model).set_strategy(
             self.mode).take_derivative
-
         for term in operator:
             term = operator[term]
             dif = derivative(term, grid_points)
@@ -97,7 +96,7 @@ class Solution():
             operator_set: Multiple (len(subset)>=1) operators in input form. See
             input_preprocessing.operator_prepare().
         Returns:
-            smth
+            Decoded boundary operator on the whole grid.
         """
         field_part = []
         for operator in operator_set:
@@ -105,7 +104,16 @@ class Solution():
         field_part = torch.cat(field_part)
         return field_part
 
-    def apply_dirichlet(self, bnd, var):
+    def apply_dirichlet(self, bnd: torch.Tensor, var: int) -> torch.Tensor:
+        """
+        Applies Dirichlet boundary conditions.
+
+        Args:
+            bnd: terms of prepared boundary conditions (see input_preprocessing.bnd_prepare) in input form.
+            var: indicates for which equation it is necessary to apply the boundary condition.
+        Returns:
+            calculated boundary condition.
+        """
         if self.mode == 'NN' or self.mode == 'autograd':
             b_op_val = self.model(bnd)[:, var].reshape(-1, 1)
         elif self.mode == 'mat':
@@ -118,7 +126,17 @@ class Solution():
             b_op_val = torch.cat(b_op_val).reshape(-1, 1)
         return b_op_val
 
-    def apply_neumann(self, bnd, bop):
+    def apply_neumann(self, bnd: torch.Tensor, bop: list) -> torch.Tensor:
+        """
+        Applies periodic boundary conditions.
+
+        Args:
+           bnd: terms of prepared boundary conditions (see input_preprocessing.bnd_prepare) in input form.
+           bop: terms of operator on boundary.
+        Returns:
+           calculated boundary condition.
+        """
+        print(bnd)
         if self.mode == 'NN':
             b_op_val = self.apply_bconds_set(bop)
         elif self.mode == 'autograd':
@@ -134,7 +152,17 @@ class Solution():
             b_op_val = torch.cat(b_val).reshape(-1, 1)
         return b_op_val
 
-    def apply_periodic(self, bnd, bop, var):
+    def apply_periodic(self, bnd: torch.Tensor, bop: list, var: int) -> torch.Tensor:
+        """
+        Applies periodic boundary conditions.
+
+        Args:
+           bnd: terms of prepared boundary conditions (see input_preprocessing.bnd_prepare) in input form.
+           bop: terms of operator on boundary.
+           var: indicates for which equation it is necessary to apply the boundary condition.
+        Returns:
+           calculated boundary condition
+        """
 
         if bop is None:
             b_op_val = self.apply_dirichlet(bnd[0], var).reshape(-1, 1)
@@ -180,11 +208,8 @@ class Solution():
 
         for bcond in self.prepared_bconds:
             truebval = bcond['bval'].reshape(-1, 1)
-
             true_b_val_list.append(truebval)
-
             b_op_val = self.b_op_val_calc(bcond)
-
             b_val_list.append(b_op_val)
 
         true_b_val = torch.cat(true_b_val_list)
@@ -218,7 +243,6 @@ class Solution():
 
         Args:
             weak_form: list of basis functions
-
         Returns:
             weak PDE residual.
         """
@@ -256,6 +280,7 @@ class Solution():
             return torch.sum(torch.mean((op) ** 2, 0))
 
         b_val, true_b_val = self.apply_bconds_operator()
+
 
         if self.mode == 'mat':
             loss = torch.mean((op) ** 2) + \

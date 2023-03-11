@@ -86,7 +86,7 @@ class Derivative_autograd(DerivativeInt):
         derivation.
         Args:
             term: differential operator in conventional form.
-            grid_points: smth
+            grid_points: points, where numerical derivative is calculated.
         Returns:
             resulting field, computed on a grid.
         """
