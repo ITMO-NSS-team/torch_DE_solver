@@ -20,11 +20,6 @@ import torch
 import numpy as np
 import os
 import time
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from mpl_toolkits.mplot3d import Axes3D
-from scipy.spatial import Delaunay
 import pandas as pd
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
@@ -37,10 +32,10 @@ sys.path.append('../')
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from input_preprocessing import Equation
-from solver import Solver
-from metrics import Solution
-from device import solver_device
+from tedeous.input_preprocessing import Equation
+from tedeous.solver import Solver
+from tedeous.metrics import Solution
+from tedeous.device import solver_device
 
 solver_device('cpu')
 # constannts for PDE system
@@ -225,17 +220,17 @@ def SOD_experiment(grid_res, CACHE):
 
     equation = Equation(grid, gas_eq, bconds, h=h).set_strategy('NN')
 
-    #img_dir=os.path.join(os.path.dirname( __file__ ), 'SOD_NN_img')
+    img_dir=os.path.join(os.path.dirname( __file__ ), 'SOD_NN_img')
 
-    #if not(os.path.isdir(img_dir)):
-    #    os.mkdir(img_dir)
+    if not(os.path.isdir(img_dir)):
+        os.mkdir(img_dir)
 
 
     model = Solver(grid, equation, model, 'NN', weak_form=weak_form).solve(
                                 lambda_bound=100, verbose=True, learning_rate=1e-2,
                                 eps=1e-6, tmin=1000, tmax=1e5, use_cache=CACHE, cache_dir='../cache/', cache_verbose=False,
                                 save_always=True, patience=2, abs_loss=0.0035, no_improvement_patience=500,print_every=None,
-                                model_randomize_parameter=1e-5)
+                                model_randomize_parameter=1e-5,step_plot_save=True, image_save_dir=img_dir)
 
     end = time.time()
 

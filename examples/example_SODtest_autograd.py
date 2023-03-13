@@ -16,9 +16,10 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from solver import Solver
-from input_preprocessing import Equation
-from device import solver_device, device_type
+from tedeous.input_preprocessing import Equation
+from tedeous.solver import Solver
+from tedeous.metrics import Solution
+from tedeous.device import solver_device, device_type
 
 
 solver_device('cuda')

@@ -4,8 +4,6 @@ Created on Mon May 31 12:33:44 2021
 
 @author: user
 """
-import torch
-import numpy as np
 import os
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
@@ -16,9 +14,9 @@ sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 sys.path.append('../')
 
-from solver import *
+from tedeous.solver import *
 # from cache import *
-from config import Config
+from tedeous.config import Config
 import time
 
 """

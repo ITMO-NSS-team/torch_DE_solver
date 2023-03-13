@@ -22,9 +22,9 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from input_preprocessing import Equation
-from solver import Solver
-from device import solver_device
+from tedeous.input_preprocessing import Equation
+from tedeous.solver import Solver
+from tedeous.device import solver_device
 
 
 solver_device('сpu')

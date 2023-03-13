@@ -4,10 +4,6 @@ Created on Mon May 31 12:33:44 2021
 
 @author: user
 """
-import torch
-import numpy as np
-import matplotlib.pyplot as plt
-import scipy
 
 import os
 
@@ -19,9 +15,7 @@ import sys
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-
-from solver import *
-from cache import *
+from tedeous.cache import *
 import time
 
 """

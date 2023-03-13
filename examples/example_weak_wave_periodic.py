@@ -1,11 +1,10 @@
 import torch
 import numpy as np
-import matplotlib.pyplot as plt
-import scipy
 import sys
 import os
 import time
-
+import matplotlib.pyplot as plt
+import scipy
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
@@ -13,10 +12,9 @@ sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
 
-from solver import Solver
-from cache import Model_prepare
-from input_preprocessing import Equation
-from device import solver_device
+from tedeous.solver import Solver
+from tedeous.input_preprocessing import Equation
+from tedeous.device import solver_device
 
 solver_device('cpu')
 # Grid
