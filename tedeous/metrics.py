@@ -136,7 +136,6 @@ class Solution():
         Returns:
            calculated boundary condition.
         """
-        print(bnd)
         if self.mode == 'NN':
             b_op_val = self.apply_bconds_set(bop)
         elif self.mode == 'autograd':
