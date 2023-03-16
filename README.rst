@@ -19,7 +19,6 @@ Table of Contents
 - `Documentation <Documentation_>`_
 - `Getting started <Getting started_>`_
 - `License <License_>`_
-- `Acknowledgments <Acknowledgments_>`_
 - `Contacts <Contacts_>`_
 - `Citation <Citation_>`_
 
