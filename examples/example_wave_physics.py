@@ -30,18 +30,14 @@ Grid is an essentially torch.Tensor  of a n-D points where n is the problem
 dimensionality
 """
 
-solver_device('cpu')
+solver_device('gpu')
 
 
-
-A = 2
-C = (10.)**(0.5)
 
 def func(grid):
     x, t = grid[:,0],grid[:,1]
-    return torch.sin(np.pi * x) * torch.cos(C * np.pi * t) + torch.sin(A * np.pi * x) * torch.cos(
-        A * C * np.pi * t
-    )
+    sln=np.cos(2*np.pi*t)*np.sin(np.pi*x)
+    return sln
 
 def wave_experiment(grid_res,CACHE):
     
@@ -54,7 +50,7 @@ def wave_experiment(grid_res,CACHE):
     x = torch.from_numpy(x_grid)
     t = torch.from_numpy(t_grid)
     
-    h=abs((t[1]-t[0]).item())
+    #h=abs((t[1]-t[0]).item())
 
     grid = torch.cartesian_prod(x, t).float()
     
@@ -93,12 +89,28 @@ def wave_experiment(grid_res,CACHE):
     # u(0,x)=sin(pi*x)
     bndval1 = func(bnd1)
     
-    # Initial conditions at t=1
-    bnd2 = torch.cartesian_prod(x, torch.from_numpy(np.array([1], dtype=np.float64))).float()
     
-    # u(1,x)=sin(pi*x)
-    bndval2 = func(bnd2)
+
+    ## Initial conditions at t=1
+    #bnd2 = torch.cartesian_prod(x, torch.from_numpy(np.array([1], dtype=np.float64))).float()
     
+    ## u(1,x)=sin(pi*x)
+    #bndval2 = func(bnd2)
+    
+    bnd2 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
+
+    bop2 = {
+    'du/dt':
+        {
+            'coeff': 1,
+            'du/dx': [1],
+            'pow': 1,
+            'var':0
+        }
+        }
+
+    bndval2=torch.from_numpy(np.zeros(len(bnd2), dtype=np.float64))
+
     # Boundary conditions at x=0
     bnd3 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t).float()
     
@@ -107,15 +119,22 @@ def wave_experiment(grid_res,CACHE):
     
     # Boundary conditions at x=1
     bnd4 = torch.cartesian_prod(torch.from_numpy(np.array([1], dtype=np.float64)), t).float()
+
     
     # u(1,t)=0
     bndval4 = func(bnd4)
-    
+
+
+
+
+
     # Putting all bconds together
     bconds = [[bnd1, bndval1, 'dirichlet'],
-              [bnd2, bndval2, 'dirichlet'],
+              #[bnd2, bndval2, 'dirichlet'],
+              [bnd2,bop2, bndval2, 'operator'],
               [bnd3, bndval3, 'dirichlet'],
-              [bnd4, bndval4, 'dirichlet']]
+              [bnd4, bndval4, 'dirichlet'],
+              ]
      
         
     """
@@ -155,62 +174,57 @@ def wave_experiment(grid_res,CACHE):
             },
             '-C*d2u/dx2**1':
             {
-                'coeff': -C**2,
+                'coeff': -4,
                 'd2u/dx2': [0, 0],
                 'pow': 1
             }
     }
 
 
-    # model = torch.nn.Sequential(
-    #     torch.nn.Linear(2, 100),
-    #     torch.nn.Tanh(),
-    #     torch.nn.Linear(100, 100),
-    #     torch.nn.Tanh(),
-    #     torch.nn.Linear(100, 100),
-    #     torch.nn.Tanh(),
-    #     torch.nn.Linear(100, 100),
-    #     torch.nn.Tanh(),
-    #     torch.nn.Linear(100, 1)
-    # )
-
     model = torch.nn.Sequential(
-        torch.nn.Linear(2, 100),
-        torch.nn.ReLU(),
-        torch.nn.Linear(100, 100),
-        torch.nn.ReLU(),
-        # torch.nn.Linear(100, 100),
-        # torch.nn.ReLU(),
-        # torch.nn.Linear(100, 100),
-        # torch.nn.ReLU(),
-        torch.nn.Linear(100, 1)
-    )
+         torch.nn.Linear(2, 100),
+         torch.nn.Tanh(),
+         torch.nn.Linear(100, 100),
+         torch.nn.Tanh(),
+         torch.nn.Linear(100, 100),
+         torch.nn.Tanh(),
+         torch.nn.Linear(100, 100),
+         torch.nn.Tanh(),
+         torch.nn.Linear(100, 1)
+     )
+
 
 
     
+
+
     start = time.time()
-    
+        
+    equation = Equation(grid, wave_eq, bconds).set_strategy('NN')
 
-    equation = Equation(grid, wave_eq, bconds,h=h).set_strategy('NN')
-    
-    img_dir=os.path.join(os.path.dirname( __file__ ), 'wave_example_paper_img')
+    img_dir=os.path.join(os.path.dirname( __file__ ), 'wave_example_physics_img')
+
+    if not(os.path.isdir(img_dir)):
+        os.mkdir(img_dir)
+
+
 
     model = Solver(grid, equation, model, 'NN').solve(lambda_bound=100,verbose=1, learning_rate=1e-4,
-                                            eps=1e-8, tmin=1000, tmax=100,use_cache=CACHE,cache_verbose=True,
-                                            save_always=True,print_every=None,model_randomize_parameter=1e-5,
-                                            optimizer_mode='Adam',no_improvement_patience=1000,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
+                                                eps=1e-6, tmin=1000, tmax=1e5,use_cache=True,cache_verbose=True,
+                                                save_always=True,print_every=None,model_randomize_parameter=1e-6,
+                                                optimizer_mode='Adam',no_improvement_patience=1000,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
 
-
-    end = time.time()
         
-    error_rmse=torch.sqrt(torch.mean((func(grid)-model(grid))**2))
-      
+    end = time.time()
+    
+
+    error_rmse=torch.sqrt(torch.mean((func(grid).reshape(-1,1)-model(grid))**2))
+    
         
     end_loss = Solution(grid, equation, model, 'NN').loss_evaluation(lambda_bound=100)
     
-    exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'kdv_eqn','cache':True})
+    exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().cpu().numpy(),'loss':end_loss.detach().cpu().numpy(),'type':'wave_eqn_physical','cache':True})
         
-    
     print('Time taken {}= {}'.format(grid_res, end - start))
     print('RMSE {}= {}'.format(grid_res, error_rmse))
     print('loss {}= {}'.format(grid_res, end_loss))
@@ -229,10 +243,10 @@ for grid_res in range(10,101,10):
    
 
         
-#import pandas as pd
+import pandas as pd
 
-#exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-#df=pd.DataFrame(exp_dict_list_flatten)
+exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+df=pd.DataFrame(exp_dict_list_flatten)
 #df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
 #df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
-#df.to_csv('benchmarking_data/wave_experiment_10_50_cache={}.csv'.format(str(CACHE)))
+df.to_csv('examples/benchmarking_data/wave_experiment_physical_10_100_cache={}.csv'.format(str(CACHE)))

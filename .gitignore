@@ -139,6 +139,7 @@ img/
 #wave_img/
 *.png
 *.csv
+*.eps
 # exception for docs images
 !docs/img/
 docs/img/*

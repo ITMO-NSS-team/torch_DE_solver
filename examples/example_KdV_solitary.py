@@ -37,10 +37,10 @@ exp_dict_list=[]
 
 def soliton(x,t):
     E=np.exp(1)
-    s=-((18*E**((1/125)*(t + 25*x))*(16*E**(2*t) + 
-       1000*E**((126*t)/125 + (4*x)/5) + 9*E**(2*x) + 576*E**(t + x) + 
-       90*E**((124*t)/125 + (6*x)/5)))/(5*(40*E**((126*t)/125) + 
-        18*E**(t + x/5) + 9*E**((6*x)/5) + 45*E**(t/125 + x))**2))
+    s=-((18*np.exp((1/125)*(t + 25*x))*(16*np.exp(2*t) + 
+       1000*np.exp((126*t)/125 + (4*x)/5) + 9*np.exp(2*x) + 576*np.exp(t + x) + 
+       90*np.exp((124*t)/125 + (6*x)/5)))/(5*(40*np.exp((126*t)/125) + 
+        18*np.exp(t + x/5) + 9*np.exp((6*x)/5) + 45*np.exp(t/125 + x))**2))
     return s
 
 def soliton_x(x,t):
@@ -56,7 +56,7 @@ def soliton_x(x,t):
       18*E**(t + x/5) + 9*E**((6*x)/5) + 45*E**(t/125 + x))**3)
     return s1
 
-for grid_res in [10,20,30]:
+for grid_res in [30,50,100]:
     
     """
     Preparing grid
@@ -107,7 +107,9 @@ for grid_res in [10,20,30]:
     bnd1 = torch.cartesian_prod(torch.from_numpy(np.array([-10], dtype=np.float64)), t).float()
     
     # equal to zero
-    bndval1 = torch.zeros(len(bnd1))
+    #bndval1 = torch.zeros(len(bnd1))
+
+    bndval1 = soliton(-10,t)
     
     """
     Boundary x=10
@@ -117,7 +119,9 @@ for grid_res in [10,20,30]:
     bnd2 = torch.cartesian_prod(torch.from_numpy(np.array([10], dtype=np.float64)), t).float()
     
     # equal to zero
-    bndval2 = torch.zeros(len(bnd1))
+    #bndval2 = torch.zeros(len(bnd1))
+
+    bndval2 = soliton(10,t)
     
     """
     Another boundary x=1
@@ -185,9 +189,6 @@ for grid_res in [10,20,30]:
     
     """
     
-    # -sin(x)cos(t)
-    def c1(grid):
-        return (-1) * torch.sin(grid[:, 0]) * torch.cos(grid[:, 1])
     
     # operator is du/dt+6u*(du/dx)+d3u/dx3-sin(x)*cos(t)=0
     kdv = {
@@ -224,7 +225,14 @@ for grid_res in [10,20,30]:
         sln_torch=torch.Tensor([soliton(point[0],point[1]) for point in grid]).detach().cpu()
         sln_torch1=sln_torch.reshape(-1,1)
         
-        
+        #fig = plt.figure()
+        #ax = fig.add_subplot(projection='3d')
+
+        #ax.plot_trisurf(grid[:, 0],grid[:, 1],
+        #                     sln_torch,
+        #                    cmap=cm.jet, linewidth=0.2, alpha=1)
+        #plt.show()
+
         model = torch.nn.Sequential(
             torch.nn.Linear(2, 100),
             torch.nn.Tanh(),
@@ -247,7 +255,7 @@ for grid_res in [10,20,30]:
 
 
         model = Solver(grid, equation, model, 'NN').solve(lambda_bound=100,verbose=1, learning_rate=1e-4,
-                                                    eps=1e-5, tmin=1000, tmax=1e5,use_cache=True,cache_verbose=True,
+                                                    eps=1e-6, tmin=1000, tmax=1e5,use_cache=True,cache_verbose=True,
                                                     save_always=True,print_every=None,model_randomize_parameter=1e-6,
                                                     optimizer_mode='Adam',no_improvement_patience=1000,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
 
@@ -260,7 +268,7 @@ for grid_res in [10,20,30]:
         
         end_loss = Solution(grid, equation, model, 'NN').loss_evaluation(lambda_bound=100)
     
-        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().cpu().numpy(),'loss':end_loss.detach().cpu().numpy(),'type':'kdv_eqn','cache':True})
+        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().cpu().numpy(),'loss':end_loss.detach().cpu().numpy(),'type':'kdv_eqn_solitary','cache':True})
         
         print('Time taken {}= {}'.format(grid_res, end - start))
         print('RMSE {}= {}'.format(grid_res, error_rmse))
@@ -277,5 +285,5 @@ result_assessment.boxplot(by='grid_res',column='time',showfliers=False,figsize=(
 
 result_assessment.boxplot(by='grid_res',column='RMSE',figsize=(20,10),fontsize=42)
 
-result_assessment.to_csv('benchmarking_data/kdv_solitary_experiment_10_30_cache={}.csv'.format(str(CACHE)))
+result_assessment.to_csv('examples/benchmarking_data/kdv_solitary_experiment_30_100_cache={}.csv'.format(str(CACHE)))
 

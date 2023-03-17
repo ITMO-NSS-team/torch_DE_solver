@@ -208,3 +208,26 @@ sns.boxplot(ax=axes[1,2],x='grid_res', y='time', data=kdv_df, showfliers=False,h
 axes[1,2].set_title('KdV Time')
 
 plt.savefig('PDE_exps.eps', format='eps',bbox_inches='tight')
+
+
+
+df_kdv_solitary=pd.read_csv('benchmarking_data/kdv_solitary_experiment_30_100_cache=True.csv',index_col=0)
+
+fig, axes = plt.subplots(1, 2, figsize=(40,20))
+
+sns.boxplot(ax=axes[0],x='grid_res', y='time', data=df_kdv_solitary, showfliers=False, hue='type')
+
+sns.boxplot(ax=axes[1],x='grid_res', y='RMSE', data=df_kdv_solitary, showfliers=False, hue='type')
+
+plt.savefig('kdv_solitary.eps', format='eps',bbox_inches='tight')
+
+
+df_kdv_solitary=pd.read_csv('benchmarking_data/wave_experiment_physical_10_100_cache=True.csv',index_col=0)
+
+fig, axes = plt.subplots(1, 2, figsize=(40,20))
+
+sns.boxplot(ax=axes[0],x='grid_res', y='time', data=df_kdv_solitary, showfliers=False, hue='type')
+
+sns.boxplot(ax=axes[1],x='grid_res', y='RMSE', data=df_kdv_solitary, showfliers=False, hue='type')
+
+plt.savefig('wave_physics.eps', format='eps',bbox_inches='tight')
