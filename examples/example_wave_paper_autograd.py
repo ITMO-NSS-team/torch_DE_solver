@@ -22,7 +22,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 from tedeous.input_preprocessing import Equation
 from tedeous.solver import Solver
 from tedeous.metrics import Solution
-from tedeous.device import solver_device
+from tedeous.device import solver_device,check_device
 
 
 solver_device('cuda')
@@ -32,7 +32,7 @@ solver_device('cuda')
 
 exp_dict_list=[]
 
-for grid_res in range(40, 110, 10):
+for grid_res in range(20, 110, 10):
     x = torch.from_numpy(np.linspace(0, 1, grid_res + 1))
     t = torch.from_numpy(np.linspace(0, 1, grid_res + 1))
 
@@ -140,13 +140,13 @@ for grid_res in range(40, 110, 10):
         start = time.time()
         
         model = torch.nn.Sequential(
-            torch.nn.Linear(2, 256),
+            torch.nn.Linear(2, 100),
             torch.nn.Tanh(),
-            torch.nn.Linear(256, 64),
+            torch.nn.Linear(100, 100),
             torch.nn.Tanh(),
-            torch.nn.Linear(64, 1024),
+            torch.nn.Linear(100, 100),
             torch.nn.Tanh(),
-            torch.nn.Linear(1024, 1)
+            torch.nn.Linear(100, 1)
         )
 
         equation = Equation(grid, wave_eq, bconds).set_strategy('autograd')
@@ -164,21 +164,23 @@ for grid_res in range(40, 110, 10):
     
         end = time.time()
 
-        #model = torch.transpose(model, 0, 1)
-        error_rmse = np.sqrt(np.mean((sln.reshape(-1) - model.detach().numpy().reshape(-1)) ** 2))
-
-        Solver(grid, equation,model,'mat').solution_print(title='final_solution',solution_print=False,solution_save=True,save_dir=img_dir)
+        error_rmse = np.sqrt(np.mean((sln.reshape(-1) - model(check_device(grid)).detach().cpu().numpy().reshape(-1)) ** 2))
 
 
-        end_loss = Solution(grid, equation, model, 'mat').loss_evaluation(lambda_bound=100)
-        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse,'loss':end_loss.detach().numpy(),'type':'wave_eqn'})
+
+        end_loss = Solution(grid, equation, model, 'autograd').loss_evaluation(lambda_bound=100)
+        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse,'loss':end_loss.detach().cpu().numpy(),'type':'wave_eqn'})
         
         print('Time taken {}= {}'.format(grid_res, end - start))
         print('RMSE {}= {}'.format(grid_res, error_rmse))
         print('loss {}= {}'.format(grid_res, end_loss))
 
+
+#import pandas as pd
+#CACHE=True
+
 #result_assessment=pd.DataFrame(exp_dict_list)
-#result_assessment.to_csv('results_wave_matrix_.csv')
+#result_assessment.to_csv('examples/benchmarking_data/wave_experiment_2_20_100_cache={}.csv'.format(CACHE))
 
 #result_assessment.boxplot(by='grid_res',column='time',showfliers=False,figsize=(20,10),fontsize=42)
 
