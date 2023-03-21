@@ -36,9 +36,7 @@ Core features
 Installation
 ------------
 
-TEDEouS can be installed with ``pip``:
-
-.. code-block::
+TEDEouS can be installed with ``pip``::
 
 $ git clone https://github.com/ITMO-NSS-team/torch_DE_solver.git
 $ cd torch_DE_solver
