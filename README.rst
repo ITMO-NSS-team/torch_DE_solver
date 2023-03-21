@@ -67,7 +67,7 @@ https://torch-de-solver.readthedocs.io/en/docs/index.html
 
 Getting started
 ---------------
-Tutorials if any
+Schroedinger equation example step-by-step https://torch-de-solver.readthedocs.io/en/docs/tedeous/examples/schrodinger.html 
 
 License
 -------
