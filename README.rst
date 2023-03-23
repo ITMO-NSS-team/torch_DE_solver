@@ -61,7 +61,7 @@ or ::
 
 $ python example_ODE_Legendre_autograd.py
 
-* Panleve transcendents (others are places in examples\to_renew folder due to the architecture change)
+* Panleve transcendents (others are places in 'examples\\to_renew' folder due to the architecture change)
 ::
 
 $ python example_Painleve_I.py
