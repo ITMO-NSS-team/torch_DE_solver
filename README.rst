@@ -47,7 +47,9 @@ Examples
 ------------
 After the TEDEouS is installed the user may refer to various examples that are in examples forlder. Every examples are designed such that the boxplots of the launches are commented and the preliminary results are not shown, but stored in separate folders.
 
-* Legendre polynomial equation ::
+* Legendre polynomial equation 
+
+::
 
 $ python example_ODE_Legendre.py
 
@@ -55,31 +57,38 @@ or ::
 
 $ python example_ODE_Legendre_autograd.py
 
-* Panleve transcendents (others are places in examples\to_renew folder due to the architecture change) ::
+* Panleve transcendents (others are places in examples\to_renew folder due to the architecture change)
+::
 
 $ python example_Painleve_I.py
 
-* Wave equation (non-physical conditions for equation discovery problem) ::
+* Wave equation (non-physical conditions for equation discovery problem) 
+::
 
 $ python example_wave_paper_autograd.py
 
-* Wave equation (initial-boundary value problem) ::
+* Wave equation (initial-boundary value problem) 
+::
 
 $ python example_wave_physics.py
 
-* Heat equation ::
+* Heat equation 
+::
 
 $ python example_heat.py
 
-* KdV equation (non-physical conditions for equation discovery problem) ::
+* KdV equation (non-physical conditions for equation discovery problem) 
+::
 
 $ python example_KdV.py
 
-* KdV equation (solitary solution with periodic boundary conditions) ::
+* KdV equation (solitary solution with periodic boundary conditions) 
+::
 
 $ python example_KdV_periodic.py
 
-* Burgers equation and DeepXDE comparison
+* Burgers equation and DeepXDE comparison 
+::
 
 $ python WIP
 
