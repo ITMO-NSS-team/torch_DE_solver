@@ -182,7 +182,7 @@ def compute_adaptive_lambdas(model):
 
     lr=slr/sl
 
-    return lb,lr
+    return float(lb),float(lr)
 
 
 
@@ -192,10 +192,14 @@ t=0
 
 print('t={}, lb={},lr={}'.format(t,lb,lr))
 
+from copy import deepcopy
+
+grid1=deepcopy(grid)
+
 def closure():
     #nonlocal cur_loss
     optimizer.zero_grad()
-    loss =lb*wave_op(model, grid)+lr*bnd_op(model)
+    loss =lb*wave_op(model, grid1)+lr*bnd_op(model)
     loss.backward()
     #cur_loss = loss.item()
     return loss
@@ -206,8 +210,8 @@ while curr_loss>1e-3:
     loss=optimizer.step(closure)
     curr_loss=loss.item()
     lb,lr=compute_adaptive_lambdas(model)
-    print('t={}, lb={},lr={},loss={}'.format(t,lb,lr,curr_loss))
     t+=1
+    print('t={}, lb={},lr={},loss={}'.format(t,lb,lr,curr_loss))
     if t>5e4:
         break
 
