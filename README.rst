@@ -45,7 +45,11 @@ $ pip install -r requirements.txt
 
 Examples
 ------------
-After the TEDEouS is installed the user may refer to various examples that are in examples forlder. Every examples are designed such that the boxplots of the launches are commented and the preliminary results are not shown, but stored in separate folders.
+After the TEDEouS is installed the user may refer to various examples that are in examples forlder. ::
+
+$ cd examples
+
+Every example is designed such that the boxplots of the launches are commented and the preliminary results are not shown, but stored in separate folders.
 
 * Legendre polynomial equation 
 
