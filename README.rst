@@ -45,19 +45,49 @@ $ pip install -r requirements.txt
 
 Examples
 ------------
-Describe examples how it should work and should be used.
-Images, GIFs and code cells are welcome.
+After the TEDEouS is installed the user may refer to various examples that are in examples forlder. Every examples are designed such that the boxplots of the launches are commented and the preliminary results are not shown, but stored in separate folders.
+
+* Legendre polynomial equation ::
+
+$ python example_ODE_Legendre.py
+
+or ::
+
+$ python example_ODE_Legendre_autograd.py
+
+* Panleve transcendents (others are places in examples\to_renew folder due to the architecture change) ::
+
+$ python example_Painleve_I.py
+
+* Wave equation (non-physical conditions for equation discovery problem) ::
+
+$ python example_wave_paper_autograd.py
+
+* Wave equation (initial-boundary value problem) ::
+
+$ python example_wave_physics.py
+
+* Heat equation ::
+
+$ python example_heat.py
+
+* KdV equation (non-physical conditions for equation discovery problem) ::
+
+$ python example_KdV.py
+
+* KdV equation (solitary solution with periodic boundary conditions) ::
+
+$ python example_KdV_periodic.py
+
+* Burgers equation and DeepXDE comparison
+
+$ python WIP
 
 
 Project Structure
 -----------------
-Stable version is located ...
+Stable version is located in the master branch.
 
-Repo includes:
-
-* package 1 - explanation
-* package 2 - explanation
-* etc.
 
 Documentation
 -------------
@@ -74,8 +104,6 @@ Link to the license
 
 Contacts
 --------
-Your contacts. For example:
-
 - Feel free to make issues or contact @SuperSashka directly
 
 Citation
