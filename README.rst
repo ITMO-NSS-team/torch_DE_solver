@@ -94,7 +94,7 @@ $ python example_KdV_periodic.py
 * Burgers equation and DeepXDE comparison 
 ::
 
-$ python WIP
+$ python example_Burgers_paper.py
 
 
 Project Structure
