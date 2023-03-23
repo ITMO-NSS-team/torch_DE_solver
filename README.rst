@@ -112,7 +112,7 @@ Schroedinger equation example step-by-step https://torch-de-solver.readthedocs.i
 
 License
 -------
-Link to the license
+TEDEouS is distributed under BSD-3 licence found in LICENCE file
 
 
 Contacts
