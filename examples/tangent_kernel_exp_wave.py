@@ -80,7 +80,7 @@ model = torch.nn.Sequential(
     torch.nn.Linear(100, 1)
 )
 
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
 
 
 def wave_op(model,points):
@@ -95,102 +95,78 @@ def bnd_op(model):
 
 #print(grid.shape)
 
+
+
+#K_uu,K_rr,K=compute_K(model)
+
+
+
 def compute_K(model):
 
-    K_uu=torch.zeros(grid.shape[0],grid.shape[0])
+    optimizer.zero_grad()
+
+    K_uu=torch.zeros(grid.shape[0])
 
     for i in range(grid.shape[0]):
-        for j in range(i+1):
             #print("i={},j={}".format(i,j))
             w_loss_1=wave_op(model,grid[i].reshape(1,-1))
-            w_loss_1.backward(retain_graph=True)
+            w_loss_1.backward()
             weights_1 = [w.grad.reshape(-1) if w.grad is not None else torch.tensor([0]) for w in model.parameters()]
             weights_1_cat=torch.cat(weights_1)
 
-            w_loss_2=wave_op(model,grid[j].reshape(1,-1))
-            w_loss_2.backward(retain_graph=True)
-            weights_2 = [w.grad.reshape(-1) if w.grad is not None else torch.tensor([0]) for w in model.parameters()]
-            weights_2_cat=torch.cat(weights_2)
-
-            K_uu[i,j]=torch.dot(weights_1_cat,weights_2_cat)
-            K_uu[j,i]=K_uu[i,j]
-
+            K_uu[i]=torch.dot(weights_1_cat,weights_1_cat)
+            optimizer.zero_grad()
 
 
 
     bnd_pts=torch.cat((bnd1,bnd2,bnd3,bnd4))
 
-    K_rr=torch.zeros(bnd_pts.shape[0],bnd_pts.shape[0])
+    K_rr=torch.zeros(bnd_pts.shape[0])
 
     for i in range(bnd_pts.shape[0]):
-        for j in range(i+1):
             #print("i={},j={}".format(i,j))
             w_loss_1=model(bnd_pts[i])
-            w_loss_1.backward(retain_graph=True)
+            w_loss_1.backward()
             weights_1 = [w.grad.reshape(-1) if w.grad is not None else torch.tensor([0]) for w in model.parameters()]
             weights_1_cat=torch.cat(weights_1)
 
-            w_loss_2=model(bnd_pts[j])
-            w_loss_2.backward(retain_graph=True)
-            weights_2 = [w.grad.reshape(-1) if w.grad is not None else torch.tensor([0]) for w in model.parameters()]
-            weights_2_cat=torch.cat(weights_2)
-
-            K_rr[i,j]=torch.dot(weights_1_cat,weights_2_cat)
-            K_rr[j,i]=K_rr[i,j]
+            K_rr[i]=torch.dot(weights_1_cat,weights_1_cat)
+            optimizer.zero_grad()
+    
+    return K_uu,K_rr
 
 
-
-    K_ru=torch.zeros(bnd_pts.shape[0],grid.shape[0])
-
-    for i in range(bnd_pts.shape[0]):
-        for j in range(grid.shape[0]):
-            #print("i={},j={}".format(i,j))
-            w_loss_1=model(bnd_pts[i])
-            w_loss_1.backward(retain_graph=True)
-            weights_1 = [w.grad.reshape(-1) if w.grad is not None else torch.tensor([0]) for w in model.parameters()]
-            weights_1_cat=torch.cat(weights_1)
-
-            w_loss_2=wave_op(model,grid[j].reshape(1,-1))
-            w_loss_2.backward(retain_graph=True)
-            weights_2 = [w.grad.reshape(-1) if w.grad is not None else torch.tensor([0]) for w in model.parameters()]
-            weights_2_cat=torch.cat(weights_2)
-
-            K_ru[i,j]=torch.dot(weights_1_cat,weights_2_cat)
-
-
-    K_ur=torch.transpose(K_ru,0,1)
-
-
-    K_1=torch.cat((K_uu,K_ru))
-
-    K_2=torch.cat((K_ur,K_rr))
-
-    K=torch.cat((K_1,K_2),dim=1)
-
-    return K_uu,K_rr,K
-
-#K_uu,K_rr,K=compute_K(model)
 
 
 def compute_adaptive_lambdas(model):
-    K_uu,K_rr,K=compute_K(model)
-    slb=torch.trace(K_uu)
-    slr=torch.trace(K_rr)
-    sl=torch.trace(K)
+    K_uu,K_rr=compute_K(model)
+    slb=K_uu.sum()
+    slr=K_rr.sum()
 
-    lb=slb/sl
+    lb=(slb+slr)/slb
 
-    lr=slr/sl
+    lr=(slb+slr)/slr
 
-    return float(lb),float(lr)
+    return lb,lr
 
+#lb,lr=compute_adaptive_lambdas(model)
 
+#t=0
+
+#print('t={}, lb={},lr={}'.format(t,lb,lr))
+
+#lb,lr=compute_adaptive_lambdas_2(model)
+
+#t=0
+
+#print('t={}, lb={},lr={}'.format(t,lb,lr))
 
 lb,lr=compute_adaptive_lambdas(model)
 
 t=0
 
 print('t={}, lb={},lr={}'.format(t,lb,lr))
+
 
 from copy import deepcopy
 
@@ -199,33 +175,38 @@ grid1=deepcopy(grid)
 def closure():
     #nonlocal cur_loss
     optimizer.zero_grad()
-    loss =lb*wave_op(model, grid1)+lr*bnd_op(model)
+    loss =lr*wave_op(model, grid1)+lb*bnd_op(model)
     loss.backward()
     #cur_loss = loss.item()
     return loss
 
 curr_loss=10e5
 
-while curr_loss>1e-3:
+while abs(lb-lr)>1e-3:
     loss=optimizer.step(closure)
     curr_loss=loss.item()
-    lb,lr=compute_adaptive_lambdas(model)
     t+=1
     print('t={}, lb={},lr={},loss={}'.format(t,lb,lr,curr_loss))
-    if t>5e4:
+    lb,lr=compute_adaptive_lambdas(model)
+    if t>1e4:
         break
 
+import matplotlib.pyplot as plt
 
-#print(weights_1)
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.plot_trisurf(grid1[:,0].reshape(-1).detach().cpu().numpy(),
+                grid1[:,1].reshape(-1).detach().cpu().numpy(),
+                model(grid1).reshape(-1).detach().cpu().numpy(),
+                cmap=plt.cm.jet, linewidth=0.2, alpha=1)
+ax.set_xlabel("x1")
+ax.set_ylabel("x2")
+
+plt.show()
+
 
 #lambda_bound=100
 
-#min_loss=wave_op(model,grid)
-
-
-#print(min_loss)
-
-##cur_loss=min_loss
 
 #def closure():
 #    #nonlocal cur_loss
@@ -245,7 +226,7 @@ while curr_loss>1e-3:
 #    curr_loss=loss.item()
 #    if t % 1000==0: print("t={}, loss={}".format(t,curr_loss))
 #    t+=1
-#    if t>5e4:
+#    if t>1e4:
 #        break
 
 #import matplotlib.pyplot as plt
