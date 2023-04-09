@@ -122,16 +122,19 @@ Contacts
 Citation
 --------
 
+::
 
-@article{hvatov2023solver,
-AUTHOR = {Hvatov, Alexander},
-TITLE = {Automated Differential Equation Solver Based on the Parametric Approximation Optimization},
-JOURNAL = {Mathematics},
-VOLUME = {11},
-YEAR = {2023},
-NUMBER = {8},
-ARTICLE-NUMBER = {1787},
-URL = {https://www.mdpi.com/2227-7390/11/8/1787},
-ISSN = {2227-7390},
-DOI = {10.3390/math11081787}
-}
+  @article{hvatov2023solver,
+  AUTHOR = {Hvatov, Alexander},
+  TITLE = {Automated Differential Equation Solver Based on the Parametric Approximation Optimization},
+  JOURNAL = {Mathematics},
+  VOLUME = {11},
+  YEAR = {2023},
+  NUMBER = {8},
+  ARTICLE-NUMBER = {1787},
+  URL = {https://www.mdpi.com/2227-7390/11/8/1787},
+  ISSN = {2227-7390},
+  DOI = {10.3390/math11081787}
+  }
+
+
