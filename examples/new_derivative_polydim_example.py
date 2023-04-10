@@ -1,4 +1,5 @@
 from sympy import symbols,Matrix,diff
+import numpy as np
 import itertools
 
 
@@ -23,7 +24,7 @@ def delete_duplicates(x):
 def poly_model(dim=2,order=2):
     x=[symbols('x'+str(i)) for i in range(dim)]
     terms=[]
-    for n in range(1,order):
+    for n in range(1,order+1):
         terms.append(create_poly_terms(x,degree=n))
     terms.reverse()
     terms.append([x[1]**0])
@@ -59,11 +60,14 @@ def matrix_replace_row(matrix,row,rown):
 
 
 
-def lagrange_interp_expression(model,der_grid):
-    npts=len(der_grid)
-    sys=main_system(model,der_grid)
+def lagrange_interp_expression(model,interp_grid):
+    npts=len(interp_grid)
+    sys=main_system(model,interp_grid)
     mat=Matrix(sys)
     det=mat.det()
+    if det==0:
+        print('Warning: We were unable to interpolate surfce at point {} with the current model. Please consider changing either model or adding points to der_grid. Zeros are returned.'.format(interp_grid[0]))
+        return 0
     interp_expression=0
     f=[symbols('f'+str(i)) for i in range(npts)]
     for i in range(npts):
@@ -77,6 +81,9 @@ def lagrange_interp_weights(model,interp_grid):
     sys=main_system(model,interp_grid)
     mat=Matrix(sys)
     det=mat.det()
+    if det==0:
+        print('Warning: We were unable to interpolate surfce at point {} with the current model. Please consider changing either model (order) or adding points to der_grid. Zeros are returned.'.format(interp_grid[0]))
+        return [0 for _ in range(npts)]
     weights=[]
     for _ in range(npts):
         mat1=matrix_replace_row(mat,model,0)
@@ -85,45 +92,57 @@ def lagrange_interp_weights(model,interp_grid):
     return weights
 
 
-model=poly_model(dim=2,order=3)
+
+
+
+
+#expr=lagrange_interp_expression(model,der_grid)
+
+#weights=lagrange_interp_weights(model,der_grid)
+
+#print(expr)
+
+#print(diff(expr,symbols('x0')))
+
+#diff_weights=[diff(weight,symbols('x0')) for weight in weights]
+
+#print(diff_weights)
+
+def distances(der_grid,x0):
+    return np.linalg.norm(np.abs(np.array(der_grid)-np.array(x0)),axis=1)
+
+
+
+def pick_points(der_grid,x0,npoints):
+    dist=distances(der_grid,x0)
+    picked_points_number=np.argsort(dist)[:npoints]
+    return picked_points_number
+
+model=poly_model(dim=2,order=1)
 
 der_grid=[[0,0],[0,1],[1,0],[1,1],[0,0.5],[0.5,0]]
 
-def compute_weigths(model,der_grid):
-    if len(model)<len(der_grid):
-        print('Number of differentiation points less than model parameters')
-        return None
+npoints=len(model)
 
+picked_points=pick_points(der_grid,[1,0],model)
 
-expr=lagrange_interp_expression(model,der_grid)
+print(model)
 
-weights=lagrange_interp_weights(model,der_grid)
+interp_grid=[der_grid[i] for i in picked_points]
 
-print(expr)
+print(interp_grid)
 
-print(diff(expr,symbols('x0')))
+weights=lagrange_interp_weights(model,interp_grid)
+
+print(weights)
 
 diff_weights=[diff(weight,symbols('x0')) for weight in weights]
 
 print(diff_weights)
 
-#sys=main_system(model,der_grid)
+#def compute_weigths(model,der_grid):
+#    if len(model)<len(der_grid):
+#        print('Number of differentiation points less than model parameters')
+#        return None
 
-#mat=Matrix(sys)
 
-#mat1=matrix_replace_row(mat,model,0)
-
-
-#det=mat.det()
-
-#print(det)
-
-#det1=mat1.det()
-
-#print(det1/det)
-
-#mat2=matrix_replace_row(mat,model,1)
-
-#det2=mat2.det()
-
-#print(det2/det)
