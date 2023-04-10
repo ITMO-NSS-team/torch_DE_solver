@@ -109,40 +109,60 @@ def lagrange_interp_weights(model,interp_grid):
 #print(diff_weights)
 
 def distances(der_grid,x0):
-    return np.linalg.norm(np.abs(np.array(der_grid)-np.array(x0)),axis=1)
+    return np.linalg.norm(np.array(der_grid)-np.array(x0),axis=1)
 
 
 
 def pick_points(der_grid,x0,npoints):
     dist=distances(der_grid,x0)
+    print(dist)
     picked_points_number=np.argsort(dist)[:npoints]
     return picked_points_number
+
+#model=poly_model(dim=2,order=1)
+
+#der_grid=[[0,0],[0,1],[1,0],[1,1],[0,0.5],[0.5,0]]
+
+#npoints=len(model)
+
+#picked_points=pick_points(der_grid,[1,0],model)
+
+#print(model)
+
+#interp_grid=[der_grid[i] for i in picked_points]
+
+#print(interp_grid)
+
+#weights=lagrange_interp_weights(model,interp_grid)
+
+#print(weights)
+
+#diff_weights=[diff(weight,symbols('x0')) for weight in weights]
+
+#print(diff_weights)
+
+def compute_weigths(model,der_grid,comp_grid):
+    weights=[]
+    npoints=len(model)
+    if npoints>len(der_grid):
+        print('Number of differentiation points less than model parameters')
+        return None
+    for x0 in comp_grid:
+        picked_points=pick_points(der_grid,x0,npoints)
+        interp_grid=[der_grid[i] for i in picked_points]
+        w=lagrange_interp_weights(model,interp_grid)
+        weights.append(w)
+    return weights
 
 model=poly_model(dim=2,order=1)
 
 der_grid=[[0,0],[0,1],[1,0],[1,1],[0,0.5],[0.5,0]]
 
-npoints=len(model)
+comp_grid=copy(der_grid)
 
-picked_points=pick_points(der_grid,[1,0],model)
-
-print(model)
-
-interp_grid=[der_grid[i] for i in picked_points]
-
-print(interp_grid)
-
-weights=lagrange_interp_weights(model,interp_grid)
+weights=compute_weigths(model,der_grid,comp_grid)
 
 print(weights)
-
-diff_weights=[diff(weight,symbols('x0')) for weight in weights]
-
-print(diff_weights)
-
-#def compute_weigths(model,der_grid):
-#    if len(model)<len(der_grid):
-#        print('Number of differentiation points less than model parameters')
-#        return None
+                
 
 
