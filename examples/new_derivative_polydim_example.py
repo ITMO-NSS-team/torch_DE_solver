@@ -93,21 +93,6 @@ def lagrange_interp_weights(model,interp_grid):
 
 
 
-
-
-
-#expr=lagrange_interp_expression(model,der_grid)
-
-#weights=lagrange_interp_weights(model,der_grid)
-
-#print(expr)
-
-#print(diff(expr,symbols('x0')))
-
-#diff_weights=[diff(weight,symbols('x0')) for weight in weights]
-
-#print(diff_weights)
-
 def distances(der_grid,x0):
     return np.linalg.norm(np.array(der_grid)-np.array(x0),axis=1)
 
@@ -115,31 +100,10 @@ def distances(der_grid,x0):
 
 def pick_points(der_grid,x0,npoints):
     dist=distances(der_grid,x0)
-    print(dist)
     picked_points_number=np.argsort(dist)[:npoints]
     return picked_points_number
 
-#model=poly_model(dim=2,order=1)
 
-#der_grid=[[0,0],[0,1],[1,0],[1,1],[0,0.5],[0.5,0]]
-
-#npoints=len(model)
-
-#picked_points=pick_points(der_grid,[1,0],model)
-
-#print(model)
-
-#interp_grid=[der_grid[i] for i in picked_points]
-
-#print(interp_grid)
-
-#weights=lagrange_interp_weights(model,interp_grid)
-
-#print(weights)
-
-#diff_weights=[diff(weight,symbols('x0')) for weight in weights]
-
-#print(diff_weights)
 
 def compute_weigths(model,der_grid,comp_grid):
     weights=[]
@@ -154,15 +118,26 @@ def compute_weigths(model,der_grid,comp_grid):
         weights.append(w)
     return weights
 
-model=poly_model(dim=2,order=1)
 
-der_grid=[[0,0],[0,1],[1,0],[1,1],[0,0.5],[0.5,0]]
+                
+
+def compute_derivative(weights, axes=[0]):
+    x=[symbols('x'+str(i)) for i in range(max(axes)+1)]
+    deriv=weights
+    for axis in axes:
+        deriv=[[diff(weight,x[axis]) for weight in point] for point in deriv]
+    return deriv
+
+model=poly_model(dim=2,order=3)
+
+der_grid=[[1/10*i,1/10*j] for i in range(10) for j in range(10)]
 
 comp_grid=copy(der_grid)
 
 weights=compute_weigths(model,der_grid,comp_grid)
 
 print(weights)
-                
 
+der=compute_derivative(weights,axes=[0,1])
 
+print(list(der))
