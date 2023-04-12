@@ -1,7 +1,7 @@
 from sympy import symbols,Matrix,diff
 import numpy as np
 import itertools
-
+import torch
 
 def create_poly_terms(variables,degree=1):
     if degree==1:
@@ -114,5 +114,30 @@ comp_grid=copy(der_grid)
 weights=compute_weigths(model,der_grid,comp_grid)
 
 
-der=compute_derivative(weights,axes=[0,1])
+der1=compute_derivative(weights,axes=[0,0])
+
+der2=compute_derivative(weights,axes=[1,1])
+
+def substitute_points(weights,points):
+    dim=len(points[1])
+    x=[symbols('x'+str(i)) for i in range(dim)]
+    for i in range(len(points)):
+        weights[i]=[[term.subs(create_subs(x,points[i])) for term in model] for model in weights[i]]
+    return weights[i]
+
+
+der11=substitute_points(der1,comp_grid)
+
+#NN_model = torch.nn.Sequential(
+#        torch.nn.Linear(2, 100),
+#        torch.nn.Tanh(),
+#        torch.nn.Linear(100, 100),
+#        torch.nn.Tanh(),
+#        torch.nn.Linear(100, 100),
+#        torch.nn.Tanh(),
+#        torch.nn.Linear(100, 1))
+
+#grid_NN = torch.tensor(der_grid)
+
+#print(NN_model(grid_NN))
 
