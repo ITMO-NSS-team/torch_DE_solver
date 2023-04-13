@@ -2,6 +2,13 @@ from sympy import symbols,Matrix,diff
 import numpy as np
 import itertools
 import torch
+import os
+import time
+
+
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+
+
 
 def create_poly_terms(variables,degree=1):
     if degree==1:
@@ -68,15 +75,16 @@ def lagrange_interp_weights_n(model,interp_grid):
     sys=np.array(main_system(model,interp_grid),dtype=np.float64)
     #mat=Matrix(sys)
     #det=mat.det()
-    if np.linalg.det(sys)==0:
+    #print('cond=',np.linalg.cond(sys))
+    if (np.linalg.det(sys)==0):
         print('Warning: We were unable to interpolate surfce at point {} with the current model. Please consider changing either model (order) or adding points to der_grid. Zeros are returned.'.format(interp_grid[0]))
-        return [[0 for _ in range(npts)] for _ in range(npts)]
+        return [0 for _ in range(npts)]
     weights=[]
     for i in range(npts):
         point_characteristic=np.zeros(npts)
         point_characteristic[i]=1
         coeffs=np.linalg.solve(sys,point_characteristic)
-        weights.append(model*coeffs)
+        weights.append(sum(model*coeffs))
     return weights
 
 
@@ -94,16 +102,14 @@ def compute_weigths(model,der_grid,comp_grid):
     return weights
 
 
-                
-
 def compute_derivative(weights, axes=[0]):
     x=[symbols('x'+str(i)) for i in range(max(axes)+1)]
     deriv=weights
     for axis in axes:
-        deriv=[[[diff(characteristic,x[axis]) for characteristic in model] for model in point] for point in deriv]
+        deriv=[[diff(model,x[axis]) for model in point] for point in deriv]
     return deriv
 
-model=poly_model(dim=2,order=3)
+interp_model=poly_model(dim=2,order=3)
 
 der_grid=[[1/10*i,1/10*j] for i in range(10) for j in range(10)]
 
@@ -111,7 +117,7 @@ from copy import copy
 
 comp_grid=copy(der_grid)
 
-weights=compute_weigths(model,der_grid,comp_grid)
+weights=compute_weigths(interp_model,der_grid,comp_grid)
 
 
 der1=compute_derivative(weights,axes=[0,0])
@@ -122,22 +128,39 @@ def substitute_points(weights,points):
     dim=len(points[1])
     x=[symbols('x'+str(i)) for i in range(dim)]
     for i in range(len(points)):
-        weights[i]=[[term.subs(create_subs(x,points[i])) for term in model] for model in weights[i]]
-    return weights[i]
+        weights[i]=[term.subs(create_subs(x,points[i])) for term in weights[i]]
+    return weights
 
 
 der11=substitute_points(der1,comp_grid)
 
-#NN_model = torch.nn.Sequential(
-#        torch.nn.Linear(2, 100),
-#        torch.nn.Tanh(),
-#        torch.nn.Linear(100, 100),
-#        torch.nn.Tanh(),
-#        torch.nn.Linear(100, 100),
-#        torch.nn.Tanh(),
-#        torch.nn.Linear(100, 1))
+der21=substitute_points(der2,comp_grid)
 
-#grid_NN = torch.tensor(der_grid)
+picked_points=[pick_points(der_grid,point,len(interp_model)) for point in comp_grid]
+
+
+
+
+def op_loss(NN_model,grid):
+    values=NN_model(grid)
+    op=torch.zeros_like(values)
+    for i in range(grid.shape[0]):
+        op[i]=torch.dot(torch.tensor(np.array(der11[i],dtype=np.float32)),values[picked_points[i]].reshape(-1))+torch.dot(torch.tensor(np.array(der21[i],dtype=np.float32)),values[picked_points[i]].reshape(-1))
+    return op
+
+
+NN_model = torch.nn.Sequential(
+        torch.nn.Linear(2, 100),
+        torch.nn.Tanh(),
+        torch.nn.Linear(100, 100),
+        torch.nn.Tanh(),
+        torch.nn.Linear(100, 100),
+        torch.nn.Tanh(),
+        torch.nn.Linear(100, 1))
+
+grid_NN = torch.tensor(der_grid)
+
+loss_op=op_loss(NN_model,grid_NN)
 
 #print(NN_model(grid_NN))
 
