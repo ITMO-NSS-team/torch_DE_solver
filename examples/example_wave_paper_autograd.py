@@ -158,7 +158,7 @@ for grid_res in range(20, 110, 10):
 
         model=Solver(grid, equation, model, 'autograd').solve(use_cache=True, verbose=True, print_every=None,
                                                               cache_verbose=True, abs_loss=0.001, step_plot_print=False,
-                                                              step_plot_save=True,image_save_dir=img_dir)
+                                                              step_plot_save=True,image_save_dir=img_dir, backend=True)
 
 
     
