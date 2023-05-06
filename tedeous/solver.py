@@ -187,7 +187,7 @@ class Solver():
             plt.show()
         plt.close()
 
-    def solve(self, lambda_bound: Union[int, float] = 10, adaptive_lambda = False, verbose: bool = False, learning_rate: float = 1e-4,
+    def solve(self, lambda_bound: Union[int, float] = 10, lambdas_update: None = None, verbose: bool = False, learning_rate: float = 1e-4,
               eps: float = 1e-5, tmin: int = 1000, tmax: float = 1e5, nmodels: Union[int, None] = None,
               name: Union[str, None] = None, abs_loss: Union[None, float] = None, use_cache: bool = True,
               cache_dir: str = '../cache/', cache_verbose: bool = False, save_always: bool = False,
@@ -195,7 +195,7 @@ class Solver():
               patience: int = 5, loss_oscillation_window: int = 100, no_improvement_patience: int = 1000,
               model_randomize_parameter: Union[int, float] = 0, optimizer_mode: str = 'Adam',
               step_plot_print: Union[bool, int] = False, step_plot_save: Union[bool, int] = False,
-              image_save_dir: Union[str, None] = None) -> Any:
+              image_save_dir: Union[str, None] = None, lr_decay = True, decay_rate = 1000) -> Any:
         """
         High-level interface for solving equations.
 
@@ -247,12 +247,14 @@ class Solver():
         else:
             Solution_class = Solution(self.grid, self.equal_cls,
                                       self.model, self.mode)
+
             min_loss = Solution_class.loss_evaluation(lambda_bound=lambda_bound,
-                                                      adaptive_lambda = adaptive_lambda,
-                                                      weak_form=self.weak_form)
+                                                      weak_form=self.weak_form,
+                                                      iter = -1,
+                                                      lambdas_update = lambdas_update)
         
         optimizer = self.optimizer_choice(optimizer_mode, learning_rate)
-    
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer = optimizer, gamma = 0.9)
         # standard NN stuff
         if verbose:
             print('[{}] initial (min) loss is {}'.format(
@@ -267,7 +269,7 @@ class Solver():
             nonlocal cur_loss
             optimizer.zero_grad()
             loss = Solution_class.loss_evaluation(
-                lambda_bound = lambda_bound,adaptive_lambda = adaptive_lambda, weak_form=self.weak_form)
+                lambda_bound = lambda_bound, weak_form=self.weak_form, iter = t, lambdas_update = lambdas_update)
             loss.backward()
             cur_loss = loss.item()
             return loss
@@ -279,10 +281,11 @@ class Solver():
         cur_loss = min_loss
         while stop_dings <= patience:
             optimizer.step(closure)
-
+            if lr_decay is True and t % decay_rate == 0:
+                scheduler.step()
             if cur_loss != cur_loss:
                 print(f'Loss is equal to NaN, something went wrong (LBFGS+high'
-                 f'leraning rate and pytorch<1.12 could be the problem)')
+                 f'learning rate and pytorch<1.12 could be the problem)')
                 break
 
             last_loss[(t-1)%loss_oscillation_window] = cur_loss

@@ -136,7 +136,6 @@ class Solution():
         return b_op_val
 
     def apply_periodic(self, bnd, bop, var):
-
         if bop is None:
             b_op_val = self.apply_dirichlet(bnd[0], var).reshape(-1, 1)
             for i in range(1, len(bnd)):
@@ -169,28 +168,54 @@ class Solution():
                                            bcond['var'])
         return b_op_val
 
-    def apply_bconds_operator(self) -> Tuple[torch.Tensor, torch.Tensor]:
+    def apply_bconds_default(self) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Auxiliary function. Serves only to evaluate boundary values and true boundary values.
         Returns:
             * **b_val** -- calculated model boundary values.\n
             * **true_b_val** -- true grid boundary values.
         """
+
         true_b_val_list = []
         b_val_list = []
-
         for bcond in self.prepared_bconds:
-            truebval = bcond['bval'].reshape(-1, 1)
-
-            true_b_val_list.append(truebval)
-
-            b_op_val = self.b_op_val_calc(bcond)
-
+            b_op_val, truebval = compute_bconds(bcond)
             b_val_list.append(b_op_val)
+            true_b_val_list.append(truebval)
 
         true_b_val = torch.cat(true_b_val_list)
         b_val = torch.cat(b_val_list).reshape(-1, 1)
+        return b_val, true_b_val
 
+    def apply_bconds_separate(self):
+        def compute_bconds(bcond):
+            truebval = bcond['bval'].reshape(-1, 1)
+            b_op_val = self.b_op_val_calc(bcond)
+            return b_op_val, truebval
+
+        true_b_val_list_sep = []
+        b_val_list_sep = []
+
+        true_b_val_list_op = []
+        b_val_list_op = []
+
+        for bcond in self.prepared_bconds:
+            if bcond['type'] == 'operator':
+                b_val_op, true_b_val_op = compute_bconds(bcond)
+                b_val_list_op.append(b_val_op)
+                true_b_val_list_op.append(true_b_val_op)
+            else:
+                b_val_sep, true_b_val_sep = compute_bconds(bcond)
+                b_val_list_sep.append(b_val_sep)
+                true_b_val_list_sep.append(true_b_val_sep)
+
+        true_b_val_separate = torch.cat(true_b_val_list_sep)
+        b_val_op_separate = torch.cat(b_val_list_sep)
+        true_b_val_operator = torch.cat(true_b_val_list_op)
+        b_val_op_operator = torch.cat(b_val_list_op)
+
+        b_val = [b_val_op_separate, b_val_op_operator]
+        true_b_val = [true_b_val_separate, true_b_val_operator]
         return b_val, true_b_val
 
     def pde_compute(self) -> torch.Tensor:
@@ -244,7 +269,7 @@ class Solution():
         else:
             return torch.cat(sol_list)
 
-    def l2_loss(self, lambda_bound:  Union[int, float] = 10, adaptive_lambda = False) -> torch.Tensor:
+    def l2_loss(self, lambda_bound:  Union[int, float] = 10) -> torch.Tensor:
         """
         Computes l2 loss.
         Args:
@@ -256,10 +281,7 @@ class Solution():
         if self.prepared_bconds == None:
             return torch.sum(torch.mean((op) ** 2, 0))
 
-        b_val, true_b_val = self.apply_bconds_operator()
-
-        if adaptive_lambda:
-            lambda_bound = ComputeNTK(b_val - true_b_val, op, self.model).adapt_lambda()
+        b_val, true_b_val = self.apply_bconds_default()
 
         if self.mode == 'mat':
             loss = torch.mean((op) ** 2) + \
@@ -267,6 +289,29 @@ class Solution():
         else:
             loss = torch.sum(torch.mean((op) ** 2, 0)) + \
                    lambda_bound * torch.sum(torch.mean((b_val - true_b_val) ** 2, 0))
+        return loss
+    def l2_loss_sep(self, iter, lambdas_update, lambda_bound = 1, lambda_bound_op = 1, lambda_op = 1) -> torch.Tensor:
+        """
+        Args:
+
+        Returns:
+
+        """
+        op = self.pde_compute()
+        if self.prepared_bconds == None:
+            return torch.sum(torch.mean((op) ** 2, 0))
+
+        b_val, true_b_val = self.apply_bconds_separate()
+
+        print(b_val[1].shape)
+        if iter % lambdas_update == 0 or iter == -1:
+            lambda_bound, lambda_bound_op, lambda_op = \
+                LambdaCompute(b_val[0] - true_b_val[0], b_val[1] - true_b_val[1], op, self.model).update()
+            print(lambda_bound, lambda_bound_op, lambda_op)
+
+        loss = lambda_op * torch.sum(torch.mean((op) ** 2), 0) + \
+               lambda_bound * torch.sum(torch.mean((b_val[0] - true_b_val[0]) ** 2, 0)) + \
+               lambda_bound_op * torch.sum(torch.mean((b_val[1] - true_b_val[1]) ** 2, 0))
         return loss
 
     def weak_loss(self, weak_form: Union[None, list], lambda_bound: Union[int, float] = 10) -> torch.Tensor:
@@ -291,7 +336,8 @@ class Solution():
 
         return loss
 
-    def loss_evaluation(self, lambda_bound: Union[int, float] = 10, weak_form: Union[None, list] = None, adaptive_lambda = False) -> Union[l2_loss, weak_loss]:
+    def loss_evaluation(self, iter: int, lambda_bound: Union[int, float] = 10, weak_form: Union[None, list] = None, \
+                        lambdas_update: None = None) -> Union[l2_loss, weak_loss]:
         """
         Setting the required loss calculation method.
         Args:
@@ -306,6 +352,9 @@ class Solution():
                 return np.inf
 
         if weak_form == None or weak_form == []:
-            return self.l2_loss(lambda_bound=lambda_bound, adaptive_lambda = adaptive_lambda)
+            if type(lambdas_update) is int:
+                return self.l2_loss_sep(iter, lambdas_update)
+            else:
+                return self.l2_loss(lambda_bound=lambda_bound)
         else:
             return self.weak_loss(weak_form, lambda_bound=lambda_bound)

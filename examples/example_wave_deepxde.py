@@ -93,13 +93,23 @@ wave_eq = {
             }
     }
 
-model = NN(2,[100] * 3, 1,activations='tanh', fourier_features = True, sigma = 10, mapping_size = 256)
-
-equation = Equation(grid, wave_eq, bconds, h=h).set_strategy('NN')
+# model = NN(2,[100] * 3, 1,activations='tanh', fourier_features = F, sigma = 10, mapping_size = 256)
+model = torch.nn.Sequential(
+    torch.nn.Linear(2, 500),
+    torch.nn.Tanh(),
+    torch.nn.Linear(500, 500),
+    torch.nn.Tanh(),
+    torch.nn.Linear(500, 500),
+    torch.nn.Tanh(),
+    torch.nn.Linear(500, 500),
+    torch.nn.Tanh(),
+    torch.nn.Linear(500, 1)
+)
+equation = Equation(grid, wave_eq, bconds, h=h).set_strategy('autograd')
 
 img_dir = os.path.join(os.path.dirname(__file__), 'wave_example_paper_img')
 
-model = Solver(grid, equation, model, 'NN').solve(lambda_bound=100, verbose=True, learning_rate=1e-4,
+model = Solver(grid, equation, model, 'autograd').solve(lambdas_update=1000, verbose=True, learning_rate=1e-3,
                                                   eps=1e-8, tmax=1e6, use_cache=False, cache_verbose=True,
                                                   save_always=True, print_every=500, model_randomize_parameter=1e-5,
                                                   optimizer_mode='Adam', no_improvement_patience=1000,
