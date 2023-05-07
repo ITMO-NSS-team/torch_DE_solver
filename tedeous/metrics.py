@@ -52,24 +52,14 @@ def integration(func: torch.tensor, grid, pow: Union[int, float] = 2) -> Union[T
         grid = grid[index, :-1]
         return result, grid
 
-
-class Solution():
-    def __init__(self, grid: torch.Tensor, equal_cls: Union[tedeous.input_preprocessing.Equation_NN,
-                                                            tedeous.input_preprocessing.Equation_mat, tedeous.input_preprocessing.Equation_autograd],
-                 model: Union[torch.nn.Sequential, torch.Tensor], mode: str):
-        self.grid = check_device(grid)
-        equal_copy = deepcopy(equal_cls)
-        self.prepared_operator = equal_copy.operator_prepare()
-        self.prepared_bconds = equal_copy.bnd_prepare()
-        self.model = model.to(device_type())
+class Operator():
+    def __init__(self,operator, grid, model, mode):
+        self.operator = operator
+        self.grid = grid
+        self.model = model
         self.mode = mode
-        if self.mode == 'NN':
-            self.grid_dict = Points_type(self.grid).grid_sort()
-            self.sorted_grid = torch.cat(list(self.grid_dict.values()))
-        elif self.mode == 'autograd' or self.mode == 'mat':
-            self.sorted_grid = self.grid
 
-    def apply_operator(self, operator: list, grid_points) -> torch.Tensor:
+    def apply_op(self, operator, grid_points) -> torch.Tensor:
         """
         Deciphers equation in a single grid subset to a field.
         Args:
@@ -91,6 +81,11 @@ class Solution():
                 total = dif
         return total
 
+class Bounds(Operator):
+    def __init__(self, bconds, grid, model, mode):
+        super().__init__(bconds, grid, model, mode)
+        self.bconds = bconds
+
     def apply_bconds_set(self, operator_set: list) -> torch.Tensor:
         """
         Deciphers equation in a whole grid to a field.
@@ -102,7 +97,7 @@ class Solution():
         """
         field_part = []
         for operator in operator_set:
-            field_part.append(self.apply_operator(operator, None))
+            field_part.append(self.apply_op(operator, None))
         field_part = torch.cat(field_part)
         return field_part
 
@@ -123,9 +118,9 @@ class Solution():
         if self.mode == 'NN':
             b_op_val = self.apply_bconds_set(bop)
         elif self.mode == 'autograd':
-            b_op_val = self.apply_operator(bop, bnd)
+            b_op_val = self.apply_op(bop, bnd)
         elif self.mode == 'mat':
-            b_op_val = self.apply_operator(bop, self.grid)
+            b_op_val = self.apply_op(operator = bop, grid_points=self.grid)
             b_val = []
             for position in bnd:
                 if self.grid.dim() == 1 or min(self.grid.shape) == 1:
@@ -168,6 +163,10 @@ class Solution():
                                            bcond['var'])
         return b_op_val
 
+    def compute_bconds(self, bcond):
+        truebval = bcond['bval'].reshape(-1, 1)
+        b_op_val = self.b_op_val_calc(bcond)
+        return b_op_val, truebval
     def apply_bconds_default(self) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Auxiliary function. Serves only to evaluate boundary values and true boundary values.
@@ -178,8 +177,8 @@ class Solution():
 
         true_b_val_list = []
         b_val_list = []
-        for bcond in self.prepared_bconds:
-            b_op_val, truebval = compute_bconds(bcond)
+        for bcond in self.bconds:
+            b_op_val, truebval = self.compute_bconds(bcond)
             b_val_list.append(b_op_val)
             true_b_val_list.append(truebval)
 
@@ -188,27 +187,23 @@ class Solution():
         return b_val, true_b_val
 
     def apply_bconds_separate(self):
-        def compute_bconds(bcond):
-            truebval = bcond['bval'].reshape(-1, 1)
-            b_op_val = self.b_op_val_calc(bcond)
-            return b_op_val, truebval
-
         true_b_val_list_sep = []
         b_val_list_sep = []
 
         true_b_val_list_op = []
         b_val_list_op = []
-
-        for bcond in self.prepared_bconds:
+        for bcond in self.bconds:
             if bcond['type'] == 'operator':
-                b_val_op, true_b_val_op = compute_bconds(bcond)
+                b_val_op, true_b_val_op = self.compute_bconds(bcond)
                 b_val_list_op.append(b_val_op)
                 true_b_val_list_op.append(true_b_val_op)
             else:
-                b_val_sep, true_b_val_sep = compute_bconds(bcond)
+                b_val_sep, true_b_val_sep = self.compute_bconds(bcond)
                 b_val_list_sep.append(b_val_sep)
                 true_b_val_list_sep.append(true_b_val_sep)
 
+        # loss_bnd = sum(list(map(lambda x: torch.mean(torch.square(x)).item(),b_val_list_sep)))
+        # loss_bop = sum(list(map(lambda x: torch.mean(torch.square(x)).item(),b_val_list_op)))
         true_b_val_separate = torch.cat(true_b_val_list_sep)
         b_val_op_separate = torch.cat(b_val_list_sep)
         true_b_val_operator = torch.cat(true_b_val_list_op)
@@ -217,6 +212,121 @@ class Solution():
         b_val = [b_val_op_separate, b_val_op_operator]
         true_b_val = [true_b_val_separate, true_b_val_operator]
         return b_val, true_b_val
+    def apply_bnd(self, mode):
+        if type(mode) is int:
+            return self.apply_bconds_separate()
+        else:
+            return self.apply_bconds_default()
+
+
+class Loss():
+    def __init__(self, operator, bval, true_bval, mode, weak_form):
+
+        self.operator = operator
+        self.bval = bval
+        self.true_bval = true_bval
+        self.mode = mode
+        self.weak_form = weak_form
+
+    def l2_loss(self, lambda_bound:  Union[int, float] = 10) -> torch.Tensor:
+        """
+        Computes l2 loss.
+        Args:
+            lambda_bound: an arbitrary chosen constant, influence only convergence speed.
+        Returns:
+            model loss.
+        """
+        if self.bval == None:
+            return torch.sum(torch.mean((self.operator) ** 2, 0))
+
+        if self.mode == 'mat':
+            loss = torch.mean((self.operator) ** 2) + \
+                   lambda_bound * torch.mean((self.bval - self.true_bval) ** 2)
+        else:
+            loss = torch.sum(torch.mean((self.operator) ** 2, 0)) + \
+                   lambda_bound * torch.sum(torch.mean((self.bval - self.true_bval) ** 2, 0))
+        return loss
+
+    def weak_loss(self, lambda_bound: Union[int, float] = 10) -> torch.Tensor:
+        """
+        Weak solution of O/PDE problem.
+        Args:
+            weak_form: list of basis functions.
+            lambda_bound: const regularization parameter.
+        Returns:
+            model loss.
+        """
+        if self.bval == None:
+            return torch.sum(self.operator)
+
+        # we apply no  boundary conditions operators if they are all None
+
+
+        loss = torch.sum(self.operator) + \
+               lambda_bound * torch.sum(torch.mean((self.bval - self.true_bval) ** 2, 0))
+
+        return loss
+
+    def l2_loss_sep(self, lambda_bound, lambda_bound_op, lambda_op) -> torch.Tensor:
+        """
+        Args:
+
+        Returns:
+
+        """
+
+        if self.bval == None:
+            return torch.sum(torch.mean((self.operator) ** 2, 0))
+
+        loss = lambda_op * torch.sum(torch.mean((self.operator) ** 2), 0) + \
+               lambda_bound * torch.sum(torch.mean((self.bval[0] - self.true_bval[0]) ** 2, 0)) + \
+               lambda_bound_op * torch.sum(torch.mean((self.bval[1] - self.true_bval[1]) ** 2, 0))
+        return loss
+
+    def loss_evaluation(self, *args, lambda_bound = 10) -> Union[l2_loss, weak_loss]:
+        """
+        Setting the required loss calculation method.
+        Args:
+            lambda_bound: an arbitrary chosen constant, influence only convergence speed.
+            weak_form: list of basis functions.
+        Returns:
+            A given calculation method.
+        """
+        if len(args) == 3:
+            l_bnd, l_bop, l_op = args[0], args[1], args[2]
+
+        if self.mode == 'mat' or self.mode == 'autograd':
+            if self.bval == None:
+                print('No bconds is not possible, returning infinite loss')
+                return np.inf
+
+        if self.weak_form == None or self.weak_form == []:
+            if len(args) == 3:
+                return self.l2_loss_sep(l_bnd, l_bop, l_op)
+            else:
+                return self.l2_loss(lambda_bound=lambda_bound)
+        else:
+            return self.weak_loss(lambda_bound=lambda_bound)
+
+class Solution():
+    def __init__(self, grid: torch.Tensor, equal_cls: Union[tedeous.input_preprocessing.Equation_NN,
+                                                            tedeous.input_preprocessing.Equation_mat, tedeous.input_preprocessing.Equation_autograd],
+                 model: Union[torch.nn.Sequential, torch.Tensor], mode: str, weak_form, update_every_lambdas):
+        self.grid = check_device(grid)
+        equal_copy = deepcopy(equal_cls)
+        self.prepared_operator = equal_copy.operator_prepare()
+        self.prepared_bconds = equal_copy.bnd_prepare()
+        self.model = model.to(device_type())
+        self.mode = mode
+        self.update_every_lambdas = update_every_lambdas
+        self.weak_form = weak_form
+        if self.mode == 'NN':
+            self.grid_dict = Points_type(self.grid).grid_sort()
+            self.sorted_grid = torch.cat(list(self.grid_dict.values()))
+        elif self.mode == 'autograd' or self.mode == 'mat':
+            self.sorted_grid = self.grid
+        self.operator = Operator(operator = self.prepared_operator, grid = self.grid, model = self.model, mode = self.mode)
+        # self.bconds =
 
     def pde_compute(self) -> torch.Tensor:
         """
@@ -228,12 +338,12 @@ class Solution():
 
         num_of_eq = len(self.prepared_operator)
         if num_of_eq == 1:
-            op = self.apply_operator(
+            op = self.operator.apply_op(
                 self.prepared_operator[0], self.sorted_grid)
         else:
             op_list = []
             for i in range(num_of_eq):
-                op_list.append(self.apply_operator(
+                op_list.append(self.operator.apply_op(
                     self.prepared_operator[i], self.sorted_grid))
             op = torch.cat(op_list, 1)
         return op
@@ -268,93 +378,19 @@ class Solution():
             return sol_list[0]
         else:
             return torch.cat(sol_list)
-
-    def l2_loss(self, lambda_bound:  Union[int, float] = 10) -> torch.Tensor:
-        """
-        Computes l2 loss.
-        Args:
-            lambda_bound: an arbitrary chosen constant, influence only convergence speed.
-        Returns:
-            model loss.
-        """
-        op = self.pde_compute()
-        if self.prepared_bconds == None:
-            return torch.sum(torch.mean((op) ** 2, 0))
-
-        b_val, true_b_val = self.apply_bconds_default()
-
-        if self.mode == 'mat':
-            loss = torch.mean((op) ** 2) + \
-                   lambda_bound * torch.mean((b_val - true_b_val) ** 2)
+    @counter
+    def operator_compute(self):
+        if self.weak_form == None or self.weak_form == []:
+            return self.pde_compute()
         else:
-            loss = torch.sum(torch.mean((op) ** 2, 0)) + \
-                   lambda_bound * torch.sum(torch.mean((b_val - true_b_val) ** 2, 0))
-        return loss
-    def l2_loss_sep(self, iter, lambdas_update, lambda_bound = 1, lambda_bound_op = 1, lambda_op = 1) -> torch.Tensor:
-        """
-        Args:
+            return self.weak_pde_compute(self.weak_form)
 
-        Returns:
 
-        """
-        op = self.pde_compute()
-        if self.prepared_bconds == None:
-            return torch.sum(torch.mean((op) ** 2, 0))
-
-        b_val, true_b_val = self.apply_bconds_separate()
-
-        print(b_val[1].shape)
-        if iter % lambdas_update == 0 or iter == -1:
-            lambda_bound, lambda_bound_op, lambda_op = \
-                LambdaCompute(b_val[0] - true_b_val[0], b_val[1] - true_b_val[1], op, self.model).update()
-            print(lambda_bound, lambda_bound_op, lambda_op)
-
-        loss = lambda_op * torch.sum(torch.mean((op) ** 2), 0) + \
-               lambda_bound * torch.sum(torch.mean((b_val[0] - true_b_val[0]) ** 2, 0)) + \
-               lambda_bound_op * torch.sum(torch.mean((b_val[1] - true_b_val[1]) ** 2, 0))
-        return loss
-
-    def weak_loss(self, weak_form: Union[None, list], lambda_bound: Union[int, float] = 10) -> torch.Tensor:
-        """
-        Weak solution of O/PDE problem.
-        Args:
-            weak_form: list of basis functions.
-            lambda_bound: const regularization parameter.
-        Returns:
-            model loss.
-        """
-        op = self.weak_pde_compute(weak_form)
-        if self.prepared_bconds == None:
-            return torch.sum(op)
-
-        # we apply no  boundary conditions operators if they are all None
-
-        b_val, true_b_val = self.apply_bconds_operator()
-
-        loss = torch.sum(op) + \
-               lambda_bound * torch.sum(torch.mean((b_val - true_b_val) ** 2, 0))
-
-        return loss
-
-    def loss_evaluation(self, iter: int, lambda_bound: Union[int, float] = 10, weak_form: Union[None, list] = None, \
-                        lambdas_update: None = None) -> Union[l2_loss, weak_loss]:
-        """
-        Setting the required loss calculation method.
-        Args:
-            lambda_bound: an arbitrary chosen constant, influence only convergence speed.
-            weak_form: list of basis functions.
-        Returns:
-            A given calculation method.
-        """
-        if self.mode == 'mat' or self.mode == 'autograd':
-            if self.prepared_bconds == None:
-                print('No bconds is not possible, returning infinite loss')
-                return np.inf
-
-        if weak_form == None or weak_form == []:
-            if type(lambdas_update) is int:
-                return self.l2_loss_sep(iter, lambdas_update)
-            else:
-                return self.l2_loss(lambda_bound=lambda_bound)
-        else:
-            return self.weak_loss(weak_form, lambda_bound=lambda_bound)
+    def evaluate(self):
+        it = self.operator_compute.count
+        op = self.operator_compute()
+        bval, true_bval = Bounds(self.prepared_bconds,self.grid, self.model,self.mode).apply_bnd(mode=self.update_every_lambdas)
+        if type(self.update_every_lambdas) is int:
+            l_bnd, l_bop, l_op = LambdaCompute(bval[0], bval[1], op, self.model).update(it, self.update_every_lambdas)
+            return Loss(operator=op,bval=bval,true_bval=true_bval,mode=self.mode, weak_form = self.weak_form).loss_evaluation(l_bnd, l_bop, l_op)
+        return Loss(operator=op,bval=bval,true_bval=true_bval,mode=self.mode, weak_form = self.weak_form).loss_evaluation()

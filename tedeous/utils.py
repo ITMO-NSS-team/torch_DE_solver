@@ -5,6 +5,13 @@ import torch
 def list_to_vector(list_):
     return torch.cat([x.reshape(-1) for x in list_])
 
+def counter(fu):
+    def inner(*a,**kw):
+        inner.count+=1
+        return fu(*a,**kw)
+    inner.count = 0
+    return inner
+
 class LambdaCompute():
     def __init__(self, bounds, bounds_op, operator, model):
         self.bnd = bounds
@@ -36,20 +43,21 @@ class LambdaCompute():
             Ker = Ker + K
         return Ker
 
-    def update(self):
-        J_bnd = self.jacobian(self.bnd)
-        J_bop = self.jacobian(self.bop)
-        J_op = self.jacobian(self.op)
+    def update(self, iter, every):
+        if iter % every == 0 or iter == -1:
+            J_bnd = self.jacobian(self.bnd)
+            J_bop = self.jacobian(self.bop)
+            J_op = self.jacobian(self.op)
 
-        K_bnd = self.compute_ntk(J_bnd, J_bnd)
-        K_bop = self.compute_ntk(J_bop, J_bop)
-        K_op = self.compute_ntk(J_op, J_op)
+            K_bnd = self.compute_ntk(J_bnd, J_bnd)
+            K_bop = self.compute_ntk(J_bop, J_bop)
+            K_op = self.compute_ntk(J_op, J_op)
 
-        trace_K = torch.trace(K_bnd) + torch.trace(K_bop) + \
-                  torch.trace(K_op)
+            trace_K = torch.trace(K_bnd) + torch.trace(K_bop) + \
+                      torch.trace(K_op)
 
-        l_bnd = trace_K / torch.trace(K_bnd)
-        l_bop = trace_K / torch.trace(K_bop)
-        l_op = trace_K / torch.trace(K_op)
+            l_bnd = trace_K / torch.trace(K_bnd)
+            l_bop = trace_K / torch.trace(K_bop)
+            l_op = trace_K / torch.trace(K_op)
 
-        return l_bnd, l_bop, l_op
+            return l_bnd, l_bop, l_op

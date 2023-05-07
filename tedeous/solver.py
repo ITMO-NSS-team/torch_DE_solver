@@ -187,7 +187,7 @@ class Solver():
             plt.show()
         plt.close()
 
-    def solve(self, lambda_bound: Union[int, float] = 10, lambdas_update: None = None, verbose: bool = False, learning_rate: float = 1e-4,
+    def solve(self, lambda_bound: Union[int, float] = 10, update_every_lambdas: Union[None, int] = None, verbose: bool = False, learning_rate: float = 1e-4,
               eps: float = 1e-5, tmin: int = 1000, tmax: float = 1e5, nmodels: Union[int, None] = None,
               name: Union[str, None] = None, abs_loss: Union[None, float] = None, use_cache: bool = True,
               cache_dir: str = '../cache/', cache_verbose: bool = False, save_always: bool = False,
@@ -240,18 +240,17 @@ class Solver():
                                                      cache_verbose,
                                                      model_randomize_parameter,
                                                      cache_model,
-                                                     weak_form=self.weak_form,)
+                                                     weak_form=self.weak_form)
             
             Solution_class = Solution(self.grid, self.equal_cls,
-                                      self.model, self.mode)
+                                      self.model, self.mode,
+                                      self.weak_form, update_every_lambdas)
         else:
             Solution_class = Solution(self.grid, self.equal_cls,
-                                      self.model, self.mode)
+                                      self.model, self.mode,
+                                      self.weak_form, update_every_lambdas)
 
-            min_loss = Solution_class.loss_evaluation(lambda_bound=lambda_bound,
-                                                      weak_form=self.weak_form,
-                                                      iter = -1,
-                                                      lambdas_update = lambdas_update)
+            min_loss = Solution_class.evaluate()
         
         optimizer = self.optimizer_choice(optimizer_mode, learning_rate)
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer = optimizer, gamma = 0.9)
@@ -268,8 +267,7 @@ class Solver():
         def closure():
             nonlocal cur_loss
             optimizer.zero_grad()
-            loss = Solution_class.loss_evaluation(
-                lambda_bound = lambda_bound, weak_form=self.weak_form, iter = t, lambdas_update = lambdas_update)
+            loss = Solution_class.evaluate()
             loss.backward()
             cur_loss = loss.item()
             return loss
