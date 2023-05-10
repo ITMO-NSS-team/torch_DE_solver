@@ -30,7 +30,7 @@ def get_requirements():
 
 setup(
     name = 'TEDEouS',
-    version= '0.1.0' ,
+    version= '0.1.1' ,
     description = 'TEDEouS - Torch Exhaustive Differential Equations Solver. Differential equation solver, based on pytorch library',
     author = 'Alexander Hvatov',
     author_email = 'itmo.nss.team@gmail.com', # add email
