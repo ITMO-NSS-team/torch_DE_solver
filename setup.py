@@ -9,7 +9,7 @@ import pathlib
 
 here = pathlib.Path(__file__).parent.resolve()
 
-#long_description = 'Combine power of pytorch, numerical methods and math overall to conquer and solve ALL {O,P}DEs. There are some examples to provide a little insight to an operator form'
+
 
 
 def read(*names, **kwargs):
@@ -30,8 +30,9 @@ def get_requirements():
 
 setup(
     name = 'TEDEouS',
-    version= '0.1.2' ,
+    version= '0.1.0' ,
     description = 'TEDEouS - Torch Exhaustive Differential Equations Solver. Differential equation solver, based on pytorch library',
+    long_description = 'Combine power of pytorch, numerical methods and math overall to conquer and solve ALL {O,P}DEs. There are some examples to provide a little insight to an operator form',
     author = 'Alexander Hvatov',
     author_email = 'itmo.nss.team@gmail.com', # add email
     classifiers = [      
