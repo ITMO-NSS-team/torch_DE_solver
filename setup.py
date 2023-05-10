@@ -9,8 +9,7 @@ import pathlib
 
 here = pathlib.Path(__file__).parent.resolve()
 
-# Get the long description from the README file
-long_description = (here / 'README.rst').read_text(encoding='utf-8')
+long_description = 'Combine power of pytorch, numerical methods and math overall to conquer and solve ALL {O,P}DEs. There are some examples to provide a little insight to an operator form'
 
 
 def read(*names, **kwargs):
