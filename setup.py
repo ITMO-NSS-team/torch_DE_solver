@@ -30,12 +30,12 @@ def get_requirements():
     return requirements
 
 setup(
-    name = 'TEDEouS' 
-    version= '0.1.0' 
+    name = 'TEDEouS',
+    version= '0.1.0' ,
     description = 'TEDEouS - Torch Exhaustive Differential Equations Solver. Differential equation solver, based on pytorch library',
-    author = 'Alexander Hvatov'
-    author_email = 'itmo.nss.team@gmail.com' # add email
-      classifiers = [      
+    author = 'Alexander Hvatov',
+    author_email = 'itmo.nss.team@gmail.com', # add email
+    classifiers = [      
               'Development Status :: 3 - Alpha',
               'Programming Language :: Python :: 3',
               'License :: OSI Approved :: MIT License',
