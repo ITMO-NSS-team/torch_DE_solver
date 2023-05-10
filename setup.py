@@ -10,7 +10,7 @@ HERE = os.path.abspath(os.path.dirname(__file__))
 
 # Get the long description from the README file
 SHORT_DESCRIPTION = 'TEDEouS - Torch Exhaustive Differential Equations Solver. Differential equation solver, based on pytorch library'
-LONG_DESCRIPTION = (Path(os.path.join(HERE, "README.rst"))).read_text()
+#LONG_DESCRIPTION = (Path(os.path.join(HERE, "README.rst"))).read_text()
 
 name = 'TEDEouS' # Add name
 version= '0.1.0' # Add version
