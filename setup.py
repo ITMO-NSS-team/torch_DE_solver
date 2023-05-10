@@ -42,7 +42,6 @@ setup(
       author_email = author_email,
       url = url,
       description = SHORT_DESCRIPTION,
-      long_description=LONG_DESCRIPTION,
       long_description_content_type="text/x-rst",
       classifiers = [      
               'Development Status :: 3 - Alpha',
