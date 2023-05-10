@@ -195,7 +195,7 @@ class Solver():
               patience: int = 5, loss_oscillation_window: int = 100, no_improvement_patience: int = 1000,
               model_randomize_parameter: Union[int, float] = 0, optimizer_mode: str = 'Adam',
               step_plot_print: Union[bool, int] = False, step_plot_save: Union[bool, int] = False,
-              image_save_dir: Union[str, None] = None, lr_decay = True, decay_rate = 1000) -> Any:
+              image_save_dir: Union[str, None] = None, lr_decay = False, decay_rate = 1000) -> Any:
         """
         High-level interface for solving equations.
 
@@ -229,7 +229,7 @@ class Solver():
         
 
         Cache_class = Model_prepare(self.grid, self.equal_cls,
-                                                        self.model, self.mode)
+                                                        self.model, self.mode, update_every_lambdas)
 
         # prepare input data to uniform format 
         r = create_random_fn(model_randomize_parameter)
@@ -250,8 +250,8 @@ class Solver():
                                       self.model, self.mode,
                                       self.weak_form, update_every_lambdas)
 
-            min_loss = Solution_class.evaluate()
-        
+            min_loss = Solution_class.evaluate(lambda_bound)
+
         optimizer = self.optimizer_choice(optimizer_mode, learning_rate)
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer = optimizer, gamma = 0.9)
         # standard NN stuff
@@ -267,7 +267,7 @@ class Solver():
         def closure():
             nonlocal cur_loss
             optimizer.zero_grad()
-            loss = Solution_class.evaluate()
+            loss = Solution_class.evaluate(lambda_bound)
             loss.backward()
             cur_loss = loss.item()
             return loss
@@ -281,6 +281,7 @@ class Solver():
             optimizer.step(closure)
             if lr_decay is True and t % decay_rate == 0:
                 scheduler.step()
+                print(scheduler.get_last_lr())
             if cur_loss != cur_loss:
                 print(f'Loss is equal to NaN, something went wrong (LBFGS+high'
                  f'learning rate and pytorch<1.12 could be the problem)')
@@ -350,6 +351,9 @@ class Solver():
                                                 solution_print=step_plot_print,
                                                 solution_save=step_plot_save,
                                                 save_dir=image_save_dir)
+                if type(update_every_lambdas) is int:
+                    l_bnd, l_bop, l_op = Solution_class.l_bnd, Solution_class.l_bop, Solution_class.l_op
+                    print('lambda bound: {:.3e}, lambda boundary operator: {:.3e}, lambda operator: {:.3e}'.format(l_bnd, l_bop, l_op))
             t += 1
             if t > tmax:
                 break

@@ -43,21 +43,21 @@ class LambdaCompute():
             Ker = Ker + K
         return Ker
 
-    def update(self, iter, every):
-        if iter % every == 0 or iter == -1:
-            J_bnd = self.jacobian(self.bnd)
-            J_bop = self.jacobian(self.bop)
-            J_op = self.jacobian(self.op)
+    def update(self):
 
-            K_bnd = self.compute_ntk(J_bnd, J_bnd)
-            K_bop = self.compute_ntk(J_bop, J_bop)
-            K_op = self.compute_ntk(J_op, J_op)
+        J_bnd = self.jacobian(self.bnd)
+        J_bop = self.jacobian(self.bop)
+        J_op = self.jacobian(self.op)
 
-            trace_K = torch.trace(K_bnd) + torch.trace(K_bop) + \
-                      torch.trace(K_op)
+        K_bnd = self.compute_ntk(J_bnd, J_bnd)
+        K_bop = self.compute_ntk(J_bop, J_bop)
+        K_op = self.compute_ntk(J_op, J_op)
 
-            l_bnd = trace_K / torch.trace(K_bnd)
-            l_bop = trace_K / torch.trace(K_bop)
-            l_op = trace_K / torch.trace(K_op)
+        trace_K = torch.trace(K_bnd) + torch.trace(K_bop) + \
+                  torch.trace(K_op)
 
-            return l_bnd, l_bop, l_op
+        l_bnd = trace_K / torch.trace(K_bnd)
+        l_bop = trace_K / torch.trace(K_bop)
+        l_op = trace_K / torch.trace(K_op)
+
+        return l_bnd, l_bop, l_op

@@ -202,8 +202,6 @@ class Bounds(Operator):
                 b_val_list_sep.append(b_val_sep)
                 true_b_val_list_sep.append(true_b_val_sep)
 
-        # loss_bnd = sum(list(map(lambda x: torch.mean(torch.square(x)).item(),b_val_list_sep)))
-        # loss_bop = sum(list(map(lambda x: torch.mean(torch.square(x)).item(),b_val_list_op)))
         true_b_val_separate = torch.cat(true_b_val_list_sep)
         b_val_op_separate = torch.cat(b_val_list_sep)
         true_b_val_operator = torch.cat(true_b_val_list_op)
@@ -212,6 +210,18 @@ class Bounds(Operator):
         b_val = [b_val_op_separate, b_val_op_operator]
         true_b_val = [true_b_val_separate, true_b_val_operator]
         return b_val, true_b_val
+    # def apply_bconds_separate(self):
+    #     loss_bcs = []
+    #     loss_ics = []
+    #     for bcond in self.bconds:
+    #         if bcond['type'] == 'operator':
+    #             b_val_op, true_b_val_op = self.compute_bconds(bcond)
+    #             loss_ics.append(torch.mean(torch.square(b_val_op)))
+    #             true_b_val_list_op.append(true_b_val_op)
+    #         else:
+    #             b_val_sep, true_b_val_sep = self.compute_bconds(bcond)
+    #             b_val_list_sep.append(b_val_sep)
+    #             true_b_val_list_sep.append(true_b_val_sep)
     def apply_bnd(self, mode):
         if type(mode) is int:
             return self.apply_bconds_separate()
@@ -220,13 +230,17 @@ class Bounds(Operator):
 
 
 class Loss():
-    def __init__(self, operator, bval, true_bval, mode, weak_form):
-
+    def __init__(self, *args, operator, bval, true_bval, mode, weak_form):
+        if len(args) == 3:
+            self.l_bnd, self.l_bop, self.l_op = args[0], args[1], args[2]
         self.operator = operator
         self.bval = bval
         self.true_bval = true_bval
         self.mode = mode
         self.weak_form = weak_form
+
+
+
 
     def l2_loss(self, lambda_bound:  Union[int, float] = 10) -> torch.Tensor:
         """
@@ -283,7 +297,7 @@ class Loss():
                lambda_bound_op * torch.sum(torch.mean((self.bval[1] - self.true_bval[1]) ** 2, 0))
         return loss
 
-    def loss_evaluation(self, *args, lambda_bound = 10) -> Union[l2_loss, weak_loss]:
+    def compute(self, *args, lambda_bound = 10) -> Union[l2_loss, weak_loss]:
         """
         Setting the required loss calculation method.
         Args:
@@ -292,8 +306,7 @@ class Loss():
         Returns:
             A given calculation method.
         """
-        if len(args) == 3:
-            l_bnd, l_bop, l_op = args[0], args[1], args[2]
+
 
         if self.mode == 'mat' or self.mode == 'autograd':
             if self.bval == None:
@@ -302,7 +315,7 @@ class Loss():
 
         if self.weak_form == None or self.weak_form == []:
             if len(args) == 3:
-                return self.l2_loss_sep(l_bnd, l_bop, l_op)
+                return self.l2_loss_sep(self.l_bnd, self.l_bop, self.l_op)
             else:
                 return self.l2_loss(lambda_bound=lambda_bound)
         else:
@@ -326,7 +339,7 @@ class Solution():
         elif self.mode == 'autograd' or self.mode == 'mat':
             self.sorted_grid = self.grid
         self.operator = Operator(operator = self.prepared_operator, grid = self.grid, model = self.model, mode = self.mode)
-        # self.bconds =
+        self.l_bnd, self.l_bop, self.l_op = 1, 1, 1
 
     def pde_compute(self) -> torch.Tensor:
         """
@@ -335,7 +348,6 @@ class Solution():
         Returns:
             PDE residual.
         """
-
         num_of_eq = len(self.prepared_operator)
         if num_of_eq == 1:
             op = self.operator.apply_op(
@@ -354,7 +366,6 @@ class Solution():
 
         Args:
             weak_form: list of basis functions
-
         Returns:
             weak PDE residual.
         """
@@ -386,11 +397,23 @@ class Solution():
             return self.weak_pde_compute(self.weak_form)
 
 
-    def evaluate(self):
+    def evaluate(self, lambda_bound):
         it = self.operator_compute.count
         op = self.operator_compute()
         bval, true_bval = Bounds(self.prepared_bconds,self.grid, self.model,self.mode).apply_bnd(mode=self.update_every_lambdas)
+        loss = Loss(operator=op,bval=bval,true_bval=true_bval,mode=self.mode, weak_form = self.weak_form)
+
         if type(self.update_every_lambdas) is int:
-            l_bnd, l_bop, l_op = LambdaCompute(bval[0], bval[1], op, self.model).update(it, self.update_every_lambdas)
-            return Loss(operator=op,bval=bval,true_bval=true_bval,mode=self.mode, weak_form = self.weak_form).loss_evaluation(l_bnd, l_bop, l_op)
-        return Loss(operator=op,bval=bval,true_bval=true_bval,mode=self.mode, weak_form = self.weak_form).loss_evaluation()
+            bnd = bval[0]
+            true_bnd = true_bval[0]
+
+            bop = bval[1]
+            true_bop = true_bval[1]
+
+            lambdas = LambdaCompute(bnd - true_bnd, bop, op, self.model)
+            loss = Loss(self.l_bnd, self.l_bop, self.l_op, operator=op,bval=bval,true_bval=true_bval,mode=self.mode, weak_form = self.weak_form)
+            if it % self.update_every_lambdas == 0:
+                self.l_bnd, self.l_bop, self.l_op = lambdas.update()
+            return loss.compute(self.l_bnd, self.l_bop, self.l_op)
+
+        return loss.compute(lambda_bound)

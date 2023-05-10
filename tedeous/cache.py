@@ -17,7 +17,7 @@ from typing import Union, Tuple, Any
 from tedeous.metrics import Solution
 from tedeous.input_preprocessing import Equation, EquationMixin
 from tedeous.device import device_type
-
+from tedeous.utils import *
 
 def create_random_fn(eps):
     def randomize_params(m):
@@ -36,11 +36,12 @@ class Model_prepare():
     it saved and if the new model is structurally similar) to sped up computing.\n
     If there isn't pre-trained model in cache, the training process will start from the beginning.
     """
-    def __init__(self, grid, equal_cls, model, mode):
+    def __init__(self, grid, equal_cls, model, mode, lambda_update):
         self.grid = grid
         self.equal_cls = equal_cls
         self.model = model
         self.mode = mode
+        self.lambda_update = lambda_update
 
     @staticmethod
     def cache_files(files, nmodels):
@@ -112,8 +113,14 @@ class Model_prepare():
             except Exception:
                 continue
             model = model.to(device)
-            l = Solution(self.grid, self.equal_cls, model, self.mode). \
-                loss_evaluation(lambda_bound=lambda_bound, weak_form=weak_form)
+            if self.lambda_update is int:
+
+                l = Solution(self.grid, self.equal_cls,
+                                          self.model, self.mode,
+                                          weak_form, self.lambda_update).evaluate(lambda_bound)
+            l = Solution(self.grid, self.equal_cls,
+                         self.model, self.mode,
+                         weak_form, self.lambda_update).evaluate(lambda_bound)
             if l < min_loss:
                 min_loss = l
                 best_checkpoint['model'] = model
