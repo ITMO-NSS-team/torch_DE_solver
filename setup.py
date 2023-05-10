@@ -30,7 +30,7 @@ def get_requirements():
 
 setup(
     name = 'TEDEouS',
-    version= '0.1.0' ,
+    version= '0.1.1' ,
     description = 'TEDEouS - Torch Exhaustive Differential Equations Solver. Differential equation solver, based on pytorch library',
     long_description = 'Combine power of pytorch, numerical methods and math overall to conquer and solve ALL {O,P}DEs. There are some examples to provide a little insight to an operator form',
     author = 'Alexander Hvatov',
