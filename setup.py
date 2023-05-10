@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Wed May 26 13:36:47 2021
 
-@author: mike_ubuntu
-"""
 
 from setuptools import setup, find_packages
 from os.path import dirname, join
@@ -34,13 +30,11 @@ def get_requirements():
     return requirements
 
 setup(
-      name = name,
-      version = version,
-      author = author,
-      author_email = author_email,
-      url = url,
-      description = SHORT_DESCRIPTION,
-      long_description_content_type="text/x-rst",
+    name = 'TEDEouS' 
+    version= '0.1.0' 
+    description = 'TEDEouS - Torch Exhaustive Differential Equations Solver. Differential equation solver, based on pytorch library',
+    author = 'Alexander Hvatov'
+    author_email = 'itmo.nss.team@gmail.com' # add email
       classifiers = [      
               'Development Status :: 3 - Alpha',
               'Programming Language :: Python :: 3',
@@ -48,5 +42,6 @@ setup(
               'Operating System :: OS Independent',
       ],
       packages = find_packages(include = ['tedeous']), 
+      include_package_data = True,                               
       python_requires =' >=3.9'
       )
