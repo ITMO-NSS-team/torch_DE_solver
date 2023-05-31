@@ -38,9 +38,11 @@ class Boundary():
         bcond[0] = check_device(bcond[0])
         bcond[1] = check_device(bcond[1])
         if len(bcond) == 3:
-            boundary = [bcond[0], None, bcond[1], 0, bcond[2]]
+            boundary = [bcond[0], None, bcond[1], 0, bcond[2], 'boundary']
         elif len(bcond) == 4:
-            boundary = [bcond[0], None, bcond[1], bcond[2], bcond[3]]
+            boundary = [bcond[0], None, bcond[1], bcond[2], bcond[3], 'boundary']
+        elif len(bcond) == 5:
+            boundary = [bcond[0], None, bcond[1], bcond[2], bcond[3], bcond[4]]
         else:
             raise NameError('Incorrect Dirichlet condition')
         return boundary
@@ -64,10 +66,16 @@ class Boundary():
         bcond[2] = check_device(bcond[2])
         if len(bcond) == 4:
             bcond[1] = EquationMixin.equation_unify(bcond[1])
-            boundary = [bcond[0], bcond[1], bcond[2], None, bcond[3]]
+            boundary = [bcond[0], bcond[1], bcond[2], None, bcond[3], 'boundary']
         elif len(bcond) == 5:
             bcond[1] = EquationMixin.equation_unify(bcond[1])
-            boundary = [bcond[0], bcond[1], bcond[2], None, bcond[4]]
+            if bcond[-1] == 'initial':
+                boundary = [bcond[0], bcond[1], bcond[2], None, bcond[3], bcond[4]]
+            else:
+                boundary = [bcond[0], bcond[1], bcond[2], None, bcond[3], 'boundary']
+        elif len(bcond) == 6:
+            bcond[1] = EquationMixin.equation_unify(bcond[1])
+            boundary = [bcond[0], bcond[1], bcond[2], None, bcond[4], bcond[5]]
         else:
             raise NameError('Incorrect operator condition')
         return boundary
@@ -91,14 +99,21 @@ class Boundary():
             bcond[0][i] = check_device(bcond[0][i])
         if len(bcond) == 2:
             b_val = torch.zeros(bcond[0][0].shape[0])
-            boundary = [bcond[0], None, b_val, 0, bcond[1]]
+            boundary = [bcond[0], None, b_val, 0, bcond[1], 'boundary']
         elif len(bcond) == 3 and type(bcond[1]) is int:
             b_val = torch.zeros(bcond[0][0].shape[0])
-            boundary = [bcond[0], None, b_val, bcond[1], bcond[2]]
-        elif type(bcond[1]) is dict:
+            boundary = [bcond[0], None, b_val, bcond[1], bcond[2], 'boundary']
+        elif len(bcond) == 3 and type(bcond[1]) is dict:
             b_val = torch.zeros(bcond[0][0].shape[0])
             bcond[1] = EquationMixin.equation_unify(bcond[1])
-            boundary = [bcond[0], bcond[1], b_val, None, bcond[2]]
+            boundary = [bcond[0], bcond[1], b_val, None, bcond[2], 'boundary']
+        elif len(bcond) == 4 and type(bcond[1]) is int:
+            b_val = torch.zeros(bcond[0][0].shape[0])
+            boundary = [bcond[0], None, b_val, bcond[1], bcond[2], bcond[3]]
+        elif len(bcond) == 4 and type(bcond[1]) is dict:
+            b_val = torch.zeros(bcond[0][0].shape[0])
+            bcond[1] = EquationMixin.equation_unify(bcond[1])
+            boundary = [bcond[0], bcond[1], b_val, None, bcond[2], bcond[3]]
         else:
             raise NameError('Incorrect periodic condition')
         return boundary
@@ -114,14 +129,25 @@ class Boundary():
             return unified condition.
 
         """
-        if bcond[-1] == 'periodic':
-            bnd = self.periodic(bcond)
-        elif bcond[-1] == 'dirichlet':
-            bnd = self.dirichlet(bcond)
-        elif bcond[-1] == 'operator':
-            bnd = self.neumann(bcond)
+
+        if bcond[-1] == 'initial':
+            if bcond[-2] == 'periodic':
+                bnd = self.periodic(bcond)
+            elif bcond[-2] == 'dirichlet':
+                bnd = self.dirichlet(bcond)
+            elif bcond[-2] == 'operator':
+                bnd = self.neumann(bcond)
+            else:
+                raise NameError('TEDEouS can not use ' + bcond[-2] + ' condition type')
         else:
-            raise NameError('TEDEouS can not use ' + bcond[-1] + ' condition type')
+            if bcond[-1] == 'periodic':
+                bnd = self.periodic(bcond)
+            elif bcond[-1] == 'dirichlet':
+                bnd = self.dirichlet(bcond)
+            elif bcond[-1] == 'operator':
+                bnd = self.neumann(bcond)
+            else:
+                raise NameError('TEDEouS can not use ' + bcond[-1] + ' condition type')
         return bnd
 
     def bnd_unify(self) -> list:
@@ -136,7 +162,7 @@ class Boundary():
         for bcond in self.bconds:
             bnd = {}
             bnd['bnd'], bnd['bop'], bnd['bval'], bnd['var'], \
-            bnd['type'] = self.bnd_choose(bcond)
+            bnd['type'], bnd['condition'] = self.bnd_choose(bcond)
             unified_bnd.append(bnd)
         return unified_bnd
 
@@ -664,7 +690,7 @@ class Equation():
     """
     Interface for preparing equations due to chosen calculation method.
     """
-    def __init__(self, grid: torch.Tensor, operator: dict, bconds: list, h: float = 0.001,
+    def __init__(self, grid: torch.Tensor, operator: Union[dict, list], bconds: list, h: float = 0.001,
                  inner_order: str ='1', boundary_order: str ='2'):
         """
         Args:

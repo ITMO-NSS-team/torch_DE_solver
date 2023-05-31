@@ -92,7 +92,7 @@ bop4= {
 bconds = [[bnd1, bndval1, 'dirichlet'],
           [bnd2, bndval2, 'dirichlet'],
           [bnd3, bndval3, 'dirichlet'],
-          [bnd4, bop4, bndval4, 'operator']]
+          [bnd4, bop4, bndval4, 'operator', 'initial']]
 
 wave_eq = {
         'd2u/dt2**1':
@@ -124,7 +124,7 @@ equation = Equation(grid, wave_eq, bconds, h=h).set_strategy('autograd')
 
 img_dir = os.path.join(os.path.dirname(__file__), 'wave_example_paper_img')
 
-model = Solver(grid, equation, model, 'autograd').solve(update_every_lambdas=1000, verbose=True, learning_rate=1e-3,
+model = Solver(grid, equation, model, 'autograd').solve(loss_term = 3, update_every_lambdas=500, verbose=True, learning_rate=1e-3,
                                                   eps=1e-8, tmax=1e6, use_cache=False, cache_verbose=True,lr_decay=True,
                                                   save_always=True, print_every=500, model_randomize_parameter=1e-5,
                                                   optimizer_mode='Adam', no_improvement_patience=1000,patience= 8,

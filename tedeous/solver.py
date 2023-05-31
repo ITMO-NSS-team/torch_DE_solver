@@ -187,7 +187,8 @@ class Solver():
             plt.show()
         plt.close()
 
-    def solve(self, lambda_bound: Union[int, float] = 10, update_every_lambdas: Union[None, int] = None, verbose: bool = False, learning_rate: float = 1e-4,
+    def solve(self, lambda_bound: Union[int, float] = 10, lambda_op = 1, lambda_initial = 0,
+              update_every_lambdas: Union[None, int] = None, verbose: bool = False, learning_rate: float = 1e-4,
               eps: float = 1e-5, tmin: int = 1000, tmax: float = 1e5, nmodels: Union[int, None] = None,
               name: Union[str, None] = None, abs_loss: Union[None, float] = None, use_cache: bool = True,
               cache_dir: str = '../cache/', cache_verbose: bool = False, save_always: bool = False,
@@ -195,7 +196,7 @@ class Solver():
               patience: int = 5, loss_oscillation_window: int = 100, no_improvement_patience: int = 1000,
               model_randomize_parameter: Union[int, float] = 0, optimizer_mode: str = 'Adam',
               step_plot_print: Union[bool, int] = False, step_plot_save: Union[bool, int] = False,
-              image_save_dir: Union[str, None] = None, lr_decay = False, decay_rate = 1000) -> Any:
+              image_save_dir: Union[str, None] = None, lr_decay = False, decay_rate = 1000, loss_term = 2) -> Any:
         """
         High-level interface for solving equations.
 
@@ -244,13 +245,17 @@ class Solver():
             
             Solution_class = Solution(self.grid, self.equal_cls,
                                       self.model, self.mode,
-                                      self.weak_form, update_every_lambdas)
+                                      self.weak_form, update_every_lambdas,
+                                      loss_term, lambda_op=lambda_op,
+                                      lambda_bcs=lambda_bound, lambda_ics=lambda_initial)
         else:
             Solution_class = Solution(self.grid, self.equal_cls,
                                       self.model, self.mode,
-                                      self.weak_form, update_every_lambdas)
+                                      self.weak_form, update_every_lambdas,
+                                      loss_term, lambda_op=lambda_op,
+                                      lambda_bcs=lambda_bound, lambda_ics=lambda_initial)
 
-            min_loss = Solution_class.evaluate(lambda_bound)
+            min_loss = Solution_class.evaluate(-1)
 
         optimizer = self.optimizer_choice(optimizer_mode, learning_rate)
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer = optimizer, gamma = 0.9)
@@ -267,7 +272,7 @@ class Solver():
         def closure():
             nonlocal cur_loss
             optimizer.zero_grad()
-            loss = Solution_class.evaluate(lambda_bound)
+            loss = Solution_class.evaluate(t)
             loss.backward()
             cur_loss = loss.item()
             return loss
@@ -351,9 +356,9 @@ class Solver():
                                                 solution_print=step_plot_print,
                                                 solution_save=step_plot_save,
                                                 save_dir=image_save_dir)
-                if type(update_every_lambdas) is int:
-                    l_bnd, l_bop, l_op = Solution_class.l_bnd, Solution_class.l_bop, Solution_class.l_op
-                    print('lambda bound: {:.3e}, lambda boundary operator: {:.3e}, lambda operator: {:.3e}'.format(l_bnd, l_bop, l_op))
+
+                l_bnd, l_bop, l_op = Solution_class.lambda_bcs, Solution_class.lambda_ics, Solution_class.lambda_op
+                print('lambda bound: {:.3e}, lambda boundary operator: {:.3e}, lambda operator: {:.3e}'.format(l_bnd, l_bop, l_op))
             t += 1
             if t > tmax:
                 break

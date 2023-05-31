@@ -114,7 +114,6 @@ class Model_prepare():
                 continue
             model = model.to(device)
             if self.lambda_update is int:
-
                 l = Solution(self.grid, self.equal_cls,
                                           self.model, self.mode,
                                           weak_form, self.lambda_update).evaluate(lambda_bound)
