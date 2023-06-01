@@ -53,8 +53,7 @@ def integration(func: torch.tensor, grid, pow: Union[int, float] = 2) -> Union[T
 
 
 class Solution():
-    def __init__(self, grid: torch.Tensor, equal_cls: Union[tedeous.input_preprocessing.Equation_NN,
-                                                            tedeous.input_preprocessing.Equation_mat, tedeous.input_preprocessing.Equation_autograd],
+    def __init__(self, grid: torch.Tensor, equal_cls,
                  model: Union[torch.nn.Sequential, torch.Tensor], mode: str):
         self.grid = check_device(grid)
         equal_copy = deepcopy(equal_cls)
@@ -266,7 +265,7 @@ class Solution():
         else:
             return torch.cat(sol_list)
 
-    def l2_loss(self, lambda_bound:  Union[int, float] = 10) -> torch.Tensor:
+    def l2_loss(self, lambda_bound:  Union[int, float] = 10, tol=0, n_t=None) -> torch.Tensor:
         """
         Computes l2 loss.
         Args:
@@ -274,7 +273,7 @@ class Solution():
         Returns:
             model loss.
         """
-        op = self.pde_compute()
+        
         if self.prepared_bconds == None:
             return torch.sum(torch.mean((op) ** 2, 0))
 
@@ -284,6 +283,14 @@ class Solution():
         if self.mode == 'mat':
             loss = torch.mean((op) ** 2) + \
                    lambda_bound * torch.mean((b_val - true_b_val) ** 2)
+        if n_t != None and tol!= 0:
+            op = self.pde_compute()**2
+            res = torch.sum(op, dim=1).reshape(n_t, -1)
+            M = torch.triu(torch.ones((n_t, n_t)), diagonal=1).T
+            with torch.no_grad():
+                W = torch.exp(- tol * (M @ res))
+            loss = torch.mean(W*res) + \
+                   lambda_bound * torch.sum(torch.mean((b_val - true_b_val) ** 2, 0))
         else:
             loss = torch.sum(torch.mean((op) ** 2, 0)) + \
                    lambda_bound * torch.sum(torch.mean((b_val - true_b_val) ** 2, 0))
@@ -311,7 +318,7 @@ class Solution():
 
         return loss
 
-    def loss_evaluation(self, lambda_bound: Union[int, float] = 10, weak_form: Union[None, list] = None) -> Union[l2_loss, weak_loss]:
+    def loss_evaluation(self, lambda_bound: Union[int, float] = 10, weak_form: Union[None, list] = None, tol=0, n_t=None) -> Union[l2_loss, weak_loss]:
         """
         Setting the required loss calculation method.
         Args:
@@ -326,6 +333,6 @@ class Solution():
                 return np.inf
 
         if weak_form == None or weak_form == []:
-            return self.l2_loss(lambda_bound=lambda_bound)
+            return self.l2_loss(lambda_bound=lambda_bound, tol=tol, n_t=n_t)
         else:
             return self.weak_loss(weak_form, lambda_bound=lambda_bound)

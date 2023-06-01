@@ -5,6 +5,7 @@ from matplotlib import cm
 import os
 import datetime
 from typing import Union
+from torch.optim.lr_scheduler import ExponentialLR
 
 from tedeous.cache import *
 from tedeous.device import check_device, device_type
@@ -49,8 +50,7 @@ class Solver():
     """
     High-level interface for solving equations.
     """
-    def __init__(self, grid: torch.Tensor, equal_cls: Union[tedeous.input_preprocessing.Equation_NN,
-                                                            tedeous.input_preprocessing.Equation_mat, tedeous.input_preprocessing.Equation_autograd],
+    def __init__(self, grid: torch.Tensor, equal_cls,
                  model: Any, mode: str, weak_form: Union[None, list] = None):
         """
         High-level interface for solving equations.
@@ -102,7 +102,11 @@ class Solver():
         Args:
             title: title
         """
-        nvars_model = self.model[-1].out_features
+        try:
+            nvars_model = self.model[-1].out_features
+        except:
+            nvars_model = self.model.linear_last.out_features
+
         nparams = self.grid.shape[1]
         fig = plt.figure()
         for i in range(nvars_model):
@@ -112,6 +116,7 @@ class Solver():
                     ax1.set_title(title+' variable {}'.format(i))
                 ax1.scatter(self.grid.detach().cpu().numpy().reshape(-1),
                             self.model(self.grid)[:,i].detach().cpu().numpy())
+                
             else:
                 ax1 = fig.add_subplot(1, nvars_model, i+1, projection='3d')
                 if title != None:
@@ -195,7 +200,7 @@ class Solver():
               patience: int = 5, loss_oscillation_window: int = 100, no_improvement_patience: int = 1000,
               model_randomize_parameter: Union[int, float] = 0, optimizer_mode: str = 'Adam',
               step_plot_print: Union[bool, int] = False, step_plot_save: Union[bool, int] = False,
-              image_save_dir: Union[str, None] = None) -> Any:
+              image_save_dir: Union[str, None] = None, tol=0, n_t=None) -> Any:
         """
         High-level interface for solving equations.
 
@@ -248,10 +253,10 @@ class Solver():
             Solution_class = Solution(self.grid, self.equal_cls,
                                       self.model, self.mode)
             min_loss = Solution_class.loss_evaluation(lambda_bound=lambda_bound,
-                                                      weak_form=self.weak_form)
+                                                      weak_form=self.weak_form, tol=tol, n_t=n_t)
         
         optimizer = self.optimizer_choice(optimizer_mode, learning_rate)
-    
+        scheduler = ExponentialLR(optimizer, gamma=0.9)
         # standard NN stuff
         if verbose:
             print('[{}] initial (min) loss is {}'.format(
@@ -266,7 +271,7 @@ class Solver():
             nonlocal cur_loss
             optimizer.zero_grad()
             loss = Solution_class.loss_evaluation(
-                lambda_bound = lambda_bound, weak_form=self.weak_form)
+                lambda_bound = lambda_bound, weak_form=self.weak_form, tol=tol, n_t=n_t)
             loss.backward()
             cur_loss = loss.item()
             return loss
@@ -343,6 +348,7 @@ class Solver():
                 print('[{}] Print every {} step'.format(
                     datetime.datetime.now(),print_every))
                 print(info_string)
+                scheduler.step()
                 if step_plot_print or step_plot_save:
                     self.solution_print(title='Iteration = ' + str(t),
                                                 solution_print=step_plot_print,
