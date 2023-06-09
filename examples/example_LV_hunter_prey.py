@@ -90,18 +90,18 @@ eq2 = {
 
 Lotka = [eq1, eq2]
 
-model = Modified_MLP([512, 512, 512, 512, 2], [15], [7], device='cpu')
+model = Modified_MLP([512, 512, 512, 512, 2], [15], [7])
 
-equation = Equation(grid, Lotka, bconds).set_strategy('autograd')
+equation = Equation(grid, Lotka, bconds).set_strategy('NN')
 
 start = time.time()
 
-model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=10,
-                                        verbose=True, learning_rate=1e-3, eps=1e-6, tmin=30000, tmax=5e6,
+model = Solver(grid, equation, model, 'NN').solve(lambda_bound=10,
+                                        verbose=True, learning_rate=1e-3, eps=1e-6, tmin=30000, tmax=1e5,
                                         use_cache=False, cache_dir='../cache/',cache_verbose=True,
                                         save_always=False, print_every=5000,
-                                        patience=30,loss_oscillation_window=100, no_improvement_patience=10000,
+                                        patience=5,loss_oscillation_window=100, no_improvement_patience=100,
                                         optimizer_mode='Adam', cache_model=None,
-                                        step_plot_print=True, step_plot_save=False, tol=20, n_t=1001)
+                                        step_plot_print=False, step_plot_save=True, tol=0.01)
 
 end = time.time()

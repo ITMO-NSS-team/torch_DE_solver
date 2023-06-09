@@ -4,141 +4,100 @@ import torch.nn.functional as F
 import numpy as np
 
 
-# Define MLP with exact periodicity 
-class MLP(nn.Module):
-    def __init__(self, layers=[100,100,100,1], L=[1], M=[1],
-                 activation=F.tanh, device='cpu'):
-        super(MLP, self).__init__()
-        self.L = L
+class Fourier_embedding(nn.Module):
+    """
+    Class for Fourier features generation.
+    Args:
+        L: list[float or None], sin(w*x)/cos(w*X) frequencie parameter, w = 2*pi/L
+        M: list[float or None], number of (sin, cos) pairs in result embedding
+        ones: bool, enter or not ones vector in result embedding.
+    Example:
+        u(t,x) if user wants to create 5 Fourier features in 'x' direction with L=5:
+        L=[None, 5], M=[None, 5].
+    """
+    def __init__(self, L=[1], M=[1], ones=False):
+        super().__init__()
         self.M = M
-        self.device = device
-        not_none = sum([i for i in M if i is not None])
-        is_none = self.M.count(None)
-        d0 = not_none*2 + is_none + 1
-        layers = [d0] + layers
-        self.linears = nn.ModuleList([
-            nn.Linear(layers[i], layers[i+1], device=device
-                      ) for i in range(len(layers)-1)])
-        self.activation = activation
-
-    def input_encoding(self, grid):
-        idx = [i for i in range(len(self.M)) if self.M[i] is None]
-        features = grid[:,idx]
-        ones = torch.ones_like(grid[:,0:1]).to(self.device)
-        for i in range(len(self.M)):
-            if self.M[i] is not None:
-                Mi = self.M[i]
-                Li = self.L[i]
-                w = 2.0 * np.pi / Li
-                k = torch.arange(1, Mi+1).to(self.device).reshape(-1,1).float()
-                x = grid[:,i].reshape(1,-1)
-                x = (k@x).T
-                embed_cos = torch.cos(w*x)
-                embed_sin = torch.sin(w*x)
-        
-        out = torch.hstack((embed_cos, embed_sin, ones, features))
-        return out
-
-    def forward(self, grid):
-        H = self.input_encoding(grid)
-        for layer in self.linears[:-1]:
-            H = self.activation(layer(H))
-        outputs = self.linears[-1](H)
-        return outputs
-
-
-# Define modified MLP
-class Modified_MLP(nn.Module):
-    def __init__(self, layers=[100,100,100,1], L=[1], M=[1],
-                 activation=F.tanh, device='cpu'):
-        super(Modified_MLP, self).__init__()
         self.L = L
-        self.M = M
-        self.device = device
+        self.idx = [i for i in range(len(self.M)) if self.M[i] is None]
+        self.ones = ones
+        self.in_features = len(M)
         not_none = sum([i for i in M if i is not None]) 
         is_none = self.M.count(None)
         if is_none == 0:
-            layers = [not_none*2 + 1] + layers
+            self.out_features = not_none*2 + 1
         else:
-            layers = [not_none*2 + is_none] + layers
-        self.layers = layers
-        self.linear_u = nn.Linear(layers[0], layers[1], device=device)
-        self.linear_v = nn.Linear(layers[0], layers[1], device=device)
-        self.linears = nn.ModuleList([
-                    nn.Linear(layers[i], layers[i+1], device=device)
-                                        for i in range(len(layers)-2)])
-        self.linear_last = nn.Linear(layers[-2], layers[-1], device=device)
-        self.activation = activation
+            self.out_features = not_none*2 + is_none
+        if ones is not False:
+            self.out_features += 1
 
-
-    # Define input encoding function
-    def input_encoding(self, grid):
-        idx = [i for i in range(len(self.M)) if self.M[i] is None]
-        if idx == []:
+    def forward(self, grid):
+        """
+        Forward method for Fourier features generation.
+        Args:
+            grid: torch.Tensor, calculation domain.
+        Returns:
+            out: torch.Tensor, embedding with Fourier features.
+        """
+        if self.idx == []:
             out = grid
         else:
-            out = grid[:,idx]
+            out = grid[:,self.idx]
         
         for i in range(len(self.M)):
             if self.M[i] is not None:
                 Mi = self.M[i]
                 Li = self.L[i]
                 w = 2.0 * np.pi / Li
-                k = torch.arange(1, Mi+1).to(self.device).reshape(-1,1).float()
+                k = torch.arange(1, Mi+1).reshape(-1,1).float()
                 x = grid[:,i].reshape(1,-1)
                 x = (k@x).T
                 embed_cos = torch.cos(w*x)
                 embed_sin = torch.sin(w*x)
                 out = torch.hstack((out, embed_cos, embed_sin))
+        
+        if self.ones is not False:
+            out = torch.hstack((out, torch.ones_like(out[:,0:1])))
+
         return out
 
 
-    def forward(self, grid):   
-        inputs = self.input_encoding(grid)
-        U = self.activation(self.linear_u(inputs))
-        V = self.activation(self.linear_v(inputs))
-        for layer in self.linears:
-            outputs = F.tanh(layer(inputs))
-            inputs = outputs*U + (1 - outputs)*V
+class Modified_MLP(nn.Module):
+    """
+    class for realizing neural network with Fourier features
+    and skip connection.
+    Args:
+        L: list[float or None], sin(w*x)/cos(w*X) frequencie parameter, w = 2*pi/L.
+        M: list[float or None], number of (sin, cos) pairs in result embedding.
+        activation: nn.Module object, activation function.
+        ones: bool, enter or not ones vector in result embedding.
+    """
+    def __init__(self, layers=[100,100,100,1], L=[1], M=[1],
+                 activation=nn.Tanh(), ones=False):
+        super(Modified_MLP, self).__init__()
+        self.L = L
+        self.M = M
+        FFL = Fourier_embedding(L=L, M=M, ones=ones)
 
-        outputs = self.linear_last(inputs)
+        layers = [FFL.out_features] + layers
 
-        return outputs
+        self.linear_u = nn.Linear(layers[0], layers[1])
+        self.linear_v = nn.Linear(layers[0], layers[1])
 
-
-class FirstLinear(nn.Linear): 
-    def __init__(self, in_features, out_features, bias=True,
-                                            device=None, dtype=None, sigma=1.):
-        super(FirstLinear, self).__init__(in_features, out_features,
-                                          bias, device, dtype)
-        self.sigma = torch.tensor([sigma]).to('cuda')
-
-    def forward(self, input):
-        return F.linear(input, self.sigma * self.weight, self.bias) 
+        self.activation = activation
+        self.model = nn.ModuleList([FFL])
+        for i in range(len(layers)-1):
+            self.model.append(nn.Linear(layers[i], layers[i+1]))
 
 
-class FFN(nn.Module):
-    def __init__(self, layers):
-        super(FFN, self).__init__()
-        self.layers = layers
-        self.firstLinear1 = FirstLinear(1, layers[0] // 2, bias=False, sigma=1., device='cuda')
-        self.firstLinear2 = FirstLinear(1, layers[0] // 2, bias=False, sigma=10., device='cuda')
-        self.layerlist = nn.ModuleList([nn.Linear(layers[i], layers[i+1])
-                                                for i in range(len(layers)-2)])
-        self.lastLayer = nn.Linear(2*layers[-2], layers[-1])
+    def forward(self, grid):
+        input = self.model[0](grid)
+        V = self.activation(self.linear_v(input))
+        U = self.activation(self.linear_u(input))
+        for layer in self.model[1:-1]:
+            output = self.activation(layer(input))
+            input = output * U + (1 - output) * V
 
-    def forward(self, X):
-        H1 = torch.cat((torch.sin(self.firstLinear1(X)),
-                        torch.cos(self.firstLinear1(X))), dim=1)
-        H2 = torch.cat((torch.sin(self.firstLinear2(X)),
-                        torch.cos(self.firstLinear2(X))), dim=1)
-        
-        for layer in self.layerlist:
-            H1 = F.tanh(layer(H1))
-            H2 = F.tanh(layer(H2))
+        output = self.model[-1](input)
 
-        H = torch.cat((H1, H2), dim=1)
-
-        H = self.lastLayer(H)
-
-        return H
+        return output

@@ -17,11 +17,15 @@ from tedeous.solver import Solver
 from tedeous.metrics import Solution
 from tedeous.device import solver_device
 from tedeous.models import Modified_MLP
+from tedeous.models import Fourier_embedding
 
-solver_device('cpu')
+solver_device('gpu')
 
 x = torch.from_numpy(np.linspace(-1, 1, 51))
 t = torch.from_numpy(np.linspace(0, 1, 51))
+
+# if the casual_loss is used the time parameter must be
+# at the first place in the grid
 
 grid = torch.cartesian_prod(t, x).float()
 
@@ -91,16 +95,35 @@ AC = {
             'var': 0
         }
 }
+
+FFL = Fourier_embedding(L=[None, 2], M=[None, 10])
+
+out = FFL.out_features
+
+model = torch.nn.Sequential(
+    FFL,
+    torch.nn.Linear(out, 128),
+    torch.nn.Tanh(),
+    torch.nn.Linear(128,128),
+    torch.nn.Tanh(),
+    torch.nn.Linear(128,128),
+    torch.nn.Tanh(),
+    torch.nn.Linear(128,1)
+)
     
-    
-model = Modified_MLP([128, 128, 128, 1], L=[None, 2], M=[None, 10], device='cpu')
-        
+#model = Modified_MLP([128, 128, 128, 1], L=[None, 2], M=[None, 10]) # NN structure for more accurate solution
+
+img_dir=os.path.join(os.path.dirname( __file__ ), 'AC_eq_img')
+
+if not(os.path.isdir(img_dir)):
+    os.mkdir(img_dir)
+
 equation = Equation(grid, AC, bconds).set_strategy('autograd')
 
 model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=100,
-                                         verbose=True, learning_rate=1e-3, eps=1e-7, tmin=1000, tmax=5e6,
+                                         verbose=True, learning_rate=1e-3, eps=1e-7, tmin=1000, tmax=1e5,
                                          use_cache=False,cache_dir='../cache/',cache_verbose=False,
                                          save_always=False,print_every=1000,
                                          patience=3,loss_oscillation_window=100,no_improvement_patience=1000,
                                          model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=None,
-                                         step_plot_print=False,step_plot_save=True, tol=20, n_t=51)
+                                         step_plot_print=False, step_plot_save=True, tol=50, image_save_dir=img_dir)
