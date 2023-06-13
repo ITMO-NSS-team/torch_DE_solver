@@ -21,7 +21,7 @@ from tedeous.models import Modified_MLP
 x0 = 30.
 y0 = 4.
 
-solver_device('cpu')
+solver_device('cuda')
 
 t1 = np.linspace(0,20,1001)
 
