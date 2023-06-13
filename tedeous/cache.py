@@ -106,10 +106,10 @@ class Model_prepare():
         Args:
             lambda_bound: an arbitrary chosen constant, influence only convergence speed.
             cache_dir: directory where saved cache in.
-            nmodels: smth
+            nmodels: maximal number of models that are looked before optimization
             cache_verbose: more detailed info about models in cache.
         Returns:
-            * **best_checkpoint** -- smth.\n
+            * **best_checkpoint** -- best model with optimizator state.\n
             * **min_loss** -- minimum error in pre-trained error.
         """
         files = glob.glob(cache_dir + '*.tar')

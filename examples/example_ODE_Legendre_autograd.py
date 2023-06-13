@@ -39,19 +39,21 @@ Grid is an essentially torch.Tensor of a n-D points where n is the problem
 dimensionality
 """
 
-t = np.linspace(0, 1, 100)
 
-coord_list = [t]
-
-
-grid = grid_format_prepare(coord_list,mode='NN')
 
 
 exp_dict_list=[]
 
 CACHE=True
 
-for n in range(3,10):  
+for n in range(3,10):
+    
+    t1 = np.linspace(0, 1, 100)
+
+    t = torch.from_numpy(t1)
+
+    grid = t.reshape(-1, 1).float()
+
     """
     Preparing boundary conditions (BC)
     
