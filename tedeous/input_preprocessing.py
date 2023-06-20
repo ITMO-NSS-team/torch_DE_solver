@@ -7,7 +7,16 @@ from tedeous.points_type import Points_type
 from tedeous.finite_diffs import Finite_diffs
 from tedeous.device import check_device
 
-
+def lambda_prepare(bval, lambda_bound):
+    lambdas = {}
+    for i, bcs_type in enumerate(bval):
+        if type(lambda_bound) is int:
+            lambdas[bcs_type] = lambda_bound
+        elif type(lambda_bound) is list:
+            lambdas[bcs_type] = lambda_bound[i]
+        else:
+            return lambda_bound
+    return lambdas
 class Boundary():
     """
     Сlass for bringing all boundary conditions to a similar form.

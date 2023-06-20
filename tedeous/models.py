@@ -62,7 +62,7 @@ class Fourier_embedding(nn.Module):
         return out
 
 
-class Modified_MLP(nn.Module):
+class FourierNN(nn.Module):
     """
     class for realizing neural network with Fourier features
     and skip connection.
@@ -74,7 +74,7 @@ class Modified_MLP(nn.Module):
     """
     def __init__(self, layers=[100,100,100,1], L=[1], M=[1],
                  activation=nn.Tanh(), ones=False):
-        super(Modified_MLP, self).__init__()
+        super(FourierNN, self).__init__()
         self.L = L
         self.M = M
         FFL = Fourier_embedding(L=L, M=M, ones=ones)
