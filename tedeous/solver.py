@@ -200,8 +200,8 @@ class Solver():
         return optimizer
 
 
-    def solve(self, lambda_bound: Union[int, float] = 10,
-              verbose: bool = False, learning_rate: float = 1e-4, gamma=None, lr_change=1000,
+    def solve(self, update_every_lambdas = None, lambda_bound: Union[float, list] = 10,
+              verbose: bool = False, learning_rate: float = 1e-4, gamma=None, lr_decay=1000,
               eps: float = 1e-5, tmin: int = 1000, tmax: float = 1e5,
               nmodels: Union[int, None] = None, name: Union[str, None] = None,
               abs_loss: Union[None, float] = None, use_cache: bool = True,
@@ -209,7 +209,7 @@ class Solver():
               save_always: bool = False, print_every: Union[int, None] = 100,
               cache_model: Union[torch.nn.Sequential, None] = None,
               patience: int = 5, loss_oscillation_window: int = 100,
-              no_improvement_patience: int = 1000,  model_randomize_parameter: Union[int, float] = 0,
+              no_improvement_patience: int = 1000, model_randomize_parameter: Union[int, float] = 0,
               optimizer_mode: str = 'Adam', step_plot_print: Union[bool, int] = False,
               step_plot_save: Union[bool, int] = False, image_save_dir: Union[str, None] = None, tol:float=0) -> Any:
         """
@@ -245,8 +245,6 @@ class Solver():
         Returns:
             model.
         """
-        
-
         Cache_class = Model_prepare(self.grid, self.equal_cls,
                                                         self.model, self.mode)
 
@@ -264,17 +262,17 @@ class Solver():
                                                      weak_form=self.weak_form)
             
             Solution_class = Solution(self.grid, self.equal_cls,
-                                      self.model, self.mode)
+                                      self.model, self.mode, self.weak_form, lambda_bound)
         else:
             Solution_class = Solution(self.grid, self.equal_cls,
-                                      self.model, self.mode)
-            min_loss = Solution_class.loss_evaluation(lambda_bound=lambda_bound,
-                                                      weak_form=self.weak_form,
-                                                      tol=tol)
+                                      self.model, self.mode, self.weak_form, lambda_bound)
+
+            min_loss = Solution_class.evaluate(-1, update_every_lambdas, tol)
         
         self.plot = Plots(self.model, self.grid, self.mode)
 
         optimizer = self.optimizer_choice(optimizer_mode, learning_rate)
+
         if gamma != None:
             scheduler = ExponentialLR(optimizer, gamma=gamma)
 
@@ -291,9 +289,7 @@ class Solver():
         def closure():
             nonlocal cur_loss
             optimizer.zero_grad()
-            loss = Solution_class.loss_evaluation(
-                lambda_bound = lambda_bound, weak_form=self.weak_form,
-                                                            tol=tol)
+            loss = Solution_class.evaluate(t, update_every_lambdas, tol)
             loss.backward()
             cur_loss = loss.item()
             return loss
@@ -305,7 +301,6 @@ class Solver():
         cur_loss = min_loss
         while stop_dings <= patience:
             optimizer.step(closure)
-
             if cur_loss != cur_loss:
                 print(f'Loss is equal to NaN, something went wrong (LBFGS+high'
                  f'leraning rate and pytorch<1.12 could be the problem)')
@@ -322,7 +317,7 @@ class Solver():
                 info_string='Step = {} loss = {:.6f} normalized loss line= {:.6f}x+{:.6f}. There was {} stop dings already.'.format(
                                                                         t, cur_loss, line[0]/cur_loss, line[1]/cur_loss, stop_dings+1)
 
-            if gamma != None and t % lr_change == 0:
+            if gamma != None and t % lr_decay == 0:
                  scheduler.step()
 
 
@@ -379,6 +374,9 @@ class Solver():
                                                 solution_print=step_plot_print,
                                                 solution_save=step_plot_save,
                                                 save_dir=image_save_dir)
+                # l_bnd = Solution_class.lambda_bound
+                # print('lambda dirichlet: {:.3e}, lambda neumann: {:.3e}, lambda periodic: {:.3e}'.
+                #       format(l_bnd[0],l_bnd[1],l_bnd[2]))
             t += 1
             if t > tmax:
                 break

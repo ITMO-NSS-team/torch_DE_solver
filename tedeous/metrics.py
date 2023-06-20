@@ -7,6 +7,7 @@ from tedeous.points_type import Points_type
 from tedeous.derivative import Derivative
 from tedeous.device import device_type, check_device
 import tedeous.input_preprocessing
+from tedeous.utils import LambdaCompute
 
 flatten_list = lambda t: [item for sublist in t for item in sublist]
 
@@ -56,12 +57,13 @@ class DE_operator():
     """
     Class for differential equation calculation.
     """
-    def __init__(self, grid: torch.Tensor, prepared_operator: dict,
-                 model: Union[torch.nn.Sequential, torch.Tensor], mode: str):
+    def __init__(self, grid: torch.Tensor, prepared_operator: Union[list,dict],
+                 model: Union[torch.nn.Sequential, torch.Tensor], mode: str, weak_form):
         self.grid = check_device(grid)
         self.prepared_operator = prepared_operator
         self.model = model.to(device_type())
         self.mode = mode
+        self.weak_form = weak_form
         if self.mode == 'NN':
             self.grid_dict = Points_type(self.grid).grid_sort()
             self.sorted_grid = torch.cat(list(self.grid_dict.values()))
@@ -139,20 +141,24 @@ class DE_operator():
         else:
             return torch.cat(sol_list)
 
+    def operator_compute(self):
+        if self.weak_form == None or self.weak_form == []:
+            return self.pde_compute()
+        else:
+            return self.weak_pde_compute(self.weak_form)
 
 class Bounds():
     """
     class for boundary and initial conditions calculation.
     """
-    def __init__(self, grid: torch.Tensor, prepared_bconds: dict,
-                 model: Union[torch.nn.Sequential, torch.Tensor], mode: str):
+    def __init__(self, grid: torch.Tensor, prepared_bconds: Union[list,dict],
+                 model: Union[torch.nn.Sequential, torch.Tensor], mode: str, weak_form):
         self.grid = check_device(grid)
         self.prepared_bconds = prepared_bconds
         self.model = model.to(device_type())
         self.mode = mode
         self.apply_operator = DE_operator(self.grid, self.prepared_bconds,
-                                          self.model, self.mode).apply_operator
-
+                                          self.model, self.mode, weak_form).apply_operator
 
     def apply_bconds_set(self, operator_set: list) -> torch.Tensor:
         """
@@ -260,84 +266,77 @@ class Bounds():
                                            bcond['var'])
         return b_op_val
 
-    def apply_bconds_operator(self) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Auxiliary function. Serves only to evaluate boundary values and true boundary values.
-        Returns:
-            * **b_val** -- calculated model boundary values.\n
-            * **true_b_val** -- true grid boundary values.
-        """
-        true_b_val_list = []
-        b_val_list = []
+    # def apply_bconds_operator(self) -> Tuple[torch.Tensor, torch.Tensor]:
+    #     """
+    #     Auxiliary function. Serves only to evaluate boundary values and true boundary values.
+    #     Returns:
+    #         * **b_val** -- calculated model boundary values.\n
+    #         * **true_b_val** -- true grid boundary values.
+    #     """
+    #     true_b_val_list = []
+    #     b_val_list = []
+    #
+    #     for bcond in self.prepared_bconds:
+    #         truebval = bcond['bval'].reshape(-1, 1)
+    #         true_b_val_list.append(truebval)
+    #         b_op_val = self.b_op_val_calc(bcond)
+    #         b_val_list.append(b_op_val)
+    #
+    #     true_b_val = torch.cat(true_b_val_list)
+    #     b_val = torch.cat(b_val_list).reshape(-1, 1)
+    #
+    #     return b_val, true_b_val
+    def apply_bcs(self):
+        bval_dict = {}
+        true_bval_dict = {}
 
         for bcond in self.prepared_bconds:
-            truebval = bcond['bval'].reshape(-1, 1)
-            true_b_val_list.append(truebval)
-            b_op_val = self.b_op_val_calc(bcond)
-            b_val_list.append(b_op_val)
+            bval_dict[bcond['type']] = []
+            true_bval_dict[bcond['type']] = []
 
-        true_b_val = torch.cat(true_b_val_list)
-        b_val = torch.cat(b_val_list).reshape(-1, 1)
+        for bcond in self.prepared_bconds:
+            bval_dict[bcond['type']].append(self.b_op_val_calc(bcond))
+            true_bval_dict[bcond['type']].append(bcond['bval'].reshape(-1, 1))
 
-        return b_val, true_b_val
+        bval_dict.update((key, torch.cat(value)) for key, value in bval_dict.items())
+        true_bval_dict.update((key, torch.cat(value)) for key, value in true_bval_dict.items())
 
+        return bval_dict, true_bval_dict
 
-class Solution():
-    """
-    class for different loss functions calculation.
-    """
-    def __init__(self, grid: torch.Tensor, equal_cls: Union[tedeous.input_preprocessing.Equation_NN,
-                                                            tedeous.input_preprocessing.Equation_mat,
-                                                            tedeous.input_preprocessing.Equation_autograd],
-                 model: Union[torch.nn.Sequential, torch.Tensor], mode: str):
-        self.grid = check_device(grid)
-        if mode == 'NN':
-            sorted_grid = Points_type(self.grid).grid_sort()
-            self.n_t = len(sorted_grid['central'][:, 0].unique())
-        elif mode == 'autograd':
-            self.n_t = len(self.grid[:, 0].unique())
-        equal_copy = deepcopy(equal_cls)
-        self.prepared_operator = equal_copy.operator_prepare()
-        self.prepared_bconds = equal_copy.bnd_prepare()
-        self.model = model.to(device_type())
+class Losses():
+    def __init__(self, operator, bval, true_bval, lambda_bound, mode, weak_form, n_t):
+        self.operator = operator
         self.mode = mode
-        self.operator = DE_operator(self.grid, self.prepared_operator, self.model,
-                                   self.mode)
-        self.bconds = Bounds(self.grid, self.prepared_bconds, self.model,
-                                   self.mode)
+        self.weak_form = weak_form
+        self.bval = bval
+        self.true_bval = true_bval
+        self.lambda_bound = tedeous.input_preprocessing.lambda_prepare(bval, lambda_bound)
+        self.n_t = n_t
 
-    def default_loss(self, lambda_bound:  Union[int, float] = 10, save_graph: bool = True):
+    def loss_bcs(self):
+        loss_bnd = 0
+        for type in self.bval:
+            loss_bnd += self.lambda_bound[type] * torch.mean((self.bval[type] - self.true_bval[type]) ** 2)
+        return loss_bnd
+
+    def default_loss(self, lambda_bound):
         """
         Computes l2 loss.
         Args:
-            save_graph: boolean constant, responsible for saving the computational graph.
             lambda_bound: an arbitrary chosen constant, influence only convergence speed.
         Returns:
             model loss.
         """
-        op = self.operator.pde_compute()
-
-        if self.prepared_bconds == None:
-            return torch.sum(torch.mean(op ** 2, 0))
-
-        b_val, true_b_val = self.bconds.apply_bconds_operator()
+        if self.bval == None:
+            return torch.sum(torch.mean((self.operator) ** 2, 0))
 
         if self.mode == 'mat':
-            loss = torch.mean(op ** 2) + \
-                   lambda_bound * torch.mean((b_val - true_b_val) ** 2)
+            loss = torch.mean((self.operator) ** 2) + self.loss_bcs()
         else:
-            loss = torch.sum(torch.mean(op ** 2, 0)) + \
-                   lambda_bound * torch.sum(torch.mean((b_val - true_b_val) ** 2, 0))
-
-        if not save_graph:
-            temp_loss = loss.detach()
-            del loss
-            torch.cuda.empty_cache()
-            loss = temp_loss
-
+            loss = torch.sum(torch.mean((self.operator) ** 2, 0)) + self.loss_bcs()
         return loss
 
-    def casual_loss(self, lambda_bound:  Union[int, float] = 10, tol: float = 0) -> torch.Tensor:
+    def casual_loss(self, lambda_bound, tol: float = 0) -> torch.Tensor:
         """
         Computes casual loss, which is caclulated with weights matrix:
         W = exp(-tol*(Loss_i)) where Loss_i is sum of the L2 loss from 0
@@ -346,27 +345,21 @@ class Solution():
 
         Args:
             lambda_bound: an arbitrary chosen constant, influence only convergence speed.
-            tol: float constant, influences on error penalty. 
+            tol: float constant, influences on error penalty.
         Returns:
             model loss.
         """
-        
-        op = self.operator.pde_compute()**2
+        op = self.operator ** 2
 
-        if self.prepared_bconds == None:
+        if self.bval == None:
             return torch.sum(torch.mean((op) ** 2, 0))
-
-        b_val, true_b_val = self.bconds.apply_bconds_operator()
 
         res = torch.sum(op, dim=1).reshape(self.n_t, -1)
         res = torch.mean(res, axis=1).reshape(self.n_t, 1)
         M = torch.triu(torch.ones((self.n_t, self.n_t)), diagonal=1).T
         with torch.no_grad():
             W = torch.exp(- tol * (M @ res))
-        #plt.plot(W.detach().cpu().numpy())
-        #plt.show()
-        loss = torch.mean(W*res) + \
-                lambda_bound * torch.sum(torch.mean((b_val - true_b_val) ** 2, 0))
+        loss = torch.mean(W * res) + self.loss_bcs()
 
         return loss
 
@@ -379,38 +372,72 @@ class Solution():
         Returns:
             model loss.
         """
-        op = self.operator.weak_pde_compute(weak_form)
-        if self.prepared_bconds == None:
-            return torch.sum(op)
+        if self.bval == None:
+            return torch.sum(self.operator)
 
         # we apply no  boundary conditions operators if they are all None
 
-        b_val, true_b_val = self.bconds.apply_bconds_operator()
-
-        loss = torch.sum(op) + \
-               lambda_bound * torch.sum(torch.mean((b_val - true_b_val) ** 2, 0))
+        loss = torch.sum(self.operator) + self.loss_bcs()
 
         return loss
 
-    def loss_evaluation(self, lambda_bound: Union[int, float] = 10, weak_form: Union[None, list] = None, save_graph: bool = True, tol=0) -> Union[default_loss, weak_loss, casual_loss]:
-        """
-        Setting the required loss calculation method.
-        Args:
-            lambda_bound: an arbitrary chosen constant, influence only convergence speed.
-            weak_form: list of basis functions.
-            save_graph: boolean constant, responsible for saving the computational graph.
-            tol: float constant, influences on error penalty. 
-        Returns:
-            A given calculation method.
-        """
-        if self.mode == 'mat' or self.mode == 'autograd':
-            if self.prepared_bconds == None:
-                print('No bconds is not possible, returning infinite loss')
-                return np.inf
+    def compute(self, tol=0) -> \
+        Union[default_loss, weak_loss, casual_loss]:
+            """
+            Setting the required loss calculation method.
+            Args:
+                lambda_bound: an arbitrary chosen constant, influence only convergence speed.
+                weak_form: list of basis functions.
+                tol: float constant, influences on error penalty.
+            Returns:
+                A given calculation method.
+            """
+            if self.mode == 'mat' or self.mode == 'autograd':
+                if self.bval == None:
+                    print('No bconds is not possible, returning infinite loss')
+                    return np.inf
 
-        if weak_form != None and weak_form != []:
-            return self.weak_loss(weak_form, lambda_bound=lambda_bound)
-        elif tol != 0:
-            return self.casual_loss(lambda_bound=lambda_bound, tol=tol)
-        else:
-            return self.default_loss(lambda_bound=lambda_bound, save_graph=save_graph)
+            if self.weak_form != None and self.weak_form != []:
+                return self.weak_loss(self.weak_form, lambda_bound=self.lambda_bound)
+            elif tol != 0:
+                return self.casual_loss(lambda_bound=self.lambda_bound, tol=tol)
+            else:
+                return self.default_loss(lambda_bound=self.lambda_bound)
+
+class Solution():
+    """
+    class for different loss functions calculation.
+    """
+    def __init__(self, grid: torch.Tensor, equal_cls: Union[tedeous.input_preprocessing.Equation_NN,
+                                                            tedeous.input_preprocessing.Equation_mat,
+                                                            tedeous.input_preprocessing.Equation_autograd],
+                 model: Union[torch.nn.Sequential, torch.Tensor], mode: str, weak_form, lambda_bound):
+        self.grid = check_device(grid)
+        if mode == 'NN':
+            sorted_grid = Points_type(self.grid).grid_sort()
+            self.n_t = len(sorted_grid['central'][:, 0].unique())
+        elif mode == 'autograd':
+            self.n_t = len(self.grid[:, 0].unique())
+        equal_copy = deepcopy(equal_cls)
+        self.prepared_operator = equal_copy.operator_prepare()
+        self.prepared_bconds = equal_copy.bnd_prepare()
+        self.model = model.to(device_type())
+        self.mode = mode
+        self.weak_form = weak_form
+        self.lambda_bound = lambda_bound
+        self.operator = DE_operator(self.grid, self.prepared_operator, self.model,
+                                   self.mode, weak_form)
+        self.boundary = Bounds(self.grid, self.prepared_bconds, self.model,
+                                   self.mode, weak_form)
+
+    def evaluate(self, iter, update_every_lambdas, tol):
+        op = self.operator.operator_compute()
+        bval, true_bval = self.boundary.apply_bcs()
+        if update_every_lambdas is not None and iter % update_every_lambdas == 0:
+            self.lambda_bound = LambdaCompute(bval, op, self.model).update()
+            print(self.lambda_bound)
+
+        loss = Losses(operator=op, bval=bval, true_bval=true_bval,lambda_bound=self.lambda_bound, mode=self.mode,
+                    weak_form=self.weak_form, n_t=self.n_t)
+
+        return loss.compute(tol)

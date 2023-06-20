@@ -30,7 +30,7 @@ Grid is an essentially torch.Tensor  of a n-D points where n is the problem
 dimensionality
 """
 
-solver_device('cpu')
+solver_device('cuda')
 
 x = torch.from_numpy(np.linspace(0, 1, 41))
 t = torch.from_numpy(np.linspace(0, 1, 41))
@@ -120,12 +120,11 @@ if not(os.path.isdir(img_dir)):
 equation = Equation(grid, wave_eq, bconds).set_strategy('autograd')
 
 
-model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=1000,
+model = Solver(grid, equation, model, 'autograd').solve(lambda_bound = 100, update_every_lambdas=500,
                               verbose=True, learning_rate=1e-3, eps=1e-7, tmin=1000, tmax=1e5, gamma=0.9,
                               use_cache=False,cache_dir='../cache/',cache_verbose=True,
                               save_always=True,print_every=1000,
                               patience=10,loss_oscillation_window=1000,no_improvement_patience=1000,
                               model_randomize_parameter=0, optimizer_mode='Adam',cache_model=None,
-                              step_plot_print=False, step_plot_save=True, tol=0.1, abs_loss=0.1, image_save_dir=img_dir)
+                              step_plot_print=False, step_plot_save=True, tol=0, abs_loss=0.1, image_save_dir=img_dir)
 
-end = time.time()
