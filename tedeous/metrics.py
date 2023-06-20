@@ -53,7 +53,7 @@ def integration(func: torch.tensor, grid, pow: Union[int, float] = 2) -> Union[T
         return result, grid
 
 
-class DE_operator():
+class Operator():
     """
     Class for differential equation calculation.
     """
@@ -157,7 +157,7 @@ class Bounds():
         self.prepared_bconds = prepared_bconds
         self.model = model.to(device_type())
         self.mode = mode
-        self.apply_operator = DE_operator(self.grid, self.prepared_bconds,
+        self.apply_operator = Operator(self.grid, self.prepared_bconds,
                                           self.model, self.mode, weak_form).apply_operator
 
     def apply_bconds_set(self, operator_set: list) -> torch.Tensor:
@@ -266,26 +266,6 @@ class Bounds():
                                            bcond['var'])
         return b_op_val
 
-    # def apply_bconds_operator(self) -> Tuple[torch.Tensor, torch.Tensor]:
-    #     """
-    #     Auxiliary function. Serves only to evaluate boundary values and true boundary values.
-    #     Returns:
-    #         * **b_val** -- calculated model boundary values.\n
-    #         * **true_b_val** -- true grid boundary values.
-    #     """
-    #     true_b_val_list = []
-    #     b_val_list = []
-    #
-    #     for bcond in self.prepared_bconds:
-    #         truebval = bcond['bval'].reshape(-1, 1)
-    #         true_b_val_list.append(truebval)
-    #         b_op_val = self.b_op_val_calc(bcond)
-    #         b_val_list.append(b_op_val)
-    #
-    #     true_b_val = torch.cat(true_b_val_list)
-    #     b_val = torch.cat(b_val_list).reshape(-1, 1)
-    #
-    #     return b_val, true_b_val
     def apply_bcs(self):
         bval_dict = {}
         true_bval_dict = {}
@@ -319,7 +299,7 @@ class Losses():
             loss_bnd += self.lambda_bound[type] * torch.mean((self.bval[type] - self.true_bval[type]) ** 2)
         return loss_bnd
 
-    def default_loss(self, lambda_bound):
+    def default_loss(self):
         """
         Computes l2 loss.
         Args:
@@ -336,7 +316,7 @@ class Losses():
             loss = torch.sum(torch.mean((self.operator) ** 2, 0)) + self.loss_bcs()
         return loss
 
-    def casual_loss(self, lambda_bound, tol: float = 0) -> torch.Tensor:
+    def casual_loss(self, tol: float = 0) -> torch.Tensor:
         """
         Computes casual loss, which is caclulated with weights matrix:
         W = exp(-tol*(Loss_i)) where Loss_i is sum of the L2 loss from 0
@@ -363,7 +343,7 @@ class Losses():
 
         return loss
 
-    def weak_loss(self, weak_form: Union[None, list], lambda_bound: Union[int, float] = 10) -> torch.Tensor:
+    def weak_loss(self) -> torch.Tensor:
         """
         Weak solution of O/PDE problem.
         Args:
@@ -398,11 +378,11 @@ class Losses():
                     return np.inf
 
             if self.weak_form != None and self.weak_form != []:
-                return self.weak_loss(self.weak_form, lambda_bound=self.lambda_bound)
+                return self.weak_loss()
             elif tol != 0:
-                return self.casual_loss(lambda_bound=self.lambda_bound, tol=tol)
+                return self.casual_loss(tol=tol)
             else:
-                return self.default_loss(lambda_bound=self.lambda_bound)
+                return self.default_loss()
 
 class Solution():
     """
@@ -425,7 +405,7 @@ class Solution():
         self.mode = mode
         self.weak_form = weak_form
         self.lambda_bound = lambda_bound
-        self.operator = DE_operator(self.grid, self.prepared_operator, self.model,
+        self.operator = Operator(self.grid, self.prepared_operator, self.model,
                                    self.mode, weak_form)
         self.boundary = Bounds(self.grid, self.prepared_bconds, self.model,
                                    self.mode, weak_form)
@@ -433,11 +413,13 @@ class Solution():
     def evaluate(self, iter, update_every_lambdas, tol):
         op = self.operator.operator_compute()
         bval, true_bval = self.boundary.apply_bcs()
+
+        loss = Losses(operator=op, bval=bval, true_bval=true_bval, lambda_bound=self.lambda_bound, mode=self.mode,
+                      weak_form=self.weak_form, n_t=self.n_t)
+
         if update_every_lambdas is not None and iter % update_every_lambdas == 0:
             self.lambda_bound = LambdaCompute(bval, op, self.model).update()
-            print(self.lambda_bound)
-
-        loss = Losses(operator=op, bval=bval, true_bval=true_bval,lambda_bound=self.lambda_bound, mode=self.mode,
-                    weak_form=self.weak_form, n_t=self.n_t)
+            for bcs_type in self.lambda_bound.keys():
+                print('lambda_{}: {}'.format(bcs_type, self.lambda_bound[bcs_type]))
 
         return loss.compute(tol)

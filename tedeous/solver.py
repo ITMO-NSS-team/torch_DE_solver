@@ -39,8 +39,8 @@ def grid_format_prepare(coord_list, mode='NN') -> torch.Tensor:
                     coord_list_tensor.append(torch.from_numpy(item).to(device))
                 else:
                     coord_list_tensor.append(item.to(device))
-            grid=torch.cartesian_prod(*coord_list_tensor)
-    elif mode=='mat':
+            grid = torch.cartesian_prod(*coord_list_tensor)
+    elif mode == 'mat':
         grid = np.meshgrid(*coord_list)
         grid = torch.tensor(np.array(grid)).to(device)
     return grid
@@ -65,23 +65,23 @@ class Plots():
             nvars_model = self.model.model[-1].out_features
 
         nparams = self.grid.shape[1]
-        fig = plt.figure(figsize=(15,8))
+        fig = plt.figure(figsize=(15, 8))
         for i in range(nvars_model):
             if nparams == 1:
-                ax1 = fig.add_subplot(1,nvars_model,i+1)
+                ax1 = fig.add_subplot(1, nvars_model, i + 1)
                 if title != None:
-                    ax1.set_title(title+' variable {}'.format(i))
+                    ax1.set_title(title + ' variable {}'.format(i))
                 ax1.scatter(self.grid.detach().cpu().numpy().reshape(-1),
-                            self.model(self.grid)[:,i].detach().cpu().numpy())
-                
+                            self.model(self.grid)[:, i].detach().cpu().numpy())
+
             else:
-                ax1 = fig.add_subplot(1, nvars_model, i+1, projection='3d')
+                ax1 = fig.add_subplot(1, nvars_model, i + 1, projection='3d')
                 if title != None:
-                    ax1.set_title(title+' variable {}'.format(i))
-                ax1.plot_trisurf(self.grid[:, 0].detach().cpu().numpy(), 
-                            self.grid[:, 1].detach().cpu().numpy(),
-                            self.model(self.grid)[:,i].detach().cpu().numpy(),
-                            cmap=cm.jet, linewidth=0.2, alpha=1)
+                    ax1.set_title(title + ' variable {}'.format(i))
+                ax1.plot_trisurf(self.grid[:, 0].detach().cpu().numpy(),
+                                 self.grid[:, 1].detach().cpu().numpy(),
+                                 self.model(self.grid)[:, i].detach().cpu().numpy(),
+                                 cmap=cm.jet, linewidth=0.2, alpha=1)
                 ax1.set_xlabel("x1")
                 ax1.set_ylabel("x2")
 
@@ -100,7 +100,7 @@ class Plots():
         elif nparams == 2:
             fig = plt.figure()
             ax = fig.add_subplot(111, projection='3d')
-            if title!=None:
+            if title != None:
                 ax.set_title(title)
             ax.plot_trisurf(self.grid[0].cpu().reshape(-1),
                             self.grid[1].cpu().reshape(-1),
@@ -118,20 +118,20 @@ class Plots():
         """
         if save_dir == None:
             try:
-                img_dir = os.path.join(os.path.dirname( __file__ ), 'img')
+                img_dir = os.path.join(os.path.dirname(__file__), 'img')
             except:
                 current_dir = globals()['_dh'][0]
                 img_dir = os.path.join(os.path.dirname(current_dir), 'img')
-            
+
             if not (os.path.isdir(img_dir)):
                 os.mkdir(img_dir)
-            directory = os.path.abspath(os.path.join(img_dir, 
-                            str(datetime.datetime.now().timestamp())+'.png'))
+            directory = os.path.abspath(os.path.join(img_dir,
+                                                     str(datetime.datetime.now().timestamp()) + '.png'))
         else:
             if not (os.path.isdir(save_dir)):
                 os.mkdir(save_dir)
             directory = os.path.join(save_dir,
-                            str(datetime.datetime.now().timestamp())+'.png')
+                                     str(datetime.datetime.now().timestamp()) + '.png')
         return directory
 
     def solution_print(self, title=None, solution_print=False,
@@ -154,6 +154,7 @@ class Solver():
     """
     High-level interface for solving equations.
     """
+
     def __init__(self, grid: torch.Tensor, equal_cls,
                  model: Any, mode: str, weak_form: Union[None, list] = None):
         """
@@ -171,7 +172,7 @@ class Solver():
         self.mode = mode
         self.weak_form = weak_form
 
-    def optimizer_choice(self, optimizer: str, learning_rate: float)-> \
+    def optimizer_choice(self, optimizer: str, learning_rate: float) -> \
             Union[torch.optim.Adam, torch.optim.SGD, torch.optim.LBFGS]:
         """
         Setting optimizer.
@@ -182,25 +183,24 @@ class Solver():
         Returns:
            torch.optimizer object as is.
         """
-        if optimizer=='Adam':
+        if optimizer == 'Adam':
             torch_optim = torch.optim.Adam
-        elif optimizer=='SGD':
+        elif optimizer == 'SGD':
             torch_optim = torch.optim.SGD
-        elif optimizer=='LBFGS':
+        elif optimizer == 'LBFGS':
             torch_optim = torch.optim.LBFGS
         else:
             print('Wrong optimizer chosen, optimization was not performed')
             return self.model
 
-        if self.mode =='NN' or self.mode == 'autograd':
+        if self.mode == 'NN' or self.mode == 'autograd':
             optimizer = torch_optim(self.model.parameters(), lr=learning_rate)
-        elif self.mode =='mat':
+        elif self.mode == 'mat':
             optimizer = torch_optim([self.model.requires_grad_()], lr=learning_rate)
-       
+
         return optimizer
 
-
-    def solve(self, update_every_lambdas = None, lambda_bound: Union[float, list] = 10,
+    def solve(self, update_every_lambdas=None, lambda_bound: Union[float, list] = 10,
               verbose: bool = False, learning_rate: float = 1e-4, gamma=None, lr_decay=1000,
               eps: float = 1e-5, tmin: int = 1000, tmax: float = 1e5,
               nmodels: Union[int, None] = None, name: Union[str, None] = None,
@@ -211,7 +211,7 @@ class Solver():
               patience: int = 5, loss_oscillation_window: int = 100,
               no_improvement_patience: int = 1000, model_randomize_parameter: Union[int, float] = 0,
               optimizer_mode: str = 'Adam', step_plot_print: Union[bool, int] = False,
-              step_plot_save: Union[bool, int] = False, image_save_dir: Union[str, None] = None, tol:float=0) -> Any:
+              step_plot_save: Union[bool, int] = False, image_save_dir: Union[str, None] = None, tol: float = 0) -> Any:
         """
         High-level interface for solving equations.
 
@@ -240,17 +240,16 @@ class Solver():
             step_plot_print: draws a figure through each given step.
             step_plot_save: saves a figure through each given step.
             image_save_dir: a directory where saved figure in.
-            tol: float constant, influences on error penalty in casual_loss algorithm. 
+            tol: float constant, influences on error penalty in casual_loss algorithm.
 
         Returns:
             model.
         """
         Cache_class = Model_prepare(self.grid, self.equal_cls,
-                                                        self.model, self.mode)
+                                    self.model, self.mode, self.weak_form)
 
-        # prepare input data to uniform format 
+        # prepare input data to uniform format
         r = create_random_fn(model_randomize_parameter)
-
 
         #  use cache if needed
         if use_cache:
@@ -260,7 +259,7 @@ class Solver():
                                                      model_randomize_parameter,
                                                      cache_model,
                                                      weak_form=self.weak_form)
-            
+
             Solution_class = Solution(self.grid, self.equal_cls,
                                       self.model, self.mode, self.weak_form, lambda_bound)
         else:
@@ -268,7 +267,7 @@ class Solver():
                                       self.model, self.mode, self.weak_form, lambda_bound)
 
             min_loss = Solution_class.evaluate(-1, update_every_lambdas, tol)
-        
+
         self.plot = Plots(self.model, self.grid, self.mode)
 
         optimizer = self.optimizer_choice(optimizer_mode, learning_rate)
@@ -280,9 +279,9 @@ class Solver():
         if verbose:
             print('[{}] initial (min) loss is {}'.format(
                 datetime.datetime.now(), min_loss))
-    
+
         t = 0
-    
+
         last_loss = np.zeros(loss_oscillation_window) + float(min_loss)
         line = np.polyfit(range(loss_oscillation_window), last_loss, 1)
 
@@ -303,29 +302,27 @@ class Solver():
             optimizer.step(closure)
             if cur_loss != cur_loss:
                 print(f'Loss is equal to NaN, something went wrong (LBFGS+high'
-                 f'leraning rate and pytorch<1.12 could be the problem)')
+                      f'leraning rate and pytorch<1.12 could be the problem)')
                 break
 
-            last_loss[(t-1)%loss_oscillation_window] = cur_loss
+            last_loss[(t - 1) % loss_oscillation_window] = cur_loss
 
-        
             if cur_loss < min_loss:
                 min_loss = cur_loss
                 t_imp_start = t
 
             if verbose:
-                info_string='Step = {} loss = {:.6f} normalized loss line= {:.6f}x+{:.6f}. There was {} stop dings already.'.format(
-                                                                        t, cur_loss, line[0]/cur_loss, line[1]/cur_loss, stop_dings+1)
+                info_string = 'Step = {} loss = {:.6f} normalized loss line= {:.6f}x+{:.6f}. There was {} stop dings already.'.format(
+                    t, cur_loss, line[0] / cur_loss, line[1] / cur_loss, stop_dings + 1)
 
             if gamma != None and t % lr_decay == 0:
-                 scheduler.step()
+                scheduler.step()
 
-
-            if t%loss_oscillation_window == 0:
+            if t % loss_oscillation_window == 0:
                 line = np.polyfit(range(loss_oscillation_window), last_loss, 1)
-                if abs(line[0]/cur_loss) < eps and t > 0:
+                if abs(line[0] / cur_loss) < eps and t > 0:
                     stop_dings += 1
-                    if self.mode =='NN' or self.mode =='autograd':
+                    if self.mode == 'NN' or self.mode == 'autograd':
                         self.model.apply(r)
                     if verbose:
                         print('[{}] Oscillation near the same loss'.format(
@@ -333,25 +330,24 @@ class Solver():
                         print(info_string)
                         if step_plot_print or step_plot_save:
                             self.plot.solution_print(title='Iteration = ' + str(t),
-                                                solution_print=step_plot_print,
-                                                solution_save=step_plot_save,
-                                                save_dir=image_save_dir)
+                                                     solution_print=step_plot_print,
+                                                     solution_save=step_plot_save,
+                                                     save_dir=image_save_dir)
 
-            if (t-t_imp_start) == no_improvement_patience:
+            if (t - t_imp_start) == no_improvement_patience:
                 if verbose:
                     print('[{}] No improvement in {} steps'.format(
-                        datetime.datetime.now(),no_improvement_patience))
+                        datetime.datetime.now(), no_improvement_patience))
                     print(info_string)
                     if step_plot_print or step_plot_save:
                         self.plot.solution_print(title='Iteration = ' + str(t),
-                                                solution_print=step_plot_print,
-                                                solution_save=step_plot_save,
-                                                save_dir=image_save_dir)
+                                                 solution_print=step_plot_print,
+                                                 solution_save=step_plot_save,
+                                                 save_dir=image_save_dir)
                 t_imp_start = t
                 stop_dings += 1
                 if self.mode == 'NN' or self.mode == 'autograd':
-                        self.model.apply(r)
-
+                    self.model.apply(r)
 
             if abs_loss != None and cur_loss < abs_loss:
                 if verbose:
@@ -359,21 +355,20 @@ class Solver():
                     print(info_string)
                     if step_plot_print or step_plot_save:
                         self.plot.solution_print(title='Iteration = ' + str(t),
-                                                solution_print=step_plot_print,
-                                                solution_save=step_plot_save,
-                                                save_dir=image_save_dir)
+                                                 solution_print=step_plot_print,
+                                                 solution_save=step_plot_save,
+                                                 save_dir=image_save_dir)
                 stop_dings += 1
-
 
             if print_every != None and (t % print_every == 0) and verbose:
                 print('[{}] Print every {} step'.format(
-                    datetime.datetime.now(),print_every))
+                    datetime.datetime.now(), print_every))
                 print(info_string)
                 if step_plot_print or step_plot_save:
                     self.plot.solution_print(title='Iteration = ' + str(t),
-                                                solution_print=step_plot_print,
-                                                solution_save=step_plot_save,
-                                                save_dir=image_save_dir)
+                                             solution_print=step_plot_print,
+                                             solution_save=step_plot_save,
+                                             save_dir=image_save_dir)
                 # l_bnd = Solution_class.lambda_bound
                 # print('lambda dirichlet: {:.3e}, lambda neumann: {:.3e}, lambda periodic: {:.3e}'.
                 #       format(l_bnd[0],l_bnd[1],l_bnd[2]))
@@ -385,8 +380,8 @@ class Solver():
                 Cache_class.save_model_mat(cache_dir=cache_dir, name=name)
             else:
                 Cache_class.save_model(self.model, self.model.state_dict(),
-                                optimizer.state_dict(), cache_dir=cache_dir,
-                                name=name)
+                                       optimizer.state_dict(), cache_dir=cache_dir,
+                                       name=name)
         return self.model
 
 

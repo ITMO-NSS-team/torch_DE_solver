@@ -221,7 +221,7 @@ def wave_experiment(grid_res,CACHE):
     error_rmse=torch.sqrt(torch.mean((func(grid).reshape(-1,1)-model(grid))**2))
     
         
-    end_loss = Solution(grid, equation, model, 'NN').loss_evaluation(lambda_bound=100)
+    end_loss = Solution(grid, equation, model, 'NN', None, 100).evaluate(-1, None, 0)
     
     exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().cpu().numpy(),'loss':end_loss.detach().cpu().numpy(),'type':'wave_eqn_physical','cache':True})
         

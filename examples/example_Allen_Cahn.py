@@ -16,7 +16,7 @@ from tedeous.input_preprocessing import Equation
 from tedeous.solver import Solver
 from tedeous.metrics import Solution
 from tedeous.device import solver_device
-from tedeous.models import Modified_MLP
+from tedeous.models import FourierNN
 from tedeous.models import Fourier_embedding
 
 solver_device('gpu')
