@@ -259,6 +259,7 @@ class EquationMixin():
     def bndpos(grid: torch.Tensor, bnd: torch.Tensor) -> Union[list, int]:
         """
         Returns the position of the boundary points on the grid.
+
         Args:
             grid:  grid for coefficient in form of torch.Tensor mapping.
             bnd: boundary conditions.
@@ -284,6 +285,7 @@ class Equation_NN(EquationMixin, Points_type):
                  inner_order: str = '1', boundary_order: str = '2'):
         """
         Prepares equation, boundary conditions for NN method.
+
         Args:
             grid:  array of a n-D points.
             operator:  equation.

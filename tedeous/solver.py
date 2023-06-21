@@ -159,6 +159,7 @@ class Solver():
                  model: Any, mode: str, weak_form: Union[None, list] = None):
         """
         High-level interface for solving equations.
+
         Args:
             grid: array of a n-D points.
             equal_cls: object from input_preprocessing (see input_preprocessing.Equation).
@@ -220,7 +221,7 @@ class Solver():
             verbose: detailed info about training process.
             learning_rate: determines the step size at each iteration while moving toward a minimum of a loss function.
             gamma: multiplicative factor of learning rate decay.
-            lr_change: the number of epochs after which the learning_rate change occurs
+            lr_decay: decays the learning rate of each parameter group by gamma every epoch.
             eps: arbitrarily small number that uses for loss comparison criterion.
             tmax: maximum execution time.
             nmodels: smth
@@ -302,7 +303,7 @@ class Solver():
             optimizer.step(closure)
             if cur_loss != cur_loss:
                 print(f'Loss is equal to NaN, something went wrong (LBFGS+high'
-                      f'leraning rate and pytorch<1.12 could be the problem)')
+                      f'learning rate and pytorch<1.12 could be the problem)')
                 break
 
             last_loss[(t - 1) % loss_oscillation_window] = cur_loss
@@ -369,9 +370,7 @@ class Solver():
                                              solution_print=step_plot_print,
                                              solution_save=step_plot_save,
                                              save_dir=image_save_dir)
-                # l_bnd = Solution_class.lambda_bound
-                # print('lambda dirichlet: {:.3e}, lambda neumann: {:.3e}, lambda periodic: {:.3e}'.
-                #       format(l_bnd[0],l_bnd[1],l_bnd[2]))
+
             t += 1
             if t > tmax:
                 break
