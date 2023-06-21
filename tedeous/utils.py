@@ -13,12 +13,36 @@ def counter(fu):
     return inner
 
 class LambdaCompute():
-    def __init__(self, bounds, operator, model):
+    """
+    Serves for computing adaptive lambdas.
+
+    Reference:
+        S. Wang, X. Yu, and P. Perdikaris, “When and why PINNs fail to train: A neural tangent kernel
+        perspective,” arXiv:2007.14527 [cs, math, stat], Jul. 2020, Available: https://arxiv.org/abs/2007.14527
+    """
+    def __init__(self, bounds: dict, operator, model):
+        """
+        Args:
+            bounds: model output with boundary conditions at the input.
+            operator: model output with operator at the input.
+            model: NN
+
+        """
         self.bnd = bounds
         self.op = operator
         self.model = model
 
-    def jacobian(self, f):
+    def jacobian(self, f: torch.Tensor) -> dict:
+        """
+        Computing Jacobian w.r.t model parameters (i.e. weights and biases).
+
+        Args:
+            f: function for which the Jacobian is calculated.
+
+        Returns:
+            Jacobian matrix.
+
+        """
         jac = {}
         for name, param in self.model.named_parameters():
             jac1 = []
@@ -28,10 +52,23 @@ class LambdaCompute():
                     grad = torch.tensor([0.])
                 jac1.append(grad.reshape(1,-1))
             jac[name] = torch.cat(jac1)
-
         return jac
 
-    def compute_ntk(self, J1_dict, J2_dict):
+    @staticmethod
+    def compute_ntk(J1_dict: dict, J2_dict: dict) -> torch.Tensor:
+        """
+        Computes neural tangent kernel.
+
+        Args:
+            J1_dict: dictionary with Jacobian.
+            J2_dict: dictionary with Jacobian.
+
+        Returns:
+            NTK for corresponding input J1, J2.
+
+        Reference:
+            A. Jacot and F. Gabriel, “Neural Tangent Kernel: Convergence and Generalization in Neural Networks.” Available: https://arxiv.org/pdf/1806.07572.pdf
+        """
         keys = list(J1_dict.keys())
         size = J1_dict[keys[0]].shape[0]
         Ker = torch.zeros((size, size))
@@ -42,13 +79,30 @@ class LambdaCompute():
             Ker = Ker + K
         return Ker
 
-    def trace(self, f):
+    def trace(self, f: torch.Tensor) -> torch.Tensor:
+        """
+        Wrap all methods (Jacobian, NTK) and compute matrix trace.
+
+        Args:
+            f: function for which the trace is calculated.
+
+        Returns:
+            trace.
+
+        """
         J_f = self.jacobian(f)
         ntk = self.compute_ntk(J_f, J_f)
         tr = torch.trace(ntk)
         return tr
 
-    def update(self):
+    def update(self) -> dict:
+        """
+        Computes lambdas for corresponding boundary type.
+
+        Returns:
+            dictionary with corresponding lambdas.
+
+        """
         traces_bcs = dict()
         lambda_bcs = dict()
 

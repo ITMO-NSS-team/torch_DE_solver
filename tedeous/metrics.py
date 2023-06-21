@@ -73,6 +73,7 @@ class Operator():
     def apply_operator(self, operator: list, grid_points: Union[torch.Tensor, None]) -> torch.Tensor:
         """
         Deciphers equation in a single grid subset to a field.
+
         Args:
             operator: single (len(subset)==1) operator in input form. See
             input_preprocessing.operator_prepare()
@@ -149,7 +150,7 @@ class Operator():
 
 class Bounds():
     """
-    class for boundary and initial conditions calculation.
+    Class for boundary and initial conditions calculation.
     """
     def __init__(self, grid: torch.Tensor, prepared_bconds: Union[list,dict],
                  model: Union[torch.nn.Sequential, torch.Tensor], mode: str, weak_form):
@@ -230,6 +231,7 @@ class Bounds():
            bnd: terms of prepared boundary conditions (see input_preprocessing.bnd_prepare) in input form.
            bop: terms of operator on boundary.
            var: indicates for which equation it is necessary to apply the boundary condition.
+
         Returns:
            calculated boundary condition
         """
@@ -252,6 +254,7 @@ class Bounds():
     def b_op_val_calc(self, bcond) -> torch.Tensor:
         """
         Auxiliary function. Serves only to evaluate operator on the boundary.
+
         Args:
             bcond:  terms of prepared boundary conditions (see input_preprocessing.bnd_prepare) in input form.
         Returns:
@@ -266,7 +269,16 @@ class Bounds():
                                            bcond['var'])
         return b_op_val
 
-    def apply_bcs(self):
+    def apply_bcs(self) -> Tuple[dict, dict]:
+        """
+        Applies boundary conditions for each term in prepared_bconds.
+
+        Returns:
+
+            - model output with boundary conditions at the input.
+            - true boundary values.
+
+        """
         bval_dict = {}
         true_bval_dict = {}
 
@@ -284,6 +296,9 @@ class Bounds():
         return bval_dict, true_bval_dict
 
 class Losses():
+    """
+    Class which contains all losses.
+    """
     def __init__(self, operator, bval, true_bval, lambda_bound, mode, weak_form, n_t):
         self.operator = operator
         self.mode = mode
@@ -293,15 +308,16 @@ class Losses():
         self.lambda_bound = tedeous.input_preprocessing.lambda_prepare(bval, lambda_bound)
         self.n_t = n_t
 
-    def loss_bcs(self):
+    def loss_bcs(self) -> torch.Tensor:
         loss_bnd = 0
-        for type in self.bval:
-            loss_bnd += self.lambda_bound[type] * torch.mean((self.bval[type] - self.true_bval[type]) ** 2)
+        for bcs_type in self.bval:
+            loss_bnd += self.lambda_bound[bcs_type] * torch.mean((self.bval[bcs_type] - self.true_bval[bcs_type]) ** 2)
         return loss_bnd
 
-    def default_loss(self):
+    def default_loss(self) -> torch.Tensor:
         """
         Computes l2 loss.
+
         Args:
             lambda_bound: an arbitrary chosen constant, influence only convergence speed.
         Returns:
@@ -410,7 +426,19 @@ class Solution():
         self.boundary = Bounds(self.grid, self.prepared_bconds, self.model,
                                    self.mode, weak_form)
 
-    def evaluate(self, iter, update_every_lambdas, tol):
+    def evaluate(self, iter: int, update_every_lambdas: Union[None, int], tol: float)-> torch.Tensor:
+        """
+        Computes loss.
+
+        Args:
+            iter: optimizer iteration (serves only for computing adaptive lambdas).
+            update_every_lambdas: on which iteration to update lambdas.
+            tol: float constant, influences on error penalty.
+
+        Returns:
+            loss
+
+        """
         op = self.operator.operator_compute()
         bval, true_bval = self.boundary.apply_bcs()
 
