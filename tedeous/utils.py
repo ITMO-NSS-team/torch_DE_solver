@@ -31,6 +31,7 @@ class LambdaCompute():
         self.bnd = bounds
         self.op = operator
         self.model = model
+        self.num_of_eq = operator.shape[-1]
 
     def jacobian(self, f: torch.Tensor) -> dict:
         """
@@ -110,7 +111,13 @@ class LambdaCompute():
             traces_bcs[bcs_type] = self.trace(self.bnd[bcs_type])
             lambda_bcs[bcs_type] = []
 
-        trace_op = self.trace(self.op)
+        if self.num_of_eq > 1:
+            trace_op = torch.zeros(self.num_of_eq)
+            for i in range(self.num_of_eq):
+                trace_op[i] = self.trace(self.op[:, i: i + 1])
+            trace_op = torch.mean(trace_op)
+        else:
+            trace_op = self.trace(self.op)
 
         trace_K = trace_op + sum(traces_bcs.values())
 

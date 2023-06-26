@@ -15,7 +15,7 @@ class Fourier_embedding(nn.Module):
 
     Examples:
         u(t,x) if user wants to create 5 Fourier features in 'x' direction with L=5:
-        L=[None, 5], M=[None, 5].
+            L=[None, 5], M=[None, 5].
     """
 
     def __init__(self, L=[1], M=[1], ones=False):
@@ -28,7 +28,7 @@ class Fourier_embedding(nn.Module):
         not_none = sum([i for i in M if i is not None])
         is_none = self.M.count(None)
         if is_none == 0:
-            self.out_features = not_none * 2 + 1
+            self.out_features = not_none * 2 + self.in_features
         else:
             self.out_features = not_none * 2 + is_none
         if ones is not False:
