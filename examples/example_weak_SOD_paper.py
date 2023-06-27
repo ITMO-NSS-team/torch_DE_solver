@@ -21,8 +21,6 @@ import numpy as np
 import os
 import time
 import pandas as pd
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
 import sys
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
@@ -38,7 +36,7 @@ from tedeous.metrics import Solution
 from tedeous.device import solver_device
 
 solver_device('cpu')
-# constannts for PDE system
+# constants for PDE system
 p_l = 1
 v_l = 0
 Ro_l = 1
@@ -328,7 +326,8 @@ def SOD_experiment(grid_res, CACHE):
     error_rmse=torch.sqrt(torch.mean((u_exact-model(rmse_grid))**2))
     
   
-    end_loss = Solution(grid, equation, model, 'NN').loss_evaluation(lambda_bound=100, weak_form=weak_form)
+    end_loss = Solution(grid=grid, equal_cls=equation, model=model,
+             mode='NN', weak_form=weak_form, lambda_bound=100).evaluate()
     exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'SOD_eqn','cache':CACHE})
     
     print('Time taken {}= {}'.format(grid_res, end - start))

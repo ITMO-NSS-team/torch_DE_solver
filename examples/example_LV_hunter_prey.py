@@ -15,7 +15,7 @@ from tedeous.input_preprocessing import Equation
 from tedeous.solver import Solver
 from tedeous.metrics import Solution
 from tedeous.device import solver_device
-from tedeous.models import Modified_MLP
+from tedeous.models import FourierNN
 
 
 x0 = 30.
@@ -90,7 +90,7 @@ eq2 = {
 
 Lotka = [eq1, eq2]
 
-model = Modified_MLP([512, 512, 512, 512, 2], [15], [7])
+model = FourierNN([512, 512, 512, 512, 2], [15], [7])
 
 equation = Equation(grid, Lotka, bconds).set_strategy('NN')
 
