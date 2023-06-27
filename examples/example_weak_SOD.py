@@ -2,14 +2,6 @@ import torch
 import numpy as np
 import os
 import time
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from mpl_toolkits.mplot3d import Axes3D
-from scipy.spatial import Delaunay
-import pandas as pd
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
 import sys
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'

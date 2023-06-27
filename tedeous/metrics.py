@@ -309,6 +309,13 @@ class Losses():
         self.n_t = n_t
 
     def loss_bcs(self) -> torch.Tensor:
+        """
+        Computes boundary loss for corresponding type.
+
+        Returns:
+            boundary loss
+
+        """
         loss_bnd = 0
         for bcs_type in self.bval:
             loss_bnd += self.lambda_bound[bcs_type] * torch.mean((self.bval[bcs_type] - self.true_bval[bcs_type]) ** 2)
@@ -362,6 +369,7 @@ class Losses():
     def weak_loss(self) -> torch.Tensor:
         """
         Weak solution of O/PDE problem.
+
         Args:
             weak_form: list of basis functions.
             lambda_bound: const regularization parameter.
@@ -377,14 +385,16 @@ class Losses():
 
         return loss
 
-    def compute(self, tol=0) -> \
-        Union[default_loss, weak_loss, casual_loss]:
+    def compute(self, tol: float = 0) -> \
+        Union[Losses.default_loss, Losses.weak_loss, Losses.casual_loss]:
             """
             Setting the required loss calculation method.
+
             Args:
                 lambda_bound: an arbitrary chosen constant, influence only convergence speed.
                 weak_form: list of basis functions.
                 tol: float constant, influences on error penalty.
+
             Returns:
                 A given calculation method.
             """
@@ -426,7 +436,7 @@ class Solution():
         self.boundary = Bounds(self.grid, self.prepared_bconds, self.model,
                                    self.mode, weak_form)
 
-    def evaluate(self, iter: int, update_every_lambdas: Union[None, int], tol: float)-> torch.Tensor:
+    def evaluate(self, iter: int = -1 , update_every_lambdas: Union[None, int] = None , tol: float = 0)-> torch.Tensor:
         """
         Computes loss.
 
@@ -437,8 +447,8 @@ class Solution():
 
         Returns:
             loss
-
         """
+
         op = self.operator.operator_compute()
         bval, true_bval = self.boundary.apply_bcs()
 
@@ -446,7 +456,7 @@ class Solution():
                       weak_form=self.weak_form, n_t=self.n_t)
 
         if update_every_lambdas is not None and iter % update_every_lambdas == 0:
-            self.lambda_bound = LambdaCompute(bval, op, self.model).update()
+            self.lambda_bound = LambdaCompute(bounds=bval, operator=op, model=self.model).update()
             for bcs_type in self.lambda_bound.keys():
                 print('lambda_{}: {}'.format(bcs_type, self.lambda_bound[bcs_type]))
 

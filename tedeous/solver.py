@@ -47,10 +47,11 @@ def grid_format_prepare(coord_list, mode='NN') -> torch.Tensor:
 
 
 class Plots():
-    def __init__(self, model, grid, mode):
+    def __init__(self, model, grid, mode, tol = 0):
         self.model = model
         self.grid = grid
         self.mode = mode
+        self.tol = tol
 
     def print_nn(self, title: str):
         """
@@ -78,10 +79,17 @@ class Plots():
                 ax1 = fig.add_subplot(1, nvars_model, i + 1, projection='3d')
                 if title != None:
                     ax1.set_title(title + ' variable {}'.format(i))
-                ax1.plot_trisurf(self.grid[:, 0].detach().cpu().numpy(),
-                                 self.grid[:, 1].detach().cpu().numpy(),
-                                 self.model(self.grid)[:, i].detach().cpu().numpy(),
-                                 cmap=cm.jet, linewidth=0.2, alpha=1)
+
+                if self.tol != 0:
+                    ax1.plot_trisurf(self.grid[:, 1].detach().cpu().numpy(),
+                                     self.grid[:, 0].detach().cpu().numpy(),
+                                     self.model(self.grid)[:, i].detach().cpu().numpy(),
+                                     cmap=cm.jet, linewidth=0.2, alpha=1)
+                else:
+                    ax1.plot_trisurf(self.grid[:, 0].detach().cpu().numpy(),
+                                     self.grid[:, 1].detach().cpu().numpy(),
+                                     self.model(self.grid)[:, i].detach().cpu().numpy(),
+                                     cmap=cm.jet, linewidth=0.2, alpha=1)
                 ax1.set_xlabel("x1")
                 ax1.set_ylabel("x2")
 
@@ -267,9 +275,9 @@ class Solver():
             Solution_class = Solution(self.grid, self.equal_cls,
                                       self.model, self.mode, self.weak_form, lambda_bound)
 
-            min_loss = Solution_class.evaluate(-1, update_every_lambdas, tol)
+            min_loss = Solution_class.evaluate()
 
-        self.plot = Plots(self.model, self.grid, self.mode)
+        self.plot = Plots(self.model, self.grid, self.mode, tol)
 
         optimizer = self.optimizer_choice(optimizer_mode, learning_rate)
 

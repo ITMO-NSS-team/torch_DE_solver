@@ -168,7 +168,9 @@ for grid_res in range(20, 110, 10):
 
 
 
-        end_loss = Solution(grid, equation, model, 'autograd').loss_evaluation(lambda_bound=100)
+        end_loss = Solution(grid=grid, equal_cls=equation, model=model,
+             mode='autograd', weak_form=None, lambda_bound=100).evaluate()
+
         exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse,'loss':end_loss.detach().cpu().numpy(),'type':'wave_eqn'})
         
         print('Time taken {}= {}'.format(grid_res, end - start))

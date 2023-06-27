@@ -202,10 +202,11 @@ def heat_experiment(grid_res,CACHE):
     rmse_grid = torch.cartesian_prod(rmse_x, rmse_t).float()
     
     error_rmse=torch.sqrt(torch.mean(((func(rmse_grid)-model(rmse_grid))/500)**2))
-    
-  
-    
-    end_loss = Solution(grid, equation, model, 'NN').loss_evaluation(lambda_bound=100)
+
+
+
+    end_loss = Solution(grid=grid, equal_cls=equation, model=model,
+             mode='NN', weak_form=None, lambda_bound=100).evaluate()
     exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'wave_eqn','cache':CACHE})
     
     print('Time taken {}= {}'.format(grid_res, end - start))

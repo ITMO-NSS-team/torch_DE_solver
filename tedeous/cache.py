@@ -143,9 +143,9 @@ class Model_prepare():
             except Exception:
                 continue
             model = model.to(device)
-            l = Solution(self.grid, self.equal_cls,self.model,
-                         self.mode, self.weak_form, lambda_bound). \
-                evaluate(-1, None, 0)
+            l = Solution(self.grid, self.equal_cls, self.model,
+                         self.mode, self.weak_form, lambda_bound).evaluate()
+
             if l < min_loss:
                 min_loss = l
                 best_checkpoint['model'] = model
@@ -364,8 +364,8 @@ class Model_prepare():
                 self.grid[0].shape).detach()
 
         min_loss = Solution(self.grid, self.equal_cls,self.model,
-                         self.mode, self.weak_form, lambda_bound). \
-                evaluate(-1, None, 0)
+                         self.mode, self.weak_form, lambda_bound).evaluate()
+
 
         return self.model, min_loss
 
