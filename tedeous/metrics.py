@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import torch
 import numpy as np
 from copy import deepcopy
@@ -8,6 +10,9 @@ from tedeous.derivative import Derivative
 from tedeous.device import device_type, check_device
 import tedeous.input_preprocessing
 from tedeous.utils import LambdaCompute
+
+
+
 
 flatten_list = lambda t: [item for sublist in t for item in sublist]
 
