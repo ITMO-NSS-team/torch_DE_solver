@@ -429,6 +429,8 @@ class Solution():
             self.n_t = len(sorted_grid['central'][:, 0].unique())
         elif mode == 'autograd':
             self.n_t = len(self.grid[:, 0].unique())
+        elif mode == 'mat':
+            self.n_t = grid.shape[1]
         equal_copy = deepcopy(equal_cls)
         self.prepared_operator = equal_copy.operator_prepare()
         self.prepared_bconds = equal_copy.bnd_prepare()
