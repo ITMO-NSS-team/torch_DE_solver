@@ -19,6 +19,15 @@ from tedeous.input_preprocessing import Equation, EquationMixin
 from tedeous.device import device_type
 
 
+def count_output(model):
+    modules, output_layer = list(model.modules()), None
+    for layer in reversed(modules):
+        if hasattr(layer, 'out_features'):
+            output_layer = layer.out_features
+            break
+    return output_layer
+
+
 def create_random_fn(eps):
     def randomize_params(m):
         if type(m) == torch.nn.Linear or type(m) == torch.nn.Conv2d:
@@ -90,7 +99,7 @@ class Model_prepare():
             model[0]
         except:
             model = model.model
-        
+
         try:
             init_model[0]
         except:
@@ -100,11 +109,12 @@ class Model_prepare():
         
 
     def cache_lookup(self, lambda_bound: float = 0.001, weak_form: None = None, cache_dir: str = '../cache/',
-                nmodels: Union[int, None] = None, cache_verbose: bool = False) -> Tuple[dict, torch.Tensor]:
+                nmodels: Union[int, None] = None, save_graph: bool = False, cache_verbose: bool = False) -> Tuple[dict, torch.Tensor]:
         """
         Looking for a saved cache.
         Args:
             lambda_bound: an arbitrary chosen constant, influence only convergence speed.
+            save_graph: boolean constant, responsible for saving the computational graph.
             cache_dir: directory where saved cache in.
             nmodels: maximal number of models that are looked before optimization
             cache_verbose: more detailed info about models in cache.
@@ -137,21 +147,21 @@ class Model_prepare():
             if cache_model[0].in_features != solver_model[0].in_features:
                 continue
             try:
-                if cache_model[-1].out_features != solver_model[-1].out_features:
+                if count_output(model) != count_output(self.model):
                     continue
             except Exception:
                 continue
             model = model.to(device)
-            l = Solution(self.grid, self.equal_cls, model, self.mode). \
-                loss_evaluation(lambda_bound=lambda_bound, weak_form=weak_form)
-            if l < min_loss:
-                min_loss = l
+            loss = Solution(self.grid, self.equal_cls, model, self.mode). \
+                loss_evaluation(lambda_bound=lambda_bound, weak_form=weak_form, save_graph=save_graph)
+            if loss < min_loss:
+                min_loss = loss
                 best_checkpoint['model'] = model
                 best_checkpoint['model_state_dict'] = model.state_dict()
                 best_checkpoint['optimizer_state_dict'] = \
                     checkpoint['optimizer_state_dict']
                 if cache_verbose:
-                    print('best_model_num={} , loss={}'.format(i, l))
+                    print('best_model_num={} , loss={}'.format(i, loss))
         if best_checkpoint == {}:
             best_checkpoint = None
             min_loss = np.inf
