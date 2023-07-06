@@ -306,10 +306,11 @@ class Solution():
         self.bconds = Bounds(self.grid, self.prepared_bconds, self.model,
                                    self.mode)
 
-    def default_loss(self, lambda_bound:  Union[int, float] = 10):
+    def default_loss(self, lambda_bound:  Union[int, float] = 10, save_graph: bool = True):
         """
         Computes l2 loss.
         Args:
+            save_graph: boolean constant, responsible for saving the computational graph.
             lambda_bound: an arbitrary chosen constant, influence only convergence speed.
         Returns:
             model loss.
@@ -317,16 +318,23 @@ class Solution():
         op = self.operator.pde_compute()
 
         if self.prepared_bconds == None:
-            return torch.sum(torch.mean((op) ** 2, 0))
+            return torch.sum(torch.mean(op ** 2, 0))
 
         b_val, true_b_val = self.bconds.apply_bconds_operator()
 
         if self.mode == 'mat':
-            loss = torch.mean((op) ** 2) + \
+            loss = torch.mean(op ** 2) + \
                    lambda_bound * torch.mean((b_val - true_b_val) ** 2)
         else:
-            loss = torch.sum(torch.mean((op) ** 2, 0)) + \
+            loss = torch.sum(torch.mean(op ** 2, 0)) + \
                    lambda_bound * torch.sum(torch.mean((b_val - true_b_val) ** 2, 0))
+
+        if not save_graph:
+            temp_loss = loss.detach()
+            del loss
+            torch.cuda.empty_cache()
+            loss = temp_loss
+
         return loss
 
     def casual_loss(self, lambda_bound:  Union[int, float] = 10, tol: float = 0) -> torch.Tensor:
@@ -384,12 +392,13 @@ class Solution():
 
         return loss
 
-    def loss_evaluation(self, lambda_bound: Union[int, float] = 10, weak_form: Union[None, list] = None, tol=0) -> Union[default_loss, weak_loss, casual_loss]:
+    def loss_evaluation(self, lambda_bound: Union[int, float] = 10, weak_form: Union[None, list] = None, save_graph: bool = True, tol=0) -> Union[default_loss, weak_loss, casual_loss]:
         """
         Setting the required loss calculation method.
         Args:
             lambda_bound: an arbitrary chosen constant, influence only convergence speed.
             weak_form: list of basis functions.
+            save_graph: boolean constant, responsible for saving the computational graph.
             tol: float constant, influences on error penalty. 
         Returns:
             A given calculation method.
@@ -404,4 +413,4 @@ class Solution():
         elif tol != 0:
             return self.casual_loss(lambda_bound=lambda_bound, tol=tol)
         else:
-            return self.default_loss(lambda_bound=lambda_bound)
+            return self.default_loss(lambda_bound=lambda_bound, save_graph=save_graph)
