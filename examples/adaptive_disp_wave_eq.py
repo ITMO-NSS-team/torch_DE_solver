@@ -145,10 +145,10 @@ ic_list=[]
 loss_list=[]
 
 PLOT_SAVE=True
-sampling_N=2
+sampling_N=1
 sampling_D=len(grid)+len(bc_bnd)+len(bnd1)+len(bnd2)
 
-second_order_interactions=False
+second_order_interactions=True
 
 if second_order_interactions:
     sampling_amount=sampling_N*(2*sampling_D+2)
@@ -203,7 +203,7 @@ while t<1e5:
             lam_bc=total_disp/bc_disp
             lam_ic=total_disp/ic_disp
 
-            print('Lambda update t={}, loss={}'.format(t,loss.item()))
+            print('Lambda update t={}, loss={}, op_loss={}'.format(t,loss.item(),torch.mean(op**2)))
             print('New lam_bc={} lam_ic={}'.format(lam_bc,lam_ic))
 
             op_list=[]
@@ -214,8 +214,7 @@ while t<1e5:
 
 
         if t%1000==0:
-            print('Surface trainig t={}, loss={}'.format(t,loss.item()))
-            
+            print('Surface trainig t={}, loss={}, op_loss={}'.format(t,loss.item(),torch.mean(op**2)))
             if PLOT_SAVE:
                 fig = plt.figure(figsize=(15,8))
                 ax1 = fig.add_subplot( projection='3d')
