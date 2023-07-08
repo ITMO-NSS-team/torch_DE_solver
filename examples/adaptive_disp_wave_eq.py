@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 from SALib import ProblemSpec
-
+import matplotlib.pyplot as plt
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
@@ -16,7 +16,11 @@ t = torch.from_numpy(t_grid)
 #h=abs((t[1]-t[0]).item())
 
 grid = torch.cartesian_prod(x, t).float()
-    
+
+def func(grid):
+    x, t = grid[:,0],grid[:,1]
+    sln=torch.cos(2*np.pi*t)*torch.sin(np.pi*x)
+    return sln    
 
 # Initial conditions at t=0
 bnd1 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
@@ -145,7 +149,7 @@ ic_list=[]
 loss_list=[]
 
 PLOT_SAVE=True
-sampling_N=1
+sampling_N=2
 sampling_D=len(grid)+len(bc_bnd)+len(bnd1)+len(bnd2)
 
 second_order_interactions=True
@@ -154,6 +158,12 @@ if second_order_interactions:
     sampling_amount=sampling_N*(2*sampling_D+2)
 else:
     sampling_amount=sampling_N*(sampling_D+2)
+
+errors_list=[]
+
+#adaptive_lambdas=True
+adaptive_lambdas=False
+
 
 while t<1e5:
         optimizer.zero_grad()
@@ -176,7 +186,7 @@ while t<1e5:
         loss.backward()
         optimizer.step()
 
-        if (len(op_list))==sampling_amount:
+        if (adaptive_lambdas) and ((len(op_list))==sampling_amount):
         #if (len(op_list))==400:
             op_array=np.array(op_list)
             bc_array=np.array(bc_list)
@@ -214,7 +224,11 @@ while t<1e5:
 
 
         if t%1000==0:
-            print('Surface trainig t={}, loss={}, op_loss={}'.format(t,loss.item(),torch.mean(op**2)))
+            error_rmse=torch.sqrt(torch.mean((func(grid).reshape(-1,1)-model(grid))**2))
+            print('Surface trainig t={}, loss={}, op_loss={}, error={}'.format(t,loss.item(),torch.mean(op**2),error_rmse))
+            errors_list.append(error_rmse.detach().cpu().numpy())
+
+
             if PLOT_SAVE:
                 fig = plt.figure(figsize=(15,8))
                 ax1 = fig.add_subplot( projection='3d')
@@ -227,3 +241,11 @@ while t<1e5:
                 plt.savefig('disp_exp/plot_disp_{}.png'.format(t))
         t+=1
 
+
+plt.figure()
+plt.plot(np.arange(len(errors_list))*1000,np.array(errors_list))
+
+if adaptive_lambdas:
+    plt.savefig('disp_exp/plot_error_N_{}.png'.format(sampling_N))
+else:
+    plt.savefig('disp_exp/plot_error_const_lambda_{}.png'.format(lam_bc))
