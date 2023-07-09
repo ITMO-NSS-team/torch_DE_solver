@@ -5,6 +5,10 @@ import os
 from SALib import ProblemSpec
 import matplotlib.pyplot as plt
 
+exp_name='disp_exp_ODE'
+if not(os.path.isdir(exp_name)):
+    os.mkdir(exp_name)
+
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 t_grid = np.linspace(0, 0.25, 100)
@@ -14,6 +18,8 @@ coord_list = [t_grid]
 coord_list=torch.tensor(coord_list)
 grid=coord_list.reshape(-1,1).float()
     
+
+
 
 def func(grid):
     t = grid
@@ -129,7 +135,7 @@ ic_list=[]
 loss_list=[]
 
 PLOT_SAVE=True
-sampling_N=1
+sampling_N=2
 sampling_D=len(grid)+len(bc_bnd)+len(ic_bnd)
 
 second_order_interactions=True
@@ -141,7 +147,7 @@ else:
 
 errors_list=[]
 
-adaptive_lambdas=False
+adaptive_lambdas=True
 #adaptive_lambdas=False
 
 
@@ -217,7 +223,7 @@ while t<1e4:
                 plt.plot(t_grid,model(grid).reshape(-1).detach().numpy())
                 #plt.set_xlabel("t")
                 #plt.set_ylabel("y")
-                plt.savefig('disp_exp_ODE/plot_disp_{}.png'.format(t))
+                plt.savefig('{}/plot_disp_{}.png'.format(exp_name,t))
 
                 #fig = plt.figure(figsize=(15,8))
                 #plt.plot(t_grid,nn_autograd_simple(model, grid, 1,axis=0).reshape(-1).detach().numpy())
@@ -231,6 +237,6 @@ plt.figure()
 plt.plot(np.arange(len(errors_list))*1000,np.array(errors_list))
 
 if adaptive_lambdas:
-    plt.savefig('disp_exp_ODE/plot_error_N_{}.png'.format(sampling_N))
+    plt.savefig('{}/plot_error_N_{}.png'.format(exp_name,sampling_N))
 else:
-    plt.savefig('disp_exp_ODE/plot_error_const_lambda_{}.png'.format(lam_bc))
+    plt.savefig('{}/plot_error_const_lambda_{}.png'.format(exp_name,lam_bc))

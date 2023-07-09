@@ -5,6 +5,11 @@ import os
 from SALib import ProblemSpec
 import matplotlib.pyplot as plt
 
+
+exp_name='disp_exp_wave'
+if not(os.path.isdir(exp_name)):
+    os.mkdir(exp_name)
+
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 x_grid=np.linspace(0,1,10+1)
@@ -149,7 +154,7 @@ ic_list=[]
 loss_list=[]
 
 PLOT_SAVE=True
-sampling_N=2
+sampling_N=1
 sampling_D=len(grid)+len(bc_bnd)+len(bnd1)+len(bnd2)
 
 second_order_interactions=True
@@ -238,7 +243,7 @@ while t<1e5:
                             cmap=plt.cm.jet, linewidth=0.2, alpha=1)
                 ax1.set_xlabel("x1")
                 ax1.set_ylabel("x2")
-                plt.savefig('disp_exp/plot_disp_{}.png'.format(t))
+                plt.savefig('{}/plot_disp_{}.png'.format(exp_name,t))
         t+=1
 
 
@@ -246,6 +251,6 @@ plt.figure()
 plt.plot(np.arange(len(errors_list))*1000,np.array(errors_list))
 
 if adaptive_lambdas:
-    plt.savefig('disp_exp/plot_error_N_{}.png'.format(sampling_N))
+    plt.savefig('{}/plot_error_N_{}.png'.format(exp_name,sampling_N))
 else:
-    plt.savefig('disp_exp/plot_error_const_lambda_{}.png'.format(lam_bc))
+    plt.savefig('{}/plot_error_const_lambda_{}.png'.format(exp_name,lam_bc))
