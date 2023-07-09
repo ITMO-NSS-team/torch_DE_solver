@@ -18,7 +18,6 @@ t_grid=np.linspace(0,1,10+1)
 x = torch.from_numpy(x_grid)
 t = torch.from_numpy(t_grid)
     
-#h=abs((t[1]-t[0]).item())
 
 grid = torch.cartesian_prod(x, t).float()
 
@@ -128,6 +127,10 @@ def take_boundary_op(model,boundary):
 
 ic_true_val=torch.cat((bndval1,bndval2)).reshape(-1,1)
 
+'''
+Only for test we separate ic and bc. In solver we separate Dirichlet and operator bc
+'''
+
 def take_initial_op(model,bnd1,bnd2):
     ic_val1=model(bnd1)
     ic_val2=nn_autograd_simple(model, bnd2, 1,axis=1).reshape(-1,1)
@@ -136,6 +139,10 @@ def take_initial_op(model,bnd1,bnd2):
 
 lam_ic=10#100
 lam_bc=10#100
+
+'''
+Separate conditions have separate names
+'''
 
 loss = torch.mean(take_wave_op(model,grid)**2)+lam_bc*torch.mean(torch.abs(take_boundary_op(model,bc_bnd)))+lam_ic*torch.mean(torch.abs(take_initial_op(model,bnd1,bnd2)))
 
@@ -146,7 +153,6 @@ t=0
 loss_mean=1000
 min_loss=np.inf
 
-#while loss.item()>1e-5 and t<1e5:
 
 op_list=[]
 bc_list=[]
@@ -173,8 +179,6 @@ adaptive_lambdas=False
 while t<1e5:
         optimizer.zero_grad()
 
-        # in case you wanted a semi-full example
-        # outputs = model.forward(batch_x)
 
         op=take_wave_op(model,grid)
         bc=take_boundary_op(model,bc_bnd)
@@ -191,12 +195,29 @@ while t<1e5:
         loss.backward()
         optimizer.step()
 
+
+        '''
+        This is main part of adaptive lambdas computation. 
+
+        In issue #23 we mention that there are two approaches - tangent kernel https://arxiv.org/pdf/2007.14527.pdf and dispersion assessment https://arxiv.org/pdf/2302.12697.pdf.
+
+        Both are deal with variance ratio assesment - first by using eigenvalues of gradient operator, second using bayesian estimates.
+
+        This one is https://en.wikipedia.org/wiki/Variance-based_sensitivity_analysis Sobol sensitivity indexes. We use SALib for that
+
+        To do so we need to pretend that we deal with random variable loss, that depends on a operator, bc and ic parts.
+
+        Totally we need N*(2D+2) trials, where D is the number of the parameters
+        '''
         if (adaptive_lambdas) and ((len(op_list))==sampling_amount):
         #if (len(op_list))==400:
             op_array=np.array(op_list)
             bc_array=np.array(bc_list)
             ic_array=np.array(ic_list)
 
+            '''
+            Rest is simple, we gather all trials in an array          
+            '''
             X_array=np.hstack((op_array,bc_array,ic_array))
 
             loss_array=np.array(loss_list)
@@ -204,17 +225,34 @@ while t<1e5:
 
             bounds=[[-100,100] for i in range(sampling_D)]
             names=['x{}'.format(i) for i in range(sampling_D)]
+            
+            '''
+            And compute Sobol indexes using SALib
+            '''
+            
             sp=ProblemSpec({'names':names,'bounds':bounds})
             sp.set_samples(X_array)
             sp.set_results(loss_array)
             sp.analyze_sobol(calc_second_order=second_order_interactions)
 
+            '''
+            To assess variance we need total sensitiviy indices for every variable
+            '''
             ST=sp.analysis['ST']
 
+            '''
+            Total variance is the sum of total indices
+            '''
             total_disp=sum(ST)
+            '''
+            Variance part of ic and bc are sum of correspoding indices
+            '''
             bc_disp=sum(ST[len(grid):len(grid)+len(bc_bnd)])
             ic_disp=sum(ST[len(grid)+len(bc_bnd):])
 
+            '''
+            Recompute indices
+            '''
             lam_bc=total_disp/bc_disp
             lam_ic=total_disp/ic_disp
 
