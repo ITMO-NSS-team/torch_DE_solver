@@ -78,8 +78,6 @@ model = torch.nn.Sequential(
         torch.nn.Tanh(),
         torch.nn.Linear(100, 100),
         torch.nn.Tanh(),
-        torch.nn.Linear(100, 100),
-        torch.nn.Tanh(),
         torch.nn.Linear(100, 1)
     )
 
@@ -102,17 +100,20 @@ def take_boundary_op(model,boundary):
     return model(boundary)-bc_true_val
 
 
-ic_true_val=bndval1
+ic_true_val=bndval2
 ic_bnd=bnd2
 
 def take_initial_op(model,ic_bnd):
     ic_val=nn_autograd_simple(model, ic_bnd,1,axis=0)
     return ic_val-ic_true_val
 
-lam_ic=10#100
-lam_bc=10#100
+lam_ic=50#100
+lam_bc=50#100
+#lam_op=1
 
+#loss = lam_op*torch.mean(take_ODE_op(model,grid)**2)+lam_bc*torch.mean(torch.abs(take_boundary_op(model,bc_bnd)))+lam_ic*torch.mean(torch.abs(take_initial_op(model,ic_bnd)))
 loss = torch.mean(take_ODE_op(model,grid)**2)+lam_bc*torch.mean(torch.abs(take_boundary_op(model,bc_bnd)))+lam_ic*torch.mean(torch.abs(take_initial_op(model,ic_bnd)))
+
 
 print(loss.item())
 
@@ -121,7 +122,6 @@ t=0
 loss_mean=1000
 min_loss=np.inf
 
-#while loss.item()>1e-5 and t<1e5:
 
 op_list=[]
 bc_list=[]
@@ -129,7 +129,7 @@ ic_list=[]
 loss_list=[]
 
 PLOT_SAVE=True
-sampling_N=2
+sampling_N=1
 sampling_D=len(grid)+len(bc_bnd)+len(ic_bnd)
 
 second_order_interactions=True
@@ -141,24 +141,24 @@ else:
 
 errors_list=[]
 
-#adaptive_lambdas=True
 adaptive_lambdas=False
+#adaptive_lambdas=False
 
 
-while t<1e5:
+while t<1e4:
+#while t<sampling_amount:
         optimizer.zero_grad()
 
-        # in case you wanted a semi-full example
-        # outputs = model.forward(batch_x)
 
         op=take_ODE_op(model,grid)
         bc=take_boundary_op(model,bc_bnd)
         ic=take_initial_op(model,ic_bnd)
 
-        op_list.append(op.detach().numpy())
+        op_list.append(op.reshape(-1).detach().numpy())
         bc_list.append(bc.reshape(-1).detach().numpy())
         ic_list.append(ic.reshape(-1).detach().numpy())
 
+        #loss = lam_op*torch.mean(op**2)+lam_bc*torch.mean(torch.abs(bc))+lam_ic*torch.mean(torch.abs(ic))
         loss = torch.mean(op**2)+lam_bc*torch.mean(torch.abs(bc))+lam_ic*torch.mean(torch.abs(ic))
 
         loss_list.append(float(loss.item()))
@@ -167,7 +167,7 @@ while t<1e5:
         optimizer.step()
 
         if (adaptive_lambdas) and ((len(op_list))==sampling_amount):
-        #if (len(op_list))==400:
+        #if (len(op_list))==sampling_amount:
             op_array=np.array(op_list)
             bc_array=np.array(bc_list)
             ic_array=np.array(ic_list)
@@ -187,14 +187,17 @@ while t<1e5:
             ST=sp.analysis['ST']
 
             total_disp=sum(ST)
+            op_disp=sum(ST[:len(grid)])
             bc_disp=sum(ST[len(grid):len(grid)+len(bc_bnd)])
             ic_disp=sum(ST[len(grid)+len(bc_bnd):])
 
             lam_bc=total_disp/bc_disp
             lam_ic=total_disp/ic_disp
+            #lam_op=total_disp/op_disp
 
             print('Lambda update t={}, loss={}, op_loss={}'.format(t,loss.item(),torch.mean(op**2)))
-            print('New lam_bc={} lam_ic={}'.format(lam_bc,lam_ic))
+            #print('New lambdas lam_op={} lam_bc={} lam_ic={}'.format(lam_op,lam_bc,lam_ic))
+            print('New lambdas lam_bc={} lam_ic={}'.format(lam_bc,lam_ic))
 
             op_list=[]
             bc_list=[]
@@ -215,6 +218,12 @@ while t<1e5:
                 #plt.set_xlabel("t")
                 #plt.set_ylabel("y")
                 plt.savefig('disp_exp_ODE/plot_disp_{}.png'.format(t))
+
+                #fig = plt.figure(figsize=(15,8))
+                #plt.plot(t_grid,nn_autograd_simple(model, grid, 1,axis=0).reshape(-1).detach().numpy())
+                #plt.set_xlabel("t")
+                #plt.set_ylabel("y")
+                #plt.savefig('disp_exp_ODE/plot_disp_d1_{}.png'.format(t))
         t+=1
 
 
@@ -222,6 +231,6 @@ plt.figure()
 plt.plot(np.arange(len(errors_list))*1000,np.array(errors_list))
 
 if adaptive_lambdas:
-    plt.savefig('disp_exp/plot_error_N_{}.png'.format(sampling_N))
+    plt.savefig('disp_exp_ODE/plot_error_N_{}.png'.format(sampling_N))
 else:
-    plt.savefig('disp_exp/plot_error_const_lambda_{}.png'.format(lam_bc))
+    plt.savefig('disp_exp_ODE/plot_error_const_lambda_{}.png'.format(lam_bc))
