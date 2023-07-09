@@ -172,8 +172,8 @@ else:
 
 errors_list=[]
 
-#adaptive_lambdas=True
-adaptive_lambdas=False
+adaptive_lambdas=True
+#adaptive_lambdas=False
 
 
 while t<1e5:
