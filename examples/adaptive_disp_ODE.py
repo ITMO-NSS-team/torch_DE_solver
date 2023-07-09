@@ -23,7 +23,7 @@ grid=coord_list.reshape(-1,1).float()
 
 def func(grid):
     t = grid
-    sln=1/324*(200 - 567*torch.exp(t) + 43*torch.exp(9*t) + 180*t)
+    sln=0.404751*(1.5251 - 4.99575*torch.exp(t) + torch.exp(9*t) + 1.37259*t)
     return sln    
 
 # Initial conditions at t=0
@@ -44,7 +44,7 @@ bop2 = {
     }
     }
 
-bndval2=torch.tensor([0]).float()
+bndval2=torch.tensor([2.17628]).float()
 
 
 def nn_autograd_simple(model, points, order,axis=0):
