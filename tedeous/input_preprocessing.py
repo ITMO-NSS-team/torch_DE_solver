@@ -17,6 +17,16 @@ def lambda_prepare(bval, lambda_bound):
         else:
             return lambda_bound
     return lambdas
+def op_lambda_prepare(op, lambda_op):
+    lambdas = {}
+    for i, bcs_type in enumerate(op):
+        if type(lambda_op) is int:
+            lambdas[f'eq_{i+1}'] = lambda_op
+        elif type(lambda_op) is list:
+            lambdas[f'eq_{i+1}'] = lambda_op[i]
+        else:
+            return lambda_op
+    return lambdas
 class Boundary():
     """
     Сlass for bringing all boundary conditions to a similar form.
@@ -150,7 +160,7 @@ class Boundary():
         return unified_bnd
 
 
-class EquationMixin():
+class EquationMixin:
     """
     Auxiliary class. This one contains some methods that uses in other classes.
     """
@@ -212,7 +222,7 @@ class EquationMixin():
     @staticmethod
     def convert_to_double(bnd: Union[list, np.array]) -> float:
         """
-        Coverts points to double type.
+        Converts points to double type.
 
         Args:
             bnd: array or list of arrays

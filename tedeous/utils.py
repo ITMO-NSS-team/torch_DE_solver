@@ -1,6 +1,8 @@
 # this one contain some stuff for computing different auxiliary things.
 
 import torch
+import numpy as np
+from SALib import ProblemSpec
 
 def list_to_vector(list_):
     return torch.cat([x.reshape(-1) for x in list_])
@@ -11,117 +13,95 @@ def counter(fu):
         return fu(*a,**kw)
     inner.count = 0
     return inner
+def length_dict_create(sol):
+    solution_length = sol.copy()
+    for key in sol:
+        solution_length[key] = len(sol[key])
+    return solution_length
+def tensor_to_dict(tensor):
+    tensor_dict = dict()
+    for i in range(tensor.shape[-1]):
+        tensor_dict[f'eq_{i+1}'] = tensor[:,i:i+1]
+    return tensor_dict
+def wrap(op, bval, true_bval):
+    # op = tensor_to_dict(op)
+    op_length = length_dict_create(op)
+    bval_length = length_dict_create(bval)
 
-class LambdaCompute():
+    bcs = dict()
+    for k in bval:
+        bcs[k] = bval[k] - true_bval[k]
+
+    return op, bcs, op_length, bval_length
+
+class Lambda:
     """
     Serves for computing adaptive lambdas.
-
-    Reference:
-        S. Wang, X. Yu, and P. Perdikaris, “When and why PINNs fail to train: A neural tangent kernel
-        perspective,” arXiv:2007.14527 [cs, math, stat], Jul. 2020, Available: https://arxiv.org/abs/2007.14527
     """
-    def __init__(self, bounds: dict, operator, model):
+    def __init__(self,op_list: list, bcs_list: list, loss_list: list,
+                 sampling_N: int = 1, second_order_interactions = True):
         """
-        Args:
-            bounds: model output with boundary conditions at the input.
-            operator: model output with operator at the input.
-            model: NN
-
-        """
-        self.bnd = bounds
-        self.op = operator
-        self.model = model
-        self.num_of_eq = operator.shape[-1]
-
-    def jacobian(self, f: torch.Tensor) -> dict:
-        """
-        Computing Jacobian w.r.t model parameters (i.e. weights and biases).
 
         Args:
-            f: function for which the Jacobian is calculated.
-
-        Returns:
-            Jacobian matrix.
-
+            op_list: list with operator solution.
+            bcs_list: list with boundary solution.
+            loss_list: list with losses.
+            sampling_N:
+            second_order_interactions
         """
-        jac = {}
-        for name, param in self.model.named_parameters():
-            jac1 = []
-            for op in f:
-                grad, = torch.autograd.grad(op, param, retain_graph=True, allow_unused=True)
-                if grad is None:
-                    grad = torch.tensor([0.])
-                jac1.append(grad.reshape(1,-1))
-            jac[name] = torch.cat(jac1)
-        return jac
+        self.second_order_interactions = second_order_interactions
+        self.op_list = op_list
+        self.bcs_list = bcs_list
+        self.loss_list = loss_list
+        self.sampling_N = sampling_N
+
 
     @staticmethod
-    def compute_ntk(J1_dict: dict, J2_dict: dict) -> torch.Tensor:
+    def lambda_compute(pointer: int, length_dict: dict, total_disp: float, ST: np.ndarray) -> dict:
         """
-        Computes neural tangent kernel.
 
         Args:
-            J1_dict: dictionary with Jacobian.
-            J2_dict: dictionary with Jacobian.
+            pointer
+            length_dict
+            total_disp
+            ST
 
-        Returns:
-            NTK for corresponding input J1, J2.
-
-        Reference:
-            A. Jacot and F. Gabriel, “Neural Tangent Kernel: Convergence and Generalization in Neural Networks.” Available: https://arxiv.org/pdf/1806.07572.pdf
-        """
-        keys = list(J1_dict.keys())
-        size = J1_dict[keys[0]].shape[0]
-        Ker = torch.zeros((size, size))
-        for key in keys:
-            J1 = J1_dict[key]
-            J2 = J2_dict[key]
-            K = J1 @ J2.T
-            Ker = Ker + K
-        return Ker
-
-    def trace(self, f: torch.Tensor) -> torch.Tensor:
-        """
-        Wrap all methods (Jacobian, NTK) and compute matrix trace.
-
-        Args:
-            f: function for which the trace is calculated.
-
-        Returns:
-            trace.
+        Returns
+        -------
 
         """
-        J_f = self.jacobian(f)
-        ntk = self.compute_ntk(J_f, J_f)
-        tr = torch.trace(ntk)
-        return tr
+        lambda_dict = length_dict.copy()
+        for key, value in length_dict.items():
+            lambda_dict[key] = total_disp / sum(ST[pointer:pointer + value])
+            pointer += value
+        return lambda_dict
 
-    def update(self) -> dict:
-        """
-        Computes lambdas for corresponding boundary type.
+    def update(self,op_length, bcs_length, sampling_D):
+        op_array = np.array(self.op_list)
+        bc_array = np.array(self.bcs_list)
+        loss_array = np.array(self.loss_list)
 
-        Returns:
-            dictionary with corresponding lambdas.
+        X_array = np.hstack((op_array, bc_array))
 
-        """
-        traces_bcs = dict()
-        lambda_bcs = dict()
+        bounds = [[-100, 100] for _ in range(sampling_D)]
+        names = ['x{}'.format(i) for i in range(sampling_D)]
 
-        for bcs_type in self.bnd:
-            traces_bcs[bcs_type] = self.trace(self.bnd[bcs_type])
-            lambda_bcs[bcs_type] = []
+        sp = ProblemSpec({'names': names, 'bounds': bounds, 'nprocs': 6})
+        sp.set_samples(X_array)
+        sp.set_results(loss_array)
+        sp.analyze_sobol(calc_second_order=self.second_order_interactions)
 
-        # if self.num_of_eq > 1:
-        #     trace_op = torch.zeros(self.num_of_eq)
-        #     for i in range(self.num_of_eq):
-        #         trace_op[i] = self.trace(self.op[:, i: i + 1])
-        #     trace_op = torch.mean(trace_op)
-        # else:
-        trace_op = self.trace(self.op)
+        '''
+        To assess variance we need total sensitiviy indices for every variable
+        '''
+        ST = sp.analysis['ST']
 
-        trace_K = trace_op + sum(traces_bcs.values())
+        '''
+        Total variance is the sum of total indices
+        '''
+        total_disp = sum(ST)
 
-        for bcs_type in traces_bcs:
-            lambda_bcs[bcs_type] = trace_K / traces_bcs[bcs_type]
+        lambda_op = self.lambda_compute(0, op_length, total_disp, ST)
+        lambda_bnd = self.lambda_compute(sum((op_length.values())), bcs_length, total_disp, ST)
 
-        return lambda_bcs
+        return lambda_op, lambda_bnd

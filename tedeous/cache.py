@@ -100,7 +100,7 @@ class Model_prepare():
         return init_model, model
         
 
-    def cache_lookup(self, lambda_bound: float = 0.001, cache_dir: str = '../cache/',
+    def cache_lookup(self, lambda_operator = 1, lambda_bound: float = 0.001, cache_dir: str = '../cache/',
                 nmodels: Union[int, None] = None, cache_verbose: bool = False) -> Tuple[dict, torch.Tensor]:
         """
         Looking for a saved cache.
@@ -143,8 +143,9 @@ class Model_prepare():
             except Exception:
                 continue
             model = model.to(device)
-            l = Solution(self.grid, self.equal_cls, self.model,
-                         self.mode, self.weak_form, lambda_bound).evaluate()
+            l = Solution(self.grid, self.equal_cls,
+                                      self.model, self.mode, self.weak_form,
+                                      lambda_operator, lambda_bound).evaluate()
 
             if l < min_loss:
                 min_loss = l

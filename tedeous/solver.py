@@ -209,8 +209,9 @@ class Solver():
 
         return optimizer
 
-    def solve(self, update_every_lambdas=None, lambda_bound: Union[float, list] = 10,
-              verbose: bool = False, learning_rate: float = 1e-4, gamma=None, lr_decay=1000,
+    def solve(self,lambda_operator: Union[float, list] = 1,lambda_bound: Union[float, list] = 10,
+              lambda_update: bool = False, second_order_interactions: bool = True, sampling_N: int = 1, verbose: int = 0,
+              learning_rate: float = 1e-4, gamma=None, lr_decay=1000,
               eps: float = 1e-5, tmin: int = 1000, tmax: float = 1e5,
               nmodels: Union[int, None] = None, name: Union[str, None] = None,
               abs_loss: Union[None, float] = None, use_cache: bool = True,
@@ -270,10 +271,12 @@ class Solver():
                                                      weak_form=self.weak_form)
 
             Solution_class = Solution(self.grid, self.equal_cls,
-                                      self.model, self.mode, self.weak_form, lambda_bound)
+                                      self.model, self.mode, self.weak_form,
+                                      lambda_operator, lambda_bound)
         else:
             Solution_class = Solution(self.grid, self.equal_cls,
-                                      self.model, self.mode, self.weak_form, lambda_bound)
+                                      self.model, self.mode, self.weak_form,
+                                      lambda_operator, lambda_bound)
 
             min_loss = Solution_class.evaluate()
 
@@ -297,7 +300,10 @@ class Solver():
         def closure():
             nonlocal cur_loss
             optimizer.zero_grad()
-            loss = Solution_class.evaluate(t, update_every_lambdas, tol)
+            loss = Solution_class.evaluate(second_order_interactions=second_order_interactions,
+                                           sampling_N=sampling_N,
+                                           lambda_update=lambda_update,
+                                           tol=tol)
             loss.backward()
             cur_loss = loss.item()
             return loss
