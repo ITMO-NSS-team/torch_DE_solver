@@ -154,8 +154,8 @@ class Derivative_mat(DerivativeInt):
         """
         Computing derivative for 'matrix' method.
         Args:
-            u_tensor: smth.
-            h_tensor: smth.
+            u_tensor: function computed on a grid (n \times m matrix or multi-dimensional tensor with dim=D)
+            h_tensor: computational grid with shape (u_tensor.shape, D) result of solver.grid_format_prepare(coord_list,mode='mat'), where coord list is a list in format [x,t] or [x1,x2,x3,...]
             axis: axis along which the derivative is calculated.
             scheme_order: accuracy inner order for finite difference. Default = 1
             boundary_order: accuracy boundary order for finite difference. Default = 2
