@@ -9,10 +9,7 @@ from tedeous.points_type import Points_type
 from tedeous.derivative import Derivative
 from tedeous.device import device_type, check_device
 import tedeous.input_preprocessing
-from tedeous.utils import LambdaCompute
-
-
-
+from tedeous.utils import *
 
 flatten_list = lambda t: [item for sublist in t for item in sublist]
 
@@ -56,7 +53,6 @@ def integration(func: torch.tensor, grid, pow: Union[int, float] = 2) -> Union[T
         result.append(U)
         grid = grid[index, :-1]
         return result, grid
-
 
 class Operator():
     """
@@ -145,7 +141,7 @@ class Operator():
         if len(sol_list) == 1:
             return sol_list[0]
         else:
-            return torch.cat(sol_list)
+            return torch.cat(sol_list).reshape(1,-1)
 
     def operator_compute(self):
         if self.weak_form == None or self.weak_form == []:
@@ -304,14 +300,23 @@ class Losses():
     """
     Class which contains all losses.
     """
-    def __init__(self, operator, bval, true_bval, lambda_bound, mode, weak_form, n_t):
+    def __init__(self, operator, bval, true_bval, lambda_op, lambda_bound, mode, weak_form, n_t):
         self.operator = operator
         self.mode = mode
         self.weak_form = weak_form
         self.bval = bval
         self.true_bval = true_bval
         self.lambda_bound = tedeous.input_preprocessing.lambda_prepare(bval, lambda_bound)
+        self.lambda_op = tedeous.input_preprocessing.op_lambda_prepare(operator, lambda_op)
         self.n_t = n_t
+    def loss_op(self):
+        loss_operator = 0
+        for eq in self.operator:
+            if self.weak_form != None and self.weak_form != []:
+                loss_operator += self.lambda_op[eq] * torch.sum(self.operator[eq])
+            else:
+                loss_operator += self.lambda_op[eq] * torch.sum(torch.mean((self.operator[eq]) ** 2, 0))
+        return loss_operator
 
     def loss_bcs(self) -> torch.Tensor:
         """
@@ -319,7 +324,6 @@ class Losses():
 
         Returns:
             boundary loss
-
         """
         loss_bnd = 0
         for bcs_type in self.bval:
@@ -341,12 +345,12 @@ class Losses():
         if self.mode == 'mat':
             loss = torch.mean((self.operator) ** 2) + self.loss_bcs()
         else:
-            loss = torch.sum(torch.mean((self.operator) ** 2, 0)) + self.loss_bcs()
+            loss = self.loss_op() + self.loss_bcs()
         return loss
 
-    def casual_loss(self, tol: float = 0) -> torch.Tensor:
+    def causal_loss(self, tol: float = 0) -> torch.Tensor:
         """
-        Computes casual loss, which is caclulated with weights matrix:
+        Computes causal loss, which is caclulated with weights matrix:
         W = exp(-tol*(Loss_i)) where Loss_i is sum of the L2 loss from 0
         to t_i moment of time. This loss function should be used when one
         of the DE independent parameter is time.
@@ -367,6 +371,7 @@ class Losses():
         M = torch.triu(torch.ones((self.n_t, self.n_t)), diagonal=1).T
         with torch.no_grad():
             W = torch.exp(- tol * (M @ res))
+
         loss = torch.mean(W * res) + self.loss_bcs()
 
         return loss
@@ -386,7 +391,7 @@ class Losses():
 
         # we apply no  boundary conditions operators if they are all None
 
-        loss = torch.sum(self.operator) + self.loss_bcs()
+        loss = self.loss_op() + self.loss_bcs()
 
         return loss
 
@@ -422,7 +427,7 @@ class Solution():
     def __init__(self, grid: torch.Tensor, equal_cls: Union[tedeous.input_preprocessing.Equation_NN,
                                                             tedeous.input_preprocessing.Equation_mat,
                                                             tedeous.input_preprocessing.Equation_autograd],
-                 model: Union[torch.nn.Sequential, torch.Tensor], mode: str, weak_form, lambda_bound):
+                 model: Union[torch.nn.Sequential, torch.Tensor], mode: str, weak_form, lambda_operator, lambda_bound):
         self.grid = check_device(grid)
         if mode == 'NN':
             sorted_grid = Points_type(self.grid).grid_sort()
@@ -437,19 +442,42 @@ class Solution():
         self.model = model.to(device_type())
         self.mode = mode
         self.weak_form = weak_form
+        self.lambda_operator = lambda_operator
         self.lambda_bound = lambda_bound
         self.operator = Operator(self.grid, self.prepared_operator, self.model,
                                    self.mode, weak_form)
         self.boundary = Bounds(self.grid, self.prepared_bconds, self.model,
                                    self.mode, weak_form)
+        self.op_list = []
+        self.bcs_list = []
+        self.loss_list = []
 
-    def evaluate(self, iter: int = -1 , update_every_lambdas: Union[None, int] = None , tol: float = 0)-> torch.Tensor:
+    @staticmethod
+    def samples_count(second_order_interactions, sampling_N, op, bval):
+        num_of_eq = len(op)
+        grid_len = len(list(op.values())[0].cpu())
+        bval_len = sum((map(lambda x: len(x), bval.values())))
+
+        sampling_D = num_of_eq * grid_len + bval_len
+
+        if second_order_interactions:
+            sampling_amount = sampling_N * (2 * sampling_D + 2)
+        else:
+            sampling_amount = sampling_N * (sampling_D + 2)
+        return sampling_amount, sampling_D
+
+    def evaluate(self,
+                 second_order_interactions: bool = True,
+                 sampling_N: int = 1,
+                 lambda_update: bool = False ,
+                 tol: float = 0)-> torch.Tensor:
         """
         Computes loss.
 
         Args:
-            iter: optimizer iteration (serves only for computing adaptive lambdas).
-            update_every_lambdas: on which iteration to update lambdas.
+            second_order_interactions: optimizer iteration (serves only for computing adaptive lambdas).
+            sampling_N: parameter for accumulation of solutions (op, bcs). The more sampling_N, the more accurate the estimation of the variance.
+            lambda_update: update lambda or not.
             tol: float constant, influences on error penalty.
 
         Returns:
@@ -457,14 +485,37 @@ class Solution():
         """
 
         op = self.operator.operator_compute()
+        op = tensor_to_dict(op)
         bval, true_bval = self.boundary.apply_bcs()
 
-        loss = Losses(operator=op, bval=bval, true_bval=true_bval, lambda_bound=self.lambda_bound, mode=self.mode,
-                      weak_form=self.weak_form, n_t=self.n_t)
+        loss_cls = Losses(operator=op, bval=bval, true_bval=true_bval, lambda_op=self.lambda_operator,
+                          lambda_bound=self.lambda_bound, mode=self.mode,
+                          weak_form=self.weak_form, n_t=self.n_t)
 
-        if update_every_lambdas is not None and iter % update_every_lambdas == 0:
-            self.lambda_bound = LambdaCompute(bounds=bval, operator=op, model=self.model).update()
-            for bcs_type in self.lambda_bound.keys():
-                print('lambda_{}: {}'.format(bcs_type, self.lambda_bound[bcs_type]))
+        loss = loss_cls.compute(tol)
 
-        return loss.compute(tol)
+        if lambda_update:
+            op, bcs, op_length, bval_length = wrap(op, bval, true_bval)
+            self.op_list.append(list_to_vector(op.values()).cpu().detach().numpy())
+            self.bcs_list.append(list_to_vector(bcs.values()).cpu().detach().numpy())
+            self.loss_list.append(float(loss.item()))
+            sampling_amount, sampling_D = self.samples_count(second_order_interactions = second_order_interactions,
+                                                             sampling_N = sampling_N,
+                                                             op=op, bval = bcs)
+            # print(len(self.op_list))
+            if len(self.op_list) == sampling_amount:
+                self.lambda_operator, self.lambda_bound = Lambda(self.op_list, self.bcs_list,
+                                                                 self.loss_list, second_order_interactions).update(op_length=op_length,
+                                                                                                                           bcs_length=bval_length,
+                                                                                                                           sampling_D=sampling_D)
+                self.op_list.clear()
+                self.bcs_list.clear()
+                self.loss_list.clear()
+                lambda_print(self.lambda_operator)
+                lambda_print(self.lambda_bound)
+                # print(self.lambda_operator, self.lambda_bound)
+
+        return loss
+def lambda_print(dct):
+    for key in dct.keys():
+        print('lambda_{}: {}'.format(key, dct[key]))
