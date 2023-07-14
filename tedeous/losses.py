@@ -1,7 +1,5 @@
 from typing import Tuple, Union
 
-import torch
-
 import tedeous.input_preprocessing
 from tedeous.utils import *
 
@@ -18,7 +16,6 @@ class Losses():
                  weak_form: Tuple[None, torch.Tensor],
                  n_t: int,
                  save_graph: bool):
-
         self.operator = operator
         self.mode = mode
         self.weak_form = weak_form
@@ -31,12 +28,6 @@ class Losses():
         # TODO: refactor loss_op, loss_bcs into one function, carefully figure out when bval is None + fix causal_loss operator crutch (line 76).
 
     def loss_op(self) -> torch.Tensor:
-        """
-        Computes operator loss for corresponding equation.
-
-        Returns:
-            operator loss
-        """
         loss_operator = 0
         for eq in self.operator:
             if self.weak_form != None and self.weak_form != []:
@@ -138,8 +129,6 @@ class Losses():
 
             Args:
                 tol: float constant, influences on error penalty.
-
-
             Returns:
                 A given calculation method.
             """
