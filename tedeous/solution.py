@@ -23,6 +23,7 @@ class Solution():
                                                             tedeous.input_preprocessing.Equation_mat,
                                                             tedeous.input_preprocessing.Equation_autograd],
                  model: Union[torch.nn.Sequential, torch.Tensor], mode: str, weak_form, lambda_operator, lambda_bound):
+
         self.grid = check_device(grid)
         if mode == 'NN':
             sorted_grid = Points_type(self.grid).grid_sort()
@@ -43,6 +44,7 @@ class Solution():
                                    self.mode, weak_form)
         self.boundary = Bounds(self.grid, self.prepared_bconds, self.model,
                                    self.mode, weak_form)
+
         self.op_list = []
         self.bcs_list = []
         self.loss_list = []
@@ -51,7 +53,8 @@ class Solution():
                  second_order_interactions: bool = True,
                  sampling_N: int = 1,
                  lambda_update: bool = False ,
-                 tol: float = 0)-> torch.Tensor:
+                 tol: float = 0,
+                 save_graph = True)-> torch.Tensor:
         """
         Computes loss.
 
@@ -60,6 +63,7 @@ class Solution():
             sampling_N: parameter for accumulation of solutions (op, bcs). The more sampling_N, the more accurate the estimation of the variance.
             lambda_update: update lambda or not.
             tol: float constant, influences on error penalty.
+            save_graph: boolean constant, responsible for saving the computational graph.
 
         Returns:
             loss
@@ -71,7 +75,7 @@ class Solution():
 
         loss_cls = Losses(operator=op, bval=bval, true_bval=true_bval, lambda_op=self.lambda_operator,
                           lambda_bound=self.lambda_bound, mode=self.mode,
-                          weak_form=self.weak_form, n_t=self.n_t)
+                          weak_form=self.weak_form, n_t=self.n_t, save_graph=save_graph)
 
         loss = loss_cls.compute(tol)
 

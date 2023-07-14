@@ -266,6 +266,7 @@ class Solver():
         #  use cache if needed
         if use_cache:
             self.model, min_loss = Cache_class.cache(cache_dir, nmodels,
+                                                     lambda_operator,
                                                      lambda_bound,
                                                      cache_verbose,
                                                      model_randomize_parameter,

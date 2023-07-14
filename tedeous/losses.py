@@ -1,5 +1,7 @@
 from typing import Tuple, Union
 
+import torch
+
 import tedeous.input_preprocessing
 from tedeous.utils import *
 
@@ -7,7 +9,16 @@ class Losses():
     """
     Class which contains all losses.
     """
-    def __init__(self, operator, bval, true_bval, lambda_op, lambda_bound, mode, weak_form, n_t):
+    def __init__(self, operator: dict,
+                 bval: dict,
+                 true_bval: dict,
+                 lambda_op: Tuple[int, list, dict],
+                 lambda_bound: Tuple[int, list, dict],
+                 mode: str,
+                 weak_form: Tuple[None, torch.Tensor],
+                 n_t: int,
+                 save_graph: bool):
+
         self.operator = operator
         self.mode = mode
         self.weak_form = weak_form
@@ -16,9 +27,16 @@ class Losses():
         self.lambda_bound = tedeous.input_preprocessing.lambda_prepare(bval, lambda_bound)
         self.lambda_op = tedeous.input_preprocessing.op_lambda_prepare(operator, lambda_op)
         self.n_t = n_t
+        self.save_graph = save_graph
         # TODO: refactor loss_op, loss_bcs into one function, carefully figure out when bval is None + fix causal_loss operator crutch (line 76).
 
-    def loss_op(self):
+    def loss_op(self) -> torch.Tensor:
+        """
+        Computes operator loss for corresponding equation.
+
+        Returns:
+            operator loss
+        """
         loss_operator = 0
         for eq in self.operator:
             if self.weak_form != None and self.weak_form != []:
@@ -48,6 +66,7 @@ class Losses():
         Returns:
             model loss.
         """
+
         if self.bval == None:
             return torch.sum(torch.mean((self.operator) ** 2, 0))
 
@@ -55,6 +74,13 @@ class Losses():
             loss = torch.mean((self.operator) ** 2) + self.loss_bcs()
         else:
             loss = self.loss_op() + self.loss_bcs()
+
+        # TODO make decorator and apply it for all losses.
+        if not self.save_graph:
+            temp_loss = loss.detach()
+            del loss
+            torch.cuda.empty_cache()
+            loss = temp_loss
         return loss
 
     def causal_loss(self, tol: float = 0) -> torch.Tensor:
@@ -111,9 +137,8 @@ class Losses():
             Setting the required loss calculation method.
 
             Args:
-                lambda_bound: an arbitrary chosen constant, influence only convergence speed.
-                weak_form: list of basis functions.
                 tol: float constant, influences on error penalty.
+
 
             Returns:
                 A given calculation method.

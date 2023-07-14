@@ -45,11 +45,12 @@ class Model_prepare():
     it saved and if the new model is structurally similar) to sped up computing.\n
     If there isn't pre-trained model in cache, the training process will start from the beginning.
     """
-    def __init__(self, grid, equal_cls, model, mode):
+    def __init__(self, grid, equal_cls, model, mode, weak_form):
         self.grid = grid
         self.equal_cls = equal_cls
         self.model = model
         self.mode = mode
+        self.weak_form = weak_form
 
     @staticmethod
     def cache_files(files, nmodels):
@@ -108,7 +109,7 @@ class Model_prepare():
         return init_model, model
         
 
-    def cache_lookup(self, lambda_bound: float = 0.001, weak_form: None = None, cache_dir: str = '../cache/',
+    def cache_lookup(self, lambda_operator: float = 1., lambda_bound: float = 0.001, cache_dir: str = '../cache/',
                 nmodels: Union[int, None] = None, save_graph: bool = False, cache_verbose: bool = False) -> Tuple[dict, torch.Tensor]:
         """
         Looking for a saved cache.
@@ -151,9 +152,12 @@ class Model_prepare():
                     continue
             except Exception:
                 continue
+
             model = model.to(device)
-            loss = Solution(self.grid, self.equal_cls, model, self.mode). \
-                loss_evaluation(lambda_bound=lambda_bound, weak_form=weak_form, save_graph=save_graph)
+            loss = Solution(self.grid, self.equal_cls,
+                                      self.model, self.mode, self.weak_form,
+                                      lambda_operator, lambda_bound).evaluate(save_graph=save_graph)
+            print(save_graph)
             if loss < min_loss:
                 min_loss = loss
                 best_checkpoint['model'] = model
@@ -290,9 +294,9 @@ class Model_prepare():
                 cache_model, cache_verbose=cache_verbose)
         return self.model, optimizer_state
 
-    def cache_nn(self, cache_dir: str, nmodels: Union[int, None], lambda_bound: float,
+    def cache_nn(self, cache_dir: str, nmodels: Union[int, None], lambda_operator: float, lambda_bound: float,
               cache_verbose: bool,model_randomize_parameter: Union[float, None],
-              cache_model: torch.nn.Sequential, weak_form: None = None):
+              cache_model: torch.nn.Sequential, ):
         """
        Restores the model from the cache and uses it for retraining.
        Args:
@@ -303,7 +307,6 @@ class Model_prepare():
            model_randomize_parameter:  Creates a random model parameters (weights, biases) multiplied with a given
                                        randomize parameter.
            cache_model: cached model
-           weak_form: weak form of differential equation
        Returns:
            * **model** -- NN.\n
            * **min_loss** -- min loss as is.
@@ -312,8 +315,8 @@ class Model_prepare():
         cache_checkpoint, min_loss = self.cache_lookup(cache_dir=cache_dir,
                                                        nmodels=nmodels,
                                                        cache_verbose=cache_verbose,
-                                                       lambda_bound=lambda_bound,
-                                                       weak_form=weak_form)
+                                                       lambda_operator= lambda_operator,
+                                                       lambda_bound=lambda_bound)
         
         self.model, optimizer_state = self.cache_retrain(cache_checkpoint,
                                                          cache_verbose=cache_verbose)
@@ -322,9 +325,9 @@ class Model_prepare():
 
         return self.model, min_loss
 
-    def cache_mat(self, cache_dir: str, nmodels: Union[int, None], lambda_bound: float,
+    def cache_mat(self, cache_dir: str, nmodels: Union[int, None],lambda_operator: float, lambda_bound: float,
               cache_verbose: bool,model_randomize_parameter: Union[float, None],
-              cache_model: torch.nn.Sequential, weak_form: None = None):
+              cache_model: torch.nn.Sequential):
         """
        Restores the model from the cache and uses it for retraining.
        Args:
@@ -335,7 +338,6 @@ class Model_prepare():
            model_randomize_parameter:  Creates a random model parameters (weights, biases) multiplied with a given
                                        randomize parameter.
            cache_model: cached model
-           weak_form: weak form of differential equation
        Returns:
            * **model** -- mat.\n
            * **min_loss** -- min loss as is.
@@ -353,7 +355,7 @@ class Model_prepare():
                                 it may lead to wrong cache item choice")
         r = create_random_fn(model_randomize_parameter)
         eq = Equation(NN_grid, operator, bconds).set_strategy('NN')
-        model_cls = Model_prepare(NN_grid, eq, cache_model, 'NN')
+        model_cls = Model_prepare(NN_grid, eq, cache_model, 'NN', self.weak_form)
         cache_checkpoint, min_loss = model_cls.cache_lookup(
             cache_dir=cache_dir,
             nmodels=nmodels,
@@ -372,35 +374,36 @@ class Model_prepare():
             self.model = prepared_model(NN_grid).reshape(
                 self.grid[0].shape).detach()
 
-        min_loss = Solution(self.grid, self.equal_cls, self.model, self.mode). \
-            loss_evaluation(lambda_bound=lambda_bound)
+        min_loss = Solution(self.grid, self.equal_cls,
+                                      self.model, self.mode, self.weak_form,
+                                      lambda_operator, lambda_bound).evaluate()
 
         return self.model, min_loss
 
-    def cache(self, cache_dir: str, nmodels: Union[int, None], lambda_bound: float,
+    def cache(self, cache_dir: str, nmodels: Union[int, None],lambda_operator, lambda_bound: float,
               cache_verbose: bool,model_randomize_parameter: Union[float, None],
-              cache_model: torch.nn.Sequential, weak_form: None = None):
+              cache_model: torch.nn.Sequential, ):
         """
         Restores the model from the cache and uses it for retraining.
         Args:
             cache_dir: a directory where saved cache in.
-            nmodels: smth
+            nmodels: number cached models.
             lambda_bound: an arbitrary chosen constant, influence only convergence speed.
             cache_verbose: more detailed info about models in cache.
             model_randomize_parameter:  Creates a random model parameters (weights, biases) multiplied with a given
                                         randomize parameter.
             cache_model: cached model
-            weak_form: weak form of differential equation
+
         Returns:
             cache.cache_nn or cache.cache_mat
         """
 
         if self.mode != 'mat':
-            return self.cache_nn(cache_dir, nmodels, lambda_bound,
+            return self.cache_nn(cache_dir, nmodels,lambda_operator, lambda_bound,
                                  cache_verbose, model_randomize_parameter,
-                                 cache_model, weak_form)
+                                 cache_model)
         elif self.mode == 'mat':
-            return self.cache_mat(cache_dir, nmodels, lambda_bound,
+            return self.cache_mat(cache_dir, nmodels, lambda_operator, lambda_bound,
                                   cache_verbose, model_randomize_parameter,
-                                  cache_model, weak_form)
+                                  cache_model)
 
