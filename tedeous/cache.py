@@ -14,7 +14,7 @@ import numpy as np
 from copy import deepcopy
 from typing import Union, Tuple, Any
 
-from tedeous.metrics import Solution
+from tedeous.solution import Solution
 from tedeous.input_preprocessing import Equation, EquationMixin
 from tedeous.device import device_type
 

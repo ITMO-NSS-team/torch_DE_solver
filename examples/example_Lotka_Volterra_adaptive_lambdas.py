@@ -36,7 +36,7 @@ x0 = 4.
 y0 = 2.
 t0 = 0.
 tmax = 1.
-Nt = 301
+Nt = 10
 
 t = torch.from_numpy(np.linspace(t0, tmax, Nt))
 

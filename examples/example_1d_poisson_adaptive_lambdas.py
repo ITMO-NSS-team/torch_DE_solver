@@ -14,10 +14,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 
 from tedeous.input_preprocessing import Equation
 from tedeous.solver import Solver
-from tedeous.metrics import Solution
+from tedeous.solution import Solution
 from tedeous.device import solver_device
 
-solver_device('cuda')
+solver_device('cpu')
 a = 4
 
 def u(x, a):
@@ -74,7 +74,7 @@ equation = Equation(grid, poisson, bconds, h=h).set_strategy('autograd')
 
 img_dir=os.path.join(os.path.dirname( __file__ ), 'poisson_img')
 
-model = Solver(grid, equation, model, 'autograd').solve( lambda_bound=100, lambda_update=False,
+model = Solver(grid, equation, model, 'autograd').solve( lambda_bound=100, lambda_update=True,
                                          verbose=1, learning_rate=1e-6, eps=1e-9, tmin=1000, tmax=5e6,
                                          use_cache=False,cache_dir='../cache/',cache_verbose=True,
                                          save_always=True,print_every=None, gamma=0.9, lr_decay=1000,
