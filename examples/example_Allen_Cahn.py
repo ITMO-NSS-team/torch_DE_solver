@@ -14,7 +14,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 
 from tedeous.input_preprocessing import Equation
 from tedeous.solver import Solver
-from tedeous.metrics import Solution
+from tedeous.solution import Solution
 from tedeous.device import solver_device
 from tedeous.models import FourierNN
 from tedeous.models import Fourier_embedding

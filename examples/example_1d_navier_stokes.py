@@ -12,7 +12,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 
 from tedeous.input_preprocessing import Equation
 from tedeous.solver import Solver
-from tedeous.metrics import Solution
+from tedeous.solution import Solution
 from tedeous.device import solver_device
 from tedeous.models import Fourier_embedding
 
@@ -188,8 +188,3 @@ model = Solver(grid, equation, model, 'autograd').solve(tol=0.1,lambda_bound=100
                                                   optimizer_mode='Adam', no_improvement_patience=1000, patience=10,
                                                   step_plot_print=False, step_plot_save=True, image_save_dir=img_dir)
 
-# model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=1000,tol=0.1,verbose=True, learning_rate=1e-4,
-#                                                   eps=1e-4, tmax=1e6, use_cache=False, cache_verbose=True,
-#                                                   save_always=True, print_every=5000, model_randomize_parameter=1e-5,
-#                                                   optimizer_mode='LBFGS', no_improvement_patience=1000,
-#                                                   step_plot_print=500, step_plot_save=True, image_save_dir=img_dir)

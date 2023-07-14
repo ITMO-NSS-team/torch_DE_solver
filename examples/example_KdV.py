@@ -26,7 +26,7 @@ sys.path.append('../')
 
 from tedeous.input_preprocessing import Equation
 from tedeous.solver import Solver
-from tedeous.metrics import Solution
+from tedeous.solution import Solution
 from tedeous.device import solver_device
 
 

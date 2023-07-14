@@ -9,7 +9,7 @@ from torch.optim.lr_scheduler import ExponentialLR
 
 from tedeous.cache import *
 from tedeous.device import check_device, device_type
-from tedeous.metrics import Solution
+from tedeous.solution import Solution
 import tedeous.input_preprocessing
 
 
@@ -226,20 +226,22 @@ class Solver():
         High-level interface for solving equations.
 
         Args:
-            lambda_bound: an arbitrary chosen constant, influence only convergence speed.
+            lambda_operator: coeff for operator part in loss.
+            lambda_bound: coeff for boundary part in loss.
+            lambda_update: enable lambda update.
             verbose: detailed info about training process.
             learning_rate: determines the step size at each iteration while moving toward a minimum of a loss function.
             gamma: multiplicative factor of learning rate decay.
             lr_decay: decays the learning rate of each parameter group by gamma every epoch.
             eps: arbitrarily small number that uses for loss comparison criterion.
             tmax: maximum execution time.
-            nmodels: smth
+            nmodels: number cached models
             name: model name if saved.
             abs_loss: absolute loss.
             use_cache: as is.
             cache_dir: directory where saved cache in.
             cache_verbose: detailed info about models in cache.
-            save_always: smth
+            save_always: saves trained model even if the cache is False.
             print_every: prints the state of each given iteration to the command line.
             cache_model: model that uses in cache
             patience:if the loss is less than a certain value, then the counter increases when it reaches the given patience, the calculation stops.

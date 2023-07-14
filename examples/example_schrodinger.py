@@ -12,7 +12,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 
 from tedeous.input_preprocessing import Equation
 from tedeous.solver import Solver
-from tedeous.metrics import Solution
+from tedeous.solution import Solution
 from tedeous.device import solver_device
 
 
@@ -216,7 +216,7 @@ if not(os.path.isdir(img_dir)):
 
 model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=1, verbose=1, learning_rate=0.8,
                                     eps=1e-6, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
-                                    save_always=False,no_improvement_patience=500,print_every = 100, optimizer_mode='LBFGS',step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
+                                    save_always=False,no_improvement_patience=500,print_every = 100, optimizer_mode='LBFGS',step_plot_print=True,step_plot_save=True,image_save_dir=img_dir)
                                     
 
 

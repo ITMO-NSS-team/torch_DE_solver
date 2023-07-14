@@ -15,13 +15,13 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 
 from tedeous.input_preprocessing import Equation
 from tedeous.solver import Solver
-from tedeous.metrics import Solution
+from tedeous.solution import Solution
 from tedeous.device import solver_device
 
 
 solver_device('cuda')
 
-t = torch.from_numpy(np.linspace(0, 0.25, 300))
+t = torch.from_numpy(np.linspace(0, 0.25, 100))
 grid = t.reshape(-1, 1).float()
 
 h = (t[1]-t[0]).item()
@@ -38,7 +38,7 @@ bop2 = {
               'pow': 1
             }
         }
-bndval2 = torch.from_numpy(np.array([[2]], dtype=np.float64))
+bndval2 = torch.from_numpy(np.array([[2.17628]], dtype=np.float64))
 
 bconds = [[bnd1, bndval1, 'dirichlet'],
           [bnd2, bop2, bndval2, 'operator']]
@@ -91,10 +91,10 @@ model = torch.nn.Sequential(
 start = time.time()
 equation = Equation(grid, ode, bconds).set_strategy('autograd')
 
-img_dir=os.path.join(os.path.dirname( __file__ ), 'poisson_img')
+img_dir=os.path.join(os.path.dirname( __file__ ), 'ODE_img')
 
-model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=100,
-                                         verbose=1, learning_rate=1e-3, eps=1e-5, tmin=1000, tmax=5e6,
+model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=100, lambda_update=True, sampling_N=2,
+                                         verbose=1, learning_rate=1e-4, eps=1e-8, tmin=1000, tmax=5e6,
                                          use_cache=False,cache_dir='../cache/',cache_verbose=True,
                                          save_always=True,print_every=2000, gamma=None, lr_decay=1000,
                                          patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
@@ -103,6 +103,7 @@ model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=100,
 end = time.time()
 
 print(end-start)
+
 def sln(t):
     return 50/81 + (5/9) * t + (31/81) * torch.exp(9*t) - 2 * torch.exp(t)
 
