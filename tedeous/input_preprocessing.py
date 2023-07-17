@@ -1,22 +1,34 @@
 import torch
 import numpy as np
 from copy import deepcopy
-from typing import Union
+from typing import Union, Tuple
 
 from tedeous.points_type import Points_type
 from tedeous.finite_diffs import Finite_diffs
 from tedeous.device import check_device
 
-def lambda_prepare(bval, lambda_bound):
+def lambda_prepare(val: dict, lambda_: Tuple[int, list, dict]) -> dict :
+    """
+    Prepares lambdas for corresponding equation or bcond type.
+
+    Args:
+        val:
+        lambda_bound:
+
+    Returns:
+        dict with lambdas.
+
+    """
     lambdas = {}
-    for i, bcs_type in enumerate(bval):
-        if type(lambda_bound) is int:
-            lambdas[bcs_type] = lambda_bound
-        elif type(lambda_bound) is list:
-            lambdas[bcs_type] = lambda_bound[i]
+    for i, key_name in enumerate(val):
+        if type(lambda_) is int:
+            lambdas[key_name] = lambda_
+        elif type(lambda_) is list:
+            lambdas[key_name] = lambda_[i]
         else:
-            return lambda_bound
+            return lambda_
     return lambdas
+
 def op_lambda_prepare(op, lambda_op):
     lambdas = {}
     for i, bcs_type in enumerate(op):

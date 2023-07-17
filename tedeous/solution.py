@@ -46,7 +46,7 @@ class Solution():
                                    self.mode, weak_form)
 
         self.op_list = []
-        self.bcs_list = []
+        self.bval_list = []
         self.loss_list = []
 
     def evaluate(self,
@@ -81,23 +81,23 @@ class Solution():
 
         if lambda_update:
             # TODO refactor this lambda thing to class or function.
-            op, bcs, op_length, bval_length = wrap(op, bval, true_bval)
+            op, bval, op_length, bval_length = lambda_preproc(op, bval, true_bval)
 
             self.op_list.append(list_to_vector(op.values()).cpu().detach().numpy())
-            self.bcs_list.append(list_to_vector(bcs.values()).cpu().detach().numpy())
+            self.bval_list.append(list_to_vector(bval.values()).cpu().detach().numpy())
             self.loss_list.append(float(loss.item()))
 
             sampling_amount, sampling_D = samples_count(second_order_interactions = second_order_interactions,
                                                              sampling_N = sampling_N,
-                                                             op=op, bval = bcs)
+                                                             op_length=op_length, bval_length = bval_length)
             if len(self.op_list) == sampling_amount:
-                self.lambda_operator, self.lambda_bound = Lambda(self.op_list, self.bcs_list,self.loss_list,
+                self.lambda_operator, self.lambda_bound = Lambda(self.op_list, self.bval_list,self.loss_list,
                                                                  second_order_interactions)\
                                                                  .update(op_length=op_length,
-                                                                         bcs_length=bval_length,
+                                                                         bval_length=bval_length,
                                                                          sampling_D=sampling_D)
                 self.op_list.clear()
-                self.bcs_list.clear()
+                self.bval_list.clear()
                 self.loss_list.clear()
 
                 lambda_print(self.lambda_operator)

@@ -119,7 +119,7 @@ if not(os.path.isdir(img_dir)):
 
 equation = Equation(grid, wave_eq, bconds).set_strategy('autograd')
 
-model = Solver(grid, equation, model, 'autograd').solve(update_every_lambdas= 500,
+model = Solver(grid, equation, model, 'autograd').solve(lambda_update=True,
                               verbose=1, learning_rate=1e-3, eps=1e-7, tmin=1000, tmax=1e5, gamma=0.9,
                               use_cache=False, cache_dir='../cache/',cache_verbose=True,
                               save_always=True, print_every=500, patience=10,

@@ -22,7 +22,7 @@ class Losses():
         self.bval = bval
         self.true_bval = true_bval
         self.lambda_bound = tedeous.input_preprocessing.lambda_prepare(bval, lambda_bound)
-        self.lambda_op = tedeous.input_preprocessing.op_lambda_prepare(operator, lambda_op)
+        self.lambda_op = tedeous.input_preprocessing.lambda_prepare(operator, lambda_op)
         self.n_t = n_t
         self.save_graph = save_graph
         # TODO: refactor loss_op, loss_bcs into one function, carefully figure out when bval is None + fix causal_loss operator crutch (line 76).
