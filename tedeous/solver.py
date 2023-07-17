@@ -271,7 +271,7 @@ class Solver():
                                                      cache_verbose,
                                                      model_randomize_parameter,
                                                      cache_model,
-                                                     weak_form=self.weak_form)
+                                                    )
 
             Solution_class = Solution(self.grid, self.equal_cls,
                                       self.model, self.mode, self.weak_form,

@@ -76,7 +76,7 @@ img_dir=os.path.join(os.path.dirname( __file__ ), 'poisson_img')
 
 model = Solver(grid, equation, model, 'autograd').solve( lambda_bound=100, lambda_update=True,
                                          verbose=1, learning_rate=1e-6, eps=1e-9, tmin=1000, tmax=5e6,
-                                         use_cache=False,cache_dir='../cache/',cache_verbose=True,
+                                         use_cache=True,cache_dir='../cache/',cache_verbose=True,
                                          save_always=True,print_every=None, gamma=0.9, lr_decay=1000,
                                          patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
                                          model_randomize_parameter=1e-5,optimizer_mode='SGD',cache_model=None,
