@@ -281,7 +281,7 @@ class Solver():
                                       self.model, self.mode, self.weak_form,
                                       lambda_operator, lambda_bound)
 
-            min_loss = Solution_class.evaluate()
+            min_loss, _ = Solution_class.evaluate()
 
         self.plot = Plots(self.model, self.grid, self.mode, tol)
 
@@ -303,12 +303,13 @@ class Solver():
         def closure():
             nonlocal cur_loss
             optimizer.zero_grad()
-            loss = Solution_class.evaluate(second_order_interactions=second_order_interactions,
+            loss, loss_normalized = Solution_class.evaluate(second_order_interactions=second_order_interactions,
                                            sampling_N=sampling_N,
                                            lambda_update=lambda_update,
                                            tol=tol)
+
             loss.backward()
-            cur_loss = loss.item()
+            cur_loss = loss_normalized.item()
             return loss
 
         stop_dings = 0
@@ -377,11 +378,13 @@ class Solver():
                                                  solution_save=step_plot_save,
                                                  save_dir=image_save_dir)
                 stop_dings += 1
-
+            # print('t',t)
             if print_every != None and (t % print_every == 0) and verbose:
                 print('[{}] Print every {} step'.format(
                     datetime.datetime.now(), print_every))
                 print(info_string)
+
+                # print('loss', closure().item(), 'loss_norm', cur_loss)
                 if step_plot_print or step_plot_save:
                     self.plot.solution_print(title='Iteration = ' + str(t),
                                              solution_print=step_plot_print,

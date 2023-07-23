@@ -4,6 +4,7 @@ from typing import Tuple, Union
 from tedeous.points_type import Points_type
 from tedeous.derivative import Derivative
 from tedeous.device import device_type, check_device
+from tedeous.utils import tensor_to_dict
 
 def integration(func: torch.tensor, grid, pow: Union[int, float] = 2) -> Union[Tuple[float, float], Tuple[list, torch.Tensor]]:
     """
@@ -104,6 +105,7 @@ class Operator():
             op = torch.cat(op_list, 1)
         return op
 
+
     def weak_pde_compute(self, weak_form) -> torch.Tensor:
         """
         Computes PDE residual in weak form.
@@ -134,6 +136,7 @@ class Operator():
         else:
             return torch.cat(sol_list).reshape(1,-1)
 
+    @tensor_to_dict('eq')
     def operator_compute(self):
         if self.weak_form == None or self.weak_form == []:
             return self.pde_compute()

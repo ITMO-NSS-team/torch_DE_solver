@@ -20,7 +20,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 
 from tedeous.input_preprocessing import Equation
 from tedeous.solver import Solver
-from tedeous.metrics import Solution
+from tedeous.solution import Solution
 from tedeous.device import solver_device
 
 """
@@ -121,7 +121,7 @@ equation = Equation(grid, wave_eq, bconds).set_strategy('autograd')
 
 model = Solver(grid, equation, model, 'autograd').solve(lambda_bound = 100,
                               verbose=True, learning_rate=1e-3, eps=1e-7, tmin=1000, tmax=1e5, gamma=0.9,
-                              use_cache=False, cache_dir='../cache/',cache_verbose=True,
+                              use_cache=True, cache_dir='../cache/',cache_verbose=True,
                               save_always=True, print_every=500, patience=10,
                               loss_oscillation_window=1000, no_improvement_patience=1000,
                               model_randomize_parameter=0, optimizer_mode='Adam', cache_model=None,

@@ -154,10 +154,10 @@ class Model_prepare():
                 continue
 
             model = model.to(device)
-            loss = Solution(self.grid, self.equal_cls,
+            loss, _ = Solution(self.grid, self.equal_cls,
                                       self.model, self.mode, self.weak_form,
                                       lambda_operator, lambda_bound).evaluate(save_graph=save_graph)
-            print(save_graph)
+
             if loss < min_loss:
                 min_loss = loss
                 best_checkpoint['model'] = model
@@ -374,7 +374,7 @@ class Model_prepare():
             self.model = prepared_model(NN_grid).reshape(
                 self.grid[0].shape).detach()
 
-        min_loss = Solution(self.grid, self.equal_cls,
+        min_loss, _ = Solution(self.grid, self.equal_cls,
                                       self.model, self.mode, self.weak_form,
                                       lambda_operator, lambda_bound).evaluate()
 

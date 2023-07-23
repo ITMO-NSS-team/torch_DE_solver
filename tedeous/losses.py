@@ -10,10 +10,10 @@ class Losses():
     def __init__(self, operator: dict,
                  bval: dict,
                  true_bval: dict,
-                 lambda_op: Tuple[int, list, dict],
-                 lambda_bound: Tuple[int, list, dict],
+                 lambda_op: Union[int, list, dict],
+                 lambda_bound: Union[int, list, dict],
                  mode: str,
-                 weak_form: Tuple[None, torch.Tensor],
+                 weak_form: Union[None, torch.Tensor],
                  n_t: int,
                  save_graph: bool):
         self.operator = operator
@@ -26,17 +26,26 @@ class Losses():
         self.n_t = n_t
         self.save_graph = save_graph
         # TODO: refactor loss_op, loss_bcs into one function, carefully figure out when bval is None + fix causal_loss operator crutch (line 76).
+    # @torch.no_grad()
+    # def loss_op_normalized(self):
+    #     loss_operator = 0
+    #     for eq in self.operator:
+    #         if self.weak_form != None and self.weak_form != []:
+    #             loss_operator += self.lambda_op[eq] * torch.sum(self.operator[eq])
+    #         else:
+    #             loss_operator += self.lambda_op[eq] * torch.sum(torch.mean((self.operator[eq]) ** 2, 0))
+    #     return loss_operator
 
-    def loss_op(self) -> torch.Tensor:
+    def loss_op(self, lambda_op) -> torch.Tensor:
         loss_operator = 0
         for eq in self.operator:
             if self.weak_form != None and self.weak_form != []:
-                loss_operator += self.lambda_op[eq] * torch.sum(self.operator[eq])
+                loss_operator += lambda_op[eq] * torch.sum(self.operator[eq])
             else:
-                loss_operator += self.lambda_op[eq] * torch.sum(torch.mean((self.operator[eq]) ** 2, 0))
+                loss_operator += lambda_op[eq] * torch.mean((self.operator[eq]) ** 2)
         return loss_operator
 
-    def loss_bcs(self) -> torch.Tensor:
+    def loss_bcs(self, lambda_bound) -> torch.Tensor:
         """
         Computes boundary loss for corresponding type.
 
@@ -45,10 +54,10 @@ class Losses():
         """
         loss_bnd = 0
         for bcs_type in self.bval:
-            loss_bnd += self.lambda_bound[bcs_type] * torch.mean((self.bval[bcs_type] - self.true_bval[bcs_type]) ** 2)
+            loss_bnd += lambda_bound[bcs_type] * torch.mean((self.bval[bcs_type] - self.true_bval[bcs_type]) ** 2)
         return loss_bnd
-
-    def default_loss(self) -> torch.Tensor:
+    # @counter
+    def default_loss(self) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Computes l2 loss.
 
@@ -62,9 +71,21 @@ class Losses():
             return torch.sum(torch.mean((self.operator) ** 2, 0))
 
         if self.mode == 'mat':
-            loss = torch.mean((self.operator) ** 2) + self.loss_bcs()
+            loss = torch.mean((self.operator) ** 2) + self.loss_bcs(self.lambda_bound)
         else:
-            loss = self.loss_op() + self.loss_bcs()
+            # print('loss_op',self.loss_op(self.lambda_op).item(), 'loss_bcs',self.loss_bcs(self.lambda_bound) )
+            loss = self.loss_op(self.lambda_op) + self.loss_bcs(self.lambda_bound)
+            # print(self.default_loss.count-3)
+        # ctr = self.default_loss.count - 3
+        lambda_op_normalized = tedeous.input_preprocessing.lambda_prepare(self.operator, 1)
+        lambda_bound_normalized = tedeous.input_preprocessing.lambda_prepare(self.bval, 1)
+
+        with torch.no_grad():
+            # if ctr % 500 == 0:
+            #     print('loss_op', self.loss_op(self.lambda_op).item(),'loss_op_norm', self.loss_op(lambda_op_normalized).item(), ''
+            #           'loss_bcs', self.loss_bcs(self.lambda_bound).item(), 'loss_bcs_norm',self.loss_bcs(lambda_bound_normalized).item())
+
+            loss_normalized = self.loss_op(lambda_op_normalized) + self.loss_bcs(lambda_bound_normalized)
 
         # TODO make decorator and apply it for all losses.
         if not self.save_graph:
@@ -72,11 +93,12 @@ class Losses():
             del loss
             torch.cuda.empty_cache()
             loss = temp_loss
-        return loss
+
+        return loss, loss_normalized
 
     def causal_loss(self, tol: float = 0) -> torch.Tensor:
         """
-        Computes causal loss, which is caclulated with weights matrix:
+        Computes causal loss, which is calculated with weights matrix:
         W = exp(-tol*(Loss_i)) where Loss_i is sum of the L2 loss from 0
         to t_i moment of time. This loss function should be used when one
         of the DE independent parameter is time.
@@ -99,7 +121,7 @@ class Losses():
         with torch.no_grad():
             W = torch.exp(- tol * (M @ res))
 
-        loss = torch.mean(W * res) + self.loss_bcs()
+        loss = torch.mean(W * res) + self.loss_bcs(self.lambda_bound)
 
         return loss
 
@@ -118,7 +140,7 @@ class Losses():
 
         # we apply no  boundary conditions operators if they are all None
 
-        loss = self.loss_op() + self.loss_bcs()
+        loss = self.loss_op(self.lambda_op) + self.loss_bcs(self.lambda_bound)
 
         return loss
 

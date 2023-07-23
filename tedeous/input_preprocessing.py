@@ -7,7 +7,7 @@ from tedeous.points_type import Points_type
 from tedeous.finite_diffs import Finite_diffs
 from tedeous.device import check_device
 
-def lambda_prepare(val: dict, lambda_: Tuple[int, list, dict]) -> dict :
+def lambda_prepare(val: dict, lambda_: Union[int, list, dict]) -> dict :
     """
     Prepares lambdas for corresponding equation or bcond type.
 

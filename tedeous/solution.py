@@ -54,7 +54,7 @@ class Solution():
                  sampling_N: int = 1,
                  lambda_update: bool = False ,
                  tol: float = 0,
-                 save_graph = True)-> torch.Tensor:
+                 save_graph = True) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Computes loss.
 
@@ -68,30 +68,30 @@ class Solution():
         Returns:
             loss
         """
-        op = self.operator.operator_compute()
-        op = tensor_to_dict(op, 'eq') # TODO: fix this ad hoc thing. Change it in 'Operator' class or use decorator.
 
+        op = self.operator.operator_compute()
         bval, true_bval = self.boundary.apply_bcs()
 
         loss_cls = Losses(operator=op, bval=bval, true_bval=true_bval, lambda_op=self.lambda_operator,
                           lambda_bound=self.lambda_bound, mode=self.mode,
                           weak_form=self.weak_form, n_t=self.n_t, save_graph=save_graph)
 
-        loss = loss_cls.compute(tol)
+        loss, loss_normalized = loss_cls.compute(tol)
 
         if lambda_update:
             # TODO refactor this lambda thing to class or function.
-            op, bval, op_length, bval_length = lambda_preproc(op, bval, true_bval)
+            op, bcs, op_length, bval_length = lambda_preproc(op, bval, true_bval)
 
             self.op_list.append(list_to_vector(op.values()).cpu().detach().numpy())
-            self.bval_list.append(list_to_vector(bval.values()).cpu().detach().numpy())
-            self.loss_list.append(float(loss.item()))
+            self.bval_list.append(list_to_vector(bcs.values()).cpu().detach().numpy())
+            self.loss_list.append(float(loss_normalized.item()))
 
             sampling_amount, sampling_D = samples_count(second_order_interactions = second_order_interactions,
                                                              sampling_N = sampling_N,
                                                              op_length=op_length, bval_length = bval_length)
+
             if len(self.op_list) == sampling_amount:
-                self.lambda_operator, self.lambda_bound = Lambda(self.op_list, self.bval_list,self.loss_list,
+                self.lambda_operator, self.lambda_bound = Lambda(self.op_list, self.bval_list, self.loss_list,
                                                                  second_order_interactions)\
                                                                  .update(op_length=op_length,
                                                                          bval_length=bval_length,
@@ -104,4 +104,4 @@ class Solution():
                 lambda_print(self.lambda_bound)
 
 
-        return loss
+        return loss, loss_normalized

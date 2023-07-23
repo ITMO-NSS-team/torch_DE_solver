@@ -36,7 +36,7 @@ x0 = 4.
 y0 = 2.
 t0 = 0.
 tmax = 1.
-Nt = 10
+Nt = 100
 
 t = torch.from_numpy(np.linspace(t0, tmax, Nt))
 
@@ -122,10 +122,10 @@ img_dir = os.path.join(os.path.dirname(__file__), 'img_Lotka_Volterra')
 start = time.time()
 
 model = Solver(grid, equation, model, 'NN').solve(lambda_bound=100, lambda_update=True,
-                                                  verbose=True, learning_rate=1e-4, eps=1e-9, tmin=1000, tmax=5e6,
+                                                  verbose=True, learning_rate=5e-4, eps=1e-8, tmin=1000, tmax=5e6,
                                                   use_cache=False, cache_dir='../cache/', cache_verbose=True,
                                                   save_always=True, print_every=20000,
-                                                  patience=5, loss_oscillation_window=100, no_improvement_patience=1000,
+                                                  patience=12, loss_oscillation_window=100, no_improvement_patience=1000,
                                                   model_randomize_parameter=1e-5, optimizer_mode='Adam',
                                                   cache_model=None,
                                                   step_plot_print=False, step_plot_save=True, image_save_dir=img_dir)

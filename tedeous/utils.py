@@ -9,30 +9,41 @@ from SALib import ProblemSpec
 def list_to_vector(list_):
     return torch.cat([x.reshape(-1) for x in list_])
 
-def tensor_to_dict(tensor: torch.Tensor,
-                   keys_name: str) -> dict:
+def counter(fu):
+    def inner(*a, **kw):
+        inner.count += 1
+        return fu(*a, **kw)
+
+    inner.count = 0
+    return inner
+
+def tensor_to_dict(keys):
     """
-    Convert nested tensor to dict.
+        Convert nested tensor to dict.
 
-    Args:
-        tensor: nested tensor which needs to be converted into a dictionary.
+        Args:
+            tensor: nested tensor which needs to be converted into a dictionary.
 
-    Returns:
-        dictionary with tensor values.
+        Returns:
+            dictionary with tensor values.
 
-    Examples:
-        Converts operator solution for unified notation.
-        Keys are number of equation, value is tensor with corresponding solution.
+        Examples:
+            Converts operator solution for unified notation.
+            Keys are number of equation, value is tensor with corresponding solution.
 
-        >>> op = tedeous.eval.Operator(grid, prepared_operator, model, mode, weak_form).operator_compute()
-        >>> tensor_to_dict(op, 'eq')
-        Output: op_dict
-    """
-
-    tensor_dict = dict()
-    for i in range(tensor.shape[-1]):
-        tensor_dict[keys_name + f'_{i+1}'] = tensor[:,i:i+1]
-    return tensor_dict
+            >>> op = tedeous.eval.Operator(grid, prepared_operator, model, mode, weak_form).operator_compute()
+            >>> tensor_to_dict(op, 'eq')
+            Output: op_dict
+        """
+    def decorator(func):
+        def wrapper(self, *args, **kwargs):
+            tensor = func(self, *args, **kwargs)
+            dictionary = {}
+            for i in range(tensor.shape[-1]):
+                dictionary[keys + f'_{i+1}'] = tensor[:,i:i+1]
+            return dictionary
+        return wrapper
+    return decorator
 
 def length_dict_create(dict_: dict) -> dict:
     """
@@ -106,6 +117,7 @@ def lambda_preproc(op: dict,
         op_length: dict with lengths of operator solution.
         bval_length: dict with lengths of boundary solution.
     """
+
     op_length = length_dict_create(op)
     bcs_length = length_dict_create(bval)
 
