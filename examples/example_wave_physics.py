@@ -207,7 +207,7 @@ if not(os.path.isdir(img_dir)):
 
 
 model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=100,verbose=1, learning_rate=1e-3,
-                                            eps=1e-6, tmin=1000, tmax=1e5,use_cache=False,cache_verbose=True,
+                                            eps=1e-4, tmin=1000, tmax=1e5,use_cache=True,cache_verbose=True,
                                             save_always=True,print_every=500,model_randomize_parameter=1e-6,
                                             optimizer_mode='Adam',no_improvement_patience=1000,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
 

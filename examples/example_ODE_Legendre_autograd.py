@@ -235,7 +235,7 @@ for n in range(3,10):
 
 
         model = Solver(grid, equation, model, 'autograd').solve(use_cache=True,verbose=True,
-                                      print_every=None, cache_verbose=False, abs_loss=1e-3,
+                                      print_every=1000, cache_verbose=False, abs_loss=1e-2,
                                       lambda_bound=10,optimizer_mode='Adam',learning_rate=1e-4,save_always=True,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
         end = time.time()
     

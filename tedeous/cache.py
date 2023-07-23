@@ -154,18 +154,18 @@ class Model_prepare():
                 continue
 
             model = model.to(device)
-            loss, _ = Solution(self.grid, self.equal_cls,
+            _, loss_normalized = Solution(self.grid, self.equal_cls,
                                       self.model, self.mode, self.weak_form,
                                       lambda_operator, lambda_bound).evaluate(save_graph=save_graph)
 
-            if loss < min_loss:
-                min_loss = loss
+            if loss_normalized < min_loss:
+                min_loss = loss_normalized
                 best_checkpoint['model'] = model
                 best_checkpoint['model_state_dict'] = model.state_dict()
                 best_checkpoint['optimizer_state_dict'] = \
                     checkpoint['optimizer_state_dict']
                 if cache_verbose:
-                    print('best_model_num={} , loss={}'.format(i, loss))
+                    print('best_model_num={} , normalized_loss={}'.format(i, loss_normalized))
         if best_checkpoint == {}:
             best_checkpoint = None
             min_loss = np.inf

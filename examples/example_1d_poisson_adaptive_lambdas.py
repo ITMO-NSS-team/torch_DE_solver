@@ -75,11 +75,11 @@ equation = Equation(grid, poisson, bconds, h=h).set_strategy('autograd')
 img_dir=os.path.join(os.path.dirname( __file__ ), 'poisson_img')
 
 model = Solver(grid, equation, model, 'autograd').solve( lambda_bound=100, lambda_update=True,
-                                         verbose=1, learning_rate=1e-6, eps=1e-9, tmin=1000, tmax=5e6,
+                                         verbose=1, learning_rate=1e-3, eps=1e-9, tmin=1000, tmax=5e6,
                                          use_cache=True,cache_dir='../cache/',cache_verbose=True,
-                                         save_always=True,print_every=None, gamma=0.9, lr_decay=1000,
+                                         save_always=True,print_every=1000, gamma=0.9, lr_decay=1000,
                                          patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
-                                         model_randomize_parameter=1e-5,optimizer_mode='SGD',cache_model=None,
+                                         model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=None,
                                          step_plot_print=False, step_plot_save=True, image_save_dir=img_dir)
 
 end = time.time()
