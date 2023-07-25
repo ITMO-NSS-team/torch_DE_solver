@@ -132,6 +132,7 @@ class Model_prepare():
         cache_n = self.cache_files(files, nmodels)
 
         min_loss = np.inf
+        min_norm_loss =np.inf
         best_checkpoint = {}
 
         device = device_type()
