@@ -26,15 +26,6 @@ class Losses():
         self.n_t = n_t
         self.save_graph = save_graph
         # TODO: refactor loss_op, loss_bcs into one function, carefully figure out when bval is None + fix causal_loss operator crutch (line 76).
-    # @torch.no_grad()
-    # def loss_op_normalized(self):
-    #     loss_operator = 0
-    #     for eq in self.operator:
-    #         if self.weak_form != None and self.weak_form != []:
-    #             loss_operator += self.lambda_op[eq] * torch.sum(self.operator[eq])
-    #         else:
-    #             loss_operator += self.lambda_op[eq] * torch.sum(torch.mean((self.operator[eq]) ** 2, 0))
-    #     return loss_operator
 
     def loss_op(self, lambda_op) -> torch.Tensor:
         loss_operator = 0
@@ -44,6 +35,7 @@ class Losses():
             else:
                 loss_operator += lambda_op[eq] * torch.mean((self.operator[eq]) ** 2)
         return loss_operator
+
 
     def loss_bcs(self, lambda_bound) -> torch.Tensor:
         """
@@ -56,7 +48,8 @@ class Losses():
         for bcs_type in self.bval:
             loss_bnd += lambda_bound[bcs_type] * torch.mean((self.bval[bcs_type] - self.true_bval[bcs_type]) ** 2)
         return loss_bnd
-    # @counter
+
+
     def default_loss(self) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Computes l2 loss.
@@ -73,18 +66,12 @@ class Losses():
         if self.mode == 'mat':
             loss = torch.mean((self.operator) ** 2) + self.loss_bcs(self.lambda_bound)
         else:
-            # print('loss_op',self.loss_op(self.lambda_op).item(), 'loss_bcs',self.loss_bcs(self.lambda_bound) )
             loss = self.loss_op(self.lambda_op) + self.loss_bcs(self.lambda_bound)
-            # print(self.default_loss.count-3)
-        # ctr = self.default_loss.count - 3
+
         lambda_op_normalized = tedeous.input_preprocessing.lambda_prepare(self.operator, 1)
         lambda_bound_normalized = tedeous.input_preprocessing.lambda_prepare(self.bval, 1)
 
         with torch.no_grad():
-            # if ctr % 500 == 0:
-            #     print('loss_op', self.loss_op(self.lambda_op).item(),'loss_op_norm', self.loss_op(lambda_op_normalized).item(), ''
-            #           'loss_bcs', self.loss_bcs(self.lambda_bound).item(), 'loss_bcs_norm',self.loss_bcs(lambda_bound_normalized).item())
-
             loss_normalized = self.loss_op(lambda_op_normalized) + self.loss_bcs(lambda_bound_normalized)
 
         # TODO make decorator and apply it for all losses.

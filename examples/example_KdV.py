@@ -311,8 +311,8 @@ for grid_res in [10,20,30]:
         error_rmse=torch.sqrt(torch.mean((sln_torch1-model(grid))**2))
     
         
-        end_loss = Solution(grid=grid, equal_cls=equation, model=model,
-             mode='NN', weak_form=None, lambda_bound=100).evaluate()
+        _, end_loss = Solution(grid=grid, equal_cls=equation, model=model,
+             mode='NN', weak_form=None, lambda_bound=100, lambda_operator=1).evaluate()
     
         exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().cpu().numpy(),'loss':end_loss.detach().cpu().numpy(),'type':'kdv_eqn','cache':True})
         

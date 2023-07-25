@@ -176,8 +176,8 @@ for grid_res in range(40, 110, 10):
         Plots(grid,model,'mat').solution_print(title='final_solution',solution_print=False,solution_save=True,save_dir=img_dir)
 
 
-        end_loss = Solution(grid=grid, equal_cls=equation, model=model,
-             mode='mat', weak_form=None, lambda_bound=100).evaluate()
+        _, end_loss = Solution(grid=grid, equal_cls=equation, model=model,
+             mode='mat', weak_form=None, lambda_bound=100, lambda_operator=1).evaluate()
         exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse,'loss':end_loss.detach().numpy(),'type':'wave_eqn'})
         
         print('Time taken {}= {}'.format(grid_res, end - start))

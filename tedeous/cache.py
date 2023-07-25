@@ -155,7 +155,7 @@ class Model_prepare():
 
             model = model.to(device)
             loss, loss_normalized = Solution(self.grid, self.equal_cls,
-                                      self.model, self.mode, self.weak_form,
+                                      model, self.mode, self.weak_form,
                                       lambda_operator, lambda_bound).evaluate(save_graph=save_graph)
 
             if loss < min_loss:
