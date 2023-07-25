@@ -51,6 +51,11 @@ class Model_prepare():
         self.model = model
         self.mode = mode
         self.weak_form = weak_form
+        self.cache_dir=os.path.normpath((os.path.join(os.path.dirname( __file__ ), '..','cache')))
+
+    def change_cache_dir(self,string):
+        self.cache_dir=string
+        print(self.cache_dir)
 
     @staticmethod
     def cache_files(files, nmodels):
@@ -109,7 +114,7 @@ class Model_prepare():
         return init_model, model
         
 
-    def cache_lookup(self, lambda_operator: float = 1., lambda_bound: float = 0.001, cache_dir: str = '../cache/',
+    def cache_lookup(self, lambda_operator: float = 1., lambda_bound: float = 0.001,
                 nmodels: Union[int, None] = None, save_graph: bool = False, cache_verbose: bool = False) -> Tuple[dict, torch.Tensor]:
         """
         Looking for a saved cache.
@@ -123,7 +128,7 @@ class Model_prepare():
             * **best_checkpoint** -- best model with optimizator state.\n
             * **min_loss** -- minimum error in pre-trained error.
         """
-        files = glob.glob(cache_dir + '*.tar')
+        files = glob.glob(self.cache_dir + '\*.tar')
         if len(files) == 0:
             best_checkpoint = None
             min_loss = np.inf
@@ -173,8 +178,7 @@ class Model_prepare():
             min_loss = np.inf
         return best_checkpoint, min_norm_loss
 
-    def save_model(self, prep_model: Any, state: dict, optimizer_state: dict,
-                   cache_dir='../cache/', name: Union[str, None] = None):
+    def save_model(self, prep_model: Any, state: dict, optimizer_state: dict, name: Union[str, None] = None):
         """
         Saved model in a cache (uses for 'NN' and 'autograd' methods).
         Args:
@@ -186,15 +190,22 @@ class Model_prepare():
         """
         if name == None:
             name = str(datetime.datetime.now().timestamp())
-        if os.path.isdir(cache_dir):
-            torch.save({'model': prep_model.to('cpu'), 'model_state_dict': state,
-                        'optimizer_state_dict': optimizer_state}, cache_dir + name + '.tar')
-        else:
-            os.mkdir(cache_dir)
-            torch.save({'model': prep_model.to('cpu'), 'model_state_dict': state,
-                        'optimizer_state_dict': optimizer_state}, cache_dir + name + '.tar')
+        if not(os.path.isdir(self.cache_dir)):
+            os.mkdir(self.cache_dir)
 
-    def save_model_mat(self, cache_dir: str ='../cache/', name: None = None, cache_model: None = None):
+        try:
+            torch.save({'model': prep_model.to('cpu'), 'model_state_dict': state,
+                        'optimizer_state_dict': optimizer_state}, self.cache_dir+'\\' + name + '.tar')
+        except RuntimeError:
+            torch.save({'model': prep_model.to('cpu'), 'model_state_dict': state,
+                        'optimizer_state_dict': optimizer_state}, self.cache_dir+'\\' + name + '.tar',_use_new_zipfile_serialization=False) #cyrrilic in path
+        else:
+            print('Cannot save model in cache')
+
+            
+            
+
+    def save_model_mat(self, name: None = None, cache_model: None = None):
         """
         Saved model in a cache (uses for 'mat' method).
 
@@ -221,7 +232,7 @@ class Model_prepare():
             t += 1
 
         self.save_model(cache_model, cache_model.state_dict(),
-                        optimizer.state_dict(), cache_dir=cache_dir, name=name)
+                        optimizer.state_dict(), cache_dir=self.cache_dir, name=name)
 
     def scheme_interp(self, trained_model: Any, cache_verbose: bool = False) -> Tuple[Any, dict]:
         """
@@ -314,8 +325,7 @@ class Model_prepare():
            * **min_loss** -- min loss as is.
        """
         r = create_random_fn(model_randomize_parameter)
-        cache_checkpoint, min_loss = self.cache_lookup(cache_dir=cache_dir,
-                                                       nmodels=nmodels,
+        cache_checkpoint, min_loss = self.cache_lookup(nmodels=nmodels,
                                                        cache_verbose=cache_verbose,
                                                        lambda_operator= lambda_operator,
                                                        lambda_bound=lambda_bound)
@@ -327,7 +337,7 @@ class Model_prepare():
 
         return self.model, min_loss
 
-    def cache_mat(self, cache_dir: str, nmodels: Union[int, None],lambda_operator: float, lambda_bound: float,
+    def cache_mat(self, nmodels: Union[int, None],lambda_operator: float, lambda_bound: float,
               cache_verbose: bool,model_randomize_parameter: Union[float, None],
               cache_model: torch.nn.Sequential):
         """
@@ -359,7 +369,7 @@ class Model_prepare():
         eq = Equation(NN_grid, operator, bconds).set_strategy('NN')
         model_cls = Model_prepare(NN_grid, eq, cache_model, 'NN', self.weak_form)
         cache_checkpoint, min_loss = model_cls.cache_lookup(
-            cache_dir=cache_dir,
+            cache_dir=self.cache_dir,
             nmodels=nmodels,
             cache_verbose=cache_verbose,
             lambda_bound=lambda_bound)
@@ -382,7 +392,7 @@ class Model_prepare():
 
         return self.model, min_loss
 
-    def cache(self, cache_dir: str, nmodels: Union[int, None],lambda_operator, lambda_bound: float,
+    def cache(self, nmodels: Union[int, None],lambda_operator, lambda_bound: float,
               cache_verbose: bool,model_randomize_parameter: Union[float, None],
               cache_model: torch.nn.Sequential, ):
         """
@@ -401,11 +411,11 @@ class Model_prepare():
         """
 
         if self.mode != 'mat':
-            return self.cache_nn(cache_dir, nmodels,lambda_operator, lambda_bound,
+            return self.cache_nn(self.cache_dir, nmodels,lambda_operator, lambda_bound,
                                  cache_verbose, model_randomize_parameter,
                                  cache_model)
         elif self.mode == 'mat':
-            return self.cache_mat(cache_dir, nmodels, lambda_operator, lambda_bound,
+            return self.cache_mat(self.cache_dir, nmodels, lambda_operator, lambda_bound,
                                   cache_verbose, model_randomize_parameter,
                                   cache_model)
 

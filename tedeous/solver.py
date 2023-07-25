@@ -260,12 +260,14 @@ class Solver():
         Cache_class = Model_prepare(self.grid, self.equal_cls,
                                     self.model, self.mode, self.weak_form)
 
+        #Cache_class.change_cache_dir(cache_dir)
+
         # prepare input data to uniform format
         r = create_random_fn(model_randomize_parameter)
 
         #  use cache if needed
         if use_cache:
-            self.model, min_loss = Cache_class.cache(cache_dir, nmodels,
+            self.model, min_loss = Cache_class.cache(nmodels,
                                                      lambda_operator,
                                                      lambda_bound,
                                                      cache_verbose,
@@ -396,10 +398,10 @@ class Solver():
                 break
         if save_always:
             if self.mode == 'mat':
-                Cache_class.save_model_mat(cache_dir=cache_dir, name=name)
+                Cache_class.save_model_mat(name=name)
             else:
                 Cache_class.save_model(self.model, self.model.state_dict(),
-                                       optimizer.state_dict(), cache_dir=cache_dir,
+                                       optimizer.state_dict(),
                                        name=name)
         return self.model
 
