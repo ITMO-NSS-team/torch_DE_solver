@@ -2,14 +2,6 @@ import torch
 import numpy as np
 import os
 import time
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from mpl_toolkits.mplot3d import Axes3D
-from scipy.spatial import Delaunay
-import pandas as pd
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
 import sys
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
@@ -21,7 +13,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 
 from tedeous.input_preprocessing import Equation
 from tedeous.solver import Solver
-from tedeous.metrics import Solution
+from tedeous.solution import Solution
 from tedeous.device import solver_device
 
 solver_device('cpu')

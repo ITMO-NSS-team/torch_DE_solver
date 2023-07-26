@@ -32,8 +32,8 @@ dimensionality
 
 solver_device('cuda')
 
-x = torch.from_numpy(np.linspace(0, 1, 41))
-t = torch.from_numpy(np.linspace(0, 1, 41))
+x = torch.from_numpy(np.linspace(0, 1, 21))
+t = torch.from_numpy(np.linspace(0, 1, 21))
 
 h = (x[1]-x[0]).item()
 
@@ -119,9 +119,9 @@ if not(os.path.isdir(img_dir)):
 
 equation = Equation(grid, wave_eq, bconds).set_strategy('autograd')
 
-model = Solver(grid, equation, model, 'autograd').solve(lambda_bound = 100,
-                              verbose=True, learning_rate=1e-3, eps=1e-7, tmin=1000, tmax=1e5, gamma=0.9,
-                              use_cache=True, cache_dir='../cache/',cache_verbose=True,
+model = Solver(grid, equation, model, 'autograd').solve(lambda_update=True,
+                              verbose=1, learning_rate=1e-3, eps=1e-7, tmin=1000, tmax=1e5, gamma=0.9,
+                              use_cache=False, cache_dir='../cache/',cache_verbose=True,
                               save_always=True, print_every=500, patience=10,
                               loss_oscillation_window=1000, no_improvement_patience=1000,
                               model_randomize_parameter=0, optimizer_mode='Adam', cache_model=None,

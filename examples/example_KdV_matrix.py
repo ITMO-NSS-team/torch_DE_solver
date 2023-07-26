@@ -20,8 +20,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 sys.path.append('../')
 
 from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver, grid_format_prepare
-from tedeous.metrics import Solution
+from tedeous.solver import Solver, grid_format_prepare, Plots
+from tedeous.solution import Solution
 from tedeous.device import solver_device
 
 
@@ -293,10 +293,11 @@ for grid_res in [20,30]:
         model = torch.transpose(model, 0, 1)
         error_rmse=np.sqrt(np.mean((sln_torch.cpu().numpy().reshape(-1)-model.detach().cpu().numpy().reshape(-1))**2))
 
-        Solver(grid,equation, model, 'mat').solution_print()
+        Plots(grid, model, 'mat').solution_print()
 
 
-        end_loss = Solution(grid, equation, model, 'mat').loss_evaluation(lambda_bound=100)
+        _, end_loss = Solution(grid=grid, equal_cls=equation, model=model,
+             mode='mat', weak_form=None, lambda_bound=100,lambda_operator=1).evaluate()
     
         exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse,'loss':end_loss.detach().numpy(),'type':'kdv_eqn'})
         

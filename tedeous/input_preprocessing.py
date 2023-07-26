@@ -1,13 +1,44 @@
 import torch
 import numpy as np
 from copy import deepcopy
-from typing import Union
+from typing import Union, Tuple
 
 from tedeous.points_type import Points_type
 from tedeous.finite_diffs import Finite_diffs
 from tedeous.device import check_device
 
+def lambda_prepare(val: dict, lambda_: Union[int, list, dict]) -> dict :
+    """
+    Prepares lambdas for corresponding equation or bcond type.
 
+    Args:
+        val:
+        lambda_bound:
+
+    Returns:
+        dict with lambdas.
+
+    """
+    lambdas = {}
+    for i, key_name in enumerate(val):
+        if type(lambda_) is int:
+            lambdas[key_name] = lambda_
+        elif type(lambda_) is list:
+            lambdas[key_name] = lambda_[i]
+        else:
+            return lambda_
+    return lambdas
+
+def op_lambda_prepare(op, lambda_op):
+    lambdas = {}
+    for i, bcs_type in enumerate(op):
+        if type(lambda_op) is int:
+            lambdas[f'eq_{i+1}'] = lambda_op
+        elif type(lambda_op) is list:
+            lambdas[f'eq_{i+1}'] = lambda_op[i]
+        else:
+            return lambda_op
+    return lambdas
 class Boundary():
     """
     Сlass for bringing all boundary conditions to a similar form.
@@ -141,7 +172,7 @@ class Boundary():
         return unified_bnd
 
 
-class EquationMixin():
+class EquationMixin:
     """
     Auxiliary class. This one contains some methods that uses in other classes.
     """
@@ -203,7 +234,7 @@ class EquationMixin():
     @staticmethod
     def convert_to_double(bnd: Union[list, np.array]) -> float:
         """
-        Coverts points to double type.
+        Converts points to double type.
 
         Args:
             bnd: array or list of arrays
@@ -250,6 +281,7 @@ class EquationMixin():
     def bndpos(grid: torch.Tensor, bnd: torch.Tensor) -> Union[list, int]:
         """
         Returns the position of the boundary points on the grid.
+
         Args:
             grid:  grid for coefficient in form of torch.Tensor mapping.
             bnd: boundary conditions.
@@ -275,6 +307,7 @@ class Equation_NN(EquationMixin, Points_type):
                  inner_order: str = '1', boundary_order: str = '2'):
         """
         Prepares equation, boundary conditions for NN method.
+
         Args:
             grid:  array of a n-D points.
             operator:  equation.

@@ -20,7 +20,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 
 from tedeous.input_preprocessing import Equation
 from tedeous.solver import Solver
-from tedeous.metrics import Solution
+from tedeous.solution import Solution
 
 
 def solver_burgers(grid_res, cache, optimizer, iterations):
@@ -87,16 +87,16 @@ def solver_burgers(grid_res, cache, optimizer, iterations):
     equation = Equation(grid, burgers_eq, bconds).set_strategy('autograd')
     if type(optimizer) is list:
         for mode in optimizer:
-            model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=1, verbose=0, learning_rate=1e-3, \
+            model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=1, verbose=0, learning_rate=1e-3,
                                                                       eps=1e-6, tmin=10, tmax=iterations,
                                                                       use_cache=cache, cache_dir='../cache/',
-                                                                      patience=2, \
+                                                                      patience=2,
                                                                       save_always=cache, no_improvement_patience=100,
                                                                       optimizer_mode=mode)
     else:
-        model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=1, verbose=0, learning_rate=1e-3, \
+        model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=1, verbose=0, learning_rate=1e-3,
                                                                   eps=1e-6, tmin=10, tmax=iterations, use_cache=cache,
-                                                                  cache_dir='../cache/', patience=2, \
+                                                                  cache_dir='../cache/', patience=2,
                                                                   save_always=cache, no_improvement_patience=100,
                                                                   optimizer_mode='Adam')
     end = time.time()
@@ -108,7 +108,8 @@ def solver_burgers(grid_res, cache, optimizer, iterations):
 
     u_exact = exact(grid1)
     error_rmse = torch.sqrt(torch.mean((u_exact - model(grid1)) ** 2))
-    end_loss = Solution(grid, equation, model, 'autograd').loss_evaluation(lambda_bound=1)
+    end_loss = Solution(grid = grid, equal_cls = equation, model = model,
+                        mode = 'autograd', weak_form=None, lambda_bound=1).evaluate()
     exp_dict_list.append({'grid_res': grid_res, 'time': time_part, 'RMSE': error_rmse.detach().numpy(),
                           'loss': end_loss.detach().numpy(), 'type': 'solver_burgers', 'cache': cache})
 

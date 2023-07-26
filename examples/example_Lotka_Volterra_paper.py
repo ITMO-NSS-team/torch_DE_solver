@@ -23,7 +23,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 
 from tedeous.input_preprocessing import Equation
 from tedeous.solver import Solver
-from tedeous.metrics import Solution
+from tedeous.solution import Solution
 from tedeous.device import solver_device
 
 
@@ -165,7 +165,8 @@ def Lotka_experiment(grid_res, CACHE):
     error_rmse=torch.sqrt(torch.mean((u_exact-model(rmse_grid))**2, 0).sum())
     
   
-    end_loss = Solution(grid, equation, model, 'NN').loss_evaluation(lambda_bound=100)
+    _,end_loss = Solution(grid=grid, equal_cls=equation, model=model,
+             mode='NN', weak_form=None, lambda_bound=100,lambda_operator=1).evaluate()
     exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'Lotka_eqn','cache':CACHE})
     
     print('Time taken {}= {}'.format(grid_res, end - start))

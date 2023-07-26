@@ -14,9 +14,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 
 from tedeous.input_preprocessing import Equation
 from tedeous.solver import Solver
-from tedeous.metrics import Solution
+from tedeous.solution import Solution
 from tedeous.device import solver_device
-from tedeous.models import Modified_MLP
+from tedeous.models import FourierNN
 from tedeous.models import Fourier_embedding
 
 solver_device('gpu')
@@ -122,7 +122,7 @@ equation = Equation(grid, AC, bconds).set_strategy('autograd')
 
 model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=100,
                                          verbose=True, learning_rate=1e-3, eps=1e-7, tmin=1000, tmax=1e5,
-                                         use_cache=False,cache_dir='../cache/',cache_verbose=False,
+                                         use_cache=True,cache_dir='../cache/',cache_verbose=False,
                                          save_always=False,print_every=1000,
                                          patience=3,loss_oscillation_window=100,no_improvement_patience=1000,
                                          model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=None,

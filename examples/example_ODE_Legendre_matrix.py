@@ -25,7 +25,7 @@ sys.path.append('../')
 
 from tedeous.input_preprocessing import Equation
 from tedeous.solver import Solver, grid_format_prepare
-from tedeous.metrics import Solution
+from tedeous.solution import Solution
 from tedeous.device import solver_device
 solver_device('cpu')
 
