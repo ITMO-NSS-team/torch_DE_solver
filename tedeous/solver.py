@@ -1,3 +1,4 @@
+from filecmp import clear_cache
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -221,7 +222,7 @@ class Solver():
               patience: int = 5, loss_oscillation_window: int = 100,
               no_improvement_patience: int = 1000, model_randomize_parameter: Union[int, float] = 0,
               optimizer_mode: str = 'Adam', step_plot_print: Union[bool, int] = False,
-              step_plot_save: Union[bool, int] = False, image_save_dir: Union[str, None] = None, tol: float = 0) -> Any:
+              step_plot_save: Union[bool, int] = False, image_save_dir: Union[str, None] = None, tol: float = 0,clear_cache: bool =False) -> Any:
         """
         High-level interface for solving equations.
 
@@ -264,6 +265,9 @@ class Solver():
 
         # prepare input data to uniform format
         r = create_random_fn(model_randomize_parameter)
+
+        if clear_cache:
+            Cache_class.clear_cache_dir()
 
         #  use cache if needed
         if use_cache:

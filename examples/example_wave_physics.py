@@ -189,8 +189,9 @@ def wave_experiment(grid_res, CACHE):
     if not (os.path.isdir(img_dir)):
         os.mkdir(img_dir)
 
+
     model = Solver(grid, equation, model, 'NN').solve(lambda_bound=100, verbose=1, learning_rate=1e-4,
-                                                      eps=1e-4, tmin=1000, tmax=1e5, use_cache=True, cache_verbose=True,
+                                                      eps=1e-5, tmin=1000, tmax=1e5, use_cache=True, cache_verbose=True,
                                                       save_always=True, print_every=None,
                                                       model_randomize_parameter=1e-6,
                                                       optimizer_mode='Adam', no_improvement_patience=1000,

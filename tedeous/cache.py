@@ -37,6 +37,16 @@ def create_random_fn(eps):
 
     return randomize_params
 
+def remove_all_files(folder):
+    for filename in os.listdir(folder):
+        file_path = os.path.join(folder, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print('Failed to delete %s. Reason: %s' % (file_path, e))
 
 class Model_prepare():
     """
@@ -55,7 +65,14 @@ class Model_prepare():
 
     def change_cache_dir(self,string):
         self.cache_dir=string
-        print(self.cache_dir)
+        return None
+
+    def clear_cache_dir(self,directory=None):
+        if directory==None:
+            remove_all_files(self.cache_dir)
+        else:
+            remove_all_files(directory)
+        return None
 
     @staticmethod
     def cache_files(files, nmodels):
