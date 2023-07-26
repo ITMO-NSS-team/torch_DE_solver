@@ -7,7 +7,7 @@ The purpose of the project
 --------------------------
 
 1. Make equation discovery more transparent and illustrative
-2. Combine power of pytorch, numerical methods and math overall to conquer and solve ALL {O,P}DEs. There are some examples to provide a little insight to an operator form
+2. Combine power of pytorch, numerical methods and math overall to conquer and solve ALL XDEs(X={O,P}). There are some examples to provide a little insight to an operator form
 
 Table of Contents
 --------------------
