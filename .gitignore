@@ -127,13 +127,20 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-
+#cache
+/cache/*.tar
 
 # pycharm
 .idea/
 # vscode
 .vscode/
 .vs/
-
-# Temporary cache
-*.tar
+img/
+#wave_img/
+*.png
+*.csv
+*.eps
+# exception for docs images
+!docs/img/
+docs/img/*
+!docs/img/*.png

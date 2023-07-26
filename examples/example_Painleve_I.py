@@ -7,20 +7,24 @@ Created on Mon May 31 12:33:44 2021
 import torch
 import numpy as np
 import os
+import matplotlib.pyplot as plt
+from scipy.spatial import Delaunay
+import sys
+import time
+
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
-import sys
 
 # sys.path.append('../')
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from TEDEouS.solver import *
-from TEDEouS.cache import *
-import time
+from tedeous.input_preprocessing import Equation
+from tedeous.solver import Solver
+from tedeous.metrics import Solution
+from tedeous.device import solver_device, check_device
 
-device = torch.device('cpu')
+solver_device('cpu')
 
 
 
@@ -31,9 +35,8 @@ def p_I_exp(grid_res,nruns,CACHE):
     t = torch.from_numpy(np.linspace(0, 1, grid_res+1))
     
     grid = t.reshape(-1, 1).float()
-    
-    grid.to(device)
-    
+
+
     """
     Preparing boundary conditions (BC)
     
@@ -63,15 +66,14 @@ def p_I_exp(grid_res,nruns,CACHE):
     """
     
     # point t=0
-    bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64))
+    bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
     
-    bop1 = None
     
     #  So u(0)=-1/2
     bndval1 = torch.from_numpy(np.array([[0]], dtype=np.float64))
     
     # point t=1
-    bnd2 = torch.from_numpy(np.array([[float(t[0])]], dtype=np.float64))
+    bnd2 = torch.from_numpy(np.array([[float(t[0])]], dtype=np.float64)).float()
     
     # d/dt
     bop2 ={
@@ -90,7 +92,8 @@ def p_I_exp(grid_res,nruns,CACHE):
     bndval2 = torch.from_numpy(np.array([[0]], dtype=np.float64))
     
     # Putting all bconds together
-    bconds = [[bnd1, bop1, bndval1], [bnd2, bop2, bndval2]]
+    bconds = [[bnd1, bndval1, 'dirichlet'],
+              [bnd2, bop2, bndval2, 'operator']]
     
     """
     Defining Legendre polynomials generating equations
@@ -169,26 +172,27 @@ def p_I_exp(grid_res,nruns,CACHE):
         torch.nn.Linear(100, 100),
         torch.nn.Tanh(),
         torch.nn.Linear(100, 1)
-        # torch.nn.Tanh()
         )
 
         start = time.time()
-        model = point_sort_shift_solver(grid, model, p_1, bconds, lambda_bound=100, verbose=0, learning_rate=1e-4,
-                                        eps=1e-7, tmin=1000, tmax=1e5,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
-                                        ,batch_size=None, save_always=False,print_every=None,model_randomize_parameter=1e-6)
+
+        equation = Equation(grid, p_1, bconds).set_strategy('NN')
+
+        img_dir=os.path.join(os.path.dirname( __file__ ), 'PI_NN_img')
+
+
+        model = Solver(grid, equation, model, 'NN').solve(lambda_bound=100, verbose=True, learning_rate=1e-4,
+                                        eps=1e-7, tmin=1000, tmax=1e5,use_cache=CACHE,cache_dir='../cache/',cache_verbose=False
+                                        ,save_always=False,print_every=None,model_randomize_parameter=1e-6,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
         end = time.time()
 
-            
-        error_rmse=torch.sqrt(torch.mean((sln_torch1-model(grid))**2))
+
+        error_rmse=torch.sqrt(torch.mean((sln_torch1-model(check_device(grid)).detach().cpu())**2))
         
   
-        
-        prepared_grid,grid_dict,point_type = grid_prepare(grid)
-        
-        prepared_bconds = bnd_prepare(bconds, prepared_grid,grid_dict, h=0.0001)
-        prepared_operator = operator_prepare(p_1, grid_dict, subset=['central'], true_grid=grid, h=0.001)
-        end_loss = point_sort_shift_loss(model, prepared_grid, prepared_operator, prepared_bconds, lambda_bound=100)
-        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'PI','cache':CACHE})
+        end_loss = Solution(grid, equation, model, 'NN').loss_evaluation(lambda_bound=100)
+
+        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().cpu().numpy(),'loss':end_loss.detach().cpu().numpy(),'type':'PI','cache':CACHE})
         
         print('Time taken {}= {}'.format(grid_res, end - start))
         print('RMSE {}= {}'.format(grid_res, error_rmse))
@@ -200,7 +204,7 @@ nruns=10
 
 exp_dict_list=[]
 
-CACHE=False
+CACHE=True
 
 
 for grid_res in range(10,100,10):
@@ -220,23 +224,23 @@ df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=Fa
 df.to_csv('benchmarking_data/PI_experiment_10_500_cache={}.csv'.format(str(CACHE)))
 
 
-exp_dict_list=[]
+#exp_dict_list=[]
 
-CACHE=True
-
-
-for grid_res in range(10,100,10):
-    exp_dict_list.append(p_I_exp(grid_res, nruns,CACHE))
+#CACHE=True
 
 
-for grid_res in range(100,501,100):
-    exp_dict_list.append(p_I_exp(grid_res, nruns,CACHE))
+#for grid_res in range(10,100,10):
+#    exp_dict_list.append(p_I_exp(grid_res, nruns,CACHE))
 
 
-exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-df=pd.DataFrame(exp_dict_list_flatten)
-df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
-df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
-df.to_csv('benchmarking_data/PI_experiment_10_500_cache={}.csv'.format(str(CACHE)))
+#for grid_res in range(100,501,100):
+#    exp_dict_list.append(p_I_exp(grid_res, nruns,CACHE))
+
+
+#exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+#df=pd.DataFrame(exp_dict_list_flatten)
+#df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
+#df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
+#df.to_csv('benchmarking_data/PI_experiment_10_500_cache={}.csv'.format(str(CACHE)))
 
 

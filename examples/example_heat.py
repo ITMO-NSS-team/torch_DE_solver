@@ -16,11 +16,14 @@ sys.path.append('../')
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from solver import *
+from tedeous.input_preprocessing import Equation
+from tedeous.solver import Solver
+from tedeous.metrics import Solution
+from tedeous.device import solver_device
 import time
 
 
-device = torch.device('cpu')
+solver_device('cpu')
 
 
 def func(grid):
@@ -43,7 +46,6 @@ def heat_experiment(grid_res,CACHE):
     
     grid = torch.cartesian_prod(x, t).float()
     
-    grid.to(device)
 
     """
     Preparing boundary conditions (BC)
@@ -75,7 +77,6 @@ def heat_experiment(grid_res,CACHE):
     # Boundary conditions at x=0
     bnd1 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t).float()
     
-    bop1=None
     
     # u(0,t)=500
     bndval1 = torch.from_numpy(np.zeros(len(bnd1), dtype=np.float64)+500)
@@ -88,7 +89,7 @@ def heat_experiment(grid_res,CACHE):
     bop2= {
             'du/dx':
                 {
-                    'r1': 1,
+                    'coeff': 1,
                     'du/dx': [0],
                     'pow': 1
                 }
@@ -100,13 +101,14 @@ def heat_experiment(grid_res,CACHE):
     # Initial conditions at t=0
     bnd3 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
     
-    bop3=None
     
     # u(x,0)=0
     bndval3 = torch.from_numpy(np.zeros(len(bnd1), dtype=np.float64))
     
 
-    bconds = [[bnd1, bop1,bndval1], [bnd2,bop2, bndval2], [bnd3,bop3, bndval3]]
+    bconds = [[bnd1, bndval1, 'dirichlet'],
+              [bnd2, bop2, bndval2, 'operator'],
+              [bnd3, bndval3, 'dirichlet']]
      
         
     """
@@ -173,20 +175,21 @@ def heat_experiment(grid_res,CACHE):
         torch.nn.Linear(100, 1)
     )
 
-
-    lp_par={'operator_p':2,
-        'operator_weighted':False,
-        'operator_normalized':False,
-        'boundary_p':1,
-        'boundary_weighted':False,
-        'boundary_normalized':False}
     
+    h=abs((t[1]-t[0]).item())
+
+    equation = Equation(grid, heat_eq, bconds, h=h).set_strategy('NN')
+
+    img_dir=os.path.join(os.path.dirname( __file__ ), 'heat_NN_img')
+
+    if not(os.path.isdir(img_dir)):
+        os.mkdir(img_dir)
+
     start = time.time()
     
-    model = point_sort_shift_solver(grid, model, heat_eq, bconds, lambda_bound=10, verbose=2, learning_rate=1e-4, h=abs((t[1]-t[0]).item()),
+    model = Solver(grid, equation, model, 'NN').solve(lambda_bound=10, verbose=2, learning_rate=1e-4,
                                     eps=1e-6, tmin=1000, tmax=1e6,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
-                                    ,batch_size=None, save_always=True,lp_par=lp_par,print_every=None,
-                                    model_randomize_parameter=1e-6)
+                                    ,save_always=True, print_every=500, model_randomize_parameter=1e-6,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
     end = time.time()
     
     
@@ -202,11 +205,7 @@ def heat_experiment(grid_res,CACHE):
     
   
     
-    prepared_grid,grid_dict,point_type = grid_prepare(grid)
-    
-    prepared_bconds = bnd_prepare(bconds, prepared_grid,grid_dict, h=abs((t[1]-t[0]).item()))
-    prepared_operator = operator_prepare(heat_eq, grid_dict, subset=['central'], true_grid=grid, h=abs((t[1]-t[0]).item()))
-    end_loss = point_sort_shift_loss(model, prepared_grid, prepared_operator, prepared_bconds, lambda_bound=100)
+    end_loss = Solution(grid, equation, model, 'NN').loss_evaluation(lambda_bound=100)
     exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'wave_eqn','cache':CACHE})
     
     print('Time taken {}= {}'.format(grid_res, end - start))

@@ -7,22 +7,30 @@ Created on Mon May 31 12:33:44 2021
 import torch
 import numpy as np
 import os
-
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
-import sys
-
-sys.path.append('../')
-
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from mpl_toolkits.mplot3d import Axes3D
-from solver import nn_autograd_optimizer,grid_format_prepare
-
-import time
 from scipy.special import legendre
-device = torch.device('cpu')
+import time
+import sys
+
+
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
+sys.path.append('../')
+
+sys.path.pop()
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
+
+
+from tedeous.input_preprocessing import Equation
+from tedeous.solver import Solver, grid_format_prepare
+from tedeous.metrics import Solution
+from tedeous.device import solver_device
+
+
+solver_device('cpu')
 
 """
 Preparing grid
@@ -31,19 +39,21 @@ Grid is an essentially torch.Tensor of a n-D points where n is the problem
 dimensionality
 """
 
-t = np.linspace(0, 1, 100)
 
-coord_list = [t]
-
-
-grid=grid_format_prepare(coord_list,mode='NN')
 
 
 exp_dict_list=[]
 
 CACHE=True
 
-for n in range(3,10):  
+for n in range(3,10):
+    
+    t1 = np.linspace(0, 1, 100)
+
+    t = torch.from_numpy(t1)
+
+    grid = t.reshape(-1, 1).float()
+
     """
     Preparing boundary conditions (BC)
     
@@ -73,21 +83,19 @@ for n in range(3,10):
     """
     
     # point t=0
-    bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64))
-    
-    bop1 = None
+    bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
     
     #  So u(0)=-1/2
     bndval1 = legendre(n)(bnd1)
     
     # point t=1
-    bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64))
+    bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64)).float()
     
     # d/dt
     bop2 = {
         '1*du/dt**1':
             {
-                'coefficient': 1,
+                'coeff': 1,
                 'du/dt': [0],
                 'pow': 1
             }
@@ -112,7 +120,8 @@ for n in range(3,10):
     
     
     # Putting all bconds together
-    bconds = [[bnd1, bop1, bndval1], [bnd2, bop2, bndval2]]
+    bconds = [[bnd1, bndval1, 'dirichlet'],
+              [bnd2, bop2, bndval2, 'operator']]
     
     """
     Defining Legendre polynomials generating equations
@@ -219,28 +228,35 @@ for n in range(3,10):
         )
     
         start = time.time()
-        model = nn_autograd_optimizer(grid, model, legendre_poly, bconds,use_cache=True,verbose=True,
-                                      print_every=None,cache_verbose=True,abs_loss=1e-3,lambda_bound=10,optimizer='Adam',learning_rate=1e-4,save_always=True)
+
+        equation = Equation(grid, legendre_poly, bconds).set_strategy('autograd')
+
+        img_dir=os.path.join(os.path.dirname( __file__ ), 'leg_img_autograd')
+
+
+        model = Solver(grid, equation, model, 'autograd').solve(use_cache=True,verbose=True,
+                                      print_every=None, cache_verbose=False, abs_loss=1e-3,
+                                      lambda_bound=10,optimizer_mode='Adam',learning_rate=1e-4,save_always=True,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
         end = time.time()
     
         print('Time taken {} = {}'.format(n,  end - start))
     
-        fig = plt.figure()
-        plt.scatter(grid.detach().numpy().reshape(-1), model(grid).detach().numpy().reshape(-1))
+        #fig = plt.figure()
+        #plt.scatter(grid.detach().numpy().reshape(-1), model(grid).detach().numpy().reshape(-1))
         # analytical sln is 1/2*(-1 + 3*t**2)
-        plt.scatter(grid.detach().numpy().reshape(-1), legendre(n)(grid.detach().numpy()).reshape(-1))
-        plt.show()
+        #plt.scatter(grid.detach().numpy().reshape(-1), legendre(n)(grid.detach().numpy()).reshape(-1))
+        #plt.show()
         
         error_rmse=torch.sqrt(torch.mean((legendre(n)(grid.detach())-model(grid))**2))
         print('RMSE {}= {}'.format(n, error_rmse))
         
         exp_dict_list.append({'grid_res':100,'time':end - start,'RMSE':error_rmse.detach().numpy(),'type':'L'+str(n),'cache':str(CACHE)})
 
-import pandas as pd
-df=pd.DataFrame(exp_dict_list)
-df.boxplot(by='type',column='RMSE',figsize=(20,10),fontsize=42,showfliers=False)
-df.boxplot(by='type',column='time',figsize=(20,10),fontsize=42,showfliers=False)
-df.to_csv('benchmarking_data/legendre_poly_exp_autograd.csv')
+#import pandas as pd
+#df=pd.DataFrame(exp_dict_list)
+#df.boxplot(by='type',column='RMSE',figsize=(20,10),fontsize=42,showfliers=False)
+#df.boxplot(by='type',column='time',figsize=(20,10),fontsize=42,showfliers=False)
+#df.to_csv('benchmarking_data/legendre_poly_exp_autograd.csv')
 
 #full paper plot
 

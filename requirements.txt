@@ -1,4 +1,8 @@
-matplotlib>=3.3.4
-scipy>=1.7.1
-numpy>=1.20.1
-torch==1.9.0
+matplotlib
+numpy
+pandas
+scipy
+seaborn
+torch
+autodocsumm
+typing

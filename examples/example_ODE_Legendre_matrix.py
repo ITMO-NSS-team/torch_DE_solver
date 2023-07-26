@@ -7,25 +7,27 @@ Created on Mon May 31 12:33:44 2021
 import torch
 import numpy as np
 import os
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
+from mpl_toolkits.mplot3d import Axes3D
+from scipy.special import legendre
+import sys
+import time
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
-import sys
 
 
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 sys.path.append('../')
 
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from mpl_toolkits.mplot3d import Axes3D
-from solver import lbfgs_solution,grid_format_prepare,matrix_optimizer
 
-import time
-from scipy.special import legendre
-device = torch.device('cpu')
+from tedeous.input_preprocessing import Equation
+from tedeous.solver import Solver, grid_format_prepare
+from tedeous.metrics import Solution
+from tedeous.device import solver_device
+solver_device('cpu')
 
 """
 Preparing grid
@@ -39,7 +41,7 @@ t = np.linspace(0, 1, 100)
 coord_list = [t]
 
 
-grid=grid_format_prepare(coord_list,mode='mat')
+grid = grid_format_prepare(coord_list,mode='mat')
 
 
 exp_dict_list=[]
@@ -76,21 +78,20 @@ for n in range(3,10):
     """
     
     # point t=0
-    bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64))
+    bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
     
-    bop1 = None
     
     #  So u(0)=-1/2
     bndval1 = legendre(n)(bnd1)
     
     # point t=1
-    bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64))
+    bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64)).float()
     
     # d/dt
     bop2 = {
         '1*du/dt**1':
             {
-                'coefficient': 1,
+                'coeff': 1,
                 'du/dt': [0],
                 'pow': 1
             }
@@ -100,7 +101,8 @@ for n in range(3,10):
     bndval2 = torch.from_numpy(legendre(n).deriv(1)(bnd2))
     
     # Putting all bconds together
-    bconds = [[bnd1, bop1, bndval1], [bnd2, bop2, bndval2]]
+    bconds = [[bnd1, bndval1, 'dirichlet'],
+              [bnd2, bop2, bndval2, 'operator']]
     
     """
     Defining Legendre polynomials generating equations
@@ -166,27 +168,27 @@ for n in range(3,10):
             }
     }
     
-    # this one is to show that coefficients may be a function of grid as well
-    legendre_poly= {
-        '(1-t^2)*d2u/dt2**1':
-            {
-                'coeff': c1, #coefficient is a function
-                'du/dt': [0, 0],
-                'pow': 1
-            },
-        '-2t*du/dt**1':
-            {
-                'coeff': c2,
-                'u*du/dx': [0],
-                'pow':1
-            },
-        'n*(n-1)*u**1':
-            {
-                'coeff': n*(n+1),
-                'u':  [None],
-                'pow': 1
-            }
-    }
+    ## this one is to show that coefficients may be callable (not compatible with cache) 
+    #legendre_poly= {
+    #    '(1-t^2)*d2u/dt2**1':
+    #        {
+    #            'coeff': c1, #coefficient is a function
+    #            'du/dt': [0, 0],
+    #            'pow': 1
+    #        },
+    #    '-2t*du/dt**1':
+    #        {
+    #            'coeff': c2,
+    #            'u*du/dx': [0],
+    #            'pow':1
+    #        },
+    #    'n*(n-1)*u**1':
+    #        {
+    #            'coeff': n*(n+1),
+    #            'u':  [None],
+    #            'pow': 1
+    #        }
+    #}
     
     
     
@@ -205,34 +207,42 @@ for n in range(3,10):
             torch.nn.Linear(1024, 1)
         )
 
-            
-        model = matrix_optimizer(grid, None, legendre_poly, bconds, lambda_bound=100,
+        model= torch.rand(grid.shape)
+
+        equation = Equation(grid, legendre_poly, bconds).set_strategy('mat')
+
+        img_dir=os.path.join(os.path.dirname( __file__ ), 'leg_img_mat')
+
+        if not(os.path.isdir(img_dir)):
+            os.mkdir(img_dir)
+
+        model = Solver(grid, equation, model, 'mat').solve(lambda_bound=100,
                                          verbose=True, learning_rate=1e-4, eps=1e-7, tmin=1000, tmax=5e6,
                                          use_cache=True,cache_dir='../cache/',cache_verbose=False,
-                                         batch_size=None,save_always=False,lp_par=None,print_every=None,
+                                         save_always=False,print_every=None,
                                          patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
-                                         model_randomize_parameter=1e-5,optimizer='Adam',cache_model=model_arch)
+                                         model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=model_arch,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
 
         end = time.time()
     
         print('Time taken {} = {}'.format(n,  end - start))
     
-        fig = plt.figure()
-        plt.scatter(grid.reshape(-1), model.detach().numpy().reshape(-1))
+        #fig = plt.figure()
+        #plt.scatter(grid.reshape(-1), model.detach().numpy().reshape(-1))
         # analytical sln is 1/2*(-1 + 3*t**2)
-        plt.scatter(grid.reshape(-1), legendre(n)(grid).reshape(-1))
-        plt.show()
+        #plt.scatter(grid.reshape(-1), legendre(n)(grid).reshape(-1))
+        #plt.show()
         
         error_rmse=torch.sqrt(torch.mean((legendre(n)(grid)-model)**2))
         print('RMSE {}= {}'.format(n, error_rmse))
         
         exp_dict_list.append({'grid_res':100,'time':end - start,'RMSE':error_rmse.detach().numpy(),'type':'L'+str(n),'cache':str(CACHE)})
 
-import pandas as pd
-df=pd.DataFrame(exp_dict_list)
-df.boxplot(by='type',column='RMSE',figsize=(20,10),fontsize=42,showfliers=False)
-df.boxplot(by='type',column='time',figsize=(20,10),fontsize=42,showfliers=False)
-df.to_csv('benchmarking_data/legendre_poly_exp_martix.csv')
+#import pandas as pd
+#df=pd.DataFrame(exp_dict_list)
+#df.boxplot(by='type',column='RMSE',figsize=(20,10),fontsize=42,showfliers=False)
+#df.boxplot(by='type',column='time',figsize=(20,10),fontsize=42,showfliers=False)
+#df.to_csv('benchmarking_data/legendre_poly_exp_martix.csv')
 
 #full paper plot
 

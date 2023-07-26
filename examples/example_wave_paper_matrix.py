@@ -7,19 +7,22 @@ Created on Mon May 31 12:33:44 2021
 import torch
 import numpy as np
 import os
+import time
+import pandas as pd
+import sys
+
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-import sys
 
 sys.path.append('../')
 
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
-import time
-import pandas as pd
-from solver import *
 
+from tedeous.input_preprocessing import Equation
+from tedeous.solver import Solver, grid_format_prepare
+from tedeous.metrics import Solution
+from tedeous.device import solver_device
 
 """
 Preparing grid
@@ -28,7 +31,7 @@ Grid is an essentially torch.Tensor  of a n-D points where n is the problem
 dimensionality
 """
 
-device = torch.device('cpu')
+solver_device('cpu')
 
 exp_dict_list=[]
 
@@ -40,16 +43,9 @@ for grid_res in range(40, 110, 10):
     coord_list.append(x)
     coord_list.append(t)
 
-    grid=grid_format_prepare(coord_list,mode='mat')
-
-    #grid = np.meshgrid(*grid)
-    #grid = torch.tensor(grid, device=device)
+    grid = grid_format_prepare(coord_list,mode='mat')
 
 
-    print(grid.shape)
-
-    #grid = np.meshgrid(*grid)
-    #grid = torch.tensor(grid, device=device)
     
     """
     Preparing boundary conditions (BC)
@@ -89,7 +85,10 @@ for grid_res in range(40, 110, 10):
     bndval4 = torch.from_numpy(np.zeros(len(bnd4), dtype=np.float64))
     
     # Putting all bconds together
-    bconds = [[bnd1, bndval1], [bnd2, bndval2], [bnd3, bndval3], [bnd4, bndval4]]
+    bconds = [[bnd1, bndval1, 'dirichlet'],
+              [bnd2, bndval2, 'dirichlet'],
+              [bnd3, bndval3, 'dirichlet'],
+              [bnd4, bndval4, 'dirichlet']]
     
     """
     Defining wave equation
@@ -139,12 +138,12 @@ for grid_res in range(40, 110, 10):
     for _ in range(10):
         sln=np.genfromtxt(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'wolfram_sln/wave_sln_'+str(grid_res)+'.csv')),delimiter=',')
         
-        model = None
+        model= torch.rand(grid[0].shape)
         
         start = time.time()
         
         model_arch = torch.nn.Sequential(
-            torch.nn.Linear(1, 256),
+            torch.nn.Linear(2, 256),
             torch.nn.ReLU(),
             torch.nn.Linear(256, 64),
             torch.nn.ReLU(),
@@ -153,13 +152,20 @@ for grid_res in range(40, 110, 10):
             torch.nn.Linear(1024, 1)
         )
 
-            
-        model = matrix_optimizer(grid, model, wave_eq, bconds, lambda_bound=100,
+        equation = Equation(grid, wave_eq, bconds).set_strategy('mat')
+
+        img_dir=os.path.join(os.path.dirname( __file__ ), 'wave_img')
+
+        if not(os.path.isdir(img_dir)):
+            os.mkdir(img_dir)
+
+        model = Solver(grid, equation, model, 'mat').solve(lambda_bound=100,
                                          verbose=True, learning_rate=1e-4, eps=1e-7, tmin=1000, tmax=5e6,
-                                         use_cache=False,cache_dir='../cache/',cache_verbose=False,
-                                         batch_size=None,save_always=False,lp_par=None,print_every=None,
-                                         patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
-                                         model_randomize_parameter=1e-5,optimizer='Adam',cache_model=model_arch)
+                                         use_cache=True,cache_dir='../cache/',cache_verbose=False,
+                                         save_always=False,print_every=None,
+                                         patience=5,loss_oscillation_window=100,no_improvement_patience=100,
+                                         model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=model_arch,step_plot_print=False,step_plot_save=False,image_save_dir=img_dir)
+
 
     
         end = time.time()
@@ -167,28 +173,23 @@ for grid_res in range(40, 110, 10):
         #model = torch.transpose(model, 0, 1)
         error_rmse = np.sqrt(np.mean((sln.reshape(-1) - model.detach().numpy().reshape(-1)) ** 2))
 
-        solution_print(grid, model)
+        Solver(grid, equation,model,'mat').solution_print(title='final_solution',solution_print=False,solution_save=True,save_dir=img_dir)
 
-        if type(wave_eq) == dict:
-            wave_eq = op_dict_to_list(wave_eq)
-        unified_operator = operator_unify(wave_eq)
 
-        b_prepared = bnd_prepare_matrix(bconds, grid)
-
-        end_loss = matrix_loss(model, grid, unified_operator, b_prepared, lambda_bound=100)
+        end_loss = Solution(grid, equation, model, 'mat').loss_evaluation(lambda_bound=100)
         exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse,'loss':end_loss.detach().numpy(),'type':'wave_eqn'})
         
         print('Time taken {}= {}'.format(grid_res, end - start))
         print('RMSE {}= {}'.format(grid_res, error_rmse))
         print('loss {}= {}'.format(grid_res, end_loss))
-        result_assessment=pd.DataFrame(exp_dict_list)
-        result_assessment.to_csv('results_wave_matrix_{}.csv'.format(grid_res))
+        #result_assessment=pd.DataFrame(exp_dict_list)
+        #result_assessment.to_csv('results_wave_matrix_{}.csv'.format(grid_res))
 
 
 
-result_assessment=pd.DataFrame(exp_dict_list)
-result_assessment.to_csv('results_wave_matrix_.csv')
+#result_assessment=pd.DataFrame(exp_dict_list)
+#result_assessment.to_csv('results_wave_matrix_.csv')
 
-result_assessment.boxplot(by='grid_res',column='time',showfliers=False,figsize=(20,10),fontsize=42)
+#result_assessment.boxplot(by='grid_res',column='time',showfliers=False,figsize=(20,10),fontsize=42)
 
-result_assessment.boxplot(by='grid_res',column='RMSE',figsize=(20,10),fontsize=42)
+#result_assessment.boxplot(by='grid_res',column='RMSE',figsize=(20,10),fontsize=42)

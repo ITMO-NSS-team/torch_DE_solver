@@ -1,32 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Wed May 26 13:36:47 2021
 
-@author: mike_ubuntu
-"""
 
 from setuptools import setup, find_packages
-import os
+from os.path import dirname, join
 from pathlib import Path
 import pathlib
 
-HERE = os.path.abspath(os.path.dirname(__file__))
+here = pathlib.Path(__file__).parent.resolve()
 
-# Get the long description from the README file
-SHORT_DESCRIPTION = 'TEDEouS - Torch Exhaustive Differential Equations Solver. Differential equation solver, based on pytorch library'
-LONG_DESCRIPTION = (Path(os.path.join(HERE, "README.rst"))).read_text()
 
-name = 'TEDEouS' # Add name
-version= '0.0.15' # Add version
-description = 'TEDEouS - Torch Exhaustive Differential Equations Solver. Differential equation solver, based on pytorch library'
-author = 'Alexander Hvatov'
-author_email = 'itmo.nss.team@gmail.com' # add email
-url = 'https://github.com/ITMO-NSS-team/torch_DE_solver'
+
 
 def read(*names, **kwargs):
     with open(
-            os.path.join(os.path.dirname(__file__), *names),
+            join(dirname(__file__), *names),
             encoding=kwargs.get('encoding', 'utf8')
     ) as fh:
         return fh.read()
@@ -41,20 +29,19 @@ def get_requirements():
     return requirements
 
 setup(
-      name = name,
-      version = version,
-      author = author,
-      author_email = author_email,
-      url = url,
-      description = SHORT_DESCRIPTION,
-      long_description=LONG_DESCRIPTION,
-      long_description_content_type="text/x-rst",
-      classifiers = [      
+    name = 'tedeous',
+    version= '0.2.1' ,
+    description = 'TEDEouS - Torch Exhaustive Differential Equations Solver. Differential equation solver, based on pytorch library',
+    long_description = 'Combine power of pytorch, numerical methods and math overall to conquer and solve ALL {O,P}DEs. There are some examples to provide a little insight to an operator form',
+    author = 'Alexander Hvatov',
+    author_email = 'itmo.nss.team@gmail.com', # add email
+    classifiers = [      
               'Development Status :: 3 - Alpha',
               'Programming Language :: Python :: 3',
               'License :: OSI Approved :: MIT License',
               'Operating System :: OS Independent',
       ],
-      packages = find_packages(include = ['TEDEouS']), 
+      packages = find_packages(include = ['tedeous']), 
+      include_package_data = True,                               
       python_requires =' >=3.8'
       )
