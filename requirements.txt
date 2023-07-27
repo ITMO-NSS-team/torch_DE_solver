@@ -6,3 +6,4 @@ seaborn
 torch
 autodocsumm
 typing
+SALib
