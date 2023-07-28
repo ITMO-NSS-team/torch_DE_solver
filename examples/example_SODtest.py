@@ -203,7 +203,7 @@ if not(os.path.isdir(img_dir)):
 model = Solver(grid, equation, model, 'NN').solve(
                                 lambda_bound=1000, verbose=True, learning_rate=1e-2,
                                 eps=1e-6, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=False,
-                                save_always=False,no_improvement_patience=500,print_every=1000,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir,normalized_loss_stop=True)
+                                save_always=False,no_improvement_patience=500,print_every=1000,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
 
 end = time.time()
 
