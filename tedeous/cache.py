@@ -132,7 +132,7 @@ class Model_prepare():
         
 
     def cache_lookup(self, lambda_operator: float = 1., lambda_bound: float = 0.001,
-                nmodels: Union[int, None] = None, save_graph: bool = False, cache_verbose: bool = False) -> Tuple[dict, torch.Tensor]:
+                nmodels: Union[int, None] = None, save_graph: bool = False, cache_verbose: bool = False, return_normalized_loss: bool = False) -> Tuple[dict, torch.Tensor]:
         """
         Looking for a saved cache.
         Args:
@@ -193,7 +193,9 @@ class Model_prepare():
         if best_checkpoint == {}:
             best_checkpoint = None
             min_loss = np.inf
-        return best_checkpoint, min_norm_loss
+        if return_normalized_loss:
+            min_loss=min_norm_loss
+        return best_checkpoint, min_loss
 
     def save_model(self, prep_model: Any, state: dict, optimizer_state: dict, name: Union[str, None] = None):
         """
@@ -326,7 +328,7 @@ class Model_prepare():
 
     def cache_nn(self, cache_dir: str, nmodels: Union[int, None], lambda_operator: float, lambda_bound: float,
               cache_verbose: bool,model_randomize_parameter: Union[float, None],
-              cache_model: torch.nn.Sequential, ):
+              cache_model: torch.nn.Sequential, return_normalized_loss: bool = False):
         """
        Restores the model from the cache and uses it for retraining.
        Args:
@@ -345,7 +347,8 @@ class Model_prepare():
         cache_checkpoint, min_loss = self.cache_lookup(nmodels=nmodels,
                                                        cache_verbose=cache_verbose,
                                                        lambda_operator= lambda_operator,
-                                                       lambda_bound=lambda_bound)
+                                                       lambda_bound=lambda_bound, 
+                                                       return_normalized_loss = return_normalized_loss)
         
         self.model, optimizer_state = self.cache_retrain(cache_checkpoint,
                                                          cache_verbose=cache_verbose)
@@ -356,7 +359,7 @@ class Model_prepare():
 
     def cache_mat(self, nmodels: Union[int, None],lambda_operator: float, lambda_bound: float,
               cache_verbose: bool,model_randomize_parameter: Union[float, None],
-              cache_model: torch.nn.Sequential):
+              cache_model: torch.nn.Sequential, return_normalized_loss: bool = False):
         """
        Restores the model from the cache and uses it for retraining.
        Args:
@@ -389,7 +392,8 @@ class Model_prepare():
             cache_dir=self.cache_dir,
             nmodels=nmodels,
             cache_verbose=cache_verbose,
-            lambda_bound=lambda_bound)
+            lambda_bound=lambda_bound, 
+            return_normalized_loss=return_normalized_loss)
         prepared_model, optimizer_state = model_cls.cache_retrain(
             cache_checkpoint,
             cache_verbose=cache_verbose)
@@ -411,7 +415,8 @@ class Model_prepare():
 
     def cache(self, nmodels: Union[int, None],lambda_operator, lambda_bound: float,
               cache_verbose: bool,model_randomize_parameter: Union[float, None],
-              cache_model: torch.nn.Sequential, ):
+              cache_model: torch.nn.Sequential, 
+              return_normalized_loss: bool = False):
         """
         Restores the model from the cache and uses it for retraining.
         Args:
@@ -430,9 +435,9 @@ class Model_prepare():
         if self.mode != 'mat':
             return self.cache_nn(self.cache_dir, nmodels,lambda_operator, lambda_bound,
                                  cache_verbose, model_randomize_parameter,
-                                 cache_model)
+                                 cache_model,return_normalized_loss=return_normalized_loss)
         elif self.mode == 'mat':
             return self.cache_mat(self.cache_dir, nmodels, lambda_operator, lambda_bound,
                                   cache_verbose, model_randomize_parameter,
-                                  cache_model)
+                                  cache_model,return_normalized_loss=return_normalized_loss)
 

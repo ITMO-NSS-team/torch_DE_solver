@@ -222,7 +222,8 @@ class Solver():
               patience: int = 5, loss_oscillation_window: int = 100,
               no_improvement_patience: int = 1000, model_randomize_parameter: Union[int, float] = 0,
               optimizer_mode: str = 'Adam', step_plot_print: Union[bool, int] = False,
-              step_plot_save: Union[bool, int] = False, image_save_dir: Union[str, None] = None, tol: float = 0,clear_cache: bool =False) -> Any:
+              step_plot_save: Union[bool, int] = False, image_save_dir: Union[str, None] = None, tol: float = 0,
+              clear_cache: bool  =False, normalized_loss_stop: bool = False) -> Any:
         """
         High-level interface for solving equations.
 
@@ -277,7 +278,7 @@ class Solver():
                                                      cache_verbose,
                                                      model_randomize_parameter,
                                                      cache_model,
-                                                    )
+                                                    return_normalized_loss=normalized_loss_stop)
 
             Solution_class = Solution(self.grid, self.equal_cls,
                                       self.model, self.mode, self.weak_form,
@@ -315,7 +316,10 @@ class Solver():
                                            tol=tol)
 
             loss.backward()
-            cur_loss = loss_normalized.item()
+            if normalized_loss_stop:
+                cur_loss = loss_normalized.item()
+            else:
+                cur_loss = loss.item()
             return loss
 
         stop_dings = 0
