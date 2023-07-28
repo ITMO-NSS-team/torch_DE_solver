@@ -14,9 +14,9 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
-sys.path.append('../')
+#sys.path.append('../')
 
-sys.path.pop()
+#sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
 from tedeous.input_preprocessing import Equation
