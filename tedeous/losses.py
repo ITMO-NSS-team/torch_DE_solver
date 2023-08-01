@@ -1,5 +1,7 @@
 from typing import Tuple, Union
 
+import torch
+
 import tedeous.input_preprocessing
 from tedeous.utils import *
 
@@ -29,6 +31,7 @@ class Losses():
 
     def loss_op(self, lambda_op) -> torch.Tensor:
         loss_operator = 0
+
         for eq in self.operator:
             if self.weak_form != None and self.weak_form != []:
                 loss_operator += lambda_op[eq] * torch.sum(self.operator[eq])
@@ -59,20 +62,22 @@ class Losses():
         Returns:
             model loss.
         """
+        lambda_op_normalized = tedeous.input_preprocessing.lambda_prepare(self.operator, 1)
+        lambda_bound_normalized = tedeous.input_preprocessing.lambda_prepare(self.bval, 1)
+
+        with torch.no_grad():
+            loss_normalized = self.loss_op(lambda_op_normalized) + self.loss_bcs(lambda_bound_normalized)
 
         if self.bval == None:
-            return torch.sum(torch.mean((self.operator) ** 2, 0))
+            with torch.no_grad():
+                loss_norm_op = self.loss_op(lambda_op_normalized)
+            return self.loss_op(self.lambda_op), loss_norm_op
 
         if self.mode == 'mat':
             loss = torch.mean((self.operator) ** 2) + self.loss_bcs(self.lambda_bound)
         else:
             loss = self.loss_op(self.lambda_op) + self.loss_bcs(self.lambda_bound)
 
-        lambda_op_normalized = tedeous.input_preprocessing.lambda_prepare(self.operator, 1)
-        lambda_bound_normalized = tedeous.input_preprocessing.lambda_prepare(self.bval, 1)
-
-        with torch.no_grad():
-            loss_normalized = self.loss_op(lambda_op_normalized) + self.loss_bcs(lambda_bound_normalized)
 
         # TODO make decorator and apply it for all losses.
         if not self.save_graph:
@@ -83,7 +88,7 @@ class Losses():
 
         return loss, loss_normalized
 
-    def causal_loss(self, tol: float = 0) -> torch.Tensor:
+    def causal_loss(self, tol: float = 0) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Computes causal loss, which is calculated with weights matrix:
         W = exp(-tol*(Loss_i)) where Loss_i is sum of the L2 loss from 0
@@ -100,7 +105,7 @@ class Losses():
         op = torch.hstack(list(self.operator.values())) ** 2
 
         if self.bval == None:
-            return torch.sum(torch.mean((op) ** 2, 0))
+            return torch.sum(torch.mean((op) ** 2, 0)), torch.sum(torch.mean((op) ** 2, 0))
 
         res = torch.sum(op, dim=1).reshape(self.n_t, -1)
         res = torch.mean(res, axis=1).reshape(self.n_t, 1)
@@ -110,9 +115,9 @@ class Losses():
 
         loss = torch.mean(W * res) + self.loss_bcs(self.lambda_bound)
 
-        return loss
+        return loss, loss
 
-    def weak_loss(self) -> torch.Tensor:
+    def weak_loss(self) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Weak solution of O/PDE problem.
 
@@ -129,7 +134,13 @@ class Losses():
 
         loss = self.loss_op(self.lambda_op) + self.loss_bcs(self.lambda_bound)
 
-        return loss
+        lambda_op_normalized = tedeous.input_preprocessing.lambda_prepare(self.operator, 1)
+        lambda_bound_normalized = tedeous.input_preprocessing.lambda_prepare(self.bval, 1)
+
+        with torch.no_grad():
+            loss_normalized = self.loss_op(lambda_op_normalized) + self.loss_bcs(lambda_bound_normalized)
+
+        return loss, loss_normalized
 
     def compute(self, tol: float = 0) -> \
         Union[default_loss, weak_loss, causal_loss]:
@@ -141,6 +152,7 @@ class Losses():
             Returns:
                 A given calculation method.
             """
+
             if self.mode == 'mat' or self.mode == 'autograd':
                 if self.bval == None:
                     print('No bconds is not possible, returning infinite loss')

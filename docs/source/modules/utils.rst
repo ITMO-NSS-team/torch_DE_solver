@@ -1,7 +1,6 @@
-Solver
-======
+Utils
+=====
 
-
-.. automodule:: tedeous.solver
+.. automodule:: tedeous.utils
   :no-inherited-members:
   :no-undoc-members:

@@ -7,9 +7,15 @@ This one contain everything about modules into TEDEouS
    :maxdepth: 1
 
    config
+   device
+   utils
+   models
+   input_preprocessing
    points_type
    finite_diffs
-   input_preprocessing
-   metrics
-   cache
+   derivative
+   losses
+   eval
+   solution
    solver
+   cache

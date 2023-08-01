@@ -1,7 +1,6 @@
-Solver
+Device
 ======
 
-
-.. automodule:: tedeous.solver
+.. automodule:: tedeous.device
   :no-inherited-members:
   :no-undoc-members:

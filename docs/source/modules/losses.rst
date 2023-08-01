@@ -1,7 +1,6 @@
-Solver
+Losses
 ======
 
-
-.. automodule:: tedeous.solver
+.. autoclass:: tedeous.losses.Losses
   :no-inherited-members:
   :no-undoc-members:
