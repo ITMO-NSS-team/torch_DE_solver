@@ -1,4 +1,4 @@
-TEDEouS
+Introduction
 =======
 
 **This is all about TEDEouS**
