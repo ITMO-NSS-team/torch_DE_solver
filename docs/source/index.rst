@@ -9,7 +9,8 @@ Content:
 .. toctree::
    :maxdepth: 1
 
-   tedeous/index
+   introduction/index
+   advanced/index
    modules/index
    faq
    about
