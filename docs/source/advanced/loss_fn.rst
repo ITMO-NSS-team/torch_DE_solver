@@ -18,5 +18,6 @@ Solver includes 3 different minimization problems.
 where
 
 .. math:: \omega = {\omega_0 ... \omega_i} 
-.. math:: \omega_i = \exp(-\epsilon \sum_{\k=1}^{i-1}\bar{S} \bar{u}^\alpha - f^\alpha), for i = 2,3,...N_t, N_t is number of grid points, \epsilon is constant.
+.. math:: \omega_i = \exp(-\epsilon \sum_{k=1}^{i-1}\bar{S} \bar{u}^\alpha - f^\alpha), 
+for i = 2,3,...N_t, N_t is number of grid points, \epsilon is constant.
 
