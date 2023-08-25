@@ -7,6 +7,7 @@ import os
 import datetime
 from typing import Union
 from torch.optim.lr_scheduler import ExponentialLR
+import GPUtil
 
 from tedeous.cache import *
 from tedeous.device import check_device, device_type
@@ -223,7 +224,8 @@ class Solver():
               no_improvement_patience: int = 1000, model_randomize_parameter: Union[int, float] = 0,
               optimizer_mode: str = 'Adam', step_plot_print: Union[bool, int] = False,
               step_plot_save: Union[bool, int] = False, image_save_dir: Union[str, None] = None, tol: float = 0,
-              clear_cache: bool  =False, normalized_loss_stop: bool = False) -> Any:
+              clear_cache: bool  =False, normalized_loss_stop: bool = False, mixed_precision = False) -> Any:
+
         """
         High-level interface for solving equations.
 
@@ -259,6 +261,9 @@ class Solver():
         Returns:
             model.
         """
+
+        device = device_type()
+
         Cache_class = Model_prepare(self.grid, self.equal_cls,
                                     self.model, self.mode, self.weak_form)
 
@@ -327,8 +332,45 @@ class Solver():
         # to stop train proceduce we fit the line in the loss data
         # if line is flat enough "patience" times, we stop the procedure
         cur_loss = min_loss
+
+
+        scaler = torch.cuda.amp.GradScaler(enabled=mixed_precision)
+        if mixed_precision:
+            print("Mixed-precision mode enabled. Works only with GPU.")
+        #     t=0
+        #     while t<1e4:
+        #         optimizer.zero_grad()
+        #         with torch.autocast(device_type=device, dtype=torch.float16, enabled=mixed_precision):
+        #             loss, loss_normalized = Solution_class.evaluate(second_order_interactions=second_order_interactions,
+        #                                                             sampling_N=sampling_N,
+        #                                                             lambda_update=lambda_update,
+        #                                                             tol=tol)
+        #         scaler.scale(loss).backward()
+        #         scaler.step(optimizer)
+        #         scaler.update()
+        #         curr_loss = loss_normalized.item()
+        #         t+=1
+        #         # if t%500==0:
+        #         print('t={},loss={}'.format(t, curr_loss))
+
         while stop_dings <= patience:
-            optimizer.step(closure)
+
+
+            if mixed_precision:
+                optimizer.zero_grad()
+                with torch.autocast(device_type=device, dtype=torch.float16, enabled=mixed_precision):
+                    loss, loss_normalized = Solution_class.evaluate(second_order_interactions=second_order_interactions,
+                                                                    sampling_N=sampling_N,
+                                                                    lambda_update=lambda_update,
+                                                                tol=tol)
+                scaler.scale(loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
+                cur_loss = loss_normalized.item()
+            else:
+                optimizer.step(closure)
+
+
             if cur_loss != cur_loss:
                 print(f'Loss is equal to NaN, something went wrong (LBFGS+high'
                       f'learning rate and pytorch<1.12 could be the problem)')
@@ -357,6 +399,7 @@ class Solver():
                         print('[{}] Oscillation near the same loss'.format(
                             datetime.datetime.now()))
                         print(info_string)
+
                         if step_plot_print or step_plot_save:
                             self.plot.solution_print(title='Iteration = ' + str(t),
                                                      solution_print=step_plot_print,
@@ -368,6 +411,7 @@ class Solver():
                     print('[{}] No improvement in {} steps'.format(
                         datetime.datetime.now(), no_improvement_patience))
                     print(info_string)
+
                     if step_plot_print or step_plot_save:
                         self.plot.solution_print(title='Iteration = ' + str(t),
                                                  solution_print=step_plot_print,
@@ -388,13 +432,14 @@ class Solver():
                                                  solution_save=step_plot_save,
                                                  save_dir=image_save_dir)
                 stop_dings += 1
-            # print('t',t)
+
             if print_every != None and (t % print_every == 0) and verbose:
                 print('[{}] Print every {} step'.format(
                     datetime.datetime.now(), print_every))
                 print(info_string)
+                GPUtil.showUtilization()
 
-                # print('loss', closure().item(), 'loss_norm', cur_loss)
+
                 if step_plot_print or step_plot_save:
                     self.plot.solution_print(title='Iteration = ' + str(t),
                                              solution_print=step_plot_print,

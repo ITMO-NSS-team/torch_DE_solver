@@ -20,8 +20,8 @@ from tedeous.device import solver_device
 
 solver_device('cuda')
 # Grid
-x_grid = np.linspace(0,1,21)
-t_grid = np.linspace(0,1,21)
+x_grid = np.linspace(0,1,51)
+t_grid = np.linspace(0,1,51)
 
 x = torch.from_numpy(x_grid)
 t = torch.from_numpy(t_grid)
@@ -120,9 +120,9 @@ if not(os.path.isdir(img_dir)):
 
 
 model = Solver(grid, equation, model, 'NN').solve(lambda_bound=1000, verbose=True, learning_rate=1e-2,
-                                    eps=1e-6, tmin=1000, tmax=1e5,use_cache=True,cache_dir='../cache/',cache_verbose=True,
-                                    save_always=True, no_improvement_patience=500, print_every=500, step_plot_print=False,
-                                    step_plot_save=True, image_save_dir=img_dir)
+                                    eps=1e-6, tmin=1000, tmax=1e5, use_cache=False,cache_dir='../cache/',cache_verbose=True,
+                                    save_always=False, no_improvement_patience=500, print_every=500, step_plot_print=True,
+                                    step_plot_save=True, image_save_dir=img_dir, mixed_precision=True)
 
 end = time.time()
 print('Time taken 10= ', end - start)

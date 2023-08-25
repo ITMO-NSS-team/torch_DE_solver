@@ -1,15 +1,26 @@
 import torch
 
+# def solver_device(device):
+#     if device in ['cuda','gpu'] and torch.cuda.is_available():
+#         print('CUDA is available and used.')
+#         return torch.set_default_tensor_type('torch.cuda.FloatTensor')
+#     elif device in ['cuda','gpu'] and not torch.cuda.is_available():
+#         print('CUDA is not available, cpu is used!')
+#         return torch.set_default_tensor_type('torch.FloatTensor')
+#     else:
+#         print('Default cpu processor is used.')
+#         return torch.set_default_tensor_type('torch.FloatTensor')
+
 def solver_device(device):
-    if device in ['cuda','gpu'] and torch.cuda.is_available():
+    if device in ['cuda', 'gpu'] and torch.cuda.is_available():
         print('CUDA is available and used.')
-        return torch.set_default_tensor_type('torch.cuda.FloatTensor')
-    elif device in ['cuda','gpu'] and not torch.cuda.is_available():
-        print('CUDA is not available, cpu is used!')
-        return torch.set_default_tensor_type('torch.FloatTensor')
+        return torch.set_default_device('cuda')
+    elif device in ['cuda', 'gpu'] and not torch.cuda.is_available():
+        print('CUDA is not available, CPU is used!')
+        return torch.set_default_device('cpu')
     else:
-        print('Default cpu processor is used.')
-        return torch.set_default_tensor_type('torch.FloatTensor')
+        print('Default CPU is used.')
+        return torch.set_default_device('cpu')
 
 def check_device(data):
     device = torch.tensor([0.]).device.type
