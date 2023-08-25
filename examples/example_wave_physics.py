@@ -182,7 +182,7 @@ def wave_experiment(grid_res, CACHE):
 
     start = time.time()
 
-    equation = Equation(grid, wave_eq, bconds).set_strategy('NN')
+    equation = Equation(grid, wave_eq, bconds).set_strategy('autograd')
 
     img_dir = os.path.join(os.path.dirname(__file__), 'wave_example_physics_img')
 
@@ -190,19 +190,19 @@ def wave_experiment(grid_res, CACHE):
         os.mkdir(img_dir)
 
 
-    model = Solver(grid, equation, model, 'NN').solve(lambda_bound=100, verbose=1, learning_rate=1e-4,
-                                                      eps=1e-5, tmin=1000, tmax=1e5, use_cache=True, cache_verbose=True,
+    model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=100, verbose=1, learning_rate=1e-4,
+                                                      eps=1e-5, tmin=1000, tmax=1e5, use_cache=CACHE, cache_verbose=True,
                                                       save_always=True, print_every=None,
                                                       model_randomize_parameter=1e-6,
                                                       optimizer_mode='Adam', no_improvement_patience=1000,
                                                       step_plot_print=False, step_plot_save=True,
-                                                      image_save_dir=img_dir)
+                                                      image_save_dir=img_dir, mixed_precision=True)
 
     end = time.time()
 
     error_rmse = torch.sqrt(torch.mean((func(grid).reshape(-1, 1) - model(grid)) ** 2))
 
-    _,end_loss = Solution(grid, equation, model, 'NN', lambda_bound=100,lambda_operator=1, weak_form=None).evaluate()
+    _, end_loss = Solution(grid, equation, model, 'NN', lambda_bound=100,lambda_operator=1, weak_form=None).evaluate()
 
     exp_dict_list.append({'grid_res': grid_res, 'time': end - start, 'RMSE': error_rmse.detach().cpu().numpy(),
                           'loss': end_loss.detach().cpu().numpy(), 'type': 'wave_eqn_physical', 'cache': True})
@@ -213,20 +213,20 @@ def wave_experiment(grid_res, CACHE):
     return exp_dict_list
 
 
-nruns = 10
+nruns = 1
 
 exp_dict_list = []
 
-CACHE = True
+CACHE = False
 
-for grid_res in range(10, 101, 10):
+for grid_res in range(20, 21, 10):
     for _ in range(nruns):
         exp_dict_list.append(wave_experiment(grid_res, CACHE))
 
-import pandas as pd
-
-exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-df = pd.DataFrame(exp_dict_list_flatten)
-# df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
-# df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
-df.to_csv('examples/benchmarking_data/wave_experiment_physical_10_100_cache={}.csv'.format(str(CACHE)))
+# import pandas as pd
+#
+# exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+# df = pd.DataFrame(exp_dict_list_flatten)
+# # df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
+# # df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
+# df.to_csv('examples/benchmarking_data/wave_experiment_physical_10_100_cache={}.csv'.format(str(CACHE)))
