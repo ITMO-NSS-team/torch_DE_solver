@@ -7,6 +7,8 @@ Created on Mon May 31 12:33:44 2021
 import os
 import numpy as np
 import torch
+import torchtext
+import SALib
 import time
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -23,6 +25,7 @@ from tedeous.input_preprocessing import Equation
 from tedeous.solver import Solver, grid_format_prepare, Plots
 from tedeous.solution import Solution
 from tedeous.device import solver_device
+from tedeous.models import mat_model
 
 
 
@@ -268,30 +271,30 @@ for grid_res in [20,30]:
 
         sln=np.genfromtxt(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'wolfram_sln/KdV_sln_'+str(grid_res)+'.csv')),delimiter=',')
         sln_torch=torch.from_numpy(sln)
-        
-        model = torch.rand(grid[0].shape)
     
         start = time.time()
 
         equation = Equation(grid, kdv, bconds).set_strategy('mat')
+
+        model = mat_model(grid, kdv)*0
 
         img_dir=os.path.join(os.path.dirname( __file__ ), 'kdv_img_mat')
 
         if not(os.path.isdir(img_dir)):
             os.mkdir(img_dir)
 
-        model = Solver(grid, equation, model, 'mat').solve(lambda_bound=100,
-                                         verbose=True, learning_rate=1e-5, eps=1e-8, tmin=1000, tmax=5e6,
-                                         use_cache=True,cache_dir='../cache/',cache_verbose=False,
-                                         save_always=False,print_every=None,
+        model = Solver(grid, equation, model, 'mat').solve(lambda_bound=10, derivative_points=2,
+                                         verbose=True, learning_rate=0.5, eps=1e-8, tmin=1000, tmax=5e6,
+                                         use_cache=True,cache_dir='../cache/',cache_verbose=True,
+                                         save_always=True,print_every=100,
                                          patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
-                                         model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=None,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
+                                         model_randomize_parameter=1e-5,optimizer_mode='LBFGS',cache_model=None,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
 
 
         end = time.time()
 
-        model = torch.transpose(model, 0, 1)
-        error_rmse=np.sqrt(np.mean((sln_torch.cpu().numpy().reshape(-1)-model.detach().cpu().numpy().reshape(-1))**2))
+        model1 = torch.transpose(model, 0, 1)
+        error_rmse=np.sqrt(np.mean((sln_torch.cpu().numpy().reshape(-1)-model1.detach().cpu().numpy().reshape(-1))**2))
 
         Plots(grid, model, 'mat').solution_print()
 

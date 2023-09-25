@@ -6,64 +6,10 @@ from typing import Tuple
 
 from SALib import ProblemSpec
 
-def list_to_vector(list_):
-    return torch.cat([x.reshape(-1) for x in list_])
-
-def counter(fu):
-    def inner(*a, **kw):
-        inner.count += 1
-        return fu(*a, **kw)
-
-    inner.count = 0
-    return inner
-
-def tensor_to_dict(keys):
-    """
-        Convert nested tensor to dict.
-
-        Args:
-            tensor: nested tensor which needs to be converted into a dictionary.
-
-        Returns:
-            dictionary with tensor values.
-
-        Examples:
-            Converts operator solution for unified notation.
-            Keys are number of equation, value is tensor with corresponding solution.
-
-            >>> op = tedeous.eval.Operator(grid, prepared_operator, model, mode, weak_form).operator_compute()
-            >>> tensor_to_dict(op, 'eq')
-            Output: op_dict
-        """
-    def decorator(func):
-        def wrapper(self, *args, **kwargs):
-            tensor = func(self, *args, **kwargs)
-            dictionary = {}
-            for i in range(tensor.shape[-1]):
-                dictionary[keys + f'_{i+1}'] = tensor[:,i:i+1]
-            return dictionary
-        return wrapper
-    return decorator
-
-def length_dict_create(dict_: dict) -> dict:
-    """
-    Counts the length of each value in a dictionary.
-
-    Args:
-        dict_: source dictionary.
-
-    Returns:
-        dict where values are lengths.
-    """
-    solution_length = dict_.copy()
-    for key in dict_:
-        solution_length[key] = len(dict_[key])
-    return solution_length
-
 def samples_count(second_order_interactions: bool,
                   sampling_N: int,
-                  op_length: dict,
-                  bval_length:dict) -> Tuple[int, int]:
+                  op_length: list,
+                  bval_length:list) -> Tuple[int, int]:
     """
     Count samples for variance based sensitivity analysis.
 
@@ -79,8 +25,8 @@ def samples_count(second_order_interactions: bool,
 
 
     """
-    grid_len = sum(op_length.values())
-    bval_len = sum(bval_length.values())
+    grid_len = sum(op_length)
+    bval_len = sum(bval_length)
 
     sampling_D = grid_len + bval_len
 
@@ -90,19 +36,18 @@ def samples_count(second_order_interactions: bool,
         sampling_amount = sampling_N * (sampling_D + 2)
     return sampling_amount, sampling_D
 
-def lambda_print(dict_: dict) -> None:
+def lambda_print(lam, keys) -> None:
     """
     Print lambda value.
 
     Args:
         dict_: dict with lambdas.
     """
-    for key in dict_.keys():
-        print('lambda_{}: {}'.format(key, dict_[key]))
+    for val, key in zip(lam,keys):
+        print('lambda_{}: {}'.format(key, val))
 
-def lambda_preproc(op: dict,
-         bval: dict,
-         true_bval: dict) -> Tuple[dict, dict, dict, dict]:
+def bcs_reshape(bval, true_bval, bval_length) \
+                                            -> Tuple[dict, dict, dict, dict]:
     """
     Preprocessing for lambda evaluating.
 
@@ -118,14 +63,13 @@ def lambda_preproc(op: dict,
         bval_length: dict with lengths of boundary solution.
     """
 
-    op_length = length_dict_create(op)
-    bcs_length = length_dict_create(bval)
+    bval_diff = bval - true_bval
 
-    bcs = dict()
-    for k in bval:
-        bcs[k] = bval[k] - true_bval[k]
+    bcs = torch.cat([bval_diff[0:bval_length[i], i].reshape(-1)
+                                        for i in range(bval_diff.shape[-1])])
 
-    return op, bcs, op_length, bcs_length
+    return bcs
+
 
 class Lambda:
     """
@@ -151,7 +95,7 @@ class Lambda:
         self.sampling_N = sampling_N
 
     @staticmethod
-    def lambda_compute(pointer: int, length_dict: dict, ST: np.ndarray) -> dict:
+    def lambda_compute(pointer: int, length_list: list, ST: np.ndarray) -> dict:
         """
         Computes lambdas.
 
@@ -164,14 +108,14 @@ class Lambda:
             dict with lambdas.
 
         """
-        lambda_dict = length_dict.copy()
-        for key, value in length_dict.items():
-            lambda_dict[key] = sum(ST) / sum(ST[pointer:pointer + value])
+        lambdas = []
+        for value in length_list:
+            lambdas.append(sum(ST) / sum(ST[pointer:pointer + value]))
             pointer += value
-        return lambda_dict
+        return torch.tensor(lambdas).float().reshape(1, -1)
 
-    def update(self, op_length: dict,
-               bval_length: dict,
+    def update(self, op_length: list,
+               bval_length: list,
                sampling_D: int) -> Tuple[dict, dict]:
         """
         Updates all lambdas (operator and boundary).
@@ -195,6 +139,7 @@ class Lambda:
         names = ['x{}'.format(i) for i in range(sampling_D)]
 
         sp = ProblemSpec({'names': names, 'bounds': bounds})
+
         sp.set_samples(X_array)
         sp.set_results(loss_array)
         sp.analyze_sobol(calc_second_order=self.second_order_interactions)
@@ -206,6 +151,6 @@ class Lambda:
 
         lambda_op = self.lambda_compute(0, op_length, ST)
 
-        lambda_bnd = self.lambda_compute(sum((op_length.values())), bval_length, ST)
+        lambda_bnd = self.lambda_compute(sum(op_length), bval_length, ST)
 
         return lambda_op, lambda_bnd

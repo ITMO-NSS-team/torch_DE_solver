@@ -125,3 +125,51 @@ class FourierNN(nn.Module):
         output = self.model[-1](input)
 
         return output
+
+
+class FeedForward(nn.Module):
+    def __init__(self, layers, activation, parameters=None):
+        super(FeedForward, self).__init__()
+        model = []
+        for i in range(len(layers)-2):
+            model.append(nn.Linear(layers[i], layers[i+1]))
+            model.append(activation)
+        model.append(nn.Linear(layers[-2], layers[-1]))
+        self.net = torch.nn.Sequential(*model)
+        if parameters is not None:
+            self.reg_param(parameters)
+
+    def forward(self, x):
+        return self.net(x)
+
+    def reg_param(self, parameters: dict):
+        for key, value in parameters.items():
+            parameters[key] = torch.nn.Parameter(torch.tensor([value],
+                                           requires_grad=True).float())
+            self.net.register_parameter(key, parameters[key])
+
+
+def parameter_registr(model, parameters):
+    for key, value in parameters.items():
+        parameters[key] = torch.nn.Parameter(torch.tensor([value],
+                                        requires_grad=True).float())
+        model.register_parameter(key, parameters[key])
+
+
+def mat_model(grid, equation, nn_model=None):
+    if type(equation) is list:
+        eq_num = len(equation)
+    else:
+        eq_num = 1
+
+    shape = [eq_num] + list(grid.shape)[1:]
+
+    if nn_model != None:
+        nn_grid = torch.vstack([grid[i].reshape(-1) for i in \
+                                range(grid.shape[0])]).T.float()
+        model = nn_model(nn_grid).detach()
+        model = model.reshape(shape)
+    else:
+        model = torch.ones(shape)
+
+    return model

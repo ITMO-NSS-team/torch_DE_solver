@@ -4,9 +4,11 @@ from typing import Tuple, Union
 from tedeous.points_type import Points_type
 from tedeous.derivative import Derivative
 from tedeous.device import device_type, check_device
-from tedeous.utils import tensor_to_dict
+from torchtext.transforms import PadTransform
 
-def integration(func: torch.tensor, grid, pow: Union[int, float] = 2) -> Union[Tuple[float, float], Tuple[list, torch.Tensor]]:
+
+def integration(func: torch.tensor, grid, pow: Union[int, float] = 2) \
+                -> Union[Tuple[float, float], Tuple[list, torch.Tensor]]:
     """
     Function realize 1-space integrands,
     where func=(L(u)-f)*weak_form subintegrands function and
@@ -46,17 +48,55 @@ def integration(func: torch.tensor, grid, pow: Union[int, float] = 2) -> Union[T
         grid = grid[index, :-1]
         return result, grid
 
+
+def dict_to_matrix(bval: dict, true_bval: dict):
+    '''Function for bounaries values matrix creation from dictionary
+
+    Args:
+        bval: dictionary with predicted boundaries values,
+              where keys are boundaries types
+        true_bval: dictionary with true boundaries values,
+                   where keys are boundaries types
+
+    Returns:
+        tuple(matrix_bval, matrix_true_bval, keys, len_list)
+        'matrix_bval' matrix, where each column is predicted
+                      boundary values of one boundary type
+        'matrix_true_bval' matrix, where each column is true
+                           boundary values of one boundary type
+        'keys' boundary types list corresponding matrix_bval columns
+        'len_list' list of length of each boundary type column
+    '''
+
+    keys = list(bval.keys())
+    max_len = max([len(i) for i in bval.values()])
+    pad = PadTransform(max_len, 0)
+    matrix_bval = pad(bval[keys[0]]).float().reshape(-1,1)
+    matrix_true_bval = pad(true_bval[keys[0]]).float().reshape(-1,1)
+    len_list = [len(bval[keys[0]])]
+    for key in keys[1:]:
+        bval_i = pad(bval[key]).float().reshape(-1,1)
+        true_bval_i = pad(true_bval[key]).float().reshape(-1,1)
+        matrix_bval = torch.hstack((matrix_bval, bval_i))
+        matrix_true_bval = torch.hstack((matrix_true_bval, true_bval_i))
+        len_list.append(len(bval[key]))
+
+    return matrix_bval, matrix_true_bval, keys, len_list
+
+
 class Operator():
     """
     Class for differential equation calculation.
     """
     def __init__(self, grid: torch.Tensor, prepared_operator: Union[list,dict],
-                 model: Union[torch.nn.Sequential, torch.Tensor], mode: str, weak_form):
+                 model: Union[torch.nn.Sequential, torch.Tensor], mode: str,
+                 weak_form: list[callable], derivative_points: int):
         self.grid = check_device(grid)
         self.prepared_operator = prepared_operator
         self.model = model.to(device_type())
         self.mode = mode
         self.weak_form = weak_form
+        self.derivative_points = derivative_points
         if self.mode == 'NN':
             self.grid_dict = Points_type(self.grid).grid_sort()
             self.sorted_grid = torch.cat(list(self.grid_dict.values()))
@@ -74,8 +114,7 @@ class Operator():
         Returns:
             Decoded operator on a single grid subset
         """
-        derivative = Derivative(self.model).set_strategy(
-            self.mode).take_derivative
+        derivative = Derivative(self.model,self.derivative_points).set_strategy(self.mode).take_derivative
         for term in operator:
             term = operator[term]
             dif = derivative(term, grid_points)
@@ -96,12 +135,12 @@ class Operator():
         num_of_eq = len(self.prepared_operator)
         if num_of_eq == 1:
             op = self.apply_operator(
-                self.prepared_operator[0], self.sorted_grid)
+                self.prepared_operator[0], self.sorted_grid).reshape(-1,1)
         else:
             op_list = []
             for i in range(num_of_eq):
                 op_list.append(self.apply_operator(
-                    self.prepared_operator[i], self.sorted_grid))
+                    self.prepared_operator[i], self.sorted_grid).reshape(-1,1))
             op = torch.cat(op_list, 1)
         return op
 
@@ -136,7 +175,6 @@ class Operator():
         else:
             return torch.cat(sol_list).reshape(1,-1)
 
-    @tensor_to_dict('eq')
     def operator_compute(self):
         if self.weak_form == None or self.weak_form == []:
             return self.pde_compute()
@@ -149,13 +187,15 @@ class Bounds():
     Class for boundary and initial conditions calculation.
     """
     def __init__(self, grid: torch.Tensor, prepared_bconds: Union[list,dict],
-                 model: Union[torch.nn.Sequential, torch.Tensor], mode: str, weak_form):
+                 model: Union[torch.nn.Sequential, torch.Tensor], mode: str,
+                 weak_form: list[callable], derivative_points: int):
         self.grid = check_device(grid)
         self.prepared_bconds = prepared_bconds
         self.model = model.to(device_type())
         self.mode = mode
         self.apply_operator = Operator(self.grid, self.prepared_bconds,
-                                          self.model, self.mode, weak_form).apply_operator
+                                       self.model, self.mode, weak_form,
+                                       derivative_points).apply_operator
 
     def apply_bconds_set(self, operator_set: list) -> torch.Tensor:
         """
@@ -187,10 +227,7 @@ class Bounds():
         elif self.mode == 'mat':
             b_op_val = []
             for position in bnd:
-                if self.grid.dim() == 1 or min(self.grid.shape) == 1:
-                    b_op_val.append(self.model[:, position])
-                else:
-                    b_op_val.append(self.model[position])
+                    b_op_val.append(self.model[var][position])
             b_op_val = torch.cat(b_op_val).reshape(-1, 1)
         return b_op_val
 
@@ -209,13 +246,11 @@ class Bounds():
         elif self.mode == 'autograd':
             b_op_val = self.apply_operator(bop, bnd)
         elif self.mode == 'mat':
+            var = bop[list(bop.keys())[0]]['var'][0]
             b_op_val = self.apply_operator(bop, self.grid)
             b_val = []
             for position in bnd:
-                if self.grid.dim() == 1 or min(self.grid.shape) == 1:
-                    b_val.append(b_op_val[:, position])
-                else:
-                    b_val.append(b_op_val[position])
+                b_val.append(b_op_val[var][position])
             b_op_val = torch.cat(b_val).reshape(-1, 1)
         return b_op_val
 
@@ -279,14 +314,16 @@ class Bounds():
         true_bval_dict = {}
 
         for bcond in self.prepared_bconds:
-            bval_dict[bcond['type']] = []
-            true_bval_dict[bcond['type']] = []
+            try:
+                bval_dict[bcond['type']] = torch.cat((bval_dict[bcond['type']],
+                                                    self.b_op_val_calc(bcond).reshape(-1)))
+                true_bval_dict[bcond['type']] = torch.cat((true_bval_dict[bcond['type']],
+                                                    bcond['bval'].reshape(-1)))
+            except:
+                bval_dict[bcond['type']] = self.b_op_val_calc(bcond).reshape(-1)
+                true_bval_dict[bcond['type']] = bcond['bval'].reshape(-1)
 
-        for bcond in self.prepared_bconds:
-            bval_dict[bcond['type']].append(self.b_op_val_calc(bcond))
-            true_bval_dict[bcond['type']].append(bcond['bval'].reshape(-1, 1))
+        bval, true_bval, keys, bval_length = dict_to_matrix(
+                                                    bval_dict, true_bval_dict)
 
-        bval_dict.update((key, torch.cat(value)) for key, value in bval_dict.items())
-        true_bval_dict.update((key, torch.cat(value)) for key, value in true_bval_dict.items())
-
-        return bval_dict, true_bval_dict
+        return bval, true_bval, keys, bval_length

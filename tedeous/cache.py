@@ -10,7 +10,7 @@ import torch
 import os
 import glob
 import numpy as np
-
+import shutil
 from copy import deepcopy
 from typing import Union, Tuple, Any
 
@@ -61,13 +61,17 @@ class Model_prepare():
         self.model = model
         self.mode = mode
         self.weak_form = weak_form
-        self.cache_dir=os.path.normpath((os.path.join(os.path.dirname( __file__ ), '..','cache')))
+        try:
+             file = __file__
+        except:
+            file = os.getcwd()
+        self.cache_dir = os.path.normpath((os.path.join(os.path.dirname(file), '..','cache')))
 
-    def change_cache_dir(self,string):
+    def change_cache_dir(self, string):
         self.cache_dir=string
         return None
 
-    def clear_cache_dir(self,directory=None):
+    def clear_cache_dir(self, directory=None):
         if directory==None:
             remove_all_files(self.cache_dir)
         else:
@@ -91,6 +95,7 @@ class Model_prepare():
     def grid_model_mat(self, cache_model):
         NN_grid = torch.vstack([self.grid[i].reshape(-1) for i in \
                                 range(self.grid.shape[0])]).T.float()
+        out = self.model.shape[0]
 
         if cache_model == None:
             cache_model = torch.nn.Sequential(
@@ -100,9 +105,23 @@ class Model_prepare():
                 torch.nn.Tanh(),
                 torch.nn.Linear(100, 100),
                 torch.nn.Tanh(),
-                torch.nn.Linear(100, 1)
+                torch.nn.Linear(100, out)
             )
         return NN_grid, cache_model
+
+    @staticmethod
+    def mat_op_coeff(operator):
+        if type(operator) is not list:
+            operator = [operator]
+        for op in operator:
+            for label in list(op.keys()):
+                term = op[label]
+                if type(term['coeff']) == torch.Tensor:
+                    term['coeff'] = term['coeff'].reshape(-1, 1)
+                elif callable(term['coeff']):
+                    print("Warning: coefficient is callable,\
+                                it may lead to wrong cache item choice")
+        return operator
 
     @staticmethod
     def model_reform(init_model, model):
@@ -127,12 +146,13 @@ class Model_prepare():
             init_model[0]
         except:
             init_model = init_model.model
-        
+
         return init_model, model
-        
+
 
     def cache_lookup(self, lambda_operator: float = 1., lambda_bound: float = 0.001,
-                nmodels: Union[int, None] = None, save_graph: bool = False, cache_verbose: bool = False, return_normalized_loss: bool = False) -> Tuple[dict, torch.Tensor]:
+                nmodels: Union[int, None] = None, save_graph: bool = False,
+                cache_verbose: bool = False, return_normalized_loss: bool = False) -> Tuple[dict, torch.Tensor]:
         """
         Looking for a saved cache.
         Args:
@@ -165,7 +185,7 @@ class Model_prepare():
             model = checkpoint['model']
             model.load_state_dict(checkpoint['model_state_dict'])
             # this one for the input shape fix if needed
-            
+
             solver_model, cache_model = self.model_reform(self.model, model)
 
             if cache_model[0].in_features != solver_model[0].in_features:
@@ -179,7 +199,8 @@ class Model_prepare():
             model = model.to(device)
             loss, loss_normalized = Solution(self.grid, self.equal_cls,
                                       model, self.mode, self.weak_form,
-                                      lambda_operator, lambda_bound).evaluate(save_graph=save_graph)
+                                      lambda_operator, lambda_bound, tol=0,
+                                      derivative_points=2).evaluate(save_graph=save_graph)
 
             if loss < min_loss:
                 min_loss = loss
@@ -215,16 +236,17 @@ class Model_prepare():
         try:
             torch.save({'model': prep_model.to('cpu'), 'model_state_dict': state,
                         'optimizer_state_dict': optimizer_state}, self.cache_dir+'\\' + name + '.tar')
+            print('model is saved in cache')
         except RuntimeError:
             torch.save({'model': prep_model.to('cpu'), 'model_state_dict': state,
-                        'optimizer_state_dict': optimizer_state}, self.cache_dir+'\\' + name + '.tar',_use_new_zipfile_serialization=False) #cyrrilic in path
-        else:
+                        'optimizer_state_dict': optimizer_state}, self.cache_dir+'\\' + name + '.tar', _use_new_zipfile_serialization=False) #cyrrilic in path
+            print('model is saved in cache')
+        except:
             print('Cannot save model in cache')
 
-            
-            
 
-    def save_model_mat(self, name: None = None, cache_model: None = None):
+    def save_model_mat(self, name: None = None, cache_model: None = None,
+                       cache_verbose: bool=False):
         """
         Saved model in a cache (uses for 'mat' method).
 
@@ -236,7 +258,7 @@ class Model_prepare():
 
         NN_grid, cache_model = self.grid_model_mat(cache_model)
         optimizer = torch.optim.Adam(cache_model.parameters(), lr=0.001)
-        model_res = self.model.reshape(-1, 1)
+        model_res = self.model.reshape(-1, self.model.shape[0])
 
         def closure():
             optimizer.zero_grad()
@@ -249,9 +271,12 @@ class Model_prepare():
         while loss > 1e-5 and t < 1e5:
             loss = optimizer.step(closure)
             t += 1
+            if cache_verbose:
+                print('Interpolate from trained model t={}, loss={}'.format(
+                    t, loss))
 
         self.save_model(cache_model, cache_model.state_dict(),
-                        optimizer.state_dict(), cache_dir=self.cache_dir, name=name)
+                        optimizer.state_dict(), name=name)
 
     def scheme_interp(self, trained_model: Any, cache_verbose: bool = False) -> Tuple[Any, dict]:
         """
@@ -326,7 +351,7 @@ class Model_prepare():
                 cache_model, cache_verbose=cache_verbose)
         return self.model, optimizer_state
 
-    def cache_nn(self, cache_dir: str, nmodels: Union[int, None], lambda_operator: float, lambda_bound: float,
+    def cache_nn(self, nmodels: Union[int, None], lambda_operator: float, lambda_bound: float,
               cache_verbose: bool,model_randomize_parameter: Union[float, None],
               cache_model: torch.nn.Sequential, return_normalized_loss: bool = False):
         """
@@ -378,21 +403,15 @@ class Model_prepare():
         NN_grid, cache_model = self.grid_model_mat(cache_model)
         operator = deepcopy(self.equal_cls.operator)
         bconds = deepcopy(self.equal_cls.bconds)
-        for label in list(operator.keys()):
-            term = operator[label]
-            if type(term['coeff']) == torch.Tensor:
-                term['coeff'] = term['coeff'].reshape(-1)
-            elif callable(term['coeff']):
-                print("Warning: coefficient is callable,\
-                                it may lead to wrong cache item choice")
+        operator = self.mat_op_coeff(operator)
         r = create_random_fn(model_randomize_parameter)
-        eq = Equation(NN_grid, operator, bconds).set_strategy('NN')
-        model_cls = Model_prepare(NN_grid, eq, cache_model, 'NN', self.weak_form)
+        eq = Equation(NN_grid, operator, bconds).set_strategy('autograd')
+        model_cls = Model_prepare(NN_grid, eq, cache_model, 'autograd', self.weak_form)
         cache_checkpoint, min_loss = model_cls.cache_lookup(
-            cache_dir=self.cache_dir,
             nmodels=nmodels,
             cache_verbose=cache_verbose,
-            lambda_bound=lambda_bound, 
+            lambda_bound=lambda_bound,
+            lambda_operator=lambda_operator,
             return_normalized_loss=return_normalized_loss)
         prepared_model, optimizer_state = model_cls.cache_retrain(
             cache_checkpoint,
@@ -400,16 +419,13 @@ class Model_prepare():
 
         prepared_model.apply(r)
 
-        if len(self.grid.shape) == 2:
-            self.model = prepared_model(NN_grid).reshape(
-                self.grid.shape).detach()
-        else:
-            self.model = prepared_model(NN_grid).reshape(
-                self.grid[0].shape).detach()
+        self.model = prepared_model(NN_grid).reshape(
+                        self.model.shape).detach()
 
         min_loss, _ = Solution(self.grid, self.equal_cls,
                                       self.model, self.mode, self.weak_form,
-                                      lambda_operator, lambda_bound).evaluate()
+                                      lambda_operator, lambda_bound, tol=0,
+                                      derivative_points=2).evaluate()
 
         return self.model, min_loss
 
@@ -433,11 +449,11 @@ class Model_prepare():
         """
 
         if self.mode != 'mat':
-            return self.cache_nn(self.cache_dir, nmodels,lambda_operator, lambda_bound,
+            return self.cache_nn(nmodels,lambda_operator, lambda_bound,
                                  cache_verbose, model_randomize_parameter,
                                  cache_model,return_normalized_loss=return_normalized_loss)
         elif self.mode == 'mat':
-            return self.cache_mat(self.cache_dir, nmodels, lambda_operator, lambda_bound,
+            return self.cache_mat(nmodels, lambda_operator, lambda_bound,
                                   cache_verbose, model_randomize_parameter,
                                   cache_model,return_normalized_loss=return_normalized_loss)
 

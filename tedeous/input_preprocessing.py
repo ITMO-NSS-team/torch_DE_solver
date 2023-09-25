@@ -7,42 +7,43 @@ from tedeous.points_type import Points_type
 from tedeous.finite_diffs import Finite_diffs
 from tedeous.device import check_device
 
-def lambda_prepare(val: dict, lambda_: Union[int, list, dict]) -> dict :
+def lambda_prepare(val, lambda_: Union[int, list, torch.Tensor]) -> torch.Tensor :
     """
     Prepares lambdas for corresponding equation or bcond type.
 
     Args:
-        val:
-        lambda_bound:
+        val: operator tensor or bval tensor
+        lambda_: regularization parameters values
 
     Returns:
-        dict with lambdas.
+        lambdas: torch.Tensor with lambda_ values,
+        len(lambdas) = number of columns in val
 
     """
-    lambdas = {}
-    for i, key_name in enumerate(val):
-        if type(lambda_) is int:
-            lambdas[key_name] = lambda_
-        elif type(lambda_) is list:
-            lambdas[key_name] = lambda_[i]
-        else:
-            return lambda_
-    return lambdas
+    if type(lambda_) is torch.Tensor:
+        return lambda_
 
-def op_lambda_prepare(op, lambda_op):
-    lambdas = {}
-    for i, bcs_type in enumerate(op):
-        if type(lambda_op) is int:
-            lambdas[f'eq_{i+1}'] = lambda_op
-        elif type(lambda_op) is list:
-            lambdas[f'eq_{i+1}'] = lambda_op[i]
-        else:
-            return lambda_op
-    return lambdas
+    #if mode == 'mat':
+    #    val_length = val.shape[0]
+    #else:
+    #    val_length = val.shape[-1]
+
+    if type(lambda_) is int:
+        try:
+            lambdas = torch.ones(val.shape[-1], dtype=val.dtype)*lambda_
+        except:
+            lambdas = torch.tensor(lambda_, dtype=val.dtype)
+    elif type(lambda_) is list:
+        lambdas = torch.tensor(lambda_, dtype=val.dtype)
+
+    return lambdas.reshape(1,-1)
+
+
 class Boundary():
     """
     Сlass for bringing all boundary conditions to a similar form.
     """
+
     def __init__(self, bconds: list):
         """
         Args:
@@ -398,6 +399,8 @@ class Equation_NN(EquationMixin, Points_type):
             coeff = check_device(coeff)
             pos = self.bndpos(self.grid, grid_points)
             coeff1 = coeff[pos].reshape(-1, 1)
+        elif type(coeff) is torch.nn.parameter.Parameter:
+            coeff1 = coeff
         else:
             raise NameError('"coeff" should be: torch.Tensor or callable or int or float!')
         return coeff1
@@ -554,6 +557,8 @@ class Equation_autograd(EquationMixin):
         elif type(coeff) == torch.Tensor:
             coeff = check_device(coeff)
             coeff1 = coeff.reshape(-1, 1)
+        elif type(coeff) is torch.nn.parameter.Parameter:
+            coeff1 = coeff
         else:
             raise NameError('"coeff" should be: torch.Tensor or callable or int or float!')
         return coeff1
@@ -644,8 +649,17 @@ class Equation_mat(EquationMixin):
             final form of differential operator used in the algorithm.
         """
 
-        unified_operator = [self.equation_unify(self.operator)]
-        return unified_operator
+        if type(self.operator) is list and type(self.operator[0]) is dict:
+            num_of_eq = len(self.operator)
+            prepared_operator = []
+            for i in range(num_of_eq):
+                equation = self.equation_unify(self.operator[i])
+                prepared_operator.append(equation)
+        else:
+            equation = self.equation_unify(self.operator)
+            prepared_operator = [equation]
+
+        return prepared_operator
 
     def point_position(self, bnd) -> list:
         """

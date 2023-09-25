@@ -13,40 +13,27 @@ sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
 from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver
+from tedeous.solver import Solver, grid_format_prepare
 from tedeous.solution import Solution
 from tedeous.device import solver_device
+from tedeous.models import mat_model
 
 
-solver_device('cpu')
+solver_device("cpu")
 
-x_grid = np.linspace(-5,5,41)
-t_grid = np.linspace(0,np.pi/2,41)
+x_grid = np.linspace(-5, 5, 41)
+t_grid = np.linspace(0, np.pi/2, 41)
 
 x = torch.from_numpy(x_grid)
 t = torch.from_numpy(t_grid)
 
-grid = torch.cartesian_prod(x, t).float()
+coord_list = []
+coord_list.append(x)
+coord_list.append(t)
+
+grid=grid_format_prepare(coord_list,mode='mat')
 
 
-"""
-To solve schrodinger equation we have to solve system because of its complexity. 
-Both for the operator and for boundary and initial conditions.
-The system of boundary and initial conditions is written as follows:
-bnd1 = torch.stack((bnd1_real, bnd1_imag),dim = 1)
-etc...
-For periodic bconds you need to set parameter bnd_type = 'periodic'.
-For 'periodic' you don't need to set bnd_val.
-In this case condition will be written as follows:
-bnd1_left = ...
-bnd1_right = ...
-bnd1 = [bnd1_left, bnd1_right]
-Each term of bconds support up to 4 parameters, such as: bnd, bnd_val, bnd_op, bnd_type.
-bnd_type is not necessary, default = 'boundary values'.
-bnd, bnd_val are essentials for setting parameters bconds.
-Eventually, whole list of bconds will be written:
-bconds = [[bnd1,...,...], etc...]
-"""
 ## BOUNDARY AND INITIAL CONDITIONS
 fun = lambda x: 2/np.cosh(x)
 
@@ -67,6 +54,7 @@ bnd2_real_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.f
 bnd2_real_right = torch.cartesian_prod(torch.from_numpy(np.array([5], dtype=np.float64)), t).float()
 bnd2_real = [bnd2_real_left,bnd2_real_right]
 
+
 # v(-5,t) = v(5,t)
 bnd2_imag_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.float64)), t).float()
 bnd2_imag_right = torch.cartesian_prod(torch.from_numpy(np.array([5], dtype=np.float64)), t).float()
@@ -77,6 +65,8 @@ bnd2_imag = [bnd2_imag_left,bnd2_imag_right]
 bnd3_real_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.float64)), t).float()
 bnd3_real_right = torch.cartesian_prod(torch.from_numpy(np.array([5], dtype=np.float64)), t).float()
 bnd3_real = [bnd3_real_left, bnd3_real_right]
+
+
 
 bop3_real = {
             'du/dx':
@@ -92,6 +82,7 @@ bnd3_imag_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.f
 bnd3_imag_right = torch.cartesian_prod(torch.from_numpy(np.array([5], dtype=np.float64)), t).float()
 bnd3_imag = [bnd3_imag_left,bnd3_imag_right]
 
+
 bop3_imag = {
             'dv/dx':
                 {
@@ -106,16 +97,16 @@ bop3_imag = {
 bcond_type = 'periodic'
 
 bconds = [[bnd1_real, bndval1_real, 0, 'dirichlet'],
-          [bnd1_imag, bndval1_imag, 1, 'dirichlet'],
-          [bnd2_real, 0, bcond_type],
-          [bnd2_imag, 1, bcond_type],
-          [bnd3_real, bop3_real, bcond_type],
-          [bnd3_imag, bop3_imag, bcond_type]]
+        [bnd1_imag, bndval1_imag, 1, 'dirichlet'],
+        [bnd2_real, 0, bcond_type],
+        [bnd2_imag, 1, bcond_type],
+        [bnd3_real, bop3_real, bcond_type],
+        [bnd3_imag, bop3_imag, bcond_type]]
 
 '''
 schrodinger equation:
-i * dh/dt + 1/2 * d2h/dx2 + abs(h)**2 * h = 0 
-real part: 
+i * dh/dt + 1/2 * d2h/dx2 + abs(h)**2 * h = 0
+real part:
 du/dt + 1/2 * d2v/dx2 + (u**2 + v**2) * v
 imag part:
 dv/dt - 1/2 * d2u/dx2 - (u**2 + v**2) * u
@@ -154,6 +145,7 @@ schrodinger_eq_real = {
         }
 
 }
+
 schrodinger_eq_imag = {
     'dv/dt':
         {
@@ -186,38 +178,17 @@ schrodinger_eq_imag = {
 
 }
 
-schrodinger_eq = [schrodinger_eq_real,schrodinger_eq_imag]
+schrodinger_eq = [schrodinger_eq_real, schrodinger_eq_imag]
 
-model = torch.nn.Sequential(
-        torch.nn.Linear(2, 100),
-        torch.nn.Tanh(),
-        torch.nn.Linear(100, 100),
-        torch.nn.Tanh(),
-        torch.nn.Linear(100, 100),
-        torch.nn.Tanh(),
-        torch.nn.Linear(100, 100),
-        torch.nn.Tanh(),
-        torch.nn.Linear(100, 100),
-        torch.nn.Tanh(),
-        torch.nn.Linear(100, 100),
-        torch.nn.Tanh(),
-        #torch.nn.Linear(100, 100), for more accurate
-        #torch.nn.Tanh(),
-        torch.nn.Linear(100, 2)
-    )
+equation_mat = Equation(grid, schrodinger_eq, bconds).set_strategy('mat')
 
-def v(grid):
-    return torch.cos(grid[:,0] + grid[:,1]) # torch.ones_like(grid[:,0]) + torch.cos(grid[:,0] + grid[:,1]) # for more accurate in more time
+model = mat_model(grid, schrodinger_eq)
 
-weak_form=[v]
-
-equation = Equation(grid, schrodinger_eq, bconds).set_strategy('autograd')
-
-img_dir=os.path.join(os.path.dirname( __file__ ), 'schroedinger_weak_img')
+img_dir=os.path.join(os.path.dirname( __file__ ), 'schrodinger_img_mat')
 
 if not(os.path.isdir(img_dir)):
     os.mkdir(img_dir)
 
-model = Solver(grid, equation, model, 'autograd', weak_form=weak_form).solve(lambda_bound=1, verbose=1, learning_rate=0.9,
-                                    eps=1e-6, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=True,
-                                    save_always=False,no_improvement_patience=10,loss_oscillation_window=10, print_every=10, optimizer_mode='LBFGS',step_plot_print=False, step_plot_save=True, image_save_dir=img_dir)
+model = Solver(grid, equation_mat, model, 'mat').solve(lambda_bound=1, verbose=1, learning_rate=0.8, gamma=0.9, lr_decay=200, derivative_points=5,
+                                    eps=1e-6, tmax=1e5, print_every=100, optimizer_mode='LBFGS',step_plot_save=True, use_cache=True, save_always=True,
+                                    cache_verbose=True, image_save_dir=img_dir)

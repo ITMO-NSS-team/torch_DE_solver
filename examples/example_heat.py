@@ -154,19 +154,6 @@ def heat_experiment(grid_res,CACHE):
             }
     }
 
-
-    # model = torch.nn.Sequential(
-    #     torch.nn.Linear(2, 100),
-    #     torch.nn.Tanh(),
-    #     torch.nn.Linear(100, 100),
-    #     torch.nn.Tanh(),
-    #     torch.nn.Linear(100, 100),
-    #     torch.nn.Tanh(),
-    #     torch.nn.Linear(100, 100),
-    #     torch.nn.Tanh(),
-    #     torch.nn.Linear(100, 1)
-    # )
-
     model = torch.nn.Sequential(
         torch.nn.Linear(2, 100),
         torch.nn.Tanh(),
@@ -202,8 +189,6 @@ def heat_experiment(grid_res,CACHE):
     rmse_grid = torch.cartesian_prod(rmse_x, rmse_t).float()
     
     error_rmse=torch.sqrt(torch.mean(((func(rmse_grid)-model(rmse_grid))/500)**2))
-
-
 
     _, end_loss = Solution(grid=grid, equal_cls=equation, model=model,
              mode='NN', weak_form=None, lambda_bound=100, lambda_operator=1).evaluate()

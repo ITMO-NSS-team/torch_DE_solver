@@ -108,8 +108,8 @@ def solver_burgers(grid_res, cache, optimizer, iterations):
 
     u_exact = exact(grid1)
     error_rmse = torch.sqrt(torch.mean((u_exact - model(grid1)) ** 2))
-    end_loss = Solution(grid = grid, equal_cls = equation, model = model,
-                        mode = 'autograd', weak_form=None, lambda_bound=1).evaluate()
+    end_loss, _ = Solution(grid = grid, equal_cls = equation, model = model,
+                        mode = 'autograd', weak_form=None, lambda_operator=1, lambda_bound=1).evaluate()
     exp_dict_list.append({'grid_res': grid_res, 'time': time_part, 'RMSE': error_rmse.detach().numpy(),
                           'loss': end_loss.detach().numpy(), 'type': 'solver_burgers', 'cache': cache})
 

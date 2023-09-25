@@ -1,4 +1,6 @@
 import torch
+import torchtext
+import SALib
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy
@@ -14,9 +16,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 
 
 from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver
+from tedeous.solver import Solver, grid_format_prepare
 from tedeous.solution import Solution
 from tedeous.device import solver_device
+from tedeous.models import mat_model
 
 solver_device('cuda')
 # Grid
@@ -28,8 +31,9 @@ t = torch.from_numpy(t_grid)
 
 grid = torch.cartesian_prod(x, t).float()
 
-#grid = list(torch.meshgrid(x, t, indexing='xy')) # for 'mat' method
-#grid = torch.stack(grid) # for 'mat' method
+
+# coord_list = [x, t]
+# grid = grid_format_prepare(coord_list,mode='mat')
 # Boundary and initial conditions
 
 # u(x,0)=1e4*sin^2(x(x-1)/10)
@@ -107,11 +111,13 @@ model = torch.nn.Sequential(
         torch.nn.Tanh(),
         torch.nn.Linear(100, 1))
 
-#model = torch.rand(grid[0].shape) # for 'mat' method
+
 
 start = time.time()
 
 equation = Equation(grid, wave_eq, bconds, h=0.01).set_strategy('NN')
+
+#model = mat_model(grid, equation) # for 'mat' method
 
 img_dir=os.path.join(os.path.dirname( __file__ ), 'wave_periodic_img')
 

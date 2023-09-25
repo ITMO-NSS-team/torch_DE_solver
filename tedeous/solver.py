@@ -42,7 +42,7 @@ def grid_format_prepare(coord_list, mode='NN') -> torch.Tensor:
                     coord_list_tensor.append(item.to(device))
             grid = torch.cartesian_prod(*coord_list_tensor)
     elif mode == 'mat':
-        grid = np.meshgrid(*coord_list)
+        grid = np.meshgrid(*coord_list, indexing='ij')
         grid = torch.tensor(np.array(grid)).to(device)
     return grid
 
@@ -101,22 +101,28 @@ class Plots():
         Args:
            title: title
         """
+
         nparams = self.grid.shape[0]
-        if nparams == 1:
-            fig = plt.figure()
-            plt.scatter(self.grid.cpu().reshape(-1),
-                        self.model.detach().cpu().numpy().reshape(-1))
-        elif nparams == 2:
-            fig = plt.figure()
-            ax = fig.add_subplot(111, projection='3d')
-            if title != None:
-                ax.set_title(title)
-            ax.plot_trisurf(self.grid[0].cpu().reshape(-1),
-                            self.grid[1].cpu().reshape(-1),
-                            self.model.reshape(-1).detach().cpu().numpy(),
+        nvars_model = self.model.shape[0]
+        fig = plt.figure(figsize=(15,8))
+        for i in range(nvars_model):
+            if nparams == 1:
+                ax1 = fig.add_subplot(1, nvars_model, i+1)
+                if title != None:
+                    ax1.set_title(title+' variable {}'.format(i))
+                ax1.scatter(self.grid.detach().cpu().numpy().reshape(-1),
+                            self.model[i].detach().cpu().numpy().reshape(-1))
+            else:
+                ax1 = fig.add_subplot(1, nvars_model, i+1, projection='3d')
+                
+                if title!=None:
+                    ax1.set_title(title+' variable {}'.format(i))
+                ax1.plot_trisurf(self.grid[0].detach().cpu().numpy().reshape(-1),
+                            self.grid[1].detach().cpu().numpy().reshape(-1),
+                            self.model[i].detach().cpu().numpy().reshape(-1),
                             cmap=cm.jet, linewidth=0.2, alpha=1)
-            ax.set_xlabel("x1")
-            ax.set_ylabel("x2")
+            ax1.set_xlabel("x1")
+            ax1.set_ylabel("x2")
 
     def dir_path(self, save_dir: str):
         """
@@ -210,7 +216,17 @@ class Solver():
 
         return optimizer
 
-    def solve(self,lambda_operator: Union[float, list] = 1,lambda_bound: Union[float, list] = 10,
+    def str_param(self, inverse_param: dict):
+        param = list(inverse_param.keys())
+        for name, p in self.model.named_parameters():
+            if name in param:
+                try:
+                    param_str += name + '=' + str(p.item()) + ' '
+                except:
+                    param_str = name + '=' + str(p.item()) + ' '
+        return param_str
+
+    def solve(self,lambda_operator: Union[float, list] = 1,lambda_bound: Union[float, list] = 10, derivative_points:float=2,
               lambda_update: bool = False, second_order_interactions: bool = True, sampling_N: int = 1, verbose: int = 0,
               learning_rate: float = 1e-4, gamma=None, lr_decay=1000,
               eps: float = 1e-5, tmin: int = 1000, tmax: float = 1e5,
@@ -223,7 +239,7 @@ class Solver():
               no_improvement_patience: int = 1000, model_randomize_parameter: Union[int, float] = 0,
               optimizer_mode: str = 'Adam', step_plot_print: Union[bool, int] = False,
               step_plot_save: Union[bool, int] = False, image_save_dir: Union[str, None] = None, tol: float = 0,
-              clear_cache: bool  =False, normalized_loss_stop: bool = False) -> Any:
+              clear_cache: bool  =False, normalized_loss_stop: bool = False, inverse_parameters: dict = None) -> Any:
         """
         High-level interface for solving equations.
 
@@ -259,6 +275,7 @@ class Solver():
         Returns:
             model.
         """
+
         Cache_class = Model_prepare(self.grid, self.equal_cls,
                                     self.model, self.mode, self.weak_form)
 
@@ -282,13 +299,13 @@ class Solver():
 
             Solution_class = Solution(self.grid, self.equal_cls,
                                       self.model, self.mode, self.weak_form,
-                                      lambda_operator, lambda_bound)
+                                      lambda_operator, lambda_bound, tol, derivative_points)
         else:
             Solution_class = Solution(self.grid, self.equal_cls,
                                       self.model, self.mode, self.weak_form,
-                                      lambda_operator, lambda_bound)
+                                      lambda_operator, lambda_bound, tol, derivative_points)
 
-            _ , min_loss = Solution_class.evaluate()
+            min_loss , _ = Solution_class.evaluate()
 
         self.plot = Plots(self.model, self.grid, self.mode, tol)
 
@@ -312,8 +329,7 @@ class Solver():
             optimizer.zero_grad()
             loss, loss_normalized = Solution_class.evaluate(second_order_interactions=second_order_interactions,
                                            sampling_N=sampling_N,
-                                           lambda_update=lambda_update,
-                                           tol=tol)
+                                           lambda_update=lambda_update)
 
             loss.backward()
             if normalized_loss_stop:
@@ -357,6 +373,8 @@ class Solver():
                         print('[{}] Oscillation near the same loss'.format(
                             datetime.datetime.now()))
                         print(info_string)
+                        if inverse_parameters is not None:
+                            print(self.str_param(inverse_parameters))
                         if step_plot_print or step_plot_save:
                             self.plot.solution_print(title='Iteration = ' + str(t),
                                                      solution_print=step_plot_print,
@@ -368,6 +386,8 @@ class Solver():
                     print('[{}] No improvement in {} steps'.format(
                         datetime.datetime.now(), no_improvement_patience))
                     print(info_string)
+                    if inverse_parameters is not None:
+                        print(self.str_param(inverse_parameters))
                     if step_plot_print or step_plot_save:
                         self.plot.solution_print(title='Iteration = ' + str(t),
                                                  solution_print=step_plot_print,
@@ -382,6 +402,8 @@ class Solver():
                 if verbose:
                     print('[{}] Absolute value of loss is lower than threshold'.format(datetime.datetime.now()))
                     print(info_string)
+                    if inverse_parameters is not None:
+                        print(self.str_param(inverse_parameters))
                     if step_plot_print or step_plot_save:
                         self.plot.solution_print(title='Iteration = ' + str(t),
                                                  solution_print=step_plot_print,
@@ -393,7 +415,8 @@ class Solver():
                 print('[{}] Print every {} step'.format(
                     datetime.datetime.now(), print_every))
                 print(info_string)
-
+                if inverse_parameters is not None:
+                    print(self.str_param(inverse_parameters))
                 # print('loss', closure().item(), 'loss_norm', cur_loss)
                 if step_plot_print or step_plot_save:
                     self.plot.solution_print(title='Iteration = ' + str(t),
@@ -406,15 +429,9 @@ class Solver():
                 break
         if save_always:
             if self.mode == 'mat':
-                Cache_class.save_model_mat(name=name)
+                Cache_class.save_model_mat(name=name, cache_verbose=cache_verbose)
             else:
                 Cache_class.save_model(self.model, self.model.state_dict(),
                                        optimizer.state_dict(),
                                        name=name)
         return self.model
-
-
-
-
-
-

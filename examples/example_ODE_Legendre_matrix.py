@@ -5,6 +5,8 @@ Created on Mon May 31 12:33:44 2021
 @author: user
 """
 import torch
+import torchtext
+import SALib
 import numpy as np
 import os
 import matplotlib.pyplot as plt
@@ -27,6 +29,7 @@ from tedeous.input_preprocessing import Equation
 from tedeous.solver import Solver, grid_format_prepare
 from tedeous.solution import Solution
 from tedeous.device import solver_device
+from tedeous.models import mat_model
 solver_device('cpu')
 
 """
@@ -207,9 +210,9 @@ for n in range(3,10):
             torch.nn.Linear(1024, 1)
         )
 
-        model= torch.rand(grid.shape)
-
         equation = Equation(grid, legendre_poly, bconds).set_strategy('mat')
+
+        model = mat_model(grid, legendre_poly)
 
         img_dir=os.path.join(os.path.dirname( __file__ ), 'leg_img_mat')
 
@@ -217,11 +220,11 @@ for n in range(3,10):
             os.mkdir(img_dir)
 
         model = Solver(grid, equation, model, 'mat').solve(lambda_bound=100,
-                                         verbose=True, learning_rate=1e-4, eps=1e-7, tmin=1000, tmax=5e6,
+                                         verbose=True, learning_rate=1e-1, eps=1e-7, tmin=1000, tmax=5e6,
                                          use_cache=True,cache_dir='../cache/',cache_verbose=False,
                                          save_always=False,print_every=None,
                                          patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
-                                         model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=model_arch,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
+                                         model_randomize_parameter=1e-5,optimizer_mode='LBFGS',cache_model=model_arch,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
 
         end = time.time()
     

@@ -9,6 +9,8 @@
 
 # Where 'x' represents prey population and 'y' predators population. It’s a system of first-order ordinary differential equations.
 import torch
+import torchtext
+import SALib
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy
@@ -131,7 +133,7 @@ def Lotka_experiment(grid_res, CACHE):
     model = Solver(grid, equation, model, 'NN', weak_form=weak_form).solve(lambda_bound=100,
                                          verbose=True, learning_rate=1e-4, eps=1e-6, tmin=1000, tmax=5e6,
                                          use_cache=CACHE,cache_dir='../cache/',cache_verbose=True,
-                                         save_always=CACHE,print_every=None,
+                                         save_always=CACHE,print_every=100,
                                          patience=3,loss_oscillation_window=100,no_improvement_patience=500,
                                          model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=None,
                                          step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
