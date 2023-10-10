@@ -42,7 +42,7 @@ tmax = 2.
 
 Nt = 401
 
-solver_device('cpu')
+solver_device('gpu')
 
 t = torch.from_numpy(np.linspace(t0, tmax, Nt))
 
@@ -124,9 +124,9 @@ start = time.time()
 
 model = Solver(grid, equation, model, 'mat').solve(lambda_bound=100, derivative_points=3, gamma=0.9, lr_decay=400,
                                         verbose=True, learning_rate=1, eps=1e-6,
-                                        print_every=100, patience=3, save_always=False,
+                                        print_every=100, patience=3, save_always=True,
                                         optimizer_mode='LBFGS',
-                                        step_plot_save=True, image_save_dir=img_dir)
+                                        step_plot_save=True, image_save_dir=img_dir, use_cache=True)
 
 end = time.time()
 
@@ -149,6 +149,8 @@ def exact():
 u_exact = exact()
 
 u_exact=torch.from_numpy(u_exact)
+
+model=model.to('cpu')
 
 error_rmse=torch.sqrt(torch.mean((u_exact-model)**2))
 

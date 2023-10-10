@@ -317,7 +317,7 @@ class Solver():
         # standard NN stuff
         if verbose:
             print('[{}] initial (min) loss is {}'.format(
-                datetime.datetime.now(), min_loss))
+                datetime.datetime.now(), min_loss.item()))
 
         t = 0
 
