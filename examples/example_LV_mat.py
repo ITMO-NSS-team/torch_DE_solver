@@ -123,8 +123,8 @@ img_dir = os.path.join(os.path.dirname( __file__ ), 'img_Lotka_Volterra_mat')
 start = time.time()
 
 model = Solver(grid, equation, model, 'mat').solve(lambda_bound=100, derivative_points=3, gamma=0.9, lr_decay=400,
-                                        verbose=True, learning_rate=1,
-                                        print_every=100, patience=3,
+                                        verbose=True, learning_rate=1, eps=1e-6,
+                                        print_every=100, patience=3, save_always=False,
                                         optimizer_mode='LBFGS',
                                         step_plot_save=True, image_save_dir=img_dir)
 

@@ -413,14 +413,15 @@ class Model_prepare():
             lambda_bound=lambda_bound,
             lambda_operator=lambda_operator,
             return_normalized_loss=return_normalized_loss)
-        prepared_model, optimizer_state = model_cls.cache_retrain(
-            cache_checkpoint,
-            cache_verbose=cache_verbose)
+        if cache_checkpoint is not None:
+            prepared_model, optimizer_state = model_cls.cache_retrain(
+                                                        cache_checkpoint,
+                                                        cache_verbose=cache_verbose)
 
-        prepared_model.apply(r)
-
-        self.model = prepared_model(NN_grid).reshape(
-                        self.model.shape).detach()
+            prepared_model.apply(r)
+        
+            self.model = prepared_model(NN_grid).reshape(
+                            self.model.shape).detach()
 
         min_loss, _ = Solution(self.grid, self.equal_cls,
                                       self.model, self.mode, self.weak_form,
