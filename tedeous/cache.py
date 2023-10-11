@@ -210,7 +210,7 @@ class Model_prepare():
                 best_checkpoint['optimizer_state_dict'] = \
                     checkpoint['optimizer_state_dict']
                 if cache_verbose:
-                    print('best_model_num={} , normalized_loss={}'.format(i, min_norm_loss))
+                    print('best_model_num={} , normalized_loss={}'.format(i, min_norm_loss.item()))
         if best_checkpoint == {}:
             best_checkpoint = None
             min_loss = np.inf

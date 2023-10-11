@@ -306,7 +306,7 @@ for grid_res in [20,30]:
         
         print('Time taken {}= {}'.format(grid_res, end - start))
         print('RMSE {}= {}'.format(grid_res, error_rmse))
-        print('loss {}= {}'.format(grid_res, end_loss))
+        print('loss {}= {}'.format(grid_res, end_loss.item()))
 
 #result_assessment=pd.DataFrame(exp_dict_list)
 #result_assessment.to_csv('results_kdv_matrix.csv')
