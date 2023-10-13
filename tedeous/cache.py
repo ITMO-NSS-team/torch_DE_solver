@@ -168,7 +168,7 @@ class Model_prepare():
         files = glob.glob(self.cache_dir + '\*.tar')
         if len(files) == 0:
             best_checkpoint = None
-            min_loss = np.inf
+            min_loss = torch.tensor([float('inf')])
             return best_checkpoint, min_loss
 
         cache_n = self.cache_files(files, nmodels)

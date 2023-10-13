@@ -125,7 +125,7 @@ class Solution():
                 self.loss_list.clear()
 
                 oper_keys = [f'eq_{i}' for i in range(len(op_length))]
-                lambda_print(self.lambda_operator,oper_keys)
+                lambda_print(self.lambda_operator, oper_keys)
                 lambda_print(self.lambda_bound, bval_keys)
 
 

@@ -23,11 +23,6 @@ def lambda_prepare(val, lambda_: Union[int, list, torch.Tensor]) -> torch.Tensor
     if type(lambda_) is torch.Tensor:
         return lambda_
 
-    #if mode == 'mat':
-    #    val_length = val.shape[0]
-    #else:
-    #    val_length = val.shape[-1]
-
     if type(lambda_) is int:
         try:
             lambdas = torch.ones(val.shape[-1], dtype=val.dtype)*lambda_
@@ -94,11 +89,10 @@ class Boundary():
         """
         bcond[0] = check_device(bcond[0])
         bcond[2] = check_device(bcond[2])
+        bcond[1] = EquationMixin.equation_unify(bcond[1])
         if len(bcond) == 4:
-            bcond[1] = EquationMixin.equation_unify(bcond[1])
             boundary = [bcond[0], bcond[1], bcond[2], None, bcond[3]]
         elif len(bcond) == 5:
-            bcond[1] = EquationMixin.equation_unify(bcond[1])
             boundary = [bcond[0], bcond[1], bcond[2], None, bcond[4]]
         else:
             raise NameError('Incorrect operator condition')
@@ -135,6 +129,22 @@ class Boundary():
             raise NameError('Incorrect periodic condition')
         return boundary
 
+    def data(self, bcond:list) -> list:
+        '''determine type of data condition and call neumann or dirichlet methods'''
+
+        bop_exist = False
+        for bcond_part in bcond:
+            if type(bcond_part) == dict:
+                bop_exist = True
+                break
+        
+        if bop_exist:
+            boundary = self.neumann(bcond)
+        else:
+            boundary = self.dirichlet(bcond)
+        
+        return boundary
+
     def bnd_choose(self, bcond: list) -> list:
         """
         Method that choose type of boundary condition.
@@ -152,6 +162,8 @@ class Boundary():
             bnd = self.dirichlet(bcond)
         elif bcond[-1] == 'operator':
             bnd = self.neumann(bcond)
+        elif bcond[-1] == 'data':
+            bnd = self.data(bcond)
         else:
             raise NameError('TEDEouS can not use ' + bcond[-1] + ' condition type')
         return bnd

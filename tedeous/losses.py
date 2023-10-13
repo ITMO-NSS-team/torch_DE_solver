@@ -36,7 +36,7 @@ class Losses():
             boundary loss
         """
         bval_diff = torch.mean((bval - true_bval)**2, 0)
-        #print(lambda_bound, bval_diff)
+
         loss_bnd = bval_diff @ lambda_bound.T
         return loss_bnd, bval_diff
 

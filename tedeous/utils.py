@@ -3,7 +3,8 @@
 import torch
 import numpy as np
 from typing import Tuple
-
+from torch.nn import Module
+from torch import Tensor
 from SALib import ProblemSpec
 
 def samples_count(second_order_interactions: bool,
@@ -43,8 +44,9 @@ def lambda_print(lam, keys) -> None:
     Args:
         dict_: dict with lambdas.
     """
-    for val, key in zip(lam,keys):
-        print('lambda_{}: {}'.format(key, val))
+    lam = lam.reshape(-1)
+    for val, key in zip(lam, keys):
+        print('lambda_{}: {}'.format(key, val.item()))
 
 def bcs_reshape(bval, true_bval, bval_length) \
                                             -> Tuple[dict, dict, dict, dict]:
@@ -154,3 +156,31 @@ class Lambda:
         lambda_bnd = self.lambda_compute(sum(op_length), bval_length, ST)
 
         return lambda_op, lambda_bnd
+
+
+class PadTransform(Module):
+    """Pad tensor to a fixed length with given padding value.
+
+    :param max_length: Maximum length to pad to
+    :type max_length: int
+    :param pad_value: Value to pad the tensor with
+    :type pad_value: bool
+    """
+
+    def __init__(self, max_length: int, pad_value: int) -> None:
+        super().__init__()
+        self.max_length = max_length
+        self.pad_value = float(pad_value)
+
+    def forward(self, x: Tensor) -> Tensor:
+        """
+        :param x: The tensor to pad
+        :type x: Tensor
+        :return: Tensor padded up to max_length with pad_value
+        :rtype: Tensor
+        """
+        max_encoded_length = x.size(-1)
+        if max_encoded_length < self.max_length:
+            pad_amount = self.max_length - max_encoded_length
+            x = torch.nn.functional.pad(x, (0, pad_amount), value=self.pad_value)
+        return x

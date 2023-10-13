@@ -4,7 +4,7 @@ from typing import Tuple, Union
 from tedeous.points_type import Points_type
 from tedeous.derivative import Derivative
 from tedeous.device import device_type, check_device
-from torchtext.transforms import PadTransform
+from tedeous.utils import PadTransform
 
 
 def integration(func: torch.tensor, grid, pow: Union[int, float] = 2) \
@@ -282,6 +282,14 @@ class Bounds():
                     b_op_val -= self.apply_neumann(bnd[i], bop).reshape(-1, 1)
         return b_op_val
 
+    def apply_data(self, bnd: torch.Tensor, bop: list, var: int) -> torch.Tensor:
+        '''method for applying data'''
+        if bop is None:
+            b_op_val = self.apply_dirichlet(bnd, var).reshape(-1, 1)
+        else:
+            b_op_val = self.apply_neumann(bnd, bop).reshape(-1, 1)
+        return b_op_val
+
     def b_op_val_calc(self, bcond) -> torch.Tensor:
         """
         Auxiliary function. Serves only to evaluate operator on the boundary.
@@ -297,6 +305,9 @@ class Bounds():
             b_op_val = self.apply_neumann(bcond['bnd'], bcond['bop'])
         elif bcond['type'] == 'periodic':
             b_op_val = self.apply_periodic(bcond['bnd'], bcond['bop'],
+                                           bcond['var'])
+        elif bcond['type'] == 'data':
+            b_op_val = self.apply_data(bcond['bnd'], bcond['bop'],
                                            bcond['var'])
         return b_op_val
 
