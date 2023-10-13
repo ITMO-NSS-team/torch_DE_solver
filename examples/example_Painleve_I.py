@@ -5,7 +5,6 @@ Created on Mon May 31 12:33:44 2021
 @author: user
 """
 import torch
-import torchtext
 import SALib
 import numpy as np
 import os

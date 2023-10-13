@@ -7,7 +7,6 @@ Created on Mon May 31 12:33:44 2021
 import os
 import numpy as np
 import torch
-import torchtext
 import SALib
 import time
 import pandas as pd

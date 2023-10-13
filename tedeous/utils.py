@@ -165,6 +165,10 @@ class PadTransform(Module):
     :type max_length: int
     :param pad_value: Value to pad the tensor with
     :type pad_value: bool
+    
+    src: https://pytorch.org/text/stable/transforms.html#torchtext.transforms.PadTransform
+    
+    Done to avoid torchtext dependency (we need only this function).
     """
 
     def __init__(self, max_length: int, pad_value: int) -> None:
