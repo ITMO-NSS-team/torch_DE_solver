@@ -23,6 +23,8 @@ from tedeous.input_preprocessing import Equation
 from tedeous.solver import Solver, grid_format_prepare, Plots
 from tedeous.solution import Solution
 from tedeous.device import solver_device
+from tedeous.models import mat_model
+
 
 """
 Preparing grid
@@ -138,8 +140,6 @@ for grid_res in range(40, 110, 10):
     for _ in range(10):
         sln=np.genfromtxt(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'wolfram_sln/wave_sln_'+str(grid_res)+'.csv')),delimiter=',')
         
-        model= torch.rand(grid[0].shape)
-        
         start = time.time()
         
         model_arch = torch.nn.Sequential(
@@ -154,20 +154,22 @@ for grid_res in range(40, 110, 10):
 
         equation = Equation(grid, wave_eq, bconds).set_strategy('mat')
 
+        model= mat_model(grid, wave_eq)
+
         img_dir=os.path.join(os.path.dirname( __file__ ), 'wave_img')
 
         if not(os.path.isdir(img_dir)):
             os.mkdir(img_dir)
 
         model = Solver(grid, equation, model, 'mat').solve(lambda_bound=100,
-                                         verbose=True, learning_rate=1e-4, eps=1e-7, tmin=1000, tmax=5e6,
+                                         verbose=True, learning_rate=1e-1, eps=1e-7, tmin=1000, tmax=5e6,
                                          use_cache=True,cache_dir='../cache/',cache_verbose=False,
-                                         save_always=False,print_every=None,
-                                         patience=5,loss_oscillation_window=100,no_improvement_patience=100,
-                                         model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=model_arch,step_plot_print=False,step_plot_save=False,image_save_dir=img_dir)
+                                         save_always=False, print_every=100,
+                                         patience=5, loss_oscillation_window=100, no_improvement_patience=100,
+                                         model_randomize_parameter=1e-5,optimizer_mode='LBFGS',cache_model=model_arch,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
 
 
-    
+
         end = time.time()
 
         #model = torch.transpose(model, 0, 1)

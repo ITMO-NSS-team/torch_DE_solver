@@ -124,6 +124,6 @@ model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=100,
                                          verbose=True, learning_rate=1e-3, eps=1e-7, tmin=1000, tmax=1e5,
                                          use_cache=True,cache_dir='../cache/',cache_verbose=False,
                                          save_always=False,print_every=1000,
-                                         patience=3,loss_oscillation_window=100,no_improvement_patience=1000,
+                                         patience=6,loss_oscillation_window=100,no_improvement_patience=1000,
                                          model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=None,
                                          step_plot_print=False, step_plot_save=True, tol=50, image_save_dir=img_dir)

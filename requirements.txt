@@ -4,6 +4,7 @@ pandas
 scipy
 seaborn
 torch
+torchtext
 autodocsumm
 typing
 SALib
