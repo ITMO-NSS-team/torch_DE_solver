@@ -7,12 +7,11 @@ import os
 import datetime
 from typing import Union
 from torch.optim.lr_scheduler import ExponentialLR
-import GPUtil
 
 from tedeous.cache import *
 from tedeous.device import check_device, device_type
 from tedeous.solution import Solution
-import tedeous.input_preprocessing
+from tedeous.utils import Learn
 
 
 def grid_format_prepare(coord_list, mode='NN') -> torch.Tensor:
@@ -49,7 +48,7 @@ def grid_format_prepare(coord_list, mode='NN') -> torch.Tensor:
 
 
 class Plots():
-    def __init__(self, model, grid, mode, tol = 0):
+    def __init__(self, model, grid, mode, tol=0):
         self.model = model
         self.grid = grid
         self.mode = mode
@@ -66,6 +65,8 @@ class Plots():
             nvars_model = self.model[-1].out_features
         except:
             nvars_model = self.model.model[-1].out_features
+        # else:
+        #     nvars_model = self.model[-2].out_features
 
         nparams = self.grid.shape[1]
         fig = plt.figure(figsize=(15, 8))
@@ -211,8 +212,9 @@ class Solver():
 
         return optimizer
 
-    def solve(self,lambda_operator: Union[float, list] = 1,lambda_bound: Union[float, list] = 10,
-              lambda_update: bool = False, second_order_interactions: bool = True, sampling_N: int = 1, verbose: int = 0,
+    def solve(self, lambda_operator: Union[float, list] = 1, lambda_bound: Union[float, list] = 10,
+              lambda_update: bool = False, second_order_interactions: bool = True, sampling_N: int = 1,
+              verbose: int = 0,
               learning_rate: float = 1e-4, gamma=None, lr_decay=1000,
               eps: float = 1e-5, tmin: int = 1000, tmax: float = 1e5,
               nmodels: Union[int, None] = None, name: Union[str, None] = None,
@@ -224,7 +226,7 @@ class Solver():
               no_improvement_patience: int = 1000, model_randomize_parameter: Union[int, float] = 0,
               optimizer_mode: str = 'Adam', step_plot_print: Union[bool, int] = False,
               step_plot_save: Union[bool, int] = False, image_save_dir: Union[str, None] = None, tol: float = 0,
-              clear_cache: bool  =False, normalized_loss_stop: bool = False, mixed_precision = False) -> Any:
+              clear_cache: bool = False, normalized_loss_stop: bool = False, mixed_precision=False) -> Any:
 
         """
         High-level interface for solving equations.
@@ -267,7 +269,7 @@ class Solver():
         Cache_class = Model_prepare(self.grid, self.equal_cls,
                                     self.model, self.mode, self.weak_form)
 
-        #Cache_class.change_cache_dir(cache_dir)
+        # Cache_class.change_cache_dir(cache_dir)
 
         # prepare input data to uniform format
         r = create_random_fn(model_randomize_parameter)
@@ -283,7 +285,7 @@ class Solver():
                                                      cache_verbose,
                                                      model_randomize_parameter,
                                                      cache_model,
-                                                    return_normalized_loss=normalized_loss_stop)
+                                                     return_normalized_loss=normalized_loss_stop)
 
             Solution_class = Solution(self.grid, self.equal_cls,
                                       self.model, self.mode, self.weak_form,
@@ -293,7 +295,7 @@ class Solver():
                                       self.model, self.mode, self.weak_form,
                                       lambda_operator, lambda_bound)
 
-            _ , min_loss = Solution_class.evaluate()
+            _, min_loss = Solution_class.evaluate()
 
         self.plot = Plots(self.model, self.grid, self.mode, tol)
 
@@ -312,64 +314,19 @@ class Solver():
         last_loss = np.zeros(loss_oscillation_window) + float(min_loss)
         line = np.polyfit(range(loss_oscillation_window), last_loss, 1)
 
-        def closure():
-            nonlocal cur_loss
-            optimizer.zero_grad()
-            loss, loss_normalized = Solution_class.evaluate(second_order_interactions=second_order_interactions,
-                                           sampling_N=sampling_N,
-                                           lambda_update=lambda_update,
-                                           tol=tol)
-
-            loss.backward()
-            if normalized_loss_stop:
-                cur_loss = loss_normalized.item()
-            else:
-                cur_loss = loss.item()
-            return loss
-
         stop_dings = 0
         t_imp_start = 0
         # to stop train proceduce we fit the line in the loss data
         # if line is flat enough "patience" times, we stop the procedure
         cur_loss = min_loss
 
-
-        scaler = torch.cuda.amp.GradScaler(enabled=mixed_precision)
-        if mixed_precision:
-            print("Mixed-precision mode enabled. Works only with GPU.")
-        #     t=0
-        #     while t<1e4:
-        #         optimizer.zero_grad()
-        #         with torch.autocast(device_type=device, dtype=torch.float16, enabled=mixed_precision):
-        #             loss, loss_normalized = Solution_class.evaluate(second_order_interactions=second_order_interactions,
-        #                                                             sampling_N=sampling_N,
-        #                                                             lambda_update=lambda_update,
-        #                                                             tol=tol)
-        #         scaler.scale(loss).backward()
-        #         scaler.step(optimizer)
-        #         scaler.update()
-        #         curr_loss = loss_normalized.item()
-        #         t+=1
-        #         # if t%500==0:
-        #         print('t={},loss={}'.format(t, curr_loss))
+        closure = Learn(solution=Solution_class, optimizer=optimizer, device=device,
+                        mixed_precision=mixed_precision, second_order_interactions=second_order_interactions,
+                        sampling_N=sampling_N, lambda_update=lambda_update, tol=tol)
 
         while stop_dings <= patience:
-
-
-            if mixed_precision:
-                optimizer.zero_grad()
-                with torch.autocast(device_type=device, dtype=torch.float16, enabled=mixed_precision):
-                    loss, loss_normalized = Solution_class.evaluate(second_order_interactions=second_order_interactions,
-                                                                    sampling_N=sampling_N,
-                                                                    lambda_update=lambda_update,
-                                                                tol=tol)
-                scaler.scale(loss).backward()
-                scaler.step(optimizer)
-                scaler.update()
-                cur_loss = loss_normalized.item()
-            else:
-                optimizer.step(closure)
-
+            cur_loss = closure.do(normalized_loss_stop)
+            cur_loss = cur_loss.item()
 
             if cur_loss != cur_loss:
                 print(f'Loss is equal to NaN, something went wrong (LBFGS+high'
@@ -437,8 +394,6 @@ class Solver():
                 print('[{}] Print every {} step'.format(
                     datetime.datetime.now(), print_every))
                 print(info_string)
-                GPUtil.showUtilization()
-
 
                 if step_plot_print or step_plot_save:
                     self.plot.solution_print(title='Iteration = ' + str(t),
@@ -457,9 +412,3 @@ class Solver():
                                        optimizer.state_dict(),
                                        name=name)
         return self.model
-
-
-
-
-
-
