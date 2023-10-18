@@ -11,8 +11,9 @@ from torch.optim.lr_scheduler import ExponentialLR
 from tedeous.cache import *
 from tedeous.device import check_device, device_type
 from tedeous.solution import Solution
-import tedeous.input_preprocessing
+from tedeous.utils import Learn
 
+device = device_type()
 
 def grid_format_prepare(coord_list, mode='NN') -> torch.Tensor:
     """
@@ -226,9 +227,11 @@ class Solver():
                     param_str = name + '=' + str(p.item()) + ' '
         return param_str
 
-    def solve(self,lambda_operator: Union[float, list] = 1,lambda_bound: Union[float, list] = 10, derivative_points:float=2,
-              lambda_update: bool = False, second_order_interactions: bool = True, sampling_N: int = 1, verbose: int = 0,
-              learning_rate: float = 1e-4, gamma=None, lr_decay=1000,
+    def solve(self,
+              lambda_operator: Union[float, list] = 1, lambda_bound: Union[float, list] = 10,
+              derivative_points: float = 2, lambda_update: bool = False, second_order_interactions: bool = True,
+              sampling_N: int = 1, verbose: int = 0,
+              learning_rate: float = 1e-4, gamma:float=None, lr_decay:int=1000,
               eps: float = 1e-5, tmin: int = 1000, tmax: float = 1e5,
               nmodels: Union[int, None] = None, name: Union[str, None] = None,
               abs_loss: Union[None, float] = None, use_cache: bool = True,
@@ -239,7 +242,8 @@ class Solver():
               no_improvement_patience: int = 1000, model_randomize_parameter: Union[int, float] = 0,
               optimizer_mode: str = 'Adam', step_plot_print: Union[bool, int] = False,
               step_plot_save: Union[bool, int] = False, image_save_dir: Union[str, None] = None, tol: float = 0,
-              clear_cache: bool  =False, normalized_loss_stop: bool = False, inverse_parameters: dict = None) -> Any:
+              clear_cache: bool = False, normalized_loss_stop: bool = False, inverse_parameters: dict = None,
+              mixed_precision: bool=False) -> Any:
         """
         High-level interface for solving equations.
 
@@ -271,6 +275,8 @@ class Solver():
             step_plot_save: saves a figure through each given step.
             image_save_dir: a directory where saved figure in.
             tol: float constant, influences on error penalty in casual_loss algorithm.
+            derivative_points:
+            sampling_N:
 
         Returns:
             model.
@@ -324,27 +330,20 @@ class Solver():
         last_loss = np.zeros(loss_oscillation_window) + float(min_loss)
         line = np.polyfit(range(loss_oscillation_window), last_loss, 1)
 
-        def closure():
-            nonlocal cur_loss
-            optimizer.zero_grad()
-            loss, loss_normalized = Solution_class.evaluate(second_order_interactions=second_order_interactions,
-                                           sampling_N=sampling_N,
-                                           lambda_update=lambda_update)
-
-            loss.backward()
-            if normalized_loss_stop:
-                cur_loss = loss_normalized.item()
-            else:
-                cur_loss = loss.item()
-            return loss
-
         stop_dings = 0
         t_imp_start = 0
         # to stop train proceduce we fit the line in the loss data
         # if line is flat enough "patience" times, we stop the procedure
         cur_loss = min_loss
+
+        closure = Learn(solution=Solution_class, optimizer=optimizer, device=device,
+                        mixed_precision=mixed_precision, second_order_interactions=second_order_interactions,
+                        sampling_N=sampling_N, lambda_update=lambda_update)
+
         while stop_dings <= patience:
-            optimizer.step(closure)
+            cur_loss = closure.do(normalized_loss_stop)
+            cur_loss = cur_loss.item()
+
             if cur_loss != cur_loss:
                 print(f'Loss is equal to NaN, something went wrong (LBFGS+high'
                       f'learning rate and pytorch<1.12 could be the problem)')
@@ -410,14 +409,14 @@ class Solver():
                                                  solution_save=step_plot_save,
                                                  save_dir=image_save_dir)
                 stop_dings += 1
-            # print('t',t)
+
             if print_every != None and (t % print_every == 0) and verbose:
                 print('[{}] Print every {} step'.format(
                     datetime.datetime.now(), print_every))
                 print(info_string)
                 if inverse_parameters is not None:
                     print(self.str_param(inverse_parameters))
-                # print('loss', closure().item(), 'loss_norm', cur_loss)
+
                 if step_plot_print or step_plot_save:
                     self.plot.solution_print(title='Iteration = ' + str(t),
                                              solution_print=step_plot_print,

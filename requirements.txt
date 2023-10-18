@@ -3,8 +3,7 @@ numpy
 pandas
 scipy
 seaborn
-torch
-torchtext
+torch >=2.0
 autodocsumm
 typing
 SALib
