@@ -157,7 +157,6 @@ class Lambda:
 
         return lambda_op, lambda_bnd
 
-
 class PadTransform(Module):
     """Pad tensor to a fixed length with given padding value.
 
@@ -237,6 +236,7 @@ class Learn:
     def do(self, normalized_loss_stop):
         if self.mixed_precision:
             loss, loss_normalized = self.closure_mixed_cpu()
+            print(f'Mixed precision enabled. The device is {self.device}')
         else:
             loss, loss_normalized =  self.closure()
 

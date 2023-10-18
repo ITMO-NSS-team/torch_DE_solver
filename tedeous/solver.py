@@ -49,7 +49,7 @@ def grid_format_prepare(coord_list, mode='NN') -> torch.Tensor:
 
 
 class Plots():
-    def __init__(self, model, grid, mode, tol = 0):
+    def __init__(self, model, grid, mode, tol=0):
         self.model = model
         self.grid = grid
         self.mode = mode
@@ -66,6 +66,8 @@ class Plots():
             nvars_model = self.model[-1].out_features
         except:
             nvars_model = self.model.model[-1].out_features
+        # else:
+        #     nvars_model = self.model[-2].out_features
 
         nparams = self.grid.shape[1]
         fig = plt.figure(figsize=(15, 8))
@@ -287,6 +289,11 @@ class Solver():
 
         Cache_class.change_cache_dir(cache_dir)
 
+        device = device_type()
+
+        Cache_class = Model_prepare(self.grid, self.equal_cls,
+                                    self.model, self.mode, self.weak_form)
+
         # prepare input data to uniform format
         r = create_random_fn(model_randomize_parameter)
 
@@ -301,7 +308,7 @@ class Solver():
                                                      cache_verbose,
                                                      model_randomize_parameter,
                                                      cache_model,
-                                                    return_normalized_loss=normalized_loss_stop)
+                                                     return_normalized_loss=normalized_loss_stop)
 
             Solution_class = Solution(self.grid, self.equal_cls,
                                       self.model, self.mode, self.weak_form,
@@ -312,6 +319,7 @@ class Solver():
                                       lambda_operator, lambda_bound, tol, derivative_points)
 
             min_loss , _ = Solution_class.evaluate()
+
 
         self.plot = Plots(self.model, self.grid, self.mode, tol)
 
@@ -409,14 +417,14 @@ class Solver():
                                                  solution_save=step_plot_save,
                                                  save_dir=image_save_dir)
                 stop_dings += 1
-
+                # print('t',t)
             if print_every != None and (t % print_every == 0) and verbose:
                 print('[{}] Print every {} step'.format(
                     datetime.datetime.now(), print_every))
                 print(info_string)
                 if inverse_parameters is not None:
                     print(self.str_param(inverse_parameters))
-
+                # print('loss', closure().item(), 'loss_norm', cur_loss)
                 if step_plot_print or step_plot_save:
                     self.plot.solution_print(title='Iteration = ' + str(t),
                                              solution_print=step_plot_print,
