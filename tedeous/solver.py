@@ -11,7 +11,6 @@ from torch.optim.lr_scheduler import ExponentialLR
 from tedeous.cache import *
 from tedeous.device import check_device, device_type
 from tedeous.solution import Solution
-from tedeous.utils import Learn
 
 device = device_type()
 
@@ -117,7 +116,7 @@ class Plots():
                             self.model[i].detach().cpu().numpy().reshape(-1))
             else:
                 ax1 = fig.add_subplot(1, nvars_model, i+1, projection='3d')
-                
+
                 if title!=None:
                     ax1.set_title(title+' variable {}'.format(i))
                 ax1.plot_trisurf(self.grid[0].detach().cpu().numpy().reshape(-1),
@@ -283,13 +282,26 @@ class Solver():
         Returns:
             model.
         """
+        device = device_type()
+
+        optimizer = self.optimizer_choice(optimizer_mode, learning_rate)
+
+        if gamma != None:
+            scheduler = ExponentialLR(optimizer, gamma=gamma)
+
+        if mixed_precision:
+            scaler = torch.cuda.amp.GradScaler(enabled=mixed_precision)
+            print(f'Mixed precision enabled. The device is {device}')
+            if optimizer.__class__.__name__ == "LBFGS":
+                raise NotImplementedError("AMP and the LBFGS optimizer are not compatible.")
+
+        cuda_flag = True if device == 'cuda' and mixed_precision else False
+        dtype = torch.float16 if device == 'cuda' else torch.bfloat16
 
         Cache_class = Model_prepare(self.grid, self.equal_cls,
                                     self.model, self.mode, self.weak_form)
 
         Cache_class.change_cache_dir(cache_dir)
-
-        device = device_type()
 
         Cache_class = Model_prepare(self.grid, self.equal_cls,
                                     self.model, self.mode, self.weak_form)
@@ -323,11 +335,6 @@ class Solver():
 
         self.plot = Plots(self.model, self.grid, self.mode, tol)
 
-        optimizer = self.optimizer_choice(optimizer_mode, learning_rate)
-
-        if gamma != None:
-            scheduler = ExponentialLR(optimizer, gamma=gamma)
-
         # standard NN stuff
         if verbose:
             print('[{}] initial (min) loss is {}'.format(
@@ -338,19 +345,48 @@ class Solver():
         last_loss = np.zeros(loss_oscillation_window) + float(min_loss)
         line = np.polyfit(range(loss_oscillation_window), last_loss, 1)
 
+        def closure():
+            nonlocal cur_loss
+            optimizer.zero_grad()
+            with torch.autocast(device_type=device, dtype=dtype, enabled=mixed_precision):
+                loss, loss_normalized = Solution_class.evaluate(second_order_interactions=second_order_interactions,
+                                                                sampling_N=sampling_N,
+                                                                lambda_update=lambda_update)
+            loss.backward()
+
+            if normalized_loss_stop:
+                cur_loss = loss_normalized.item()
+            else:
+                cur_loss = loss.item()
+            return loss
+
+        def closure_cuda():
+            nonlocal cur_loss
+            optimizer.zero_grad()
+            with torch.autocast(device_type=device, dtype=dtype):
+                loss, loss_normalized = Solution_class.evaluate(second_order_interactions=second_order_interactions,
+                                                                sampling_N=sampling_N,
+                                                                lambda_update=lambda_update)
+                assert loss.dtype is dtype
+
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+            if normalized_loss_stop:
+                cur_loss = loss_normalized.item()
+            else:
+                cur_loss = loss.item()
+
         stop_dings = 0
         t_imp_start = 0
         # to stop train proceduce we fit the line in the loss data
         # if line is flat enough "patience" times, we stop the procedure
+
         cur_loss = min_loss
 
-        closure = Learn(solution=Solution_class, optimizer=optimizer, device=device,
-                        mixed_precision=mixed_precision, second_order_interactions=second_order_interactions,
-                        sampling_N=sampling_N, lambda_update=lambda_update)
 
         while stop_dings <= patience:
-            cur_loss = closure.do(normalized_loss_stop)
-            cur_loss = cur_loss.item()
+            optimizer.step(closure) if not cuda_flag else closure_cuda()
 
             if cur_loss != cur_loss:
                 print(f'Loss is equal to NaN, something went wrong (LBFGS+high'
