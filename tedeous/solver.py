@@ -303,9 +303,6 @@ class Solver():
 
         Cache_class.change_cache_dir(cache_dir)
 
-        Cache_class = Model_prepare(self.grid, self.equal_cls,
-                                    self.model, self.mode, self.weak_form)
-
         # prepare input data to uniform format
         r = create_random_fn(model_randomize_parameter)
 
