@@ -12,7 +12,6 @@ from tedeous.cache import *
 from tedeous.device import check_device, device_type
 from tedeous.solution import Solution
 
-device = device_type()
 
 def grid_format_prepare(coord_list, mode='NN') -> torch.Tensor:
     """
@@ -106,23 +105,23 @@ class Plots():
 
         nparams = self.grid.shape[0]
         nvars_model = self.model.shape[0]
-        fig = plt.figure(figsize=(15,8))
+        fig = plt.figure(figsize=(15, 8))
         for i in range(nvars_model):
             if nparams == 1:
-                ax1 = fig.add_subplot(1, nvars_model, i+1)
+                ax1 = fig.add_subplot(1, nvars_model, i + 1)
                 if title != None:
-                    ax1.set_title(title+' variable {}'.format(i))
+                    ax1.set_title(title + ' variable {}'.format(i))
                 ax1.scatter(self.grid.detach().cpu().numpy().reshape(-1),
                             self.model[i].detach().cpu().numpy().reshape(-1))
             else:
-                ax1 = fig.add_subplot(1, nvars_model, i+1, projection='3d')
+                ax1 = fig.add_subplot(1, nvars_model, i + 1, projection='3d')
 
-                if title!=None:
-                    ax1.set_title(title+' variable {}'.format(i))
+                if title != None:
+                    ax1.set_title(title + ' variable {}'.format(i))
                 ax1.plot_trisurf(self.grid[0].detach().cpu().numpy().reshape(-1),
-                            self.grid[1].detach().cpu().numpy().reshape(-1),
-                            self.model[i].detach().cpu().numpy().reshape(-1),
-                            cmap=cm.jet, linewidth=0.2, alpha=1)
+                                 self.grid[1].detach().cpu().numpy().reshape(-1),
+                                 self.model[i].detach().cpu().numpy().reshape(-1),
+                                 cmap=cm.jet, linewidth=0.2, alpha=1)
             ax1.set_xlabel("x1")
             ax1.set_ylabel("x2")
 
@@ -232,7 +231,7 @@ class Solver():
               lambda_operator: Union[float, list] = 1, lambda_bound: Union[float, list] = 10,
               derivative_points: float = 2, lambda_update: bool = False, second_order_interactions: bool = True,
               sampling_N: int = 1, verbose: int = 0,
-              learning_rate: float = 1e-4, gamma:float=None, lr_decay:int=1000,
+              learning_rate: float = 1e-4, gamma: float = None, lr_decay: int = 1000,
               eps: float = 1e-5, tmin: int = 1000, tmax: float = 1e5,
               nmodels: Union[int, None] = None, name: Union[str, None] = None,
               abs_loss: Union[None, float] = None, use_cache: bool = True,
@@ -244,7 +243,7 @@ class Solver():
               optimizer_mode: str = 'Adam', step_plot_print: Union[bool, int] = False,
               step_plot_save: Union[bool, int] = False, image_save_dir: Union[str, None] = None, tol: float = 0,
               clear_cache: bool = False, normalized_loss_stop: bool = False, inverse_parameters: dict = None,
-              mixed_precision: bool=False) -> Any:
+              mixed_precision: bool = False) -> Any:
         """
         High-level interface for solving equations.
 
@@ -282,106 +281,111 @@ class Solver():
         Returns:
             model.
         """
-        device = device_type()
-
+        """
+        Cache initialization.
+        """
+        cache_utils = CacheUtils()
+        if use_cache:
+            cache_utils.cache_dir = cache_dir
+            cache_cls = Cache(self.grid, self.equal_cls, self.model, self.mode, self.weak_form, mixed_precision)
+            self.model = cache_cls.cache(nmodels,
+                                         lambda_operator,
+                                         lambda_bound,
+                                         cache_verbose,
+                                         model_randomize_parameter,
+                                         cache_model,
+                                         return_normalized_loss=normalized_loss_stop)
+        if clear_cache:
+            cache_utils.clear_cache_dir()
+        """
+        Optimizer and scheduler initialization.
+        """
         optimizer = self.optimizer_choice(optimizer_mode, learning_rate)
 
         if gamma != None:
             scheduler = ExponentialLR(optimizer, gamma=gamma)
+        """
+        Mixed precision initialization.
+        """
+        device = device_type()
 
         if mixed_precision:
             scaler = torch.cuda.amp.GradScaler(enabled=mixed_precision)
             print(f'Mixed precision enabled. The device is {device}')
             if optimizer.__class__.__name__ == "LBFGS":
                 raise NotImplementedError("AMP and the LBFGS optimizer are not compatible.")
-
+        else:
+            scaler = None
         cuda_flag = True if device == 'cuda' and mixed_precision else False
         dtype = torch.float16 if device == 'cuda' else torch.bfloat16
-
-        Cache_class = Model_prepare(self.grid, self.equal_cls,
-                                    self.model, self.mode, self.weak_form)
-
-        Cache_class.change_cache_dir(cache_dir)
-
-        # prepare input data to uniform format
+        '''
+        Model randomize parameter.
+        '''
         r = create_random_fn(model_randomize_parameter)
 
-        if clear_cache:
-            Cache_class.clear_cache_dir()
+        '''
+        Initializing solution class and compute min loss.
+        '''
+        sln_cls = Solution(self.grid, self.equal_cls,
+                           self.model, self.mode, self.weak_form,
+                           lambda_operator, lambda_bound, tol, derivative_points)
+        with torch.autocast(device_type=device, dtype=dtype, enabled=mixed_precision):
+            min_loss, _ = sln_cls.evaluate()
 
-        #  use cache if needed
-        if use_cache:
-            self.model, min_loss = Cache_class.cache(nmodels,
-                                                     lambda_operator,
-                                                     lambda_bound,
-                                                     cache_verbose,
-                                                     model_randomize_parameter,
-                                                     cache_model,
-                                                     return_normalized_loss=normalized_loss_stop)
-
-            Solution_class = Solution(self.grid, self.equal_cls,
-                                      self.model, self.mode, self.weak_form,
-                                      lambda_operator, lambda_bound, tol, derivative_points)
-        else:
-            Solution_class = Solution(self.grid, self.equal_cls,
-                                      self.model, self.mode, self.weak_form,
-                                      lambda_operator, lambda_bound, tol, derivative_points)
-
-            min_loss , _ = Solution_class.evaluate()
-
-
-        self.plot = Plots(self.model, self.grid, self.mode, tol)
-
-        # standard NN stuff
+        '''
+        Verbose parameter.
+        '''
         if verbose:
             print('[{}] initial (min) loss is {}'.format(
                 datetime.datetime.now(), min_loss.item()))
-
-        t = 0
-
-        last_loss = np.zeros(loss_oscillation_window) + float(min_loss)
-        line = np.polyfit(range(loss_oscillation_window), last_loss, 1)
-
+        '''
+        Closure for cpu and cuda. Pytorch essential.
+        '''
         def closure():
             nonlocal cur_loss
             optimizer.zero_grad()
             with torch.autocast(device_type=device, dtype=dtype, enabled=mixed_precision):
-                loss, loss_normalized = Solution_class.evaluate(second_order_interactions=second_order_interactions,
-                                                                sampling_N=sampling_N,
-                                                                lambda_update=lambda_update)
-            loss.backward()
+                loss, loss_normalized = sln_cls.evaluate(second_order_interactions=second_order_interactions,
+                                                         sampling_N=sampling_N,
+                                                         lambda_update=lambda_update)
 
-            if normalized_loss_stop:
-                cur_loss = loss_normalized.item()
-            else:
-                cur_loss = loss.item()
+            loss.backward()
+            cur_loss = loss_normalized.item() if normalized_loss_stop else loss.item()
             return loss
 
         def closure_cuda():
             nonlocal cur_loss
             optimizer.zero_grad()
-            with torch.autocast(device_type=device, dtype=dtype):
-                loss, loss_normalized = Solution_class.evaluate(second_order_interactions=second_order_interactions,
-                                                                sampling_N=sampling_N,
-                                                                lambda_update=lambda_update)
-                assert loss.dtype is dtype
+            with torch.autocast(device_type=device, dtype=dtype, enabled=mixed_precision):
+                loss, loss_normalized = sln_cls.evaluate(second_order_interactions=second_order_interactions,
+                                                         sampling_N=sampling_N,
+                                                         lambda_update=lambda_update)
 
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
-            if normalized_loss_stop:
-                cur_loss = loss_normalized.item()
-            else:
-                cur_loss = loss.item()
 
+            cur_loss = loss_normalized.item() if normalized_loss_stop else loss.item()
+            return loss
+
+        '''
+        Parameters for optimization loop.
+        '''
+        t = 0
         stop_dings = 0
         t_imp_start = 0
-        # to stop train proceduce we fit the line in the loss data
-        # if line is flat enough "patience" times, we stop the procedure
 
+        last_loss = np.zeros(loss_oscillation_window) + float(min_loss)
+        line = np.polyfit(range(loss_oscillation_window), last_loss, 1)
         cur_loss = min_loss
 
-
+        '''
+        Initializing plot class.
+        '''
+        self.plot = Plots(self.model, self.grid, self.mode, tol)
+        '''
+        Optimization.
+        '''
         while stop_dings <= patience:
             optimizer.step(closure) if not cuda_flag else closure_cuda()
 
@@ -450,14 +454,14 @@ class Solver():
                                                  solution_save=step_plot_save,
                                                  save_dir=image_save_dir)
                 stop_dings += 1
-                # print('t',t)
+
             if print_every != None and (t % print_every == 0) and verbose:
                 print('[{}] Print every {} step'.format(
                     datetime.datetime.now(), print_every))
                 print(info_string)
                 if inverse_parameters is not None:
                     print(self.str_param(inverse_parameters))
-                # print('loss', closure().item(), 'loss_norm', cur_loss)
+
                 if step_plot_print or step_plot_save:
                     self.plot.solution_print(title='Iteration = ' + str(t),
                                              solution_print=step_plot_print,
@@ -467,11 +471,12 @@ class Solver():
             t += 1
             if t > tmax:
                 break
+
         if save_always:
             if self.mode == 'mat':
-                Cache_class.save_model_mat(name=name, cache_verbose=cache_verbose)
+                cache_utils.save_model_mat(model=self.model, grid=self.grid, name=name)
             else:
-                Cache_class.save_model(self.model, self.model.state_dict(),
-                                       optimizer.state_dict(),
-                                       name=name)
+                scaler = scaler if scaler else None
+                cache_utils.save_model(model=self.model, optimizer=optimizer,
+                                       scaler=scaler, name=name)
         return self.model

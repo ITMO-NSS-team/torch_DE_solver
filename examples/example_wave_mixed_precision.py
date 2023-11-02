@@ -125,7 +125,7 @@ def experiment(device):
     start = time.time()
 
     model = Solver(grid, equation, model, 'NN').solve(lambda_bound=1000, verbose=True, learning_rate=1e-2,
-                                                      eps=1e-6, tmin=1000, tmax=1e5, use_cache=False,
+                                                      eps=1e-6, tmin=1000, tmax=1e5, use_cache=True,
                                                       cache_dir='../cache/', cache_verbose=True,
                                                       save_always=False, no_improvement_patience=500, print_every=500,
                                                       step_plot_print=False,
@@ -136,7 +136,7 @@ def experiment(device):
     start_1 = time.time()
 
     model_1 = Solver(grid, equation, model_1, 'NN').solve(lambda_bound=1000, verbose=True, learning_rate=1e-2,
-                                                          eps=1e-6, tmin=1000, tmax=1e5, use_cache=False,
+                                                          eps=1e-6, tmin=1000, tmax=1e5, use_cache=True,
                                                           cache_dir='../cache/', cache_verbose=True,
                                                           save_always=False, no_improvement_patience=500,
                                                           print_every=500, step_plot_print=False,
