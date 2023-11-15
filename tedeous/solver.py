@@ -295,6 +295,7 @@ class Solver():
                                          model_randomize_parameter,
                                          cache_model,
                                          return_normalized_loss=normalized_loss_stop)
+
         if clear_cache:
             cache_utils.clear_cache_dir()
         """
@@ -360,7 +361,8 @@ class Solver():
                 loss, loss_normalized = sln_cls.evaluate(second_order_interactions=second_order_interactions,
                                                          sampling_N=sampling_N,
                                                          lambda_update=lambda_update)
-
+                # print(list(self.model.parameters())[0].dtype)
+                # print(loss.dtype)
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()

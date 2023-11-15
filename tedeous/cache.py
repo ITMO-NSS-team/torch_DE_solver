@@ -252,9 +252,6 @@ class CachePreprocessing:
             file = files[i]
             checkpoint = torch.load(file)
 
-            if 'scaler_state_dict' not in checkpoint.keys() and self.mixed_precision:
-                continue
-
             model = checkpoint['model']
             model.load_state_dict(checkpoint['model_state_dict'])
 
@@ -283,7 +280,6 @@ class CachePreprocessing:
                 best_checkpoint['model_state_dict'] = model.state_dict()
                 best_checkpoint['optimizer_state_dict'] = \
                     checkpoint['optimizer_state_dict']
-                best_checkpoint['scaler_state_dict'] = checkpoint['scaler_state_dict']
                 if cache_verbose:
                     print('best_model_num={} , normalized_loss={}'.format(i, min_norm_loss.item()))
 
@@ -355,6 +351,7 @@ class CachePreprocessing:
                 print('Using model from cache')
         # else retrain the input model using the cache model
         else:
+            print('interp')
             cache_model = cache_checkpoint['model']
             cache_model.load_state_dict(cache_checkpoint['model_state_dict'])
             cache_model.eval()
@@ -404,6 +401,7 @@ class Cache():
                                                                  lambda_operator=lambda_operator,
                                                                  lambda_bound=lambda_bound,
                                                                  return_normalized_loss=return_normalized_loss)
+        # print(cache_checkpoint)
         model = self.cache_preprocessing.cache_retrain(cache_checkpoint, cache_verbose=cache_verbose)
         model.apply(r)
 
