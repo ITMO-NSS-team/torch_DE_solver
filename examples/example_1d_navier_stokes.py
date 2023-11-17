@@ -28,31 +28,31 @@ grid = torch.cartesian_prod(t, x)
 
 def bconds_1():
     # Boundary conditions at x=0
-    bnd1_u = torch.cartesian_prod(torch.Tensor([0]), t)
+    bnd1_u = torch.cartesian_prod(torch.tensor([0.]), t)
     # u(0,t) = 2
     bndval1_u = 2 * torch.ones_like(bnd1_u[:, 0])
     bnd_type_1_u = 'dirichlet'
 
     # Boundary conditions at x=5
-    bnd2_u = torch.cartesian_prod(torch.Tensor([5]), t)
+    bnd2_u = torch.cartesian_prod(torch.tensor([5.]), t)
     # u(5,t) = 2
     bndval2_u = 2 * torch.ones_like(bnd2_u[:, 0])
     bnd_type_2_u = 'dirichlet'
 
     # Boundary conditions at x=0
-    bnd1_p = torch.cartesian_prod(torch.Tensor([0]), t)
+    bnd1_p = torch.cartesian_prod(torch.tensor([0.]), t)
     # p(0,t) = 0
     bndval1_p = torch.zeros_like(bnd1_p[:, 0])
     bnd_type_1_p = 'dirichlet'
 
     # Boundary conditions at x=5
-    bnd2_p = torch.cartesian_prod(torch.Tensor([5]), t)
+    bnd2_p = torch.cartesian_prod(torch.tensor([5.]), t)
     # p(5,t) = 0
     bndval2_p = torch.zeros_like(bnd2_p[:, 0])
     bnd_type_2_p = 'dirichlet'
 
     # Initial condition at t=0
-    ics_u = torch.cartesian_prod(x, torch.Tensor([0]))
+    ics_u = torch.cartesian_prod(x, torch.tensor([0.]))
     icsval_u = torch.sin((2 * math.pi * x) / 5) + 2
     ics_type_u = 'dirichlet'
 
@@ -65,7 +65,7 @@ def bconds_1():
 
 def bconds_2():
     # Boundary conditions at x=0
-    bnd1_u = torch.cartesian_prod(t, torch.Tensor([0]))
+    bnd1_u = torch.cartesian_prod(t, torch.tensor([0.]))
     bop1_u = {
                 'du/dt':
                     {
@@ -80,7 +80,7 @@ def bconds_2():
     bnd_type_1_u = 'operator'
 
     # Boundary conditions at x=5
-    bnd2_u = torch.cartesian_prod(t, torch.Tensor([5]))
+    bnd2_u = torch.cartesian_prod(t, torch.tensor([5.]))
     bop2_u = {
         'du/dt':
             {
@@ -95,19 +95,19 @@ def bconds_2():
     bnd_type_2_u = 'operator'
 
     # Boundary conditions at x=0
-    bnd1_p = torch.cartesian_prod(t, torch.Tensor([0]))
+    bnd1_p = torch.cartesian_prod(t, torch.tensor([0.]))
     # p(0,t) = 0
     bndval1_p = torch.zeros_like(bnd1_p[:, 0])
     bnd_type_1_p = 'dirichlet'
 
     # Boundary conditions at x=5
-    bnd2_p = torch.cartesian_prod(t, torch.Tensor([5]))
+    bnd2_p = torch.cartesian_prod(t, torch.tensor([5.]))
     # p(5,t) = 0
     bndval2_p = torch.zeros_like(bnd2_p[:, 0])
     bnd_type_2_p = 'dirichlet'
 
     # Initial condition at t=0
-    ics_u = torch.cartesian_prod(torch.Tensor([0]), x)
+    ics_u = torch.cartesian_prod(torch.tensor([0.]), x)
     icsval_u = torch.sin((math.pi * x) / 5) + 1
     ics_type_u = 'dirichlet'
 

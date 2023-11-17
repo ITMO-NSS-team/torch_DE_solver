@@ -16,7 +16,7 @@ from typing import Union, Tuple, Any
 
 from tedeous.solution import Solution
 from tedeous.input_preprocessing import Equation, EquationMixin
-from tedeous.device import device_type
+from tedeous.device import device_type, check_device
 
 
 def count_output(model):
@@ -37,6 +37,7 @@ def create_random_fn(eps):
 
     return randomize_params
 
+
 def remove_all_files(folder):
     for filename in os.listdir(folder):
         file_path = os.path.join(folder, filename)
@@ -48,35 +49,137 @@ def remove_all_files(folder):
         except Exception as e:
             print('Failed to delete %s. Reason: %s' % (file_path, e))
 
-class Model_prepare():
-    """
-    Prepares initial model. Serves for computing acceleration.\n
-    Saves the trained model to the cache, and subsequently it is possible to use pre-trained model (if \\\
-    it saved and if the new model is structurally similar) to sped up computing.\n
-    If there isn't pre-trained model in cache, the training process will start from the beginning.
-    """
-    def __init__(self, grid, equal_cls, model, mode, weak_form):
+
+class CacheUtils:
+
+    def __init__(self):
+        try:
+            file = __file__
+        except:
+            file = os.getcwd()
+
+        self._cache_dir = os.path.normpath((os.path.join(os.path.dirname(file), '..', 'cache')))
+
+
+    def get_cache_dir(self):
+        return self._cache_dir
+
+    def set_cache_dir(self, string):
+        self._cache_dir = string
+
+    def clear_cache_dir(self, directory=None):
+        if directory == None:
+            remove_all_files(self.cache_dir)
+        else:
+            remove_all_files(directory)
+
+    cache_dir = property(get_cache_dir, set_cache_dir, clear_cache_dir)
+
+    @staticmethod
+    def grid_model_mat(model, grid, cache_model):
+        NN_grid = torch.vstack([grid[i].reshape(-1) for i in \
+                                range(grid.shape[0])]).T.float()
+
+        input_model = grid.shape[0]
+        output_model = model.shape[0]
+
+        if cache_model is None:
+            cache_model = torch.nn.Sequential(
+                torch.nn.Linear(input_model, 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, 100),
+                torch.nn.Tanh(),
+                torch.nn.Linear(100, output_model)
+            )
+
+        return NN_grid, cache_model
+
+    @staticmethod
+    def mat_op_coeff(operator):
+        if type(operator) is not list:
+            operator = [operator]
+        for op in operator:
+            for label in list(op.keys()):
+                term = op[label]
+                if type(term['coeff']) == torch.Tensor:
+                    term['coeff'] = term['coeff'].reshape(-1, 1)
+                elif callable(term['coeff']):
+                    print("Warning: coefficient is callable,\
+                                    it may lead to wrong cache item choice")
+        return operator
+
+    def save_model(self, model: Any, optimizer: Any, scaler: Any = None, name: Union[str, None] = None):
+        """
+        Saved model in a cache (uses for 'NN' and 'autograd' methods).
+        Args:
+            model: model to save.
+            optimizer: a dict holding current optimization state (i.e., values, hyperparameters).
+            scaler: gradient scaler (uses only with mixed precision and device=cuda).
+            name: name for a model.
+        """
+
+        if name == None:
+            name = str(datetime.datetime.now().timestamp())
+        if not (os.path.isdir(self.cache_dir)):
+            os.mkdir(self.cache_dir)
+
+        parameters_dict = {'model': model.to('cpu'),
+                           'model_state_dict': model.state_dict(),
+                           'optimizer_state_dict': optimizer.state_dict(),
+                           'scaler_state_dict': scaler.state_dict() if scaler is not None else None}
+
+        try:
+            torch.save(parameters_dict, self.cache_dir + '\\' + name + '.tar')
+            print('model is saved in cache')
+        except RuntimeError:
+            torch.save(parameters_dict, self.cache_dir + '\\' + name + '.tar',
+                       _use_new_zipfile_serialization=False)  # cyrrilic in path
+            print('model is saved in cache')
+        except:
+            print('Cannot save model in cache')
+
+    def save_model_mat(self, model, grid, cache_model: None = None, name: None = None ):
+        """
+        Saved model in a cache (uses for 'mat' method).
+
+        Args:
+            cache_dir: a directory where saved cache in.
+            name: name for a model
+            cache_model: model to save
+        """
+
+        NN_grid, cache_model = self.grid_model_mat(model, grid, cache_model)
+        optimizer = torch.optim.Adam(cache_model.parameters(), lr=0.001)
+        model_res = model.reshape(-1, model.shape[0])
+
+        print(NN_grid.shape, model_res.shape)
+        def closure():
+            optimizer.zero_grad()
+            loss = torch.mean((cache_model(check_device(NN_grid)) - model_res) ** 2)
+            loss.backward()
+            return loss
+
+        loss = np.inf
+        t = 0
+        while loss > 1e-5 and t < 1e5:
+            loss = optimizer.step(closure)
+            t += 1
+            print('Interpolate from trained model t={}, loss={}'.format(
+                    t, loss))
+
+        self.save_model(cache_model, optimizer, name=name)
+
+
+class CachePreprocessing:
+    def __init__(self, grid, equal_cls, model, mode, weak_form, mixed_precision):
         self.grid = grid
         self.equal_cls = equal_cls
         self.model = model
         self.mode = mode
         self.weak_form = weak_form
-        try:
-             file = __file__
-        except:
-            file = os.getcwd()
-        self.cache_dir = os.path.normpath((os.path.join(os.path.dirname(file), '..','cache')))
-
-    def change_cache_dir(self, string):
-        self.cache_dir=string
-        return None
-
-    def clear_cache_dir(self, directory=None):
-        if directory==None:
-            remove_all_files(self.cache_dir)
-        else:
-            remove_all_files(directory)
-        return None
+        self.mixed_precision = mixed_precision
 
     @staticmethod
     def cache_files(files, nmodels):
@@ -91,37 +194,6 @@ class Model_prepare():
             cache_n = np.random.choice(len(files), nmodels, replace=False)
 
         return cache_n
-
-    def grid_model_mat(self, cache_model):
-        NN_grid = torch.vstack([self.grid[i].reshape(-1) for i in \
-                                range(self.grid.shape[0])]).T.float()
-        out = self.model.shape[0]
-
-        if cache_model == None:
-            cache_model = torch.nn.Sequential(
-                torch.nn.Linear(self.grid.shape[0], 100),
-                torch.nn.Tanh(),
-                torch.nn.Linear(100, 100),
-                torch.nn.Tanh(),
-                torch.nn.Linear(100, 100),
-                torch.nn.Tanh(),
-                torch.nn.Linear(100, out)
-            )
-        return NN_grid, cache_model
-
-    @staticmethod
-    def mat_op_coeff(operator):
-        if type(operator) is not list:
-            operator = [operator]
-        for op in operator:
-            for label in list(op.keys()):
-                term = op[label]
-                if type(term['coeff']) == torch.Tensor:
-                    term['coeff'] = term['coeff'].reshape(-1, 1)
-                elif callable(term['coeff']):
-                    print("Warning: coefficient is callable,\
-                                it may lead to wrong cache item choice")
-        return operator
 
     @staticmethod
     def model_reform(init_model, model):
@@ -149,10 +221,9 @@ class Model_prepare():
 
         return init_model, model
 
-
     def cache_lookup(self, lambda_operator: float = 1., lambda_bound: float = 0.001,
-                nmodels: Union[int, None] = None, save_graph: bool = False,
-                cache_verbose: bool = False, return_normalized_loss: bool = False) -> Tuple[dict, torch.Tensor]:
+                     nmodels: Union[int, None] = None, save_graph: bool = False,
+                     cache_verbose: bool = False, return_normalized_loss: bool = False) -> Union[None, dict, torch.Tensor]:
         """
         Looking for a saved cache.
         Args:
@@ -165,16 +236,17 @@ class Model_prepare():
             * **best_checkpoint** -- best model with optimizator state.\n
             * **min_loss** -- minimum error in pre-trained error.
         """
-        files = glob.glob(self.cache_dir + '\*.tar')
+
+        files = glob.glob(CacheUtils().cache_dir + '\*.tar')
         if len(files) == 0:
             best_checkpoint = None
             min_loss = torch.tensor([float('inf')])
-            return best_checkpoint, min_loss
+            return best_checkpoint
 
         cache_n = self.cache_files(files, nmodels)
 
         min_loss = np.inf
-        min_norm_loss =np.inf
+        min_norm_loss = np.inf
         best_checkpoint = {}
 
         device = device_type()
@@ -182,8 +254,10 @@ class Model_prepare():
         for i in cache_n:
             file = files[i]
             checkpoint = torch.load(file)
+
             model = checkpoint['model']
             model.load_state_dict(checkpoint['model_state_dict'])
+
             # this one for the input shape fix if needed
 
             solver_model, cache_model = self.model_reform(self.model, model)
@@ -198,85 +272,26 @@ class Model_prepare():
 
             model = model.to(device)
             loss, loss_normalized = Solution(self.grid, self.equal_cls,
-                                      model, self.mode, self.weak_form,
-                                      lambda_operator, lambda_bound, tol=0,
-                                      derivative_points=2).evaluate(save_graph=save_graph)
+                                             model, self.mode, self.weak_form,
+                                             lambda_operator, lambda_bound, tol=0,
+                                             derivative_points=2).evaluate(save_graph=save_graph)
 
             if loss < min_loss:
                 min_loss = loss
-                min_norm_loss=loss_normalized
+                min_norm_loss = loss_normalized
                 best_checkpoint['model'] = model
                 best_checkpoint['model_state_dict'] = model.state_dict()
                 best_checkpoint['optimizer_state_dict'] = \
                     checkpoint['optimizer_state_dict']
                 if cache_verbose:
                     print('best_model_num={} , normalized_loss={}'.format(i, min_norm_loss.item()))
+
         if best_checkpoint == {}:
             best_checkpoint = None
             min_loss = np.inf
         if return_normalized_loss:
-            min_loss=min_norm_loss
-        return best_checkpoint, min_loss
-
-    def save_model(self, prep_model: Any, state: dict, optimizer_state: dict, name: Union[str, None] = None):
-        """
-        Saved model in a cache (uses for 'NN' and 'autograd' methods).
-        Args:
-            prep_model: model to save.
-            state: a dict holding current model state (i.e., dictionary that maps each layer to its parameter tensor).
-            optimizer_state: a dict holding current optimization state (i.e., values, hyperparameters).
-            cache_dir: directory where saved cache in.
-            name: name for a model.
-        """
-        if name == None:
-            name = str(datetime.datetime.now().timestamp())
-        if not(os.path.isdir(self.cache_dir)):
-            os.mkdir(self.cache_dir)
-
-        try:
-            torch.save({'model': prep_model.to('cpu'), 'model_state_dict': state,
-                        'optimizer_state_dict': optimizer_state}, self.cache_dir+'\\' + name + '.tar')
-            print('model is saved in cache')
-        except RuntimeError:
-            torch.save({'model': prep_model.to('cpu'), 'model_state_dict': state,
-                        'optimizer_state_dict': optimizer_state}, self.cache_dir+'\\' + name + '.tar', _use_new_zipfile_serialization=False) #cyrrilic in path
-            print('model is saved in cache')
-        except:
-            print('Cannot save model in cache')
-
-
-    def save_model_mat(self, name: None = None, cache_model: None = None,
-                       cache_verbose: bool=False):
-        """
-        Saved model in a cache (uses for 'mat' method).
-
-        Args:
-            cache_dir: a directory where saved cache in.
-            name: name for a model
-            cache_model: model to save
-        """
-
-        NN_grid, cache_model = self.grid_model_mat(cache_model)
-        optimizer = torch.optim.Adam(cache_model.parameters(), lr=0.001)
-        model_res = self.model.reshape(-1, self.model.shape[0])
-
-        def closure():
-            optimizer.zero_grad()
-            loss = torch.mean((cache_model(NN_grid) - model_res) ** 2)
-            loss.backward()
-            return loss
-
-        loss = np.inf
-        t = 0
-        while loss > 1e-5 and t < 1e5:
-            loss = optimizer.step(closure)
-            t += 1
-            if cache_verbose:
-                print('Interpolate from trained model t={}, loss={}'.format(
-                    t, loss))
-
-        self.save_model(cache_model, cache_model.state_dict(),
-                        optimizer.state_dict(), name=name)
+            min_loss = min_norm_loss
+        return best_checkpoint
 
     def scheme_interp(self, trained_model: Any, cache_verbose: bool = False) -> Tuple[Any, dict]:
         """
@@ -296,8 +311,7 @@ class Model_prepare():
 
         def closure():
             optimizer.zero_grad()
-            loss = torch.mean((
-                trained_model(self.grid) - self.model(self.grid)) ** 2)
+            loss = torch.mean((trained_model(self.grid) - self.model(self.grid)) ** 2)
             loss.backward()
             return loss
 
@@ -313,8 +327,7 @@ class Model_prepare():
 
         return self.model, optimizer.state_dict()
 
-    def cache_retrain(self, cache_checkpoint, cache_verbose: bool = False) -> Union[
-        Tuple[Any, None], Tuple[Any, Union[dict, Any]]]:
+    def cache_retrain(self, cache_checkpoint, cache_verbose: bool = False) -> Tuple[Any, None]:
         """
         Smth
         Args:
@@ -327,33 +340,49 @@ class Model_prepare():
 
         # do nothing if cache is empty
         if cache_checkpoint == None:
-            optimizer_state = None
-            return self.model, optimizer_state
+            return self.model
         # if models have the same structure use the cache model state,
         # and the cache model has ordinary structure
         if str(cache_checkpoint['model']) == str(self.model) and \
-                 isinstance(self.model, torch.nn.Sequential) and \
-                 isinstance(self.model[0], torch.nn.Linear):
-            self.model = cache_checkpoint['model']
-            self.model.load_state_dict(cache_checkpoint['model_state_dict'])
-            self.model.train()
-            optimizer_state = cache_checkpoint['optimizer_state_dict']
+                isinstance(self.model, torch.nn.Sequential) and \
+                isinstance(self.model[0], torch.nn.Linear):
+            model = cache_checkpoint['model']
+            model.load_state_dict(cache_checkpoint['model_state_dict'])
+            model.train()
+
             if cache_verbose:
                 print('Using model from cache')
         # else retrain the input model using the cache model
         else:
-            optimizer_state = None
-            model_state = None
+            print('interp')
             cache_model = cache_checkpoint['model']
             cache_model.load_state_dict(cache_checkpoint['model_state_dict'])
             cache_model.eval()
-            self.model, optimizer_state = self.scheme_interp(
+            model, optimizer_state = self.scheme_interp(
                 cache_model, cache_verbose=cache_verbose)
-        return self.model, optimizer_state
+        return model
+
+
+class Cache():
+    """
+    Prepares initial model. Serves for computing acceleration.\n
+    Saves the trained model to the cache, and subsequently it is possible to use pre-trained model (if \\\
+    it saved and if the new model is structurally similar) to sped up computing.\n
+    If there isn't pre-trained model in cache, the training process will start from the beginning.
+    """
+
+    def __init__(self, grid, equal_cls, model, mode, weak_form, mixed_precision):
+        self.grid = grid
+        self.equal_cls = equal_cls
+        self.model = model
+        self.mode = mode
+        self.weak_form = weak_form
+        self.mixed_precision = mixed_precision
+        self.cache_preprocessing = CachePreprocessing(grid, equal_cls, model, mode, weak_form, mixed_precision)
 
     def cache_nn(self, nmodels: Union[int, None], lambda_operator: float, lambda_bound: float,
-              cache_verbose: bool,model_randomize_parameter: Union[float, None],
-              cache_model: torch.nn.Sequential, return_normalized_loss: bool = False):
+                 cache_verbose: bool, model_randomize_parameter: Union[float, None],
+                 cache_model: torch.nn.Sequential, return_normalized_loss: bool = False):
         """
        Restores the model from the cache and uses it for retraining.
        Args:
@@ -369,22 +398,21 @@ class Model_prepare():
            * **min_loss** -- min loss as is.
        """
         r = create_random_fn(model_randomize_parameter)
-        cache_checkpoint, min_loss = self.cache_lookup(nmodels=nmodels,
-                                                       cache_verbose=cache_verbose,
-                                                       lambda_operator= lambda_operator,
-                                                       lambda_bound=lambda_bound, 
-                                                       return_normalized_loss = return_normalized_loss)
-        
-        self.model, optimizer_state = self.cache_retrain(cache_checkpoint,
-                                                         cache_verbose=cache_verbose)
 
-        self.model.apply(r)
+        cache_checkpoint = self.cache_preprocessing.cache_lookup(nmodels=nmodels,
+                                                                 cache_verbose=cache_verbose,
+                                                                 lambda_operator=lambda_operator,
+                                                                 lambda_bound=lambda_bound,
+                                                                 return_normalized_loss=return_normalized_loss)
+        # print(cache_checkpoint)
+        model = self.cache_preprocessing.cache_retrain(cache_checkpoint, cache_verbose=cache_verbose)
+        model.apply(r)
 
-        return self.model, min_loss
+        return model
 
-    def cache_mat(self, nmodels: Union[int, None],lambda_operator: float, lambda_bound: float,
-              cache_verbose: bool,model_randomize_parameter: Union[float, None],
-              cache_model: torch.nn.Sequential, return_normalized_loss: bool = False):
+    def cache_mat(self, nmodels: Union[int, None], lambda_operator: float, lambda_bound: float,
+                  cache_verbose: bool, model_randomize_parameter: Union[float, None],
+                  cache_model: torch.nn.Sequential, return_normalized_loss: bool = False):
         """
        Restores the model from the cache and uses it for retraining.
        Args:
@@ -400,39 +428,44 @@ class Model_prepare():
            * **min_loss** -- min loss as is.
        """
 
-        NN_grid, cache_model = self.grid_model_mat(cache_model)
+        NN_grid, cache_model = CacheUtils.grid_model_mat(self.model, self.grid, cache_model)
         operator = deepcopy(self.equal_cls.operator)
         bconds = deepcopy(self.equal_cls.bconds)
-        operator = self.mat_op_coeff(operator)
+        operator = CacheUtils.mat_op_coeff(operator)
         r = create_random_fn(model_randomize_parameter)
         eq = Equation(NN_grid, operator, bconds).set_strategy('autograd')
-        model_cls = Model_prepare(NN_grid, eq, cache_model, 'autograd', self.weak_form)
-        cache_checkpoint, min_loss = model_cls.cache_lookup(
+        model_cls = CachePreprocessing(NN_grid, eq, cache_model, 'autograd', self.weak_form,
+                                       self.mixed_precision)
+
+        cache_checkpoint = model_cls.cache_lookup(
             nmodels=nmodels,
             cache_verbose=cache_verbose,
             lambda_bound=lambda_bound,
             lambda_operator=lambda_operator,
             return_normalized_loss=return_normalized_loss)
+
         if cache_checkpoint is not None:
-            prepared_model, optimizer_state = model_cls.cache_retrain(
-                                                        cache_checkpoint,
-                                                        cache_verbose=cache_verbose)
+            prepared_model = model_cls.cache_retrain(
+                cache_checkpoint,
+                cache_verbose=cache_verbose)
 
             prepared_model.apply(r)
-        
-            self.model = prepared_model(NN_grid).reshape(
-                            self.model.shape).detach()
 
-        min_loss, _ = Solution(self.grid, self.equal_cls,
-                                      self.model, self.mode, self.weak_form,
-                                      lambda_operator, lambda_bound, tol=0,
-                                      derivative_points=2).evaluate()
+            model = prepared_model(NN_grid).reshape(
+                self.cache_preprocessing.model.shape).detach()
 
-        return self.model, min_loss
+            min_loss, _ = Solution(self.cache_preprocessing.grid, self.cache_preprocessing.equal_cls,
+                                   model, self.cache_preprocessing.mode, self.cache_preprocessing.weak_form,
+                                   lambda_operator, lambda_bound, tol=0,
+                                   derivative_points=2).evaluate()
+        else:
+            model = self.cache_preprocessing.model
 
-    def cache(self, nmodels: Union[int, None],lambda_operator, lambda_bound: float,
-              cache_verbose: bool,model_randomize_parameter: Union[float, None],
-              cache_model: torch.nn.Sequential, 
+        return model
+
+    def cache(self, nmodels: Union[int, None], lambda_operator, lambda_bound: float,
+              cache_verbose: bool, model_randomize_parameter: Union[float, None],
+              cache_model: torch.nn.Sequential,
               return_normalized_loss: bool = False):
         """
         Restores the model from the cache and uses it for retraining.
@@ -450,11 +483,10 @@ class Model_prepare():
         """
 
         if self.mode != 'mat':
-            return self.cache_nn(nmodels,lambda_operator, lambda_bound,
+            return self.cache_nn(nmodels, lambda_operator, lambda_bound,
                                  cache_verbose, model_randomize_parameter,
-                                 cache_model,return_normalized_loss=return_normalized_loss)
+                                 cache_model, return_normalized_loss=return_normalized_loss)
         elif self.mode == 'mat':
             return self.cache_mat(nmodels, lambda_operator, lambda_bound,
                                   cache_verbose, model_randomize_parameter,
-                                  cache_model,return_normalized_loss=return_normalized_loss)
-
+                                  cache_model, return_normalized_loss=return_normalized_loss)

@@ -157,7 +157,6 @@ class Lambda:
 
         return lambda_op, lambda_bnd
 
-
 class PadTransform(Module):
     """Pad tensor to a fixed length with given padding value.
 
