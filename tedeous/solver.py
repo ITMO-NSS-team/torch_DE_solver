@@ -11,6 +11,8 @@ from torch.optim.lr_scheduler import ExponentialLR
 from tedeous.cache import *
 from tedeous.device import check_device, device_type
 from tedeous.solution import Solution
+import tedeous.input_preprocessing
+from tedeous.optimizers import PSO
 
 
 def grid_format_prepare(coord_list, mode='NN') -> torch.Tensor:
@@ -47,7 +49,7 @@ def grid_format_prepare(coord_list, mode='NN') -> torch.Tensor:
 
 
 class Plots():
-    def __init__(self, model, grid, mode, tol=0):
+    def __init__(self, model, grid, mode, tol = 0):
         self.model = model
         self.grid = grid
         self.mode = mode
@@ -64,8 +66,6 @@ class Plots():
             nvars_model = self.model[-1].out_features
         except:
             nvars_model = self.model.model[-1].out_features
-        # else:
-        #     nvars_model = self.model[-2].out_features
 
         nparams = self.grid.shape[1]
         fig = plt.figure(figsize=(15, 8))
@@ -105,23 +105,23 @@ class Plots():
 
         nparams = self.grid.shape[0]
         nvars_model = self.model.shape[0]
-        fig = plt.figure(figsize=(15, 8))
+        fig = plt.figure(figsize=(15,8))
         for i in range(nvars_model):
             if nparams == 1:
-                ax1 = fig.add_subplot(1, nvars_model, i + 1)
+                ax1 = fig.add_subplot(1, nvars_model, i+1)
                 if title != None:
-                    ax1.set_title(title + ' variable {}'.format(i))
+                    ax1.set_title(title+' variable {}'.format(i))
                 ax1.scatter(self.grid.detach().cpu().numpy().reshape(-1),
                             self.model[i].detach().cpu().numpy().reshape(-1))
             else:
-                ax1 = fig.add_subplot(1, nvars_model, i + 1, projection='3d')
-
-                if title != None:
-                    ax1.set_title(title + ' variable {}'.format(i))
+                ax1 = fig.add_subplot(1, nvars_model, i+1, projection='3d')
+                
+                if title!=None:
+                    ax1.set_title(title+' variable {}'.format(i))
                 ax1.plot_trisurf(self.grid[0].detach().cpu().numpy().reshape(-1),
-                                 self.grid[1].detach().cpu().numpy().reshape(-1),
-                                 self.model[i].detach().cpu().numpy().reshape(-1),
-                                 cmap=cm.jet, linewidth=0.2, alpha=1)
+                            self.grid[1].detach().cpu().numpy().reshape(-1),
+                            self.model[i].detach().cpu().numpy().reshape(-1),
+                            cmap=cm.jet, linewidth=0.2, alpha=1)
             ax1.set_xlabel("x1")
             ax1.set_ylabel("x2")
 
@@ -188,6 +188,11 @@ class Solver():
         self.model = model
         self.mode = mode
         self.weak_form = weak_form
+        self.t = 0
+        self.stop_dings = 0
+        self.t_imp_start = 0
+        self.device = device_type()
+        self.check = None
 
     def optimizer_choice(self, optimizer: str, learning_rate: float) -> \
             Union[torch.optim.Adam, torch.optim.SGD, torch.optim.LBFGS]:
@@ -206,9 +211,17 @@ class Solver():
             torch_optim = torch.optim.SGD
         elif optimizer == 'LBFGS':
             torch_optim = torch.optim.LBFGS
+        elif optimizer == 'PSO':
+            optimizer = PSO()
+            optimizer.param_init(self.sln_cls)
+            return optimizer
         else:
-            print('Wrong optimizer chosen, optimization was not performed')
-            return self.model
+            # try:
+            optimizer.param_init(self.sln_cls)
+            print('Custom optimizer is activated')
+            # except:
+                # None
+            return optimizer
 
         if self.mode == 'NN' or self.mode == 'autograd':
             optimizer = torch_optim(self.model.parameters(), lr=learning_rate)
@@ -217,15 +230,129 @@ class Solver():
 
         return optimizer
 
-    def str_param(self, inverse_param: dict):
-        param = list(inverse_param.keys())
-        for name, p in self.model.named_parameters():
-            if name in param:
-                try:
-                    param_str += name + '=' + str(p.item()) + ' '
-                except:
-                    param_str = name + '=' + str(p.item()) + ' '
-        return param_str
+    def str_param(self):
+        if self.inverse_parameters is not None:
+            param = list(self.inverse_param.keys())
+            for name, p in self.model.named_parameters():
+                if name in param:
+                    try:
+                        param_str += name + '=' + str(p.item()) + ' '
+                    except:
+                        param_str = name + '=' + str(p.item()) + ' '
+            print(param_str)
+
+    def line_create(self, loss_oscillation_window):
+        self.line = np.polyfit(range(loss_oscillation_window), self.last_loss, 1)
+
+    def window_check(self, eps, loss_oscillation_window):
+        if self.t % loss_oscillation_window == 0 and self.check is None:
+            self.line_create(loss_oscillation_window)
+            if abs(self.line[0] / self.cur_loss) < eps and self.t > 0:
+                self.stop_dings += 1
+                if self.mode == 'NN' or self.mode == 'autograd':
+                    self.model.apply(self.r)
+                self.check = 'window_check'
+
+    def patience_check(self, no_improvement_patience):
+        if (self.t - self.t_imp_start) == no_improvement_patience and self.check is None:
+            self.t_imp_start = self.t
+            self.stop_dings += 1
+            if self.mode == 'NN' or self.mode == 'autograd':
+                self.model.apply(self.r)
+            self.check = 'patience_check'
+    
+    def absloss_check(self, abs_loss):
+        if abs_loss != None and self.cur_loss < abs_loss and self.check is None:
+            self.stop_dings += 1
+
+            self.check = 'absloss_check'
+
+    def info_string(self):
+        loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
+        info = 'Step = {} loss = {:.6f} normalized loss line= {:.6f}x+{:.6f}. There was {} stop dings already.'.format(
+                    self.t, loss, self.line[0] / loss, self.line[1] / loss, self.stop_dings + 1)
+        return print(info)
+
+    def verbose_print(self, no_improvement_patience, print_every):
+
+        if self.check == 'window_check':
+            print('[{}] Oscillation near the same loss'.format(
+                            datetime.datetime.now()))
+        elif self.check == 'patience_check':
+            print('[{}] No improvement in {} steps'.format(
+                        datetime.datetime.now(), no_improvement_patience))
+        elif self.check == 'absloss_check':
+            print('[{}] Absolute value of loss is lower than threshold'.format(datetime.datetime.now()))
+
+        if print_every != None and (self.t % print_every == 0):
+            self.check = 'print_every'
+            print('[{}] Print every {} step'.format(datetime.datetime.now(), print_every))
+
+        if self.check is not None:
+            self.info_string()
+            self.str_param()
+            self.plot.solution_print(title='Iteration = ' + str(self.t),
+                                                solution_print=self.step_plot_print,
+                                                solution_save=self.step_plot_save,
+                                                save_dir=self.image_save_dir)
+
+        self.check = None
+
+    def amp_mixed(self, mixed_precision):
+        if mixed_precision:
+            scaler = torch.cuda.amp.GradScaler(enabled=mixed_precision)
+            print(f'Mixed precision enabled. The device is {self.device}')
+            if self.optimizer.__class__.__name__ == "LBFGS":
+                raise NotImplementedError("AMP and the LBFGS optimizer are not compatible.")
+        else:
+            scaler = None
+        cuda_flag = True if self.device == 'cuda' and mixed_precision else False
+        dtype = torch.float16 if self.device == 'cuda' else torch.bfloat16
+
+        return scaler, cuda_flag, dtype
+
+    def optimizer_step(self, mixed_precision, second_order_interactions,
+                       sampling_N, lambda_update, normalized_loss_stop):
+
+        scaler, cuda_flag, dtype = self.amp_mixed(mixed_precision)
+
+        def closure():
+            self.optimizer.zero_grad()
+            with torch.autocast(device_type=self.device, dtype=dtype, enabled=mixed_precision):
+                loss, loss_normalized = self.sln_cls.evaluate(second_order_interactions,
+                                                              sampling_N, lambda_update)
+
+            loss.backward()
+            self.cur_loss = loss_normalized.item() if normalized_loss_stop else loss.item()
+            return loss
+
+        def closure_cuda():
+            self.optimizer.zero_grad()
+            with torch.autocast(device_type=self.device, dtype=dtype, enabled=mixed_precision):
+                loss, loss_normalized = self.sln_cls.evaluate(second_order_interactions,
+                                                              sampling_N, lambda_update)
+
+            scaler.scale(loss).backward()
+            scaler.step(self.optimizer)
+            scaler.update()
+
+            self.cur_loss = loss_normalized.item() if normalized_loss_stop else loss.item()
+            return loss
+
+        try:
+            self.optimizer.name == 'PSO'
+            self.cur_loss = self.optimizer.step()
+        except:
+            self.optimizer.step(closure) if not cuda_flag else closure_cuda()
+
+    def model_save(self, cache_utils, save_always, scaler, name):
+        if save_always:
+            if self.mode == 'mat':
+                cache_utils.save_model_mat(model=self.model, grid=self.grid, name=name)
+            else:
+                scaler = scaler if scaler else None
+                cache_utils.save_model(model=self.model, optimizer=self.optimizer,
+                                       scaler=scaler, name=name)
 
     def solve(self,
               lambda_operator: Union[float, list] = 1, lambda_bound: Union[float, list] = 10,
@@ -284,6 +411,16 @@ class Solver():
         """
         Cache initialization.
         """
+
+        self.verbose = verbose
+        self.r = create_random_fn(model_randomize_parameter)
+        self.inverse_parameters = inverse_parameters
+        self.step_plot_save = step_plot_save
+        self.step_plot_print = step_plot_print
+        self.image_save_dir = image_save_dir
+        self.patience = patience
+        scaler, _, dtype = self.amp_mixed(mixed_precision)
+
         cache_utils = CacheUtils()
         if use_cache:
             cache_utils.cache_dir = cache_dir
@@ -295,190 +432,60 @@ class Solver():
                                          model_randomize_parameter,
                                          cache_model,
                                          return_normalized_loss=normalized_loss_stop)
-
         if clear_cache:
             cache_utils.clear_cache_dir()
-        """
-        Optimizer and scheduler initialization.
-        """
-        optimizer = self.optimizer_choice(optimizer_mode, learning_rate)
 
-        if gamma != None:
-            scheduler = ExponentialLR(optimizer, gamma=gamma)
-        """
-        Mixed precision initialization.
-        """
-        device = device_type()
-
-        if mixed_precision:
-            scaler = torch.cuda.amp.GradScaler(enabled=mixed_precision)
-            print(f'Mixed precision enabled. The device is {device}')
-            if optimizer.__class__.__name__ == "LBFGS":
-                raise NotImplementedError("AMP and the LBFGS optimizer are not compatible.")
-        else:
-            scaler = None
-        cuda_flag = True if device == 'cuda' and mixed_precision else False
-        dtype = torch.float16 if device == 'cuda' else torch.bfloat16
-        '''
-        Model randomize parameter.
-        '''
-        r = create_random_fn(model_randomize_parameter)
-
-        '''
-        Initializing solution class and compute min loss.
-        '''
-        sln_cls = Solution(self.grid, self.equal_cls,
+        self.sln_cls = Solution(self.grid, self.equal_cls,
                            self.model, self.mode, self.weak_form,
                            lambda_operator, lambda_bound, tol, derivative_points)
-        with torch.autocast(device_type=device, dtype=dtype, enabled=mixed_precision):
-            min_loss, _ = sln_cls.evaluate()
+        with torch.autocast(device_type=self.device, dtype=dtype, enabled=mixed_precision):
+            min_loss, _ = self.sln_cls.evaluate()
 
-        '''
-        Verbose parameter.
-        '''
+        self.last_loss = np.zeros(loss_oscillation_window) + float(min_loss)
+        self.cur_loss = min_loss
+
+        self.optimizer = self.optimizer_choice(optimizer_mode, learning_rate)
+
+        self.plot = Plots(self.model, self.grid, self.mode, tol)
+
+        if gamma != None:
+            scheduler = ExponentialLR(self.optimizer, gamma=gamma)
+
         if verbose:
             print('[{}] initial (min) loss is {}'.format(
                 datetime.datetime.now(), min_loss.item()))
-        '''
-        Closure for cpu and cuda. Pytorch essential.
-        '''
-        def closure():
-            nonlocal cur_loss
-            optimizer.zero_grad()
-            with torch.autocast(device_type=device, dtype=dtype, enabled=mixed_precision):
-                loss, loss_normalized = sln_cls.evaluate(second_order_interactions=second_order_interactions,
-                                                         sampling_N=sampling_N,
-                                                         lambda_update=lambda_update)
 
-            loss.backward()
-            cur_loss = loss_normalized.item() if normalized_loss_stop else loss.item()
-            return loss
+        while self.stop_dings <= self.patience or self.t < tmin:
+            self.optimizer_step(mixed_precision, second_order_interactions,
+                                sampling_N, lambda_update, normalized_loss_stop)
 
-        def closure_cuda():
-            nonlocal cur_loss
-            optimizer.zero_grad()
-            with torch.autocast(device_type=device, dtype=dtype, enabled=mixed_precision):
-                loss, loss_normalized = sln_cls.evaluate(second_order_interactions=second_order_interactions,
-                                                         sampling_N=sampling_N,
-                                                         lambda_update=lambda_update)
-                # print(list(self.model.parameters())[0].dtype)
-                # print(loss.dtype)
-            scaler.scale(loss).backward()
-            scaler.step(optimizer)
-            scaler.update()
-
-            cur_loss = loss_normalized.item() if normalized_loss_stop else loss.item()
-            return loss
-
-        '''
-        Parameters for optimization loop.
-        '''
-        t = 0
-        stop_dings = 0
-        t_imp_start = 0
-
-        last_loss = np.zeros(loss_oscillation_window) + float(min_loss)
-        line = np.polyfit(range(loss_oscillation_window), last_loss, 1)
-        cur_loss = min_loss
-
-        '''
-        Initializing plot class.
-        '''
-        self.plot = Plots(self.model, self.grid, self.mode, tol)
-        '''
-        Optimization.
-        '''
-        while stop_dings <= patience:
-            optimizer.step(closure) if not cuda_flag else closure_cuda()
-
-            if cur_loss != cur_loss:
+            if self.cur_loss != self.cur_loss:
                 print(f'Loss is equal to NaN, something went wrong (LBFGS+high'
-                      f'learning rate and pytorch<1.12 could be the problem)')
+                        f'learning rate and pytorch<1.12 could be the problem)')
                 break
 
-            last_loss[(t - 1) % loss_oscillation_window] = cur_loss
+            self.last_loss[(self.t - 1) % loss_oscillation_window] = self.cur_loss
 
-            if cur_loss < min_loss:
-                min_loss = cur_loss
-                t_imp_start = t
+            if self.cur_loss < min_loss:
+                min_loss = self.cur_loss
+                self.t_imp_start = self.t
 
-            if verbose:
-                info_string = 'Step = {} loss = {:.6f} normalized loss line= {:.6f}x+{:.6f}. There was {} stop dings already.'.format(
-                    t, cur_loss, line[0] / cur_loss, line[1] / cur_loss, stop_dings + 1)
-
-            if gamma != None and t % lr_decay == 0:
+            if gamma != None and self.t % lr_decay == 0:
                 scheduler.step()
 
-            if t % loss_oscillation_window == 0:
-                line = np.polyfit(range(loss_oscillation_window), last_loss, 1)
-                if abs(line[0] / cur_loss) < eps and t > 0:
-                    stop_dings += 1
-                    if self.mode == 'NN' or self.mode == 'autograd':
-                        self.model.apply(r)
-                    if verbose:
-                        print('[{}] Oscillation near the same loss'.format(
-                            datetime.datetime.now()))
-                        print(info_string)
-                        if inverse_parameters is not None:
-                            print(self.str_param(inverse_parameters))
-                        if step_plot_print or step_plot_save:
-                            self.plot.solution_print(title='Iteration = ' + str(t),
-                                                     solution_print=step_plot_print,
-                                                     solution_save=step_plot_save,
-                                                     save_dir=image_save_dir)
+            self.window_check(eps, loss_oscillation_window)
+            
+            self.patience_check(no_improvement_patience)
 
-            if (t - t_imp_start) == no_improvement_patience:
-                if verbose:
-                    print('[{}] No improvement in {} steps'.format(
-                        datetime.datetime.now(), no_improvement_patience))
-                    print(info_string)
-                    if inverse_parameters is not None:
-                        print(self.str_param(inverse_parameters))
-                    if step_plot_print or step_plot_save:
-                        self.plot.solution_print(title='Iteration = ' + str(t),
-                                                 solution_print=step_plot_print,
-                                                 solution_save=step_plot_save,
-                                                 save_dir=image_save_dir)
-                t_imp_start = t
-                stop_dings += 1
-                if self.mode == 'NN' or self.mode == 'autograd':
-                    self.model.apply(r)
+            self.absloss_check(abs_loss)
 
-            if abs_loss != None and cur_loss < abs_loss:
-                if verbose:
-                    print('[{}] Absolute value of loss is lower than threshold'.format(datetime.datetime.now()))
-                    print(info_string)
-                    if inverse_parameters is not None:
-                        print(self.str_param(inverse_parameters))
-                    if step_plot_print or step_plot_save:
-                        self.plot.solution_print(title='Iteration = ' + str(t),
-                                                 solution_print=step_plot_print,
-                                                 solution_save=step_plot_save,
-                                                 save_dir=image_save_dir)
-                stop_dings += 1
+            if verbose:
+                self.verbose_print(no_improvement_patience, print_every)
 
-            if print_every != None and (t % print_every == 0) and verbose:
-                print('[{}] Print every {} step'.format(
-                    datetime.datetime.now(), print_every))
-                print(info_string)
-                if inverse_parameters is not None:
-                    print(self.str_param(inverse_parameters))
-
-                if step_plot_print or step_plot_save:
-                    self.plot.solution_print(title='Iteration = ' + str(t),
-                                             solution_print=step_plot_print,
-                                             solution_save=step_plot_save,
-                                             save_dir=image_save_dir)
-
-            t += 1
-            if t > tmax:
+            self.t += 1
+            if self.t > tmax:
                 break
-
-        if save_always:
-            if self.mode == 'mat':
-                cache_utils.save_model_mat(model=self.model, grid=self.grid, name=name)
-            else:
-                scaler = scaler if scaler else None
-                cache_utils.save_model(model=self.model, optimizer=optimizer,
-                                       scaler=scaler, name=name)
+        
+        self.model_save(cache_utils, save_always, scaler, name)
+        
         return self.model
