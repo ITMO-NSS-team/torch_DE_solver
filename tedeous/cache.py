@@ -77,7 +77,9 @@ class CacheUtils:
 
     @staticmethod
     def grid_model_mat(model, grid, cache_model):
-        NN_grid = grid.T.float()
+        NN_grid = torch.vstack([grid[i].reshape(-1) for i in \
+                                range(grid.shape[0])]).T.float()
+
         input_model = grid.shape[0]
         output_model = model.shape[0]
 
@@ -152,6 +154,7 @@ class CacheUtils:
         optimizer = torch.optim.Adam(cache_model.parameters(), lr=0.001)
         model_res = model.reshape(-1, model.shape[0])
 
+        print(NN_grid.shape, model_res.shape)
         def closure():
             optimizer.zero_grad()
             loss = torch.mean((cache_model(check_device(NN_grid)) - model_res) ** 2)
