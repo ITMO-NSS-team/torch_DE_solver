@@ -1,15 +1,17 @@
-from copy import deepcopy, copy
-import numpy as np
+"""Module for subgrid creation corresponding to numerical scheme. It's used only *NN* method."""
+
+from copy import  copy
 from typing import Tuple
+import numpy as np
+
 flatten_list = lambda t: [item for sublist in t for item in sublist]
 
 
 class First_order_scheme():
-    """
-    Class for numerical scheme construction. Central o(h^2) difference scheme
+    """Class for numerical scheme construction. Central o(h^2) difference scheme
     is used for 'central' points, forward ('f') and backward ('b') o(h) schemes
     are used for boundary points. 'central', and combination 'f','b' are
-    corresponding to points_type.   Args:
+    corresponding to points_type.
 
     """
 
