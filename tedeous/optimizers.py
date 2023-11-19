@@ -11,20 +11,17 @@ from tedeous.device import device_type
 class PSO():
     """Custom PSO optimizer.
     """
-    def __init__(
-        self,
-        pop_size=30,
-        b=0.99,
-        c1=8e-2,
-        c2=5e-1,
-        lr=0.,
-        c_decrease=False,
-        beta_1=0.99,
-        beta_2=0.999,
-        variance=1e-2,
-        epsilon=1e-8
-
-    ):
+    def __init__(self,
+                 pop_size=30,
+                 b=0.99,
+                 c1=8e-2,
+                 c2=5e-1,
+                 lr=0.,
+                 c_decrease=False,
+                 beta_1=0.99,
+                 beta_2=0.999,
+                 variance=1e-2,
+                 epsilon=1e-8):
         """The Particle Swarm Optimizer class.
 
         Args:
@@ -68,8 +65,8 @@ class PSO():
         self.m2 = None
 
     def params_to_vec(self) -> torch.Tensor:
-        """ Method for converting model parameters (NN and autograd)
-           or model values (mat) to vector
+        """ Method for converting model parameters *NN and autograd*
+           or model values *mat* to vector.
 
         Returns:
             torch.Tensor: model parameters/model values vector.

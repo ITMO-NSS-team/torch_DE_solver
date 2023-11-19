@@ -1,11 +1,11 @@
-# this one contain some stuff for computing different auxiliary things.
+"""this one contain some stuff for computing different auxiliary things."""
 
-import torch
-import numpy as np
 from typing import Tuple
 from torch.nn import Module
 from torch import Tensor
 from SALib import ProblemSpec
+import numpy as np
+import torch
 
 def samples_count(second_order_interactions: bool,
                   sampling_N: int,

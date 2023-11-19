@@ -1,36 +1,40 @@
-from filecmp import clear_cache
-import torch
+"""Module for constructing computational pipline for P/O DE solutions."""
+
+import os
+import datetime
+from typing import Union, List, Any
+from torch.optim.lr_scheduler import ExponentialLR
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
-import os
-import datetime
-from typing import Union
-from torch.optim.lr_scheduler import ExponentialLR
+import torch
 
-from tedeous.cache import *
+
 from tedeous.device import check_device, device_type
 from tedeous.solution import Solution
-import tedeous.input_preprocessing
 from tedeous.optimizers import PSO
 
 
-def grid_format_prepare(coord_list, mode='NN') -> torch.Tensor:
-    """
-    Prepares grid to a general form. Further, formatted grid can be processed
+def grid_format_prepare(
+    coord_list: List,
+    mode: str = 'NN') -> torch.Tensor:
+    """ Prepares grid to a general form. Further, formatted grid can be processed
     by Points_type.point_typization for 'NN' and 'autograd' methods.
+
     Args:
-        coord_list: list with coordinates.
-        mode: Calculation method. (i.e., "NN", "autograd", "mat").
+        coord_list (List): list with coordinates.
+        mode (str, optional): Calculation method. (i.e., "NN", "autograd", "mat").
+        Defaults to 'NN'.
 
     Returns:
-        grid in a general form.
+        torch.Tensor: grid in a general form.
     """
+
     device = device_type()
-    if type(coord_list) == torch.Tensor:
+    if isinstance(coord_list, torch.Tensor):
         print('Grid is a tensor, assuming old format, no action performed')
         return check_device(coord_list)
-    elif mode == 'NN' or mode == 'autograd':
+    elif mode in ('NN', 'autograd'):
         if len(coord_list) == 1:
             coord_list = torch.tensor(coord_list).float().to(device)
             grid = coord_list.reshape(-1, 1)
@@ -49,18 +53,30 @@ def grid_format_prepare(coord_list, mode='NN') -> torch.Tensor:
 
 
 class Plots():
-    def __init__(self, model, grid, mode, tol = 0):
+    """Class for ploting solutions."""
+    def __init__(self,
+                 model: Union[torch.nn.Module, torch.Tensor],
+                 grid: torch.Tensor,
+                 mode: str,
+                 tol: Union[int, float] = 0):
+        """
+        Args:
+            model (Union[torch.nn.Module, torch.Tensor]): *mat, NN, autograd* model.
+            grid (torch.Tensor): grid in (torch.cartesian_prod or torch.meshgrid) form.
+            mode (str): *mat, NN, autograd*
+            tol (Union[int, float], optional): penalty for casual loss. Defaults to 0.
+        """
         self.model = model
         self.grid = grid
         self.mode = mode
         self.tol = tol
 
-    def print_nn(self, title: str):
+    def _print_nn(self, title: str):
         """
         Solution plot for NN method.
 
         Args:
-            title: title
+            title (str): title
         """
         try:
             nvars_model = self.model[-1].out_features
@@ -72,14 +88,14 @@ class Plots():
         for i in range(nvars_model):
             if nparams == 1:
                 ax1 = fig.add_subplot(1, nvars_model, i + 1)
-                if title != None:
+                if title is not None:
                     ax1.set_title(title + ' variable {}'.format(i))
                 ax1.scatter(self.grid.detach().cpu().numpy().reshape(-1),
                             self.model(self.grid)[:, i].detach().cpu().numpy())
 
             else:
                 ax1 = fig.add_subplot(1, nvars_model, i + 1, projection='3d')
-                if title != None:
+                if title is not None:
                     ax1.set_title(title + ' variable {}'.format(i))
 
                 if self.tol != 0:
@@ -95,12 +111,12 @@ class Plots():
                 ax1.set_xlabel("x1")
                 ax1.set_ylabel("x2")
 
-    def print_mat(self, title):
+    def _print_mat(self, title: str):
         """
         Solution plot for mat method.
 
         Args:
-           title: title
+           title (str): title
         """
 
         nparams = self.grid.shape[0]
@@ -109,14 +125,14 @@ class Plots():
         for i in range(nvars_model):
             if nparams == 1:
                 ax1 = fig.add_subplot(1, nvars_model, i+1)
-                if title != None:
+                if title is not None:
                     ax1.set_title(title+' variable {}'.format(i))
                 ax1.scatter(self.grid.detach().cpu().numpy().reshape(-1),
                             self.model[i].detach().cpu().numpy().reshape(-1))
             else:
                 ax1 = fig.add_subplot(1, nvars_model, i+1, projection='3d')
-                
-                if title!=None:
+
+                if title is not None:
                     ax1.set_title(title+' variable {}'.format(i))
                 ax1.plot_trisurf(self.grid[0].detach().cpu().numpy().reshape(-1),
                             self.grid[1].detach().cpu().numpy().reshape(-1),
@@ -125,40 +141,55 @@ class Plots():
             ax1.set_xlabel("x1")
             ax1.set_ylabel("x2")
 
-    def dir_path(self, save_dir: str):
-        """
-        Path for save figures.
+    def _dir_path(self, save_dir: str) -> str:
+        """ Path for save figures.
 
         Args:
-            save_dir: directory where saves in
+            save_dir (str): directory where saves in
+
+        Returns:
+            str: directory where saves in
         """
-        if save_dir == None:
+
+        if save_dir is None:
             try:
                 img_dir = os.path.join(os.path.dirname(__file__), 'img')
             except:
                 current_dir = globals()['_dh'][0]
                 img_dir = os.path.join(os.path.dirname(current_dir), 'img')
 
-            if not (os.path.isdir(img_dir)):
+            if not os.path.isdir(img_dir):
                 os.mkdir(img_dir)
             directory = os.path.abspath(os.path.join(img_dir,
-                                                     str(datetime.datetime.now().timestamp()) + '.png'))
+                                        str(datetime.datetime.now().timestamp()) + '.png'))
         else:
-            if not (os.path.isdir(save_dir)):
+            if not os.path.isdir(save_dir):
                 os.mkdir(save_dir)
             directory = os.path.join(save_dir,
                                      str(datetime.datetime.now().timestamp()) + '.png')
         return directory
 
-    def solution_print(self, title=None, solution_print=False,
-                       solution_save=False, save_dir=None):
+    def solution_print(
+        self,
+        title: str = None,
+        solution_print: bool = False,
+        solution_save: bool = False,
+        save_dir: str = None):
+        """ printing figures.
 
-        directory = self.dir_path(save_dir)
+        Args:
+            title (str, optional): title of figure. Defaults to None.
+            solution_print (bool, optional): print ot not figure during solving. Defaults to False.
+            solution_save (bool, optional): save ot not figure during solving. Defaults to False.
+            save_dir (str, optional): path to save figure. Defaults to None.
+        """
+
+        directory = self._dir_path(save_dir)
 
         if self.mode == 'mat':
-            self.print_mat(title)
+            self._print_mat(title)
         else:
-            self.print_nn(title)
+            self._print_nn(title)
         if solution_save:
             plt.savefig(directory)
         if solution_print:
@@ -171,18 +202,23 @@ class Solver():
     High-level interface for solving equations.
     """
 
-    def __init__(self, grid: torch.Tensor, equal_cls,
-                 model: Any, mode: str, weak_form: Union[None, list] = None):
+    def __init__(
+        self,
+        grid: torch.Tensor,
+        equal_cls: Any,
+        model: Union[torch.Tensor, torch.nn.Module],
+        mode: str,
+        weak_form: Union[None, list] = None):
         """
-        High-level interface for solving equations.
-
         Args:
-            grid: array of a n-D points.
-            equal_cls: object from input_preprocessing (see input_preprocessing.Equation).
-            model: neural network.
-            mode: calculation method. (i.e., "NN", "autograd", "mat").
-            weak_form: list of basis functions.
+            grid (torch.Tensor): grid in (torch.cartesian_prod or torch.meshgrid) form.
+            equal_cls (Any): Equation_{NN, mat, autograd} object.
+            model (Union[torch.Tensor, torch.nn.Module]): *mat, NN, autograd* model.
+            mode (str): *mat, NN, autograd*, equation solving way.
+            weak_form (Union[None, list], optional): list with basis functions,
+            if the form is *weak*. Defaults to None.
         """
+
         self.grid = check_device(grid)
         self.equal_cls = equal_cls
         self.model = model
@@ -193,18 +229,26 @@ class Solver():
         self.t_imp_start = 0
         self.device = device_type()
         self.check = None
+        self.inverse_param = None
+        self.line = None
 
-    def optimizer_choice(self, optimizer: str, learning_rate: float) -> \
-            Union[torch.optim.Adam, torch.optim.SGD, torch.optim.LBFGS]:
-        """
-        Setting optimizer.
+    def optimizer_choice(
+        self,
+        optimizer: Union[str, Any],
+        learning_rate: float) -> \
+            Union[torch.optim.Adam, torch.optim.SGD, torch.optim.LBFGS, PSO]:
+        """ Setting optimizer. If optimizer is string type, it will get default settings,
+            or it may be custom optimizer defined by user.
 
         Args:
-           optimizer: optimizer choice (Adam, SGD, LBFGS).
-           learning_rate: determines the step size at each iteration while moving toward a minimum of a loss function.
+           optimizer: optimizer choice (Adam, SGD, LBFGS, PSO).
+           learning_rate: determines the step size at each iteration
+           while moving toward a minimum of a loss function.
+
         Returns:
-           torch.optimizer object as is.
+            optimzer: ready optimizer.
         """
+
         if optimizer == 'Adam':
             torch_optim = torch.optim.Adam
         elif optimizer == 'SGD':
@@ -216,14 +260,14 @@ class Solver():
             optimizer.param_init(self.sln_cls)
             return optimizer
         else:
-            # try:
-            optimizer.param_init(self.sln_cls)
-            print('Custom optimizer is activated')
-            # except:
-                # None
+            try:
+                optimizer.param_init(self.sln_cls)
+                print('Custom optimizer is activated')
+            except:
+                None
             return optimizer
 
-        if self.mode == 'NN' or self.mode == 'autograd':
+        if self.mode in ('NN', 'autograd'):
             optimizer = torch_optim(self.model.parameters(), lr=learning_rate)
         elif self.mode == 'mat':
             optimizer = torch_optim([self.model.requires_grad_()], lr=learning_rate)
@@ -231,6 +275,9 @@ class Solver():
         return optimizer
 
     def str_param(self):
+        """Print the coefficients determining during solution.
+        (for inverse tasks)
+        """
         if self.inverse_parameters is not None:
             param = list(self.inverse_param.keys())
             for name, p in self.model.named_parameters():
@@ -241,10 +288,22 @@ class Solver():
                         param_str = name + '=' + str(p.item()) + ' '
             print(param_str)
 
-    def line_create(self, loss_oscillation_window):
+    def line_create(self, loss_oscillation_window: int):
+        """ Approximating last_loss list (len(last_loss)=loss_oscillation_window) by the line.
+
+        Args:
+            loss_oscillation_window (int): length of last_loss list.
+        """
         self.line = np.polyfit(range(loss_oscillation_window), self.last_loss, 1)
 
-    def window_check(self, eps, loss_oscillation_window):
+    def window_check(self, eps: float, loss_oscillation_window: int):
+        """ Stopping criteria. We devide angle coeff of the approximating
+        line (line_create()) on current loss value and compare one with *eps*
+
+        Args:
+            eps (float): min value for stopping criteria.
+            loss_oscillation_window (int): list of losses length.
+        """
         if self.t % loss_oscillation_window == 0 and self.check is None:
             self.line_create(loss_oscillation_window)
             if abs(self.line[0] / self.cur_loss) < eps and self.t > 0:
@@ -253,27 +312,52 @@ class Solver():
                     self.model.apply(self.r)
                 self.check = 'window_check'
 
-    def patience_check(self, no_improvement_patience):
+    def patience_check(self, no_improvement_patience: int):
+        """ Stopping criteria. We control the minimum loss and count steps
+        when the current loss is bigger then min_loss. If these steps equal to
+        no_improvement_patience parameter, the stopping criteria will be achieved.
+
+        Args:
+            no_improvement_patience (int): no improvement steps param.
+        """
         if (self.t - self.t_imp_start) == no_improvement_patience and self.check is None:
             self.t_imp_start = self.t
             self.stop_dings += 1
             if self.mode == 'NN' or self.mode == 'autograd':
                 self.model.apply(self.r)
             self.check = 'patience_check'
-    
-    def absloss_check(self, abs_loss):
-        if abs_loss != None and self.cur_loss < abs_loss and self.check is None:
+
+    def absloss_check(self, abs_loss: float):
+        """ Stopping criteria. If current loss absolute value is lower then *abs_loss* param,
+        the stopping criteria will be achieved.
+
+        Args:
+            abs_loss (float): stopping parameter.
+        """
+        if abs_loss is not None and self.cur_loss < abs_loss and self.check is None:
             self.stop_dings += 1
 
             self.check = 'absloss_check'
 
     def info_string(self):
+        """ Print info string containing loss info and stop dings info.
+        """
+
         loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
         info = 'Step = {} loss = {:.6f} normalized loss line= {:.6f}x+{:.6f}. There was {} stop dings already.'.format(
                     self.t, loss, self.line[0] / loss, self.line[1] / loss, self.stop_dings + 1)
-        return print(info)
+        print(info)
 
-    def verbose_print(self, no_improvement_patience, print_every):
+    def verbose_print(
+        self,
+        no_improvement_patience: int,
+        print_every: Union[None, int]):
+        """
+
+        Args:
+            no_improvement_patience (int): no improvement steps param. (see patience_check())
+            print_every (Union[None, int]): print or save after *print_every* steps.
+        """
 
         if self.check == 'window_check':
             print('[{}] Oscillation near the same loss'.format(
@@ -282,9 +366,10 @@ class Solver():
             print('[{}] No improvement in {} steps'.format(
                         datetime.datetime.now(), no_improvement_patience))
         elif self.check == 'absloss_check':
-            print('[{}] Absolute value of loss is lower than threshold'.format(datetime.datetime.now()))
+            print('[{}] Absolute value of loss is lower than threshold'.format(
+                                                        datetime.datetime.now()))
 
-        if print_every != None and (self.t % print_every == 0):
+        if print_every is not None and (self.t % print_every == 0):
             self.check = 'print_every'
             print('[{}] Print every {} step'.format(datetime.datetime.now(), print_every))
 
@@ -298,7 +383,21 @@ class Solver():
 
         self.check = None
 
-    def amp_mixed(self, mixed_precision):
+    def amp_mixed(self, mixed_precision: bool):
+        """ Preparation for mixed precsion operations.
+
+        Args:
+            mixed_precision (bool): use or not torch.amp.
+
+        Raises:
+            NotImplementedError: AMP and the LBFGS optimizer are not compatible.
+
+        Returns:
+            scaler: GradScaler for CUDA.
+            cuda_flag (bool): True, if CUDA is activated.
+            dtype (dtype): operations dtype.
+        """
+
         if mixed_precision:
             scaler = torch.cuda.amp.GradScaler(enabled=mixed_precision)
             print(f'Mixed precision enabled. The device is {self.device}')
@@ -311,9 +410,14 @@ class Solver():
 
         return scaler, cuda_flag, dtype
 
-    def optimizer_step(self, mixed_precision, second_order_interactions,
-                       sampling_N, lambda_update, normalized_loss_stop):
-
+    def optimizer_step(
+        self,
+        mixed_precision,
+        second_order_interactions,
+        sampling_N,
+        lambda_update,
+        normalized_loss_stop):
+        
         scaler, cuda_flag, dtype = self.amp_mixed(mixed_precision)
 
         def closure():
@@ -474,7 +578,7 @@ class Solver():
                 scheduler.step()
 
             self.window_check(eps, loss_oscillation_window)
-            
+
             self.patience_check(no_improvement_patience)
 
             self.absloss_check(abs_loss)
