@@ -269,7 +269,7 @@ class Solver():
         elif optimizer == 'LBFGS':
             torch_optim = torch.optim.LBFGS
         elif optimizer == 'PSO':
-            optimizer = PSO()
+            optimizer = PSO(lr=learning_rate)
             optimizer.param_init(self.sln_cls)
             return optimizer
         else:
@@ -423,7 +423,7 @@ class Solver():
 
         return scaler, cuda_flag, dtype
 
-    def optimizer_step(
+    def _optimizer_step(
         self,
         mixed_precision: bool,
         scaler: Any,
@@ -478,7 +478,7 @@ class Solver():
         except:
             self.optimizer.step(closure) if not cuda_flag else closure_cuda()
 
-    def model_save(
+    def _model_save(
         self,
         cache_utils: CacheUtils,
         save_always: bool,
@@ -649,7 +649,7 @@ class Solver():
                 datetime.datetime.now(), min_loss.item()))
 
         while self._stop_dings <= self._patience or self.t < tmin:
-            self.optimizer_step(
+            self._optimizer_step(
                 mixed_precision,
                 scaler,
                 cuda_flag,

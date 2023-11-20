@@ -116,7 +116,7 @@ class CacheUtils:
                        grid: torch.Tensor,
                        cache_model: torch.nn.Module=None) -> Tuple[torch.Tensor, torch.nn.Module]:
         """ Create grid and model for *NN or autograd* modes from grid
-            and model of *mat* mode. 
+            and model of *mat* mode.
 
         Args:
             model (torch.Tensor): model from *mat* method.
@@ -169,15 +169,14 @@ class CacheUtils:
                                     it may lead to wrong cache item choice")
         return operator
 
-    def save_model(self, model: torch.nn.Module,
-                   optimizer: dict, scaler: Any = None,
-                   name: Union[str, None] = None) -> None:
+    def save_model(
+        self,
+        model: torch.nn.Module,
+        name: Union[str, None] = None) -> None:
         """
         Saved model in a cache (uses for 'NN' and 'autograd' methods).
         Args:
             model (torch.nn.Module): model to save.
-            optimizer (dict): holding current optimization state (i.e., values, hyperparameters).
-            scaler (any, optional): gradient scaler.
             (uses only with mixed precision and device=cuda). Defaults to None.
             name (str, optional): name for a model. Defaults to None.
         """
@@ -186,11 +185,8 @@ class CacheUtils:
             name = str(datetime.datetime.now().timestamp())
         if not os.path.isdir(self.cache_dir):
             os.mkdir(self.cache_dir)
-
         parameters_dict = {'model': model.to('cpu'),
-                           'model_state_dict': model.state_dict(),
-                           'optimizer_state_dict': optimizer.state_dict(),
-                           'scaler_state_dict': scaler.state_dict() if scaler is not None else None}
+                           'model_state_dict': model.state_dict()}
 
         try:
             torch.save(parameters_dict, self.cache_dir + '\\' + name + '.tar')
@@ -373,8 +369,6 @@ class CachePreprocessing:
                 min_norm_loss = loss_normalized
                 best_checkpoint['model'] = model
                 best_checkpoint['model_state_dict'] = model.state_dict()
-                best_checkpoint['optimizer_state_dict'] = \
-                    checkpoint['optimizer_state_dict']
                 if cache_verbose:
                     print('best_model_num={} , normalized_loss={}'.format(i, min_norm_loss.item()))
 
@@ -385,7 +379,7 @@ class CachePreprocessing:
 
     def scheme_interp(self,
                       trained_model: torch.nn.Module,
-                      cache_verbose: bool = False) -> Tuple[Any, dict]:
+                      cache_verbose: bool = False) -> torch.nn.Module:
         """ If the cache model has another arcitechure to user's model,
             we will not be able to use it. So we train user's model on the
             outputs of cache model.
@@ -396,7 +390,7 @@ class CachePreprocessing:
 
         Returns:
             self.model (torch.nn.Module): model trained on the cache model outputs.
-            state_dict (dict): optimizer state.
+
         """
         optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
 
@@ -419,13 +413,11 @@ class CachePreprocessing:
                 print('Interpolate from trained model t={}, loss={}'.format(
                     t, loss))
 
-        state_dict = optimizer.state_dict()
-
-        return self.model, state_dict
+        return self.model
 
     def cache_retrain(self,
                       cache_checkpoint: dict,
-                      cache_verbose: bool = False) -> Tuple[Any, dict]:
+                      cache_verbose: bool = False) -> torch.nn.Module:
         """ The comparison of the user's model and cache model architecture.
             If they are same, we will use model from cache. In the other case
             we use interpolation (scheme_interp method)

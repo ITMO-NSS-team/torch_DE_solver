@@ -13,7 +13,7 @@ class PSO():
     """Custom PSO optimizer.
     """
     def __init__(self,
-                 pop_size=30,
+                 pop_size=100,
                  b=0.99,
                  c1=8e-2,
                  c2=5e-1,
@@ -127,7 +127,7 @@ class PSO():
             matrix.append(vector.reshape(1,-1))
         matrix = torch.cat(matrix)
         variance = torch.FloatTensor(self.pop_size, self.vec_shape).uniform_(
-                                            self.variance, self.variance).to(device_type())
+                                            -self.variance, self.variance).to(device_type())
         swarm = (matrix + variance).clone().detach().requires_grad_(True)
         return swarm
 
@@ -174,7 +174,7 @@ class PSO():
         """
         loss, _ = self.sln_cls.evaluate()
         grads = self.gradient(loss)
-        grads = torch.where(math.isnan(grads), torch.zeros_like(grads), grads)
+        grads = torch.where(grads==float('nan'), torch.zeros_like(grads), grads)
         return loss, grads
 
     def fitness_fn(self) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -235,8 +235,7 @@ class PSO():
         r1, r2 = self.get_randoms()
 
         self.v = self.b * self.v + (1 - self.b) * (
-            self.c1 * r1 * (self.p - self.swarm) + self.c2 * r2 * (self.g_best - self.swarm)
-        )
+            self.c1 * r1 * (self.p - self.swarm) + self.c2 * r2 * (self.g_best - self.swarm))
         self.swarm = self.swarm + self.v - self.gradient_descent()
         self.loss_swarm, self.grads_swarm = self.fitness_fn()
         self.update_p_best()
