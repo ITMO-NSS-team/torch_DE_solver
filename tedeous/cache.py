@@ -229,7 +229,7 @@ class CacheUtils:
             print('Interpolate from trained model t={}, loss={}'.format(
                     t, loss))
 
-        self.save_model(cache_model, optimizer, name=name)
+        self.save_model(cache_model, name=name)
 
 
 class CachePreprocessing:
@@ -370,7 +370,7 @@ class CachePreprocessing:
                 best_checkpoint['model'] = model
                 best_checkpoint['model_state_dict'] = model.state_dict()
                 if cache_verbose:
-                    print('best_model_num={} , normalized_loss={}'.format(i, min_norm_loss.item()))
+                    print('best_model_num={} , loss={}'.format(i, min_loss.item()))
 
         if best_checkpoint == {}:
             best_checkpoint = None

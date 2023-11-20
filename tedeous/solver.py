@@ -497,8 +497,7 @@ class Solver():
                 cache_utils.save_model_mat(model=self.model, grid=self.grid, name=name)
             else:
                 scaler = scaler if scaler else None
-                cache_utils.save_model(model=self.model, optimizer=self.optimizer,
-                                       scaler=scaler, name=name)
+                cache_utils.save_model(model=self.model, name=name)
 
     def solve(
         self,
