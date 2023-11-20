@@ -1,6 +1,7 @@
 """Module for custom optimizers"""
 
 from copy import copy
+from typing import Tuple
 import math
 import torch
 import numpy as np
@@ -163,7 +164,7 @@ class PSO():
 
         return grads
 
-    def loss_grads(self) -> tuple(torch.Tensor, torch.Tensor):
+    def loss_grads(self) -> Tuple[torch.Tensor, torch.Tensor]:
         """ Method for loss and gradient calculaation.
             It uses sln_cls.evaluate method for loss calc-n and
             gradient method for 'gradient' calc-n.
@@ -176,7 +177,7 @@ class PSO():
         grads = torch.where(math.isnan(grads), torch.zeros_like(grads), grads)
         return loss, grads
 
-    def fitness_fn(self) -> tuple(torch.Tensor, torch.Tensor):
+    def fitness_fn(self) -> Tuple[torch.Tensor, torch.Tensor]:
         """Fitness function for the whole swarm.
 
         Returns:

@@ -114,7 +114,7 @@ class CacheUtils:
     @staticmethod
     def grid_model_mat(model: torch.Tensor,
                        grid: torch.Tensor,
-                       cache_model: torch.nn.Module=None) -> tuple(torch.Tensor, torch.nn.Module):
+                       cache_model: torch.nn.Module=None) -> Tuple[torch.Tensor, torch.nn.Module]:
         """ Create grid and model for *NN or autograd* modes from grid
             and model of *mat* mode. 
 
@@ -460,7 +460,7 @@ class CachePreprocessing:
             cache_model.eval()
             model, optimizer_state = self.scheme_interp(
                 cache_model, cache_verbose=cache_verbose)
-        return model, optimizer_state
+        return model
 
 
 class Cache():

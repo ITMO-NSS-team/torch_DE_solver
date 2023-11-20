@@ -19,7 +19,7 @@ class Points_type():
         self.grid = grid
 
     @staticmethod
-    def _shift_points(grid: torch.Tensor, axis: int, shift: float) -> torch.Tensor:
+    def shift_points(grid: torch.Tensor, axis: int, shift: float) -> torch.Tensor:
         """ Shifts all values of an array 'grid' on a value 'shift' in a direction of
         axis 'axis', somewhat is equivalent to a np.roll.
 
@@ -77,7 +77,7 @@ class Points_type():
         for axis in range(self.grid.shape[1]):
             for direction in range(2):
                 direction_list.append(
-                    Points_type._in_hull(Points_type._shift_points(
+                    Points_type._in_hull(Points_type.shift_points(
                      self.grid, axis, (-1) ** direction * 0.0001), self.grid))
 
         direction_list = np.array(direction_list)

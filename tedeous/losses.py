@@ -33,7 +33,7 @@ class Losses():
 
     def _loss_op(self,
                 operator: torch.Tensor,
-                lambda_op: torch.Tensor) -> Tuple(torch.Tensor, torch.Tensor):
+                lambda_op: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """ Operator term in loss calc-n.
 
         Args:
@@ -58,7 +58,7 @@ class Losses():
     def _loss_bcs(self,
                  bval: torch.Tensor,
                  true_bval: torch.Tensor,
-                 lambda_bound: torch.Tensor) -> Tuple(torch.Tensor, torch.Tensor):
+                 lambda_bound: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """ Computes boundary loss for corresponding type.
 
         Args:
@@ -83,7 +83,7 @@ class Losses():
                      true_bval: torch.Tensor,
                      lambda_op: torch.Tensor,
                      lambda_bound: torch.Tensor,
-                     save_graph: bool = True) -> Tuple(torch.Tensor, torch.Tensor):
+                     save_graph: bool = True) -> Tuple[torch.Tensor, torch.Tensor]:
         """ Compute l2 loss.
 
         Args:
@@ -129,7 +129,7 @@ class Losses():
                     bval: torch.Tensor,
                     true_bval: torch.Tensor,
                     lambda_op: torch.Tensor,
-                    lambda_bound: torch.Tensor)-> Tuple(torch.Tensor, torch.Tensor):
+                    lambda_bound: torch.Tensor)-> Tuple[torch.Tensor, torch.Tensor]:
         """ Computes causal loss, which is calculated with weights matrix:
         W = exp(-tol*(Loss_i)) where Loss_i is sum of the L2 loss from 0
         to t_i moment of time. This loss function should be used when one
@@ -172,7 +172,7 @@ class Losses():
                   bval: torch.Tensor,
                   true_bval: torch.Tensor,
                   lambda_op: torch.Tensor,
-                  lambda_bound: torch.Tensor) -> Tuple(torch.Tensor, torch.Tensor):
+                  lambda_bound: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """ Weak solution of O/PDE problem.
 
         Args:

@@ -1,8 +1,7 @@
 """this one contain some stuff for computing different auxiliary things."""
 
-from typing import Tuple
+from typing import Tuple, List
 from torch.nn import Module
-from torch import Tensor
 from SALib import ProblemSpec
 import numpy as np
 import torch
@@ -11,21 +10,19 @@ def samples_count(second_order_interactions: bool,
                   sampling_N: int,
                   op_length: list,
                   bval_length:list) -> Tuple[int, int]:
-    """
-    Count samples for variance based sensitivity analysis.
+    """ Count samples for variance based sensitivity analysis.
 
     Args:
-        second_order_interactions:
-        sampling_N: essentially determines how often the lambda will be re-evaluated.
-        op_length: operator values length.
-        bval_length: boundary value length.
+        second_order_interactions (bool): Calculate second-order sensitivities.
+        sampling_N (int): essentially determines how often the lambda will be re-evaluated.
+        op_length (list): operator values length.
+        bval_length (list): boundary value length.
 
     Returns:
-        sampling_amount: overall sampling value.
-        sampling_D: sum of length of grid and boundaries.
-
-
+        sampling_amount (int): overall sampling value.
+        sampling_D (int): sum of length of grid and boundaries.
     """
+
     grid_len = sum(op_length)
     bval_len = sum(bval_length)
 
@@ -37,32 +34,33 @@ def samples_count(second_order_interactions: bool,
         sampling_amount = sampling_N * (sampling_D + 2)
     return sampling_amount, sampling_D
 
-def lambda_print(lam, keys) -> None:
-    """
-    Print lambda value.
+def lambda_print(lam: torch.Tensor, keys: List) -> None:
+    """ Print lambda value.
 
     Args:
-        dict_: dict with lambdas.
+        lam (torch.Tensor): lambdas values.
+        keys (List): types of lambdas.
     """
+
     lam = lam.reshape(-1)
     for val, key in zip(lam, keys):
         print('lambda_{}: {}'.format(key, val.item()))
 
-def bcs_reshape(bval, true_bval, bval_length) \
-                                            -> Tuple[dict, dict, dict, dict]:
-    """
-    Preprocessing for lambda evaluating.
+def bcs_reshape(
+    bval: torch.Tensor,
+    true_bval: torch.Tensor,
+    bval_length: List) -> Tuple[dict, dict, dict, dict]:
+    """ Preprocessing for lambda evaluating.
 
     Args:
-        op: dict with operator solution.
-        bval: dict with boundary solution.
-        true_bval: dict with true boundary solution (i.e. right side of equation).
+        bval (torch.Tensor): matrix, where each column is predicted
+                      boundary values of one boundary type.
+        true_bval (torch.Tensor): matrix, where each column is true
+                            boundary values of one boundary type.
+        bval_length (list): list of length of each boundary type column.
 
     Returns:
-        op: dict with operator solution.
-        bcs: dict with difference of bval and true_bval.
-        op_length: dict with lengths of operator solution.
-        bval_length: dict with lengths of boundary solution.
+        torch.Tensor: vector of difference between bval and true_bval.
     """
 
     bval_diff = bval - true_bval
@@ -82,14 +80,17 @@ class Lambda:
                  loss_list: list,
                  sampling_N: int = 1,
                  second_order_interactions = True):
-        """
+        """_summary_
+
         Args:
-            op_list: list with operator solution.
-            bcs_list: list with boundary solution.
-            loss_list: list with losses.
-            sampling_N: parameter for accumulation of solutions (op, bcs). The more sampling_N, the more accurate the estimation of the variance.
-            second_order_interactions: computes second order Sobol indices.
+            op_list (list): list with operator solution.
+            bcs_list (list): list with boundary solution.
+            loss_list (list): list with losses.
+            sampling_N (int, optional): parameter for accumulation of solutions (op, bcs).
+                The more sampling_N, the more accurate the estimation of the variance.. Defaults to 1.
+            second_order_interactions (bool, optional): computes second order Sobol indices. Defaults to True.
         """
+
         self.second_order_interactions = second_order_interactions
         self.op_list = op_list
         self.bcs_list = bcs_list
@@ -98,18 +99,17 @@ class Lambda:
 
     @staticmethod
     def lambda_compute(pointer: int, length_list: list, ST: np.ndarray) -> dict:
-        """
-        Computes lambdas.
+        """ Computes lambdas.
 
         Args:
-            pointer: the label to calculate the lambda for the corresponding parameter.
-            length_dict: dict where values are lengths.
-            ST: result of SALib.ProblemSpec().
+            pointer (int): the label to calculate the lambda for the corresponding parameter.
+            length_list (list): dict where values are lengths.
+            ST (np.ndarray): result of SALib.ProblemSpec().
 
         Returns:
-            dict with lambdas.
-
+            dict: _description_
         """
+
         lambdas = []
         for value in length_list:
             lambdas.append(sum(ST) / sum(ST[pointer:pointer + value]))
@@ -119,18 +119,18 @@ class Lambda:
     def update(self, op_length: list,
                bval_length: list,
                sampling_D: int) -> Tuple[dict, dict]:
-        """
-        Updates all lambdas (operator and boundary).
+        """ Updates all lambdas (operator and boundary).
 
         Args:
-            op_length: dict with lengths of operator solution.
-            bval_length: dict with lengths of boundary solution.
-            sampling_D: sum of op_length and bval_length.
+            op_length (list): dict with lengths of operator solution.
+            bval_length (list): dict with lengths of boundary solution.
+            sampling_D (int): sum of op_length and bval_length.
 
         Returns:
-            lambda_operator: values of lambdas for operator.
-            lambda_bound: values of lambdas for boundary.
+            lambda_op (torch.Tensor): values of lambdas for operator.
+            lambda_bound (torch.Tensor): values of lambdas for boundary.
         """
+
         op_array = np.array(self.op_list)
         bc_array = np.array(self.bcs_list)
         loss_array = np.array(self.loss_list)
@@ -146,9 +146,9 @@ class Lambda:
         sp.set_results(loss_array)
         sp.analyze_sobol(calc_second_order=self.second_order_interactions)
 
-        '''
-        To assess variance we need total sensitiviy indices for every variable
-        '''
+        #
+        # To assess variance we need total sensitiviy indices for every variable
+        #
         ST = sp.analysis['ST']
 
         lambda_op = self.lambda_compute(0, op_length, ST)
@@ -159,11 +159,6 @@ class Lambda:
 
 class PadTransform(Module):
     """Pad tensor to a fixed length with given padding value.
-
-    :param max_length: Maximum length to pad to
-    :type max_length: int
-    :param pad_value: Value to pad the tensor with
-    :type pad_value: bool
     
     src: https://pytorch.org/text/stable/transforms.html#torchtext.transforms.PadTransform
     
@@ -171,17 +166,26 @@ class PadTransform(Module):
     """
 
     def __init__(self, max_length: int, pad_value: int) -> None:
+        """_summary_
+
+        Args:
+            max_length (int): Maximum length to pad to.
+            pad_value (int):  Value to pad the tensor with.
+        """
         super().__init__()
         self.max_length = max_length
         self.pad_value = float(pad_value)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """ Tensor padding
+
+        Args:
+            x (torch.Tensor): tensor for padding.
+
+        Returns:
+            torch.Tensor: filled tensor with pad value.
         """
-        :param x: The tensor to pad
-        :type x: Tensor
-        :return: Tensor padded up to max_length with pad_value
-        :rtype: Tensor
-        """
+
         max_encoded_length = x.size(-1)
         if max_encoded_length < self.max_length:
             pad_amount = self.max_length - max_encoded_length

@@ -1,7 +1,7 @@
 """Module of derivative calculations.
 """
 
-from typing import Any, Union
+from typing import Any, Union, List, Tuple
 import numpy as np
 from scipy import linalg
 import torch
@@ -71,7 +71,7 @@ class Derivative_autograd(DerivativeInt):
     def _nn_autograd(model: torch.nn.Module,
                      points: torch.Tensor,
                      var: int,
-                     axis: list(int) = [0]):
+                     axis: List[int] = [0]):
         """ Computes derivative on the grid using autograd method.
 
         Args:
@@ -149,7 +149,7 @@ class Derivative_mat(DerivativeInt):
         self.farw = [int(i) for i in range(num_points)]
 
     @staticmethod
-    def _labels(derivative_points: int) -> tuple(list, list):
+    def _labels(derivative_points: int) -> Tuple[List, List]:
         """ Determine which points are used in derivative calc-n.
             If derivative_points = 2, it return ([-1, 0], [0, 1])
 

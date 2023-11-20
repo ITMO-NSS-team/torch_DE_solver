@@ -1,6 +1,6 @@
 """Module for operatoins with operator and boundaru con-ns."""
 
-from typing import Tuple, Union
+from typing import Tuple, Union, List
 import torch
 
 from tedeous.points_type import Points_type
@@ -52,7 +52,7 @@ def integration(func: torch.Tensor,
 
 
 def dict_to_matrix(bval: dict, true_bval: dict)\
-    -> tuple(torch.Tensor, torch.Tensor, list, list):
+    -> Tuple[torch.Tensor, torch.Tensor, List, List]:
     """ Function for bounaries values matrix creation from dictionary.
 
     Args:
@@ -121,7 +121,7 @@ class Operator():
         self.derivative = Derivative(self.model,
                                 self.derivative_points).set_strategy(self.mode).take_derivative
 
-    def _apply_operator(self,
+    def apply_operator(self,
                        operator: list,
                        grid_points: Union[torch.Tensor, None]) -> torch.Tensor:
         """ Deciphers equation in a single grid subset to a field.
@@ -154,12 +154,12 @@ class Operator():
 
         num_of_eq = len(self.prepared_operator)
         if num_of_eq == 1:
-            op = self._apply_operator(
+            op = self.apply_operator(
                 self.prepared_operator[0], self.sorted_grid).reshape(-1,1)
         else:
             op_list = []
             for i in range(num_of_eq):
-                op_list.append(self._apply_operator(
+                op_list.append(self.apply_operator(
                     self.prepared_operator[i], self.sorted_grid).reshape(-1,1))
             op = torch.cat(op_list, 1)
         return op
@@ -340,9 +340,9 @@ class Bounds():
             torch.Tensor: calculated data condition.
         """
         if bop is None:
-            b_op_val = self.apply_dirichlet(bnd, var).reshape(-1, 1)
+            b_op_val = self._apply_dirichlet(bnd, var).reshape(-1, 1)
         else:
-            b_op_val = self.apply_neumann(bnd, bop).reshape(-1, 1)
+            b_op_val = self._apply_neumann(bnd, bop).reshape(-1, 1)
         return b_op_val
 
     def b_op_val_calc(self, bcond: dict) -> torch.Tensor:
