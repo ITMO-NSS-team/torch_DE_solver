@@ -334,7 +334,6 @@ class CachePreprocessing:
         cache_n = self._cache_files(files, nmodels)
 
         min_loss = np.inf
-        min_norm_loss = np.inf
         best_checkpoint = {}
 
         device = device_type()
@@ -366,7 +365,6 @@ class CachePreprocessing:
 
             if loss < min_loss:
                 min_loss = loss
-                min_norm_loss = loss_normalized
                 best_checkpoint['model'] = model
                 best_checkpoint['model_state_dict'] = model.state_dict()
                 if cache_verbose:
@@ -450,7 +448,7 @@ class CachePreprocessing:
             cache_model = cache_checkpoint['model']
             cache_model.load_state_dict(cache_checkpoint['model_state_dict'])
             cache_model.eval()
-            model, optimizer_state = self.scheme_interp(
+            model = self.scheme_interp(
                 cache_model, cache_verbose=cache_verbose)
         return model
 
@@ -466,7 +464,7 @@ class Cache():
     def __init__(self,
                  grid: torch.Tensor,
                  equal_cls: Equation,
-                 model: Union,
+                 model: Union[torch.Tensor, torch.nn.Module],
                  mode: str,
                  weak_form: Union[list, None],
                  mixed_precision: bool):

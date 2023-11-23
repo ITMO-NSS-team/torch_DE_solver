@@ -7,6 +7,7 @@ from torch.optim.lr_scheduler import ExponentialLR
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
+from copy import copy
 import torch
 
 
@@ -244,6 +245,7 @@ class Solver():
         self.sln_cls = None
         self.plot = None
         self.last_loss = None
+        self.tmax = None
 
     def _optimizer_choice(
         self,
@@ -270,11 +272,11 @@ class Solver():
             torch_optim = torch.optim.LBFGS
         elif optimizer == 'PSO':
             optimizer = PSO(lr=learning_rate)
-            optimizer.param_init(self.sln_cls)
+            optimizer.param_init(self.sln_cls, self.tmax)
             return optimizer
         else:
             try:
-                optimizer.param_init(self.sln_cls)
+                optimizer.param_init(self.sln_cls, self.tmax)
                 print('Custom optimizer is activated')
             except:
                 None
@@ -358,7 +360,7 @@ class Solver():
 
         loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
         info = 'Step = {} loss = {:.6f} normalized loss line= {:.6f}x+{:.6f}. There was {} stop dings already.'.format(
-                    self.t, loss, self._line[0] / loss, self._line[1] / loss, self._stop_dings + 1)
+                    self.t, loss, self._line[0] / loss, self._line[1] / loss, self._stop_dings)
         print(info)
 
     def _verbose_print(
@@ -456,7 +458,7 @@ class Solver():
                                                               sampling_N, lambda_update)
 
             loss.backward()
-            self.cur_loss = loss_normalized.item() if normalized_loss_stop else loss.item()
+            self.cur_loss = loss_normalized if normalized_loss_stop else loss
             return loss
 
         def closure_cuda():
@@ -469,7 +471,7 @@ class Solver():
             scaler.step(self.optimizer)
             scaler.update()
 
-            self.cur_loss = loss_normalized.item() if normalized_loss_stop else loss.item()
+            self.cur_loss = loss_normalized if normalized_loss_stop else loss
             return loss
 
         try:
@@ -611,6 +613,7 @@ class Solver():
         self._step_plot_print = step_plot_print
         self._image_save_dir = image_save_dir
         self._patience = patience
+        self.tmax = tmax
         scaler, cuda_flag, dtype = self._amp_mixed(mixed_precision)
 
         cache_utils = CacheUtils()
@@ -633,8 +636,9 @@ class Solver():
         with torch.autocast(device_type=self.device, dtype=dtype, enabled=mixed_precision):
             min_loss, _ = self.sln_cls.evaluate()
 
-        self.last_loss = np.zeros(loss_oscillation_window) + float(min_loss)
         self.cur_loss = min_loss
+
+        self.last_loss = np.zeros(loss_oscillation_window) + float(min_loss)
 
         self.optimizer = self._optimizer_choice(optimizer_mode, learning_rate)
 
@@ -647,7 +651,7 @@ class Solver():
             print('[{}] initial (min) loss is {}'.format(
                 datetime.datetime.now(), min_loss.item()))
 
-        while self._stop_dings <= self._patience or self.t < tmin:
+        while self._stop_dings < self._patience or self.t < tmin:
             self._optimizer_step(
                 mixed_precision,
                 scaler,
@@ -664,9 +668,9 @@ class Solver():
                 break
 
             self.last_loss[(self.t - 1) % loss_oscillation_window] = self.cur_loss
-
+            
             if self.cur_loss < min_loss:
-                min_loss = self.cur_loss
+                min_loss = self.cur_loss.item()
                 self._t_imp_start = self.t
 
             if gamma is not None and self.t % lr_decay == 0:
