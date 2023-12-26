@@ -1,3 +1,4 @@
+
 """preprocessing module for operator (equation) and boundaries.
 """
 
@@ -35,7 +36,6 @@ def lambda_prepare(val: torch.Tensor,
         lambdas = torch.tensor(lambda_, dtype=val.dtype)
 
     return lambdas.reshape(1,-1)
-
 
 class EquationMixin:
     """
@@ -390,6 +390,7 @@ class Equation_NN(EquationMixin, Points_type):
         """
 
         grid_dict = self.grid_sort()
+
         for bcond in self.bconds:
             bnd_dict = self.bnd_sort(grid_dict, bcond['bnd'])
             if bcond['bop'] is not None:
