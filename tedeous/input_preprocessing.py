@@ -1,5 +1,5 @@
-"""preprocessing module for operator (equation) and
-boundary conditions rewriting.
+
+"""preprocessing module for operator (equation) and boundaries.
 """
 
 from copy import deepcopy
@@ -36,182 +36,6 @@ def lambda_prepare(val: torch.Tensor,
         lambdas = torch.tensor(lambda_, dtype=val.dtype)
 
     return lambdas.reshape(1,-1)
-
-
-class Boundary():
-    """
-    Сlass for bringing all boundary conditions to a similar form.
-    """
-
-    def __init__(self, bconds: list):
-        """
-
-        Args:
-            bconds (list): list with boundary conditions bconds = [bcond,bcond,..],
-            where 'bcond' is list with parameters corresponding to boundary
-            condition.
-        """
-
-        self.bconds = bconds
-
-    def _dirichlet(self, bcond: list) -> list:
-        """ Boundary conditions without derivatives (bop is None), it can be
-        in form: bcond = [bnd, bval, type], 'bnd' is boundary points, 'bval' is
-        desired function values at 'bnd' points, 'type' should be 'dirichlet'.
-        If task has several desired functions, bcond will be in form:
-        bcond = [bnd, bval, var, type] where 'var' is function number.
-
-        Args:
-            bcond (list): list in input form: [bnd, bval, type] or [bnd, bval, var, type].
-
-        Raises:
-            NameError: Incorrect Dirichlet condition
-
-        Returns:
-            list: boundary condition in unified form.
-        """
-
-        bcond[0] = check_device(bcond[0])
-        bcond[1] = check_device(bcond[1])
-        if len(bcond) == 3:
-            boundary = [bcond[0], None, bcond[1], 0, bcond[2]]
-        elif len(bcond) == 4:
-            boundary = [bcond[0], None, bcond[1], bcond[2], bcond[3]]
-        else:
-            raise NameError('Incorrect Dirichlet condition')
-        return boundary
-
-    def _neumann(self, bcond: list) -> list:
-        """ Boundary conditions with derivatives (bop is not None), it can be
-        in form: bcond = [bnd, bop, bval, type], 'bnd' is boundary points,
-        'bval' is desired function values at 'bnd' points, 'type' should be
-        'dirichlet'. If task has several desired functions, bcond will be
-        in form: bcond = [bnd, bop, bval, var, type] where 'var' is function
-        number.
-
-        Args:
-            bcond (list): list in input form: [bnd, bop, bval, type] or
-                                [bnd, bop, bval, var, type]
-
-        Raises:
-            NameError: Incorrect operator condition
-
-        Returns:
-            list: boundary condition in unified form.
-        """
-
-        bcond[0] = check_device(bcond[0])
-        bcond[2] = check_device(bcond[2])
-        bcond[1] = EquationMixin.equation_unify(bcond[1])
-        if len(bcond) == 4:
-            boundary = [bcond[0], bcond[1], bcond[2], None, bcond[3]]
-        elif len(bcond) == 5:
-            boundary = [bcond[0], bcond[1], bcond[2], None, bcond[4]]
-        else:
-            raise NameError('Incorrect operator condition')
-        return boundary
-
-    def _periodic(self, bcond: list) -> list:
-        """ Periodic can be: periodic dirichlet (example u(x,t)=u(-x,t))
-        in form: bcond = [bnd, type], [bnd, var, type]
-        or periodic operator (example du(x,t)/dx=du(-x,t)/dx)
-        if from: [bnd, bop, type].
-        Parameter 'bnd' is list: [b_coord1, b_coord2,..]
-
-        Args:
-            bcond (list): list in input form: [bnd, type] or
-            [bnd, var, type] or [bnd, bop, type]
-
-        Raises:
-            NameError: Incorrect periodic condition
-
-        Returns:
-            list: boundary condition in unfied form.
-        """
-
-        for i in range(len(bcond[0])):
-            bcond[0][i] = check_device(bcond[0][i])
-        if len(bcond) == 2:
-            b_val = torch.zeros(bcond[0][0].shape[0])
-            boundary = [bcond[0], None, b_val, 0, bcond[1]]
-        elif len(bcond) == 3 and isinstance(bcond[1], int):
-            b_val = torch.zeros(bcond[0][0].shape[0])
-            boundary = [bcond[0], None, b_val, bcond[1], bcond[2]]
-        elif isinstance(bcond[1], dict):
-            b_val = torch.zeros(bcond[0][0].shape[0])
-            bcond[1] = EquationMixin.equation_unify(bcond[1])
-            boundary = [bcond[0], bcond[1], b_val, None, bcond[2]]
-        else:
-            raise NameError('Incorrect periodic condition')
-        return boundary
-
-    def _data(self, bcond:list) -> list:
-        """ Determine type of data condition and call
-        neumann or dirichlet methods.
-
-        Args:
-            bcond (list): list in input form: [bnd, type] or
-            [bnd, var, type] or [bnd, bop, type]
-
-        Returns:
-            list: data condition in unfied form.
-        """
-
-        bop_exist = False
-        for bcond_part in bcond:
-            if isinstance(bcond_part, dict):
-                bop_exist = True
-                break
-
-        if bop_exist:
-            boundary = self._neumann(bcond)
-        else:
-            boundary = self._dirichlet(bcond)
-
-        return boundary
-
-    def _bnd_choose(self, bcond: list) -> list:
-        """ Method that choose type of boundary condition.
-
-        Args:
-            bcond (list): list with boundary
-            condition parameters.
-
-        Raises:
-            NameError: if condition type is not correct.
-
-        Returns:
-            list: return unified condition.
-        """
-
-        if bcond[-1] == 'periodic':
-            bnd = self._periodic(bcond)
-        elif bcond[-1] == 'dirichlet':
-            bnd = self._dirichlet(bcond)
-        elif bcond[-1] == 'operator':
-            bnd = self._neumann(bcond)
-        elif bcond[-1] == 'data':
-            bnd = self._data(bcond)
-        else:
-            raise NameError('TEDEouS can not use ' + bcond[-1] + ' condition type')
-        return bnd
-
-    def bnd_unify(self) -> list:
-        """ Method that convert result of 'bnd_choose' to dict with correspondung
-        keys = ('bnd', 'bop', 'bval', 'var', 'type').
-
-        Returns:
-            list: unified boundary conditions in dict form.
-        """
-
-        unified_bnd = []
-        for bcond in self.bconds:
-            bnd = {}
-            bnd['bnd'], bnd['bop'], bnd['bval'], bnd['var'], \
-            bnd['type'] = self._bnd_choose(bcond)
-            unified_bnd.append(bnd)
-        return unified_bnd
-
 
 class EquationMixin:
     """
@@ -566,10 +390,8 @@ class Equation_NN(EquationMixin, Points_type):
         """
 
         grid_dict = self.grid_sort()
-        bconds1 = Boundary(self.bconds).bnd_unify()
-        if bconds1 is None:
-            return None
-        for bcond in bconds1:
+
+        for bcond in self.bconds:
             bnd_dict = self.bnd_sort(grid_dict, bcond['bnd'])
             if bcond['bop'] is not None:
                 if bcond['type'] == 'periodic':
@@ -578,7 +400,7 @@ class Equation_NN(EquationMixin, Points_type):
                 else:
                     bcond['bop'] = self._apply_bnd_operators(
                         bcond['bop'], bnd_dict)
-        return bconds1
+        return self.bconds
 
 
 class Equation_autograd(EquationMixin):
@@ -675,15 +497,10 @@ class Equation_autograd(EquationMixin):
             list: list of dictionaries where every dict is one boundary condition
         """
 
-        bconds = Boundary(self.bconds).bnd_unify()
-        if bconds is None:
+        if self.bconds is None:
             return None
-
-        for bcond in bconds:
-            if bcond['bop'] is not None:
-                bcond['bop'] = self.equation_unify(bcond['bop'])
-
-        return bconds
+        else:
+            return self.bconds
 
 
 class Equation_mat(EquationMixin):
@@ -759,8 +576,7 @@ class Equation_mat(EquationMixin):
             list: list of dictionaries where every dict is one boundary condition.
         """
 
-        bconds = Boundary(self.bconds).bnd_unify()
-        for bcond in bconds:
+        for bcond in self.bconds:
             if bcond['type'] == 'periodic':
                 bpos = []
                 for bnd in bcond['bnd']:
@@ -770,10 +586,10 @@ class Equation_mat(EquationMixin):
             if bcond['bop'] is not None:
                 bcond['bop'] = self.equation_unify(bcond['bop'])
             bcond['bnd'] = bpos
-        return bconds
+        return self.bconds
 
 
-class Equation():
+class Operator_bcond_preproc():
     """
     Interface for preparing equations due to chosen calculation method.
     """
