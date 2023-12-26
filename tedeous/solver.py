@@ -7,14 +7,15 @@ from torch.optim.lr_scheduler import ExponentialLR
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
-from copy import copy
+from copy import copy, deepcopy
 import torch
 
 
-from tedeous.device import check_device, device_type
+from tedeous.device import check_device, device_type, solver_device
 from tedeous.solution import Solution
 from tedeous.optimizers import PSO
-from tedeous.cache import CacheUtils, create_random_fn, Cache
+from tedeous.cache import CacheUtils, Cache
+from tedeous.utils import create_random_fn
 
 
 def grid_format_prepare(
@@ -211,6 +212,7 @@ class Solver():
         model: Union[torch.Tensor, torch.nn.Module],
         mode: str,
         weak_form: Union[None, list] = None):
+
         """
         Args:
             grid (torch.Tensor): grid in (torch.cartesian_prod or torch.meshgrid) form.
@@ -280,13 +282,15 @@ class Solver():
                 print('Custom optimizer is activated')
             except:
                 None
+
+            # print(optimizer)
             return optimizer
 
         if self.mode in ('NN', 'autograd'):
             optimizer = torch_optim(self.model.parameters(), lr=learning_rate)
         elif self.mode == 'mat':
             optimizer = torch_optim([self.model.requires_grad_()], lr=learning_rate)
-
+        print(optimizer)
         return optimizer
 
     def _str_param(self):
@@ -474,11 +478,81 @@ class Solver():
             self.cur_loss = loss_normalized if normalized_loss_stop else loss
             return loss
 
+        def zo_closure(size_params, mu, N_samples, input_size, d, sampler, gradient_mode):
+            init_model_parameters = deepcopy(dict(self.model.state_dict()))
+            model_parameters = dict(self.model.state_dict()).values()
+
+            def parameter_perturbation(eps):
+                start_idx = 0
+                for param in model_parameters:
+                    end_idx = start_idx + param.view(-1).size()[0]
+                    param.add_(eps[start_idx: end_idx].view(param.size()).float(), alpha=np.sqrt(mu))
+                    start_idx = end_idx
+
+            def grads_multiplication(grads, u):
+                start_idx = 0
+                grad_est = []
+                for param in model_parameters:
+                    end_idx = start_idx + param.view(-1).size()[0]
+                    grad_est.append(grads * u[start_idx:end_idx].view(param.size()))
+                    start_idx = end_idx
+                return grad_est
+
+            grads = [torch.zeros_like(param) for param in model_parameters]
+            self.cur_loss, _ = self.sln_cls.evaluate(second_order_interactions, sampling_N, lambda_update)
+
+            for _ in range(N_samples):
+                with torch.no_grad():
+                    if sampler == 'uniform':
+                        u = 2 * (torch.rand(size_params) - 0.5)
+                        u.div_(torch.norm(u, "fro"))
+                        u = check_device(u)
+                    elif sampler == 'normal':
+                        u = torch.randn(size_params)
+                        u = check_device(u)
+
+                    # param + mu * eps
+                    parameter_perturbation(u)
+                loss_add, _ = self.sln_cls.evaluate(second_order_interactions, sampling_N, lambda_update)
+
+                # param - mu * eps
+                with torch.no_grad():
+                    parameter_perturbation(-2 * u)
+                loss_sub, _ = self.sln_cls.evaluate(second_order_interactions, sampling_N, lambda_update)
+
+                with torch.no_grad():
+                    if gradient_mode == 'central':
+                        # (1/ inp_size * q) * d * [f(x+mu*eps) - f(x-mu*eps)] / 2*mu
+                        grad_coeff = (1 / (input_size * N_samples)) * d * (loss_add - loss_sub) / (2 * mu)
+                    elif gradient_mode == 'forward':
+                        # d * [f(x+mu*eps) - f(x)] / mu
+                        grad_coeff = (1 / (input_size * N_samples)) * d * (loss_add - self.cur_loss) / mu
+                    elif gradient_mode == 'backward':
+                        # d * [f(x) - f(x-mu*eps)] / mu
+                        grad_coeff = (1 / (input_size * N_samples)) * d * (self.cur_loss - loss_sub) / mu
+
+                    # coeff * u, i.e. constant multiplied by infinitely small perturbation.
+                    current_grad = grads_multiplication(grad_coeff, u)
+
+                    grads = [grad_past + cur_grad for grad_past, cur_grad in zip(grads, current_grad)]
+
+                # load initial model parameters
+                self.model.load_state_dict(init_model_parameters)
+
+                loss_checker, _ = self.sln_cls.evaluate(second_order_interactions, sampling_N, lambda_update)
+                assert self.cur_loss == loss_checker
+
+            return grads
+
         try:
             self.optimizer.name == 'PSO'
             self.cur_loss = self.optimizer.step()
         except:
-            self.optimizer.step(closure) if not cuda_flag else closure_cuda()
+            if self.optimizer.name[:2] == 'ZO':
+                self.optimizer.step(zo_closure)
+            else:
+                self.optimizer.step(closure) if not cuda_flag else closure_cuda()
+
 
     def _model_save(
         self,
@@ -633,6 +707,7 @@ class Solver():
         self.sln_cls = Solution(self.grid, self.equal_cls,
                            self.model, self.mode, self.weak_form,
                            lambda_operator, lambda_bound, tol, derivative_points)
+
         with torch.autocast(device_type=self.device, dtype=dtype, enabled=mixed_precision):
             min_loss, _ = self.sln_cls.evaluate()
 
@@ -652,6 +727,7 @@ class Solver():
                 datetime.datetime.now(), min_loss.item()))
 
         while self._stop_dings < self._patience or self.t < tmin:
+            self.model.train()
             self._optimizer_step(
                 mixed_precision,
                 scaler,

@@ -36,22 +36,7 @@ def count_output(model: torch.Tensor) -> int:
     return output_layer
 
 
-def create_random_fn(eps: float) -> callable:
-    """ Create random tensors to add some variance to torch neural network.
 
-    Args:
-        eps (float): randomize parameter.
-
-    Returns:
-        callable: creating random params function.
-    """
-    def randomize_params(m):
-        if isinstance(m, torch.nn.Linear) or isinstance(m, torch.nn.Conv2d):
-            m.weight.data = m.weight.data + \
-                            (2 * torch.randn(m.weight.size()) - 1) * eps
-            m.bias.data = m.bias.data + (2 * torch.randn(m.bias.size()) - 1) * eps
-
-    return randomize_params
 
 
 def remove_all_files(folder: str) -> None:

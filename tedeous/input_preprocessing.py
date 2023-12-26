@@ -29,11 +29,11 @@ def lambda_prepare(val: torch.Tensor,
 
     if isinstance(lambda_, int):
         try:
-            lambdas = torch.ones(val.shape[-1], dtype=val.dtype)*lambda_
+            lambdas = torch.ones(val.shape[-1]) * lambda_
         except:
-            lambdas = torch.tensor(lambda_, dtype=val.dtype)
+            lambdas = torch.tensor(lambda_)
     elif isinstance(lambda_, list):
-        lambdas = torch.tensor(lambda_, dtype=val.dtype)
+        lambdas = torch.tensor(lambda_)
 
     return lambdas.reshape(1,-1)
 

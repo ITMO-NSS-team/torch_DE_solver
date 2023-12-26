@@ -6,7 +6,7 @@ import scipy
 import sys
 import os
 import time
-
+from tc.tc_fc import TTLinear
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
@@ -19,6 +19,7 @@ from tedeous.solver import Solver, grid_format_prepare
 from tedeous.solution import Solution
 from tedeous.device import solver_device
 from tedeous.models import mat_model
+from tedeous.optimizers import ZO_AdaMM, ZO_SignSGD
 
 solver_device('cuda')
 # Grid
@@ -100,15 +101,27 @@ wave_eq = {
         }
 }
 
-# NN
+
+hid = [5, 2, 5, 2]
+rank = [1, 2, 2, 2, 1]
+
 model = torch.nn.Sequential(
         torch.nn.Linear(2, 100),
         torch.nn.Tanh(),
-        torch.nn.Linear(100, 100),
+        TTLinear(hid, hid, rank, activation=None),
         torch.nn.Tanh(),
-        torch.nn.Linear(100, 100),
+        TTLinear(hid, hid, rank, activation=None),
         torch.nn.Tanh(),
-        torch.nn.Linear(100, 1))
+        torch.nn.Linear(100, 1)).to('cuda')
+# NN
+# model = torch.nn.Sequential(
+#         torch.nn.Linear(2, 100),
+#         torch.nn.Tanh(),
+#         torch.nn.Linear(100, 100),
+#         torch.nn.Tanh(),
+#         torch.nn.Linear(100, 100),
+#         torch.nn.Tanh(),
+#         torch.nn.Linear(100, 1)).to('cuda')
 
 
 
@@ -124,9 +137,12 @@ if not(os.path.isdir(img_dir)):
     os.mkdir(img_dir)
 
 
-model = Solver(grid, equation, model, 'NN').solve(lambda_bound=1000, verbose=True, learning_rate=1e-2,
+opt = ZO_SignSGD(model.parameters(), len(grid), lr = 1e-3, n_samples=4, mu=1e-2)
+
+
+model = Solver(grid, equation, model, 'NN').solve(lambda_bound=1000, verbose=True, learning_rate=1e-3, optimizer_mode=opt,
                                     eps=1e-6, tmin=1000, tmax=1e5, use_cache=False,cache_dir='../cache/',cache_verbose=True,
-                                    save_always=False, no_improvement_patience=500, print_every=500, step_plot_print=True,
+                                    save_always=False, no_improvement_patience=500, print_every=5, step_plot_print=True,
                                     step_plot_save=True, image_save_dir=img_dir, mixed_precision=False)
 
 end = time.time()

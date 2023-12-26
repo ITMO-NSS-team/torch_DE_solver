@@ -21,7 +21,7 @@ from tedeous.input_preprocessing import Equation
 from tedeous.solver import Solver
 from tedeous.solution import Solution
 from tedeous.device import solver_device
-
+from tedeous.optimizers import ZO_SignSGD, ZO_AdaMM
 """
 Preparing grid
 
@@ -189,13 +189,32 @@ def wave_experiment(grid_res, CACHE):
     if not (os.path.isdir(img_dir)):
         os.mkdir(img_dir)
 
+    config = {
+        "seed": 42,
+        "batch_size": 128,
+        "net": "scalable",
+        "scale": 1.0 / 9,
+        "opt_params": [1e-4, 0.9, 0.999, 1e-10],
+        "optimizer": 'ZO-AdaMM',
+        "epochs": 50,
+        "dataset": "mnist",
+        "zo_optim": True,
+        "mu": 1e-4,
+        "use_scheduler": True,
+        "verbose": True
+    }
+
+    optimizer = ZO_AdaMM(model.parameters(), lr=config['opt_params'][0],
+                         betas=(config['opt_params'][1], config['opt_params'][2]),
+                         eps=config['opt_params'][3],
+                         mu=config['mu'])
 
     model = Solver(grid, equation, model, 'NN').solve(lambda_bound=100, verbose=1, learning_rate=1e-4,
                                                       eps=1e-5, tmin=1000, tmax=1e5, use_cache=True, cache_verbose=True,
-                                                      save_always=True, print_every=None,
+                                                      save_always=True, print_every=1,
                                                       model_randomize_parameter=1e-6,
-                                                      optimizer_mode='Adam', no_improvement_patience=1000,
-                                                      step_plot_print=False, step_plot_save=True,
+                                                      optimizer_mode=optimizer, no_improvement_patience=1000,
+                                                      step_plot_print=True, step_plot_save=True,
                                                       image_save_dir=img_dir)
 
     end = time.time()
