@@ -96,3 +96,6 @@ class Callback(ABC):
               that may change in the future.
         """
         pass
+
+    def during_epoch(self, logs=None):
+        pass

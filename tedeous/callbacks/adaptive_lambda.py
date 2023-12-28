@@ -5,7 +5,7 @@ from SALib import ProblemSpec
 
 from tedeous.callbacks.callback import Callback
 
-class AdaptiveLambda:
+class AdaptiveLambda(Callback):
     """
     Serves for computing adaptive lambdas.
     """
@@ -85,3 +85,6 @@ class AdaptiveLambda:
         lambda_bnd = self.lambda_compute(sum(op_length), bval_length, ST)
 
         return lambda_op, lambda_bnd
+
+    def during_epoch(self, logs=None):
+        pass

@@ -12,7 +12,7 @@ from tedeous.eval import Operator, Bounds
 from tedeous.losses import Losses
 from tedeous.device import device_type, check_device
 from tedeous.input_preprocessing import lambda_prepare, Equation_NN, Equation_mat, Equation_autograd
-from tedeous.utils import bcs_reshape, samples_count, Lambda, lambda_print
+from tedeous.utils import bcs_reshape, samples_count, lambda_print
 
 
 flatten_list = lambda t: [item for sublist in t for item in sublist]

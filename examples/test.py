@@ -9,6 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
+from tedeous.callbacks import adaptive_lambda, cache, early_stopping
 
 domain = Domain()
 
@@ -63,6 +64,8 @@ net = torch.nn.Sequential(
 
 model = Model(net, domain, equation, boundaries)
 
-equal_cls = model.compile(mode='autograd')
+model.compile('autograd', 1, 100)
 
-print(equal_cls.bnd_prepare())
+cache = cache.Cache(cache_verbose=True)
+
+model.train(1,1,1,False, callbacks=[cache])
