@@ -105,7 +105,7 @@ class Plots(Callback):
 
         if save_dir is None:
             try:
-                img_dir = os.path.join(os.path.dirname(__file__), 'img')
+                img_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'img')
             except:
                 current_dir = globals()['_dh'][0]
                 img_dir = os.path.join(os.path.dirname(current_dir), 'img')

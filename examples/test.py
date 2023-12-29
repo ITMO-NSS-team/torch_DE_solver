@@ -70,8 +70,8 @@ cache = cache.Cache(cache_verbose=True)
 
 es = early_stopping.EarlyStopping(eps=1e-5, loss_window=100)
 
-plots = plot.Plots(print_every=100, save_every=None, title='wave_eq')
+plots = plot.Plots(print_every=None, save_every=100, title='wave_eq')
 
-optimizer = Optimizer('Adam', {'lr': 1e-3, 'amsgrad': True})
+optimizer = Optimizer('Adam', {'lr': 1e-3})
 
-model.train(optimizer, 10000, callbacks=[plots])
+model.train(optimizer, 10001, save_model=True, callbacks=[cache, plots])

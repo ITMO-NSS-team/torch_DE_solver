@@ -6,7 +6,7 @@ from tedeous.input_preprocessing import Operator_bcond_preproc
 from tedeous.callbacks.callback_list import CallbackList
 from tedeous.solution import Solution
 from tedeous.optimizers.optimizer import Optimizer
-from tedeous.callbacks.cache import CacheUtils
+from tedeous.utils import CacheUtils
 
 
 class Model():
@@ -59,10 +59,8 @@ class Model():
 
     def _model_save(
         self,
-        cache_utils: CacheUtils,
-        save_always: bool,
-        scaler: Any,
-        name: str):
+        save_model: bool,
+        model_name: str):
         """ Model saving.
 
         Args:
@@ -71,22 +69,25 @@ class Model():
             scaler (Any): GradScaler for CUDA.
             name (str): model name.
         """
-        if save_always:
+        if save_model:
             if self.mode == 'mat':
-                cache_utils.save_model_mat(model=self.model, grid=self.grid, name=name)
+                CacheUtils().save_model_mat(model=self.net,
+                                            grid=self.solution_cls.grid,
+                                            name=model_name)
             else:
-                scaler = scaler if scaler else None
-                cache_utils.save_model(model=self.model, name=name)
+                CacheUtils().save_model(model=self.net, name=model_name)
 
     def train(self,
               optimizer: Optimizer,
-              epochs,
+              epochs: int,
+              info_string_every: Union[int, None] = None,
               mixed_precision: bool = False,
               save_model: bool = False,
               model_name: Union[str, None] = None,
               callbacks=None):
 
-        self.t = 0
+        self.t = 1
+        self.info_string_every = info_string_every
         self.stop_training = False
 
         callbacks = CallbackList(callbacks=callbacks, model=self)
@@ -107,9 +108,10 @@ class Model():
 
             callbacks.on_epoch_end()
             self.t += 1
-        
 
         callbacks.on_train_end()
+
+        self._model_save(save_model, model_name)
 
 
         
