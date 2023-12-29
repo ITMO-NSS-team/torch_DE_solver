@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 import os
 import sys
 
@@ -9,42 +10,41 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
-from tedeous.callbacks import adaptive_lambda, cache, early_stopping
+from tedeous.callbacks import adaptive_lambda, cache, early_stopping, plot
+from tedeous.optimizers.optimizer import Optimizer
 
 domain = Domain()
 
-domain.variable('x', [0,1], 3)
-domain.variable('t', [1,2], 5)
+domain.variable('x', [0,1], 20)
+domain.variable('t', [0,1], 20)
 
-# print(grid)
 boundaries = Conditions()
 
-bop= {
-        'du/dx':
-            {
-                'coeff': 1,
-                'du/dx': [0],
-                'pow': 1,
-                'var': 0
-            }
-}
+bnd1 = domain.variable_dict['x']
 
-boundaries.operator({'x': 0, 't': [1, 2]}, operator=bop, value=5)
-boundaries.periodic([{'x':0, 't':[0,2]}, {'x':1, 't':[1,2]}], bop)
+boundaries.dirichlet({'x': [0, 1], 't': 0}, value=torch.sin(np.pi*bnd1))
+
+bnd2 = domain.variable_dict['x']
+
+boundaries.dirichlet({'x': [0, 1], 't': 1}, value=torch.sin(np.pi*bnd2))
+
+boundaries.dirichlet({'x': 0, 't': [0, 1]}, value=0)
+
+boundaries.dirichlet({'x': 1, 't': [0, 1]}, value=0)
 
 equation = Equation()
 
 wave_eq = {
-    '-C*d2u/dx2**1':
+    '4*d2u/dx2**1':
         {
-            'coeff': -4,
-            'd2u/dx2': [1, 1],
+            'coeff': 4,
+            'd2u/dx2': [0, 0],
             'pow': 1
         },
-    'd2u/dt2**1':
+    '-d2u/dt2**1':
         {
-            'coeff': 1,
-            'd2u/dt2': [0, 0],
+            'coeff': -1,
+            'd2u/dt2': [1,1],
             'pow':1
         }
 }
@@ -54,7 +54,7 @@ equation.add(wave_eq)
 net = torch.nn.Sequential(
     torch.nn.Linear(2, 256),
     torch.nn.Tanh(),
-    torch.nn.Linear(256, 256),
+    torch.nn.Linear(256,256),
     torch.nn.Tanh(),
     torch.nn.Linear(256, 256),
     torch.nn.Tanh(),
@@ -64,8 +64,14 @@ net = torch.nn.Sequential(
 
 model = Model(net, domain, equation, boundaries)
 
-model.compile('autograd', 1, 100)
+model.compile('autograd', 1, 10)
 
 cache = cache.Cache(cache_verbose=True)
 
-model.train(1,1,1,False, callbacks=[cache])
+es = early_stopping.EarlyStopping(eps=1e-5, loss_window=100)
+
+plots = plot.Plots(print_every=100, save_every=None, title='wave_eq')
+
+optimizer = Optimizer('Adam', {'lr': 1e-3, 'amsgrad': True})
+
+model.train(optimizer, 10000, callbacks=[plots])

@@ -26,7 +26,7 @@ class CallbackList(Callback):
             **params: If provided, parameters will be passed to each `Callback`
                 via `Callback.set_params`.
         """
-        self.callbacks = callbacks #tree.flatten(callbacks) if callbacks else []
+        self.callbacks = callbacks if callbacks else []
 
         if model:
             self.set_model(model)

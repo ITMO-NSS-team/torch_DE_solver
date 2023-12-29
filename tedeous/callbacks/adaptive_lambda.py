@@ -4,6 +4,7 @@ from typing import Tuple, List
 from SALib import ProblemSpec
 
 from tedeous.callbacks.callback import Callback
+from tedeous.utils import bcs_reshape, samples_count, lambda_print
 
 class AdaptiveLambda(Callback):
     """
@@ -22,7 +23,7 @@ class AdaptiveLambda(Callback):
                 The more sampling_N, the more accurate the estimation of the variance.. Defaults to 1.
             second_order_interactions (bool, optional): computes second order Sobol indices. Defaults to True.
         """
-
+        super().__init__()
         self.second_order_interactions = second_order_interactions
         self.sampling_N = sampling_N
 
@@ -61,7 +62,7 @@ class AdaptiveLambda(Callback):
         """
 
         op_array = np.array(self.op_list)
-        bc_array = np.array(self.bcs_list)
+        bc_array = np.array(self.bval_list)
         loss_array = np.array(self.loss_list)
 
         X_array = np.hstack((op_array, bc_array))
@@ -86,5 +87,40 @@ class AdaptiveLambda(Callback):
 
         return lambda_op, lambda_bnd
 
-    def during_epoch(self, logs=None):
-        pass
+    def lambda_update(self):
+        sln_cls = self.model.solution_cls
+        bval = sln_cls.bval
+        true_bval = sln_cls.true_bval
+        bval_keys = sln_cls.bval_keys
+        bval_length = sln_cls.bval_length
+        op = sln_cls.op
+        self.op_list = sln_cls.op_list
+        self.bval_list = sln_cls.bval_list
+        self.loss_list = sln_cls.loss_list
+
+        bcs = bcs_reshape(bval, true_bval, bval_length)
+        op_length = [op.shape[0]]*op.shape[-1]
+
+        self.op_list.append(torch.t(op).reshape(-1).cpu().detach().numpy())
+        self.bval_list.append(bcs.cpu().detach().numpy())
+        self.loss_list.append(float(sln_cls.loss_normalized.item()))
+
+        sampling_amount, sampling_D = samples_count(
+                    second_order_interactions = self.second_order_interactions,
+                    sampling_N = self.sampling_N,
+                    op_length=op_length,
+                    bval_length = bval_length)
+
+        if len(self.op_list) == sampling_amount:
+            sln_cls.lambda_operator, sln_cls.lambda_bound = \
+                self.update(op_length=op_length, bval_length=bval_length, sampling_D=sampling_D)
+            self.op_list.clear()
+            self.bval_list.clear()
+            self.loss_list.clear()
+
+            oper_keys = [f'eq_{i}' for i in range(len(op_length))]
+            lambda_print(sln_cls.lambda_operator, oper_keys)
+            lambda_print(sln_cls.lambda_bound, bval_keys)
+
+    def on_epoch_end(self, logs=None):
+        self.lambda_update()

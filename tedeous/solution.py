@@ -12,7 +12,6 @@ from tedeous.eval import Operator, Bounds
 from tedeous.losses import Losses
 from tedeous.device import device_type, check_device
 from tedeous.input_preprocessing import lambda_prepare, Equation_NN, Equation_mat, Equation_autograd
-from tedeous.utils import bcs_reshape, samples_count, lambda_print
 
 
 flatten_list = lambda t: [item for sublist in t for item in sublist]
@@ -72,7 +71,6 @@ class Solution():
                                    self.mode, weak_form, derivative_points)
 
         self.loss_cls = Losses(self.mode, self.weak_form, self.n_t, self.tol)
-        self.eps = 0
         self.op_list = []
         self.bval_list = []
         self.loss_list = []
@@ -96,9 +94,6 @@ class Solution():
 
 
     def evaluate(self,
-                 second_order_interactions: bool = True,
-                 sampling_N: int = 1,
-                 lambda_update: bool = False,
                  save_graph: bool = True) -> Tuple[torch.Tensor, torch.Tensor]:
         """ Computes loss.
 
@@ -115,47 +110,19 @@ class Solution():
             Tuple[torch.Tensor, torch.Tensor]: loss
         """
 
-        op = self.operator.operator_compute()
-        bval, true_bval, bval_keys, bval_length = self.boundary.apply_bcs()
+        self.op = self.operator.operator_compute()
+        self.bval, self.true_bval,\
+            self.bval_keys, self.bval_length = self.boundary.apply_bcs()
 
-        self.lambda_operator = lambda_prepare(op, self.lambda_operator)
-        self.lambda_bound = lambda_prepare(bval, self.lambda_bound)
+        self.lambda_operator = lambda_prepare(self.op, self.lambda_operator)
+        self.lambda_bound = lambda_prepare(self.bval, self.lambda_bound)
 
-        loss, loss_normalized = self.loss_cls.compute(op, bval, true_bval,
-                                                      self.lambda_operator,
-                                                      self.lambda_bound,
-                                                      save_graph)
+        self.loss, self.loss_normalized = self.loss_cls.compute(
+            self.op,
+            self.bval,
+            self.true_bval,
+            self.lambda_operator,
+            self.lambda_bound,
+            save_graph)
 
-        if lambda_update:
-            # TODO refactor this lambda thing to class or function.
-            bcs = bcs_reshape(bval, true_bval, bval_length)
-            op_length = [op.shape[0]]*op.shape[-1]
-
-            self.op_list.append(torch.t(op).reshape(-1).cpu().detach().numpy())
-            self.bval_list.append(bcs.cpu().detach().numpy())
-            self.loss_list.append(float(loss_normalized.item()))
-
-            sampling_amount, sampling_D = samples_count(
-                        second_order_interactions = second_order_interactions,
-                        sampling_N = sampling_N,
-                        op_length=op_length,
-                        bval_length = bval_length)
-
-            if len(self.op_list) == sampling_amount:
-                self.lambda_operator, self.lambda_bound = Lambda(
-                                        self.op_list, self.bval_list,
-                                        self.loss_list,
-                                        second_order_interactions)\
-                                        .update(op_length=op_length,
-                                                bval_length=bval_length,
-                                                sampling_D=sampling_D)
-                self.op_list.clear()
-                self.bval_list.clear()
-                self.loss_list.clear()
-
-                oper_keys = [f'eq_{i}' for i in range(len(op_length))]
-                lambda_print(self.lambda_operator, oper_keys)
-                lambda_print(self.lambda_bound, bval_keys)
-
-
-        return loss, loss_normalized
+        return self.loss, self.loss_normalized

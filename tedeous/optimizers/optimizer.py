@@ -1,18 +1,21 @@
 import torch
 from abc import ABC
 from typing import Union, Any
-from tedeous.optimizers import PSO
+from tedeous.optimizers.pso import PSO
+
 
 class Optimizer():
-    def __init__(self, optimizer: Union[torch.optim.Optimizer, str], learning_rate:float = 1e-3, **params):
+    def __init__(
+            self,
+            optimizer: str,
+            params):
         self.optimizer = optimizer
-        self.learning_rate = learning_rate
-        self.mode = params.get('mode', 'NN')
+        self.params = params
 
-    def _optimizer_choice(
+    def optimizer_choice(
         self,
-        optimizer: Union[str, Any],
-        learning_rate: float) -> \
+        mode,
+        model) -> \
             Union[torch.optim.Adam, torch.optim.SGD, torch.optim.LBFGS, PSO]:
         """ Setting optimizer. If optimizer is string type, it will get default settings,
             or it may be custom optimizer defined by user.
@@ -26,17 +29,18 @@ class Optimizer():
             optimzer: ready optimizer.
         """
 
-        if optimizer == 'Adam':
+        if self.optimizer == 'Adam':
             torch_optim = torch.optim.Adam
-        elif optimizer == 'SGD':
+        elif self.optimizer == 'SGD':
             torch_optim = torch.optim.SGD
-        elif optimizer == 'LBFGS':
+        elif self.optimizer == 'LBFGS':
             torch_optim = torch.optim.LBFGS
-        else:
-            torch_optim = optimizer
+        elif self.optimizer == 'PSO':
+            torch_optim = PSO
 
-        if self.mode in ('NN', 'autograd'):
-            optimizer = torch_optim(self.model.parameters(), lr=learning_rate)
-        elif self.mode == 'mat':
-            optimizer = torch_optim([self.model.requires_grad_()], lr=learning_rate)
+        if mode in ('NN', 'autograd'):
+            optimizer = torch_optim(model.parameters(), **self.params)
+        elif mode == 'mat':
+            optimizer = torch_optim([model.requires_grad_()], **self.params)
+
         return optimizer

@@ -17,8 +17,6 @@ class EarlyStopping(Callback):
         self.patience = patience
         self.abs_loss = abs_loss
         self.normalized_loss = normalized_loss
-        self.t = self.model.t
-        self.mode = self.model.mode
         self._stop_dings = 0
         self.cur_loss = np.inf
 
@@ -66,6 +64,9 @@ class EarlyStopping(Callback):
             self._check = 'absloss_check'
 
     def on_epoch_begin(self, logs=None):
+        self.t = self.model.t
+        self.mode = self.model.mode
+        self._check = self.model._check
         self._window_check()
         self._patience_check()
         self._absloss_check()

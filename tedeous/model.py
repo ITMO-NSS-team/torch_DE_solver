@@ -1,10 +1,12 @@
 import torch
-from typing import Union, List
+from typing import Union, List, Any
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.input_preprocessing import Operator_bcond_preproc
 from tedeous.callbacks.callback_list import CallbackList
 from tedeous.solution import Solution
+from tedeous.optimizers.optimizer import Optimizer
+from tedeous.callbacks.cache import CacheUtils
 
 
 class Model():
@@ -26,8 +28,6 @@ class Model():
         self.domain = domain
         self.equation = equation
         self.conditions = conditions
-        self.equation_cls = None
-        self.mode = None
 
     def compile(
             self,
@@ -57,19 +57,59 @@ class Model():
         self.solution_cls = Solution(grid, self.equation_cls, self.net, mode, weak_form,
                                      lambda_operator, lambda_bound, tol, derivative_points)
 
+    def _model_save(
+        self,
+        cache_utils: CacheUtils,
+        save_always: bool,
+        scaler: Any,
+        name: str):
+        """ Model saving.
+
+        Args:
+            cache_utils (CacheUtils): CacheUtils class object.
+            save_always (bool): flag for model saving.
+            scaler (Any): GradScaler for CUDA.
+            name (str): model name.
+        """
+        if save_always:
+            if self.mode == 'mat':
+                cache_utils.save_model_mat(model=self.model, grid=self.grid, name=name)
+            else:
+                scaler = scaler if scaler else None
+                cache_utils.save_model(model=self.model, name=name)
+
     def train(self,
-              optimizer,
+              optimizer: Optimizer,
               epochs,
-              verbose: bool = True,
               mixed_precision: bool = False,
               save_model: bool = False,
+              model_name: Union[str, None] = None,
               callbacks=None):
 
-        if callbacks is not None:
-            callbacks = CallbackList(callbacks=callbacks)
-        callbacks.set_model(self)
+        self.t = 0
+        self.stop_training = False
+
+        callbacks = CallbackList(callbacks=callbacks, model=self)
 
         callbacks.on_train_begin()
 
-        epoch = 0
+        optimizer = optimizer.optimizer_choice(self.mode, self.net)
+
+        while self.t < epochs:
+            callbacks.on_epoch_begin()
+
+            optimizer.zero_grad()
             
+            loss, _ = self.solution_cls.evaluate()
+
+            loss.backward()
+            optimizer.step()
+
+            callbacks.on_epoch_end()
+            self.t += 1
+        
+
+        callbacks.on_train_end()
+
+
+        

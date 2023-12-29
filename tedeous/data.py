@@ -231,7 +231,10 @@ class Conditions():
             if isinstance(cond['bval'], torch.Tensor):
                 cond['bval'] = check_device(cond['bval']).to(dtype)
             elif isinstance(cond['bval'], (float, int)):
-                cond['bval'] = check_device(torch.tensor([cond['bval']])).to(dtype)
+                cond['bval'] = check_device(
+                    torch.ones_like(cond['bnd'][:,0])*cond['bval']).to(dtype)
+            elif isinstance(cond['bval'], callable):
+                cond['bval'] = check_device(cond['bval'](cond['bnd'])).to(dtype)
         
         return self.conditions_lst
 
