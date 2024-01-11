@@ -104,12 +104,12 @@ class Losses():
             return torch.sum(torch.mean((operator) ** 2, 0))
 
         loss_oper, op = self._loss_op(operator, lambda_op)
-
+        dtype = op.dtype
         loss_bnd, bval_diff = self._loss_bcs(bval, true_bval, lambda_bound)
         loss = loss_oper + loss_bnd
 
-        lambda_op_normalized = lambda_prepare(operator, 1)
-        lambda_bound_normalized = lambda_prepare(bval, 1)
+        lambda_op_normalized = lambda_prepare(operator, 1).to(dtype)
+        lambda_bound_normalized = lambda_prepare(bval, 1).to(dtype)
 
         with torch.no_grad():
             loss_normalized = op @ lambda_op_normalized.T +\

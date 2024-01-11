@@ -113,9 +113,9 @@ class Solution():
         self.op = self.operator.operator_compute()
         self.bval, self.true_bval,\
             self.bval_keys, self.bval_length = self.boundary.apply_bcs()
-
-        self.lambda_operator = lambda_prepare(self.op, self.lambda_operator)
-        self.lambda_bound = lambda_prepare(self.bval, self.lambda_bound)
+        dtype = self.op.dtype
+        self.lambda_operator = lambda_prepare(self.op, self.lambda_operator).to(dtype)
+        self.lambda_bound = lambda_prepare(self.bval, self.lambda_bound).to(dtype)
 
         self.loss, self.loss_normalized = self.loss_cls.compute(
             self.op,

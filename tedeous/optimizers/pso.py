@@ -21,7 +21,8 @@ class PSO(torch.optim.Optimizer):
                  betas: Tuple = (0.99, 0.999),
                  c_decrease: bool = False,
                  variance: float = 1,
-                 epsilon: float = 1e-8):
+                 epsilon: float = 1e-8,
+                 n_iter: int = 2000):
         """The Particle Swarm Optimizer class.
 
         Args:
@@ -38,8 +39,14 @@ class PSO(torch.optim.Optimizer):
             epsilon (float, optional): some add to gradient descent like in Adam optimizer.
                 Defaults to 1e-8.
         """
-        defaults = dict(lr=lr)
+        defaults = {'pop_size': pop_size,
+                    'b': b, 'c1': c1, 'c2': c2,
+                    'lr': lr, 'betas': betas,
+                    'c_decrease': c_decrease,
+                    'variance': variance,
+                    'epsilon': epsilon}
         super(PSO, self).__init__(params, defaults)
+        self.params = self.param_groups[0]['params']
         self.pop_size = pop_size
         self.b = b
         self.c1 = c1
@@ -51,19 +58,20 @@ class PSO(torch.optim.Optimizer):
         self.use_grad = True if self.lr != 0 else False
         self.variance = variance
         self.name = "PSO"
+        self.n_iter = n_iter
 
-        """other parameters are determined in param_init method"""
-        self.model_shape = None
-        self.sln_cls = None
-        self.vec_shape = None
-        self.swarm = None
-        self.loss_swarm, self.grads_swarm = None, None
-        self.p, self.f_p = None, None
-        self.g_best = None
-        self.v = None
-        self.m1 = None
-        self.m2 = None
-        self.n_iter = None
+        vec_shape = self.params_to_vec().shape
+        self.vec_shape = list(vec_shape)[0]
+
+        self.swarm = self.build_swarm()
+
+        self.p = copy(self.swarm).detach()
+
+        self.v = self.start_velocities()
+        self.m1 = torch.zeros(self.pop_size, self.vec_shape)
+        self.m2 = torch.zeros(self.pop_size, self.vec_shape)
+
+        self.indicator = True
 
     def params_to_vec(self) -> torch.Tensor:
         """ Method for converting model parameters *NN and autograd*
@@ -72,11 +80,11 @@ class PSO(torch.optim.Optimizer):
         Returns:
             torch.Tensor: model parameters/model values vector.
         """
-        if self.sln_cls.mode != 'mat':
-            vec = parameters_to_vector(self.sln_cls.model.parameters())
+        if not isinstance(self.params, torch.Tensor):
+            vec = parameters_to_vector(self.params)
         else:
-            self.model_shape = self.sln_cls.model.shape
-            vec = self.sln_cls.model.reshape(-1)
+            self.model_shape = self.params.shape
+            vec = self.params.reshape(-1)
 
         return vec
 
@@ -87,33 +95,10 @@ class PSO(torch.optim.Optimizer):
         Args:
             vec (torch.Tensor): The particle of swarm. 
         """
-        if self.sln_cls.mode != 'mat':
-            vector_to_parameters(vec, self.sln_cls.model.parameters())
+        if not isinstance(self.params, torch.Tensor):
+            vector_to_parameters(vec, self.params)
         else:
-            self.sln_cls.model.data = vec.reshape(self.model_shape).data
-
-    def param_init(self, sln_cls, tmax) -> None:
-        """Method for additional class objects initializing.
-
-        Args:
-            sln_cls (Solution): Solution class object to get model and method for loss calculation.
-        """
-        self.sln_cls = sln_cls
-        self.sln_cls.model.requires_grad_()
-        vec_shape = self.params_to_vec().shape
-        self.vec_shape = list(vec_shape)[0]
-
-        self.swarm = self.build_swarm()
-
-        self.loss_swarm, self.grads_swarm = self.fitness_fn()
-
-        self.p, self.f_p = copy(self.swarm).detach(), copy(self.loss_swarm).detach()
-
-        self.g_best = self.p[torch.argmin(self.f_p)]
-        self.v = self.start_velocities()
-        self.m1 = torch.zeros(self.pop_size, self.vec_shape)
-        self.m2 = torch.zeros(self.pop_size, self.vec_shape)
-        self.n_iter = tmax
+            self.params.data = vec.reshape(self.params).data
 
     def build_swarm(self):
         """Creates the swarm based on solution class model.
@@ -156,48 +141,11 @@ class PSO(torch.optim.Optimizer):
         Returns:
             torch.Tensor: calculated gradient vector.
         """
-        if self.sln_cls.mode != 'mat':
-            dl_dparam = torch.autograd.grad(loss, self.sln_cls.model.parameters())
-        else:
-            dl_dparam = torch.autograd.grad(loss, self.sln_cls.model)
+        dl_dparam = torch.autograd.grad(loss, self.params)
 
         grads = parameters_to_vector(dl_dparam)
 
         return grads
-
-    def loss_grads(self) -> Tuple[torch.Tensor, torch.Tensor]:
-        """ Method for loss and gradient calculaation.
-            It uses sln_cls.evaluate method for loss calc-n and
-            gradient method for 'gradient' calc-n.
-
-        Returns:
-            tuple(torch.Tensor, torch.Tensor): calculated loss and gradient
-        """
-        loss, _ = self.sln_cls.evaluate()
-        if self.use_grad:
-            grads = self.gradient(loss)
-            grads = torch.where(grads == float('nan'), torch.zeros_like(grads), grads)
-        else:
-            grads = torch.tensor([0.])
-        return loss, grads
-
-    def fitness_fn(self) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Fitness function for the whole swarm.
-
-        Returns:
-            tuple(torch.Tensor, torch.Tensor): the losses and gradients for all particles.
-        """
-        loss_swarm = []
-        grads_swarm = []
-        for particle in self.swarm:
-            self.vec_to_params(particle)
-            loss_particle, grads = self.loss_grads()
-            loss_swarm.append(loss_particle)
-            grads_swarm.append(grads.reshape(1, -1))
-
-        losses = torch.stack(loss_swarm).reshape(-1)
-        gradients = torch.vstack(grads_swarm)
-        return losses, gradients
 
     def get_randoms(self) -> torch.Tensor:
         """Generate random values to update the particles' positions.
@@ -230,12 +178,19 @@ class PSO(torch.optim.Optimizer):
             self.grads_swarm)
         return self.lr * self.m1 / torch.sqrt(self.m2) + self.epsilon
 
-    def step(self) -> torch.Tensor:
+    def step(self, closure=None) -> torch.Tensor:
         """ It runs ONE step on the particle swarm optimization.
 
         Returns:
             torch.Tensor: loss value for best particle of thw swarm.
         """
+
+        self.loss_swarm, self.grads_swarm = closure()
+        if self.indicator:
+            self.f_p = copy(self.loss_swarm).detach()
+            self.g_best = self.p[torch.argmin(self.f_p)]
+            self.indicator = False
+
         r1, r2 = self.get_randoms()
 
         self.v = self.b * self.v + (1 - self.b) * (
@@ -244,7 +199,6 @@ class PSO(torch.optim.Optimizer):
             self.swarm = self.swarm + self.v - self.gradient_descent()
         else:
             self.swarm = self.swarm + self.v
-        self.loss_swarm, self.grads_swarm = self.fitness_fn()
         self.update_p_best()
         self.update_g_best()
         self.vec_to_params(self.g_best)

@@ -73,12 +73,12 @@ def dict_to_matrix(bval: dict, true_bval: dict)\
     keys = list(bval.keys())
     max_len = max([len(i) for i in bval.values()])
     pad = PadTransform(max_len, 0)
-    matrix_bval = pad(bval[keys[0]]).float().reshape(-1,1)
-    matrix_true_bval = pad(true_bval[keys[0]]).float().reshape(-1,1)
+    matrix_bval = pad(bval[keys[0]]).reshape(-1,1)
+    matrix_true_bval = pad(true_bval[keys[0]]).reshape(-1,1)
     len_list = [len(bval[keys[0]])]
     for key in keys[1:]:
-        bval_i = pad(bval[key]).float().reshape(-1,1)
-        true_bval_i = pad(true_bval[key]).float().reshape(-1,1)
+        bval_i = pad(bval[key]).reshape(-1,1)
+        true_bval_i = pad(true_bval[key]).reshape(-1,1)
         matrix_bval = torch.hstack((matrix_bval, bval_i))
         matrix_true_bval = torch.hstack((matrix_true_bval, true_bval_i))
         len_list.append(len(bval[key]))

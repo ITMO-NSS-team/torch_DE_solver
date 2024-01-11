@@ -279,7 +279,7 @@ class Equation_NN(EquationMixin, Points_type):
             coeff1 = coeff
         elif callable(coeff):
             coeff1 = (coeff, grid_points)
-        elif isinstance(coeff, torch.Tansor):
+        elif isinstance(coeff, torch.Tensor):
             coeff = check_device(coeff)
             pos = self.bndpos(self.grid, grid_points)
             coeff1 = coeff[pos].reshape(-1, 1)

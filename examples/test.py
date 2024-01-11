@@ -1,11 +1,10 @@
 import torch
+from torch.nn.utils import parameters_to_vector
 import numpy as np
 import os
 import sys
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-#sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
 from tedeous.data import Domain, Conditions, Equation
@@ -15,8 +14,8 @@ from tedeous.optimizers.optimizer import Optimizer
 
 domain = Domain()
 
-domain.variable('x', [0,1], 20)
-domain.variable('t', [0,1], 20)
+domain.variable('x', [0,1], 20, dtype='float32')
+domain.variable('t', [0,1], 20, dtype='float32')
 
 boundaries = Conditions()
 
@@ -52,26 +51,22 @@ wave_eq = {
 equation.add(wave_eq)
 
 net = torch.nn.Sequential(
-    torch.nn.Linear(2, 256),
+    torch.nn.Linear(2, 2),
     torch.nn.Tanh(),
-    torch.nn.Linear(256,256),
+    torch.nn.Linear(2,2),
     torch.nn.Tanh(),
-    torch.nn.Linear(256, 256),
-    torch.nn.Tanh(),
-    torch.nn.Linear(256, 256),
-    torch.nn.Tanh(),
-    torch.nn.Linear(256, 1))
+    torch.nn.Linear(2, 1))
 
 model = Model(net, domain, equation, boundaries)
 
 model.compile('autograd', 1, 10)
 
-cache = cache.Cache(cache_verbose=True)
+cache = cache.Cache(cache_verbose=True, clear_cache=True)
 
 es = early_stopping.EarlyStopping(eps=1e-5, loss_window=100)
 
-plots = plot.Plots(print_every=None, save_every=100, title='wave_eq')
+plots = plot.Plots(print_every=None, save_every=1000, title='wave_eq')
 
 optimizer = Optimizer('Adam', {'lr': 1e-3})
 
-model.train(optimizer, 10001, save_model=True, callbacks=[cache, plots])
+model.train(optimizer, 100001, info_string_every=100, save_model=True, callbacks=[plots, es, cache])
