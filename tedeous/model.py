@@ -78,7 +78,7 @@ class Model():
         if save_model:
             if self.mode == 'mat':
                 CacheUtils().save_model_mat(model=self.net,
-                                            grid=self.solution_cls.grid,
+                                            domain=self.domain,
                                             name=model_name)
             else:
                 CacheUtils().save_model(model=self.net, name=model_name)
@@ -103,7 +103,7 @@ class Model():
 
         closure = Closure(mixed_precision, self).get_closure(optimizer.optimizer)
 
-        self.min_loss = torch.min(closure())
+        self.min_loss, _ = self.solution_cls.evaluate()
 
         self.cur_loss = self.min_loss
 
@@ -117,11 +117,11 @@ class Model():
             callbacks.on_epoch_end()
 
             self.t += 1
-
-            if self.t % info_string_every == 0 and info_string_every is not None:
-                loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
-                info = 'Step = {} loss = {:.6f}.'.format(self.t, loss)
-                print(info)
+            if info_string_every is not None:
+                if self.t % info_string_every == 0:
+                    loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
+                    info = 'Step = {} loss = {:.6f}.'.format(self.t, loss)
+                    print(info)
 
         callbacks.on_train_end()
 

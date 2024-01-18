@@ -1,10 +1,6 @@
 import torch
-import numpy as np
 import os
 import sys
-from scipy.optimize import fsolve
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 import scipy
 
 
@@ -13,10 +9,11 @@ sys.path.append('../')
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver, grid_format_prepare
+from tedeous.data import Domain, Conditions, Equation
+from tedeous.model import Model
+from tedeous.callbacks import early_stopping, plot
+from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device, check_device
-from tedeous.optimizers import PSO
 
 
 def exact_solution(grid):
@@ -51,23 +48,20 @@ t_end = 1.
 
 def experiment(grid_res, mode):
     
-    x = torch.linspace(0, 1, grid_res+1)
-    t = torch.linspace(0, t_end, grid_res+1)
+    domain = Domain()
 
-    grid = grid_format_prepare([x,t], mode=mode).float()
+    domain.variable('x', [0, 1], grid_res, dtype='float32')
+    domain.variable('t', [0, 1], grid_res, dtype='float32')
+
+    boundaries = Conditions()
 
     ##initial cond
-    bnd1 = torch.cartesian_prod(x, torch.tensor([0.])).float()
-    bndval1 = torch.zeros_like(x) + Swi0
+    boundaries.dirichlet({'x': [0, 1], 't': 0}, value=Swi0)
 
     ##boundary cond
-    bnd2 = torch.cartesian_prod(torch.tensor([0.]), t).float()
-    bndval2 = torch.zeros_like(t) + Sk
+    boundaries.dirichlet({'x': 0, 't': [0, 1]}, value=Sk)
 
-    bconds = [[bnd1, bndval1, 'dirichlet'],
-            [bnd2, bndval2, 'dirichlet']]
-
-    model = torch.nn.Sequential(
+    net = torch.nn.Sequential(
         torch.nn.Linear(2, 20),
         torch.nn.Tanh(),
         torch.nn.Linear(20, 20),
@@ -77,24 +71,26 @@ def experiment(grid_res, mode):
         torch.nn.Linear(20, 1)
     )
 
-    def k_o(x):
-        return (1-model(x))**2
+    def k_oil(x):
+        return (1-net(x))**2
 
-    def k_w(x):
-        return (model(x))**2
+    def k_water(x):
+        return (net(x))**2
 
-    def dk_w(x):
-        return 2*model(x)
+    def dk_water(x):
+        return 2*net(x)
 
-    def dk_o(x):
-        return -2*(1-model(x))
+    def dk_oil(x):
+        return -2*(1-net(x))
 
     def df(x):
-        return (dk_w(x)*(k_w(x)+mu_w/mu_o*k_o(x))-
-                k_w(x)*(dk_w(x)+mu_w/mu_o*dk_o(x)))/(k_w(x)+mu_w/mu_o*k_o(x))**2
+        return (dk_water(x)*(k_water(x)+mu_w/mu_o*k_oil(x))-
+                k_water(x)*(dk_water(x)+mu_w/mu_o*dk_oil(x)))/(k_water(x)+mu_w/mu_o*k_oil(x))**2
 
     def coef_model(x):
         return -Q/Sq*df(x)
+
+    equation = Equation()
 
     buckley_eq = {
         'm*ds/dt**1':
@@ -111,55 +107,61 @@ def experiment(grid_res, mode):
             }
     }
 
-    equation = Equation(grid, buckley_eq, bconds).set_strategy(mode)
+    equation.add(buckley_eq)
+
+    model = Model(net, domain, equation, boundaries)
+
+    model.compile(mode, lambda_operator=1, lambda_bound=10)
 
     img_dir=os.path.join(os.path.dirname( __file__ ), 'Buckley_img')
 
-    model = Solver(grid, equation, model, mode).solve(lambda_bound=10,
-                                                            verbose=1,
-                                                            learning_rate=1e-3,
-                                                            eps=1e-6,
-                                                            optimizer_mode='Adam',
-                                                            tmax=10000,
-                                                            print_every=1000,
-                                                            step_plot_save=True,
-                                                            image_save_dir=img_dir)
+
+    cb_es = early_stopping.EarlyStopping(eps=1e-6,
+                                        loss_window=100,
+                                        no_improvement_patience=500,
+                                        patience=5,
+                                        abs_loss=1e-5,
+                                        randomize_parameter=1e-5,
+                                        info_string_every=1000)
+
+    cb_plots = plot.Plots(save_every=1000, print_every=None, img_dir=img_dir)
+
+    optimizer = Optimizer('Adam', {'lr': 1e-3})
+
+    model.train(optimizer, 1000, save_model=False, callbacks=[cb_es, cb_plots])
+
+    grid = domain.build(mode)
 
     u_exact = exact_solution(grid).to('cuda')
 
     u_exact = check_device(u_exact).reshape(-1)
 
-    u_pred = check_device(model(grid)).reshape(-1)
+    u_pred = check_device(net(grid)).reshape(-1)
 
     error_rmse = torch.sqrt(torch.sum((u_exact - u_pred)**2)) / torch.sqrt(torch.sum(u_exact**2))
 
     print('RMSE_adam= ', error_rmse.item())
 
-    pso = PSO(
-        pop_size=100,
-        b=0.5,
-        c2=0.05,
-        variance=5e-2,
-        c_decrease=True,
-        lr=5e-3
-    )
+    #################
 
-    model = Solver(grid, equation, model, mode).solve(lambda_bound=10,
-                                                            verbose=1,
-                                                            use_cache=False,
-                                                            optimizer_mode=pso,
-                                                            tmin=3000,
-                                                            print_every=100,
-                                                            step_plot_save=True,
-                                                            image_save_dir=img_dir)
+    optimizer = Optimizer('PSO', {'pop_size': 100,
+                                  'b': 0.5,
+                                  'c2': 0.05,
+                                  'variance': 5e-2,
+                                  'c_decrease': True,
+                                  'lr': 5e-3})
 
-    u_pred = check_device(model(grid)).reshape(-1)
+    cb_plots = plot.Plots(save_every=100, print_every=None, img_dir=img_dir)
+
+    model.train(optimizer, 3000, info_string_every=100, save_model=False, callbacks=[cb_plots])
+
+    u_pred = check_device(net(grid)).reshape(-1)
 
     error_rmse = torch.sqrt(torch.sum((u_exact - u_pred)**2)) / torch.sqrt(torch.sum(u_exact**2))
 
     print('RMSE_pso= ', error_rmse.item())
 
-    return model
+    return net
 
 for i in range(2):
     model = experiment(20, 'autograd')

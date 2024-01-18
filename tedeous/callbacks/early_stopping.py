@@ -7,13 +7,15 @@ from tedeous.utils import create_random_fn
 
 
 class EarlyStopping(Callback):
-    def __init__(self, eps=0.01,
-                 loss_window=100,
-                 no_improvement_patience=1000,
-                 patience=5,
-                 abs_loss=0.01,
-                 normalized_loss=False,
-                 randomize_parameter = 1e-5,
+    def __init__(self,
+                 eps: float = 1e-5,
+                 loss_window: int = 100,
+                 no_improvement_patience: int = 1000,
+                 patience: int = 5,
+                 abs_loss: Union[float, None] = None,
+                 normalized_loss: bool = False,
+                 randomize_parameter: float = 1e-5,
+                 info_string_every: Union[int, None] = None,
                  verbose: bool = True
                  ):
         super().__init__()
@@ -24,9 +26,9 @@ class EarlyStopping(Callback):
         self.abs_loss = abs_loss
         self.normalized_loss = normalized_loss
         self._stop_dings = 0
-        self.last_loss = np.zeros(self.loss_window)
         self._t_imp_start = 0
         self._r = create_random_fn(randomize_parameter)
+        self.info_string_every = info_string_every if info_string_every is not None else np.inf
         self.verbose = verbose
 
     def _line_create(self):
@@ -60,7 +62,7 @@ class EarlyStopping(Callback):
         if (self.t - self._t_imp_start) == self.no_improvement_patience and self._check is None:
             self._stop_dings += 1
             if self.mode in ('NN', 'autograd'):
-                self.model.apply(self.model._r)
+                self.model.net.apply(self._r)
             self._check = 'patience_check'
 
     def _absloss_check(self):
@@ -89,7 +91,7 @@ class EarlyStopping(Callback):
             print('[{}] Absolute value of loss is lower than threshold'.format(
                                                         datetime.datetime.now()))
 
-        if self._check is not None:
+        if self._check is not None or self.t % self.info_string_every == 0:
             loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
             info = 'Step = {} loss = {:.6f} normalized loss line= {:.6f}x+{:.6f}. There was {} stop dings already.'.format(
                     self.t, loss, self._line[0] / loss, self._line[1] / loss, self._stop_dings)
@@ -105,11 +107,14 @@ class EarlyStopping(Callback):
         if self.cur_loss < self.min_loss:
             self.min_loss = self.model.cur_loss.item()
             self._t_imp_start = self.t
-        self.last_loss[(self.t - 1) % self.loss_window] = self.cur_loss
+        try:
+            self.last_loss[(self.t - 1) % self.loss_window] = self.cur_loss
+        except:
+            self.last_loss = np.zeros(self.loss_window) + float(self.min_loss)
 
         if self.verbose:
             self.verbose_print()
-        if self._stop_dings > self.patience:
+        if self._stop_dings >= self.patience:
             self.model.stop_training = True
 
     def on_epoch_begin(self, logs=None):

@@ -194,20 +194,27 @@ class Conditions():
                                     'type': 'data'})
 
     def _bnd_grid(self, bnd, variable_dict, dtype):
+
         dtype = variable_dict[list(variable_dict.keys())[0]].dtype
-        var_lst = []
-        for var in variable_dict.keys():
-            if isinstance(bnd[var], torch.Tensor):
-                var_lst.append(check_device(bnd[var]).to(dtype))
-            elif isinstance(bnd[var], (float, int)):
-                var_lst.append(check_device(torch.tensor([bnd[var]])).to(dtype))
-            elif isinstance(bnd[var], list):
-                lower_bnd = bnd[var][0]
-                upper_bnd = bnd[var][1]
-                grid_var = variable_dict[var]
-                bnd_var = grid_var[(grid_var >= lower_bnd) & (grid_var <= upper_bnd)]
-                var_lst.append(check_device(bnd_var).to(dtype))
-        bnd_grid = torch.cartesian_prod(*var_lst).to(dtype)
+
+        if isinstance(bnd, torch.Tensor):
+            bnd_grid = bnd.to(dtype)
+        else:
+            var_lst = []
+            for var in variable_dict.keys():
+                if isinstance(bnd[var], torch.Tensor):
+                    var_lst.append(check_device(bnd[var]).to(dtype))
+                elif isinstance(bnd[var], (float, int)):
+                    var_lst.append(check_device(torch.tensor([bnd[var]])).to(dtype))
+                elif isinstance(bnd[var], list):
+                    lower_bnd = bnd[var][0]
+                    upper_bnd = bnd[var][1]
+                    grid_var = variable_dict[var]
+                    bnd_var = grid_var[(grid_var >= lower_bnd) & (grid_var <= upper_bnd)]
+                    var_lst.append(check_device(bnd_var).to(dtype))
+            bnd_grid = torch.cartesian_prod(*var_lst).to(dtype)
+        if len(bnd_grid.shape) == 1:
+            bnd_grid = bnd_grid.reshape(-1, 1)
         return bnd_grid
 
     def build(self, variable_dict):

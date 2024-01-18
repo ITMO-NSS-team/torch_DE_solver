@@ -1,6 +1,6 @@
 """this one contain some stuff for computing different auxiliary things."""
 
-from typing import Tuple, List, Union
+from typing import Tuple, List, Union, Any
 from torch.nn import Module
 import datetime
 import os
@@ -148,8 +148,8 @@ class CacheUtils:
     cache_dir = property(get_cache_dir, set_cache_dir, clear_cache_dir)
 
     @staticmethod
-    def grid_model_mat(model: torch.Tensor,
-                       grid: torch.Tensor,
+    def model_mat(model: torch.Tensor,
+                       domain: Any,
                        cache_model: torch.nn.Module=None) -> Tuple[torch.Tensor, torch.nn.Module]:
         """ Create grid and model for *NN or autograd* modes from grid
             and model of *mat* mode.
@@ -164,8 +164,7 @@ class CacheUtils:
             nn_grid (torch.Tensor): grid satisfying neural network inputs.
             cache_model (torch.nn.Module): model satisfying the *NN, autograd* methods.
         """
-        nn_grid = torch.vstack([grid[i].reshape(-1) for i in \
-                                range(grid.shape[0])]).T.float()
+        grid = domain.build('mat')
         input_model = grid.shape[0]
         output_model = model.shape[0]
 
@@ -180,10 +179,10 @@ class CacheUtils:
                 torch.nn.Linear(100, output_model)
             )
 
-        return nn_grid, cache_model
+        return cache_model
 
     @staticmethod
-    def mat_op_coeff(operator: dict) -> dict:
+    def mat_op_coeff(equation: Any) -> Any:
         """ Preparation of coefficients in the operator of the *mat* method
             to suit methods *NN, autograd*.
 
@@ -193,9 +192,8 @@ class CacheUtils:
         Returns:
             operator (dict): operator (equation dict) with suitable coefficients.
         """
-        if not isinstance(operator, list):
-            operator = [operator]
-        for op in operator:
+
+        for op in equation.equation_lst:
             for label in list(op.keys()):
                 term = op[label]
                 if isinstance(term['coeff'], torch.Tensor):
@@ -203,7 +201,7 @@ class CacheUtils:
                 elif callable(term['coeff']):
                     print("Warning: coefficient is callable,\
                                     it may lead to wrong cache item choice")
-        return operator
+        return equation
 
     def save_model(
         self,
@@ -234,8 +232,9 @@ class CacheUtils:
         except:
             print('Cannot save model in cache')
 
-    def save_model_mat(self, model: torch.Tensor,
-                       grid: torch.Tensor,
+    def save_model_mat(self,
+                       model: torch.Tensor,
+                       domain: Any,
                        cache_model: Union[torch.nn.Module, None] = None,
                        name: Union[str, None] = None) -> None:
         """ Saved model in a cache (uses for 'mat' method).
@@ -247,13 +246,14 @@ class CacheUtils:
             name (Union[str, None], optional): name for a model. Defaults to None.
         """
 
-        nn_grid, cache_model = self.grid_model_mat(model, grid, cache_model)
-        optimizer = torch.optim.Adam(cache_model.parameters(), lr=0.001)
+        net_autograd = self.model_mat(model, domain, cache_model)
+        nn_grid = domain.build('autograd')
+        optimizer = torch.optim.Adam(net_autograd.parameters(), lr=0.001)
         model_res = model.reshape(-1, model.shape[0])
 
         def closure():
             optimizer.zero_grad()
-            loss = torch.mean((cache_model(check_device(nn_grid)) - model_res) ** 2)
+            loss = torch.mean((net_autograd(check_device(nn_grid)) - model_res) ** 2)
             loss.backward()
             return loss
 
@@ -265,7 +265,7 @@ class CacheUtils:
             print('Interpolate from trained model t={}, loss={}'.format(
                     t, loss))
 
-        self.save_model(cache_model, name=name)
+        self.save_model(net_autograd, name=name)
 
 
 class PadTransform(Module):

@@ -12,11 +12,15 @@ class Closure():
         model):
 
         self.mixed_precision = mixed_precision
+        if self.mixed_precision:
+            self._amp_mixed()
         self.set_model(model)
         self.optimizer = self.model.optimizer
         self.normalized_loss_stop = self.model.normalized_loss_stop
         self.device = device_type()
-        self._amp_mixed()
+        self.cuda_flag = True if self.device == 'cuda' and self.mixed_precision else False
+        self.dtype = torch.float16 if self.device == 'cuda' else torch.bfloat16
+
 
     def set_model(self, model):
         self._model = model
@@ -45,19 +49,7 @@ class Closure():
             print(f'Mixed precision enabled. The device is {self.device}')
         if self.optimizer.__class__.__name__ == "LBFGS":
             raise NotImplementedError("AMP and the LBFGS optimizer are not compatible.")
-        self.cuda_flag = True if self.device == 'cuda' and self.mixed_precision else False
-        self.dtype = torch.float16 if self.device == 'cuda' else torch.bfloat16
-
-    # def _closure_default(self):
-    #     self.optimizer.zero_grad()
-    #     with torch.autocast(device_type=self.device,
-    #                         dtype=self.dtype,
-    #                         enabled=self.mixed_precision):
-    #         loss, loss_normalized = self.model.solution_cls.evaluate()
-
-    #     loss.backward()
-    #     self.cur_loss = loss_normalized if self.normalized_loss_stop else loss
-    #     return loss
+        
 
     def _closure(self):
         self.optimizer.zero_grad()
@@ -65,11 +57,14 @@ class Closure():
                             dtype=self.dtype,
                             enabled=self.mixed_precision):
             loss, loss_normalized = self.model.solution_cls.evaluate()
-        self.scaler.scale(loss).backward()
-        self.scaler.step(self.optimizer)
-        self.scaler.update()
-
+        if self.cuda_flag:
+            self.scaler.scale(loss).backward()
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
+        else:
+            loss.backward()
         self.model.cur_loss = loss_normalized if self.normalized_loss_stop else loss
+
         return loss
 
     def _closure_pso(self):
@@ -98,6 +93,8 @@ class Closure():
 
         losses = torch.stack(loss_swarm).reshape(-1)
         gradients = torch.vstack(grads_swarm)
+
+        self.model.cur_loss = min(loss_swarm)
 
         return losses, gradients
 

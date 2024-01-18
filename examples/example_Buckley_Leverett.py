@@ -5,16 +5,16 @@ import sys
 
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append('../')
-sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver
-from tedeous.solution import Solution
+from tedeous.data import Domain, Conditions, Equation
+from tedeous.model import Model
+from tedeous.callbacks import early_stopping, plot
+from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 
 solver_device('cpu')
+
 m = 0.2
 L = 1
 Q = -0.1
@@ -25,25 +25,20 @@ Swi0 = 0.
 Sk = 1.
 t_end = 1.
 
-x = torch.from_numpy(np.linspace(0, 1, 21))
-t = torch.from_numpy(np.linspace(0, 1, 21))
+domain = Domain()
 
-h = (x[1]-x[0]).item()
+domain.variable('x', [0, 1], 21, dtype='float32')
+domain.variable('t', [0, 1], 21, dtype='float32')
 
-grid = torch.cartesian_prod(x,t).float()
+boundaries = Conditions()
 
 ##initial cond
-bnd1 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
-bndval1 = torch.zeros_like(x)+Swi0
+boundaries.dirichlet({'x': [0, 1], 't': 0}, value=Swi0)
 
 ##boundary cond
-bnd2 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t).float()
-bndval2 = torch.zeros_like(t)+Sk
+boundaries.dirichlet({'x': 0, 't': [0, 1]}, value=Sk)
 
-bconds = [[bnd1, bndval1, 'dirichlet'],
-          [bnd2, bndval2, 'dirichlet']]
-
-model = torch.nn.Sequential(
+net = torch.nn.Sequential(
     torch.nn.Linear(2, 100),
     torch.nn.Tanh(),
     torch.nn.Linear(100, 100),
@@ -58,16 +53,16 @@ model = torch.nn.Sequential(
 )
 
 def k_oil(x):
-    return (1-model(x))**2
+    return (1-net(x))**2
 
 def k_water(x):
-    return (model(x))**2
+    return (net(x))**2
 
 def dk_water(x):
-    return 2*model(x)
+    return 2*net(x)
 
 def dk_oil(x):
-    return -2*(1-model(x))
+    return -2*(1-net(x))
 
 def df(x):
     return (dk_water(x)*(k_water(x)+mu_water/mu_o*k_oil(x))-
@@ -75,6 +70,8 @@ def df(x):
 
 def coef_model(x):
     return -Q/Sq*df(x)
+
+equation = Equation()
 
 buckley_eq = {
     'm*ds/dt**1':
@@ -91,12 +88,28 @@ buckley_eq = {
         }
 }
 
-equation = Equation(grid, buckley_eq, bconds).set_strategy('autograd')
+equation.add(buckley_eq)
+
+model = Model(net, domain, equation, boundaries)
+
+model.compile('autograd', lambda_operator=1, lambda_bound=1)
 
 img_dir=os.path.join(os.path.dirname( __file__ ), 'Buckley_NN_img')
 
 
-model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=1, verbose=1, learning_rate=1e-3,
-                                    eps=1e-6, tmin=1000, tmax=1e6, use_cache=False, cache_dir='../cache/', cache_verbose=True,
-                                    save_always=False, no_improvement_patience=500, print_every=500, optimizer_mode='Adam',
-                                    step_plot_print=False, step_plot_save=True, image_save_dir=img_dir)
+cb_es = early_stopping.EarlyStopping(eps=1e-6,
+                                     loss_window=100,
+                                     no_improvement_patience=500,
+                                     patience=5,
+                                     abs_loss=1e-5,
+                                     randomize_parameter=1e-5,
+                                     info_string_every=500)
+
+cb_plots = plot.Plots(save_every=500, print_every=None, img_dir=img_dir)
+
+optimizer = Optimizer('Adam', {'lr': 1e-3})
+
+model.train(optimizer, 1e6, save_model=False, callbacks=[cb_es, cb_plots])
+                                    
+                                     
+                                    

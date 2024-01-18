@@ -193,9 +193,9 @@ def parameter_registr(model: torch.nn.Module,
         model.register_parameter(key, parameters[key])
 
 
-def mat_model(grid: torch.Tensor,
+def mat_model(domain: torch.Tensor,
               equation: Any,
-              nn_model: torch.nn.Module = None) -> torch.nn.Module:
+              nn_model: torch.nn.Module = None) -> torch.Tensor:
     """ Model creation for *mat* mode.
 
     Args:
@@ -207,10 +207,10 @@ def mat_model(grid: torch.Tensor,
     Returns:
         torch.nn.Module: model for *mat* mode.
     """
-    if isinstance(equation, list):
-        eq_num = len(equation)
-    else:
-        eq_num = 1
+
+    grid = domain.build('mat')
+
+    eq_num = len(equation.equation_lst)
 
     shape = [eq_num] + list(grid.shape)[1:]
 

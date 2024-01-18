@@ -7,30 +7,25 @@ import matplotlib.pyplot as plt
 
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-sys.path.append('../')
-
-sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver
-from tedeous.solution import Solution
+from tedeous.data import Domain, Conditions, Equation
+from tedeous.model import Model
+from tedeous.callbacks import adaptive_lambda, cache, early_stopping, plot
+from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 
 
 solver_device('cuda')
 
-t = torch.from_numpy(np.linspace(0, 0.25, 100))
-grid = t.reshape(-1, 1).float()
+domain = Domain()
 
-h = (t[1]-t[0]).item()
+domain.variable('t', [0, 0.25], 100, dtype='float32')
 
-# Initial conditions at t=0
-bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
-bndval1 = torch.from_numpy(np.array([[-1]], dtype=np.float64))
+boundaries = Conditions()
 
-bnd2 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
+boundaries.dirichlet({'t': 0}, value=-1)
+
 bop2 = {
         'dy/dt':
             { 'coeff': 1,
@@ -38,16 +33,17 @@ bop2 = {
               'pow': 1
             }
         }
-bndval2 = torch.from_numpy(np.array([[2.17628]], dtype=np.float64))
 
-bconds = [[bnd1, bndval1, 'dirichlet'],
-          [bnd2, bop2, bndval2, 'operator']]
+boundaries.operator({'t': 0}, bop2, value=2.17628)
 
+grid = domain.variable_dict['t'].reshape(-1,1)
 
 def t_func(grid):
     return grid
 
 # y_tt - 10*y_t + 9*y - 5*t = 0
+
+equation = Equation()
 
 ode = {
         'd2y/dt2':
@@ -76,7 +72,9 @@ ode = {
             }
       }
 
-model = torch.nn.Sequential(
+equation.add(ode)
+
+net = torch.nn.Sequential(
         torch.nn.Linear(1, 50),
         torch.nn.Tanh(),
         torch.nn.Linear(50, 50),
@@ -88,27 +86,33 @@ model = torch.nn.Sequential(
         torch.nn.Linear(50, 1)
         )
 
-start = time.time()
-equation = Equation(grid, ode, bconds).set_strategy('autograd')
+model = Model(net, domain, equation, boundaries)
+
+model.compile('autograd', lambda_operator=1, lambda_bound=100)
+
+cb_es = early_stopping.EarlyStopping(eps=1e-8,
+                                     loss_window=100,
+                                     no_improvement_patience=1000,
+                                     patience=5,
+                                     randomize_parameter=1e-5)
 
 img_dir=os.path.join(os.path.dirname( __file__ ), 'ODE_img')
 
-model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=100, lambda_update=True, sampling_N=2,
-                                         verbose=1, learning_rate=1e-4, eps=1e-8, tmin=1000, tmax=5e6,
-                                         use_cache=False,cache_dir='../cache/',cache_verbose=True,
-                                         save_always=True,print_every=2000, gamma=None, lr_decay=1000,
-                                         patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
-                                         model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=None,
-                                         step_plot_print=False, step_plot_save=True, image_save_dir=img_dir)
-end = time.time()
+cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-5)
 
-print(end-start)
+cb_plots = plot.Plots(save_every=2000, print_every=None, img_dir=img_dir)
+
+cb_lambda = adaptive_lambda.AdaptiveLambda(sampling_N=2)
+
+optimizer = Optimizer('Adam', {'lr': 1e-4}) # gamma=None, lr_decay=1000,
+
+model.train(optimizer, 8e3, info_string_every=2000, save_model=True, callbacks=[cb_cache,cb_es, cb_plots, cb_lambda])
 
 def sln(t):
     return 50/81 + (5/9) * t + (31/81) * torch.exp(9*t) - 2 * torch.exp(t)
 
-plt.plot(grid.detach().numpy(), sln(grid).detach().numpy(), label='Exact')
-plt.plot(grid.detach().numpy(), model(grid).detach().numpy(), '--', label='Predicted')
+plt.plot(grid.detach().cpu().numpy(), sln(grid).detach().cpu().numpy(), label='Exact')
+plt.plot(grid.detach().cpu().numpy(), net(grid).detach().cpu().numpy(), '--', label='Predicted')
 plt.xlabel('x')
 plt.ylabel('y')
 plt.legend(loc='upper right')

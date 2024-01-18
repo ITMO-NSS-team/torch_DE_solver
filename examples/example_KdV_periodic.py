@@ -5,30 +5,20 @@ Created on Mon May 31 12:33:44 2021
 @author: user
 """
 import torch
-import SALib
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from mpl_toolkits.mplot3d import Axes3D
-import scipy
 import time
 import os
 import sys
 
-
-
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
-sys.path.append('../')
 
 
-from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver
-from tedeous.solution import Solution
-from tedeous.device import solver_device,check_device
+from tedeous.data import Domain, Conditions, Equation
+from tedeous.model import Model
+from tedeous.callbacks import adaptive_lambda, cache, early_stopping, plot
+from tedeous.optimizers.optimizer import Optimizer
+from tedeous.device import solver_device, check_device, device_type
 
 
 solver_device('gpu')
@@ -38,10 +28,10 @@ exp_dict_list=[]
 
 def soliton(x,t):
     E=np.exp(1)
-    s=((18*np.exp((1/125)*(t + 25*x))*(16*np.exp(2*t) + 
-       1000*np.exp((126*t)/125 + (4*x)/5) + 9*np.exp(2*x) + 576*np.exp(t + x) + 
-       90*np.exp((124*t)/125 + (6*x)/5)))/(5*(40*np.exp((126*t)/125) + 
-        18*np.exp(t + x/5) + 9*np.exp((6*x)/5) + 45*np.exp(t/125 + x))**2))
+    s=((18*torch.exp((1/125)*(t + 25*x))*(16*torch.exp(2*t) +
+       1000*torch.exp((126*t)/125 + (4*x)/5) + 9*torch.exp(2*x) + 576*torch.exp(t + x) +
+       90*torch.exp((124*t)/125 + (6*x)/5)))/(5*(40*torch.exp((126*t)/125) +
+        18*torch.exp(t + x/5) + 9*torch.exp((6*x)/5) + 45*torch.exp(t/125 + x))**2))
     return s
 
 def soliton_x(x,t):
@@ -65,14 +55,11 @@ for grid_res in [30,50,100]:
     Grid is an essentially torch.Tensor of a n-D points where n is the problem
     dimensionality
     """
-
+    domain = Domain()
+    domain.variable('x', [-10, 10], grid_res)
+    domain.variable('t', [0, 1], grid_res)
     
-    x = torch.from_numpy(np.linspace(-10, 10, grid_res+1))
-    t = torch.from_numpy(np.linspace(0, 1, grid_res+1))
-    
-    grid = torch.cartesian_prod(x, t).float()
-    
-    
+    boundaries = Conditions()
     """
     Preparing boundary conditions (BC)
     
@@ -105,25 +92,14 @@ for grid_res in [30,50,100]:
     """
     
     # u(0,t) = u(1,t)
-    bnd3_left = torch.cartesian_prod(torch.from_numpy(np.array([-10], dtype=np.float64)),t).float()
-    bnd3_right = torch.cartesian_prod(torch.from_numpy(np.array([10], dtype=np.float64)),t).float()
-    bnd3 = [bnd3_left,bnd3_right]
-    
+    boundaries.periodic([{'x': -10, 't': [0, 1]}, {'x': 10, 't': [0, 1]}])
+
     """
     Initial conditions at t=0
     """
-    
-    bnd4 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
-    
-    # No operator applied,i.e. u(x,0)=0
-    
-    # equal to zero
-    bndval4 = soliton(x,0)
-    
-    
-    # Putting all bconds together
-    bconds = [[bnd3, 'periodic'],
-              [bnd4, bndval4, 'dirichlet']]
+    x = domain.variable_dict['x']
+    boundaries.dirichlet({'x': [-10, 10], 't': 0}, value=soliton(x,torch.tensor([0])))
+
     
     """
     Defining kdv equation
@@ -151,6 +127,7 @@ for grid_res in [30,50,100]:
     
     """
     
+    equation = Equation()
     
     # operator is du/dt+6u*(du/dx)+d3u/dx3-sin(x)*cos(t)=0
     kdv = {
@@ -177,25 +154,17 @@ for grid_res in [30,50,100]:
             }
     }
     
-    
+    equation.add(kdv)
     
     """
     Solving equation
     """
     for _ in range(10):
-        #sln=np.genfromtxt(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'wolfram_sln/KdV_sln_'+str(grid_res)+'.csv')),delimiter=',')
+        grid = domain.build('NN')
         sln_torch=torch.Tensor([soliton(point[0],point[1]) for point in grid]).detach().cpu()
-        sln_torch1=sln_torch.reshape(-1,1)
-        
-        #fig = plt.figure()
-        #ax = fig.add_subplot(projection='3d')
+        sln_torch1 = sln_torch.reshape(-1,1)
 
-        #ax.plot_trisurf(grid[:, 0],grid[:, 1],
-        #                     sln_torch,
-        #                    cmap=cm.jet, linewidth=0.2, alpha=1)
-        #plt.show()
-
-        model = torch.nn.Sequential(
+        net = torch.nn.Sequential(
             torch.nn.Linear(2, 100),
             torch.nn.Tanh(),
             torch.nn.Linear(100, 100),
@@ -206,39 +175,40 @@ for grid_res in [30,50,100]:
         )
     
         start = time.time()
-        
-        equation = Equation(grid, kdv, bconds, h=0.01).set_strategy('NN')
+
+        model = Model(net, domain, equation, boundaries)
+
+        model.compile('autograd', lambda_operator=1, lambda_bound=100)
 
         img_dir=os.path.join(os.path.dirname( __file__ ), 'kdv_periodic_img')
 
-        if not(os.path.isdir(img_dir)):
-            os.mkdir(img_dir)
+        cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-6)
 
-
-
-        model = Solver(grid, equation, model, 'NN').solve(lambda_bound=100,verbose=1, learning_rate=1e-4,
-                                                    eps=1e-6, tmin=1000, tmax=1e5,use_cache=True,cache_verbose=True,
-                                                    save_always=True,print_every=None,model_randomize_parameter=1e-6,
-                                                    optimizer_mode='Adam',no_improvement_patience=1000,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
-
+        cb_es = early_stopping.EarlyStopping(eps=1e-6,
+                                            loss_window=100,
+                                            no_improvement_patience=1000,
+                                            patience=5,
+                                            randomize_parameter=1e-6)
         
+        cb_plots = plot.Plots(save_every=1000, print_every=None, img_dir=img_dir)
+
+        optimizer = Optimizer('Adam', {'lr': 1e-4})
+
+        model.train(optimizer, 1e5, save_model=True, callbacks=[cb_es, cb_cache, cb_plots])
+
         end = time.time()
         
+        net = net.to(device=device_type())
+        grid = check_device(grid)
+        sln_torch1 = check_device(sln_torch1)
 
-        error_rmse=torch.sqrt(torch.mean((sln_torch1-model(grid))**2))
+        error_rmse=torch.sqrt(torch.mean((sln_torch1-net(grid))**2))
     
-        
-        _, end_loss = Solution(grid=grid, equal_cls=equation, model=model,
-             mode='NN', weak_form=None, lambda_bound=100,lambda_operator=1).evaluate()
-    
-        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().cpu().numpy(),'loss':end_loss.detach().cpu().numpy(),'type':'kdv_eqn_solitary','cache':True})
+        exp_dict_list.append({'grid_res':grid_res, 'time':end - start, 'RMSE':error_rmse.detach().cpu().numpy(), 'type':'kdv_eqn_solitary', 'cache':True})
         
         print('Time taken {}= {}'.format(grid_res, end - start))
         print('RMSE {}= {}'.format(grid_res, error_rmse))
-        print('loss {}= {}'.format(grid_res, end_loss))
 
-
-CACHE=True
 
 import pandas as pd
 
@@ -248,5 +218,5 @@ result_assessment.boxplot(by='grid_res',column='time',showfliers=False,figsize=(
 
 result_assessment.boxplot(by='grid_res',column='RMSE',figsize=(20,10),fontsize=42)
 
-result_assessment.to_csv('examples/benchmarking_data/kdv_solitary_experiment_30_100_cache={}.csv'.format(str(CACHE)))
+result_assessment.to_csv('examples/benchmarking_data/kdv_solitary_experiment_30_100_cache={}.csv'.format(str(True)))
 

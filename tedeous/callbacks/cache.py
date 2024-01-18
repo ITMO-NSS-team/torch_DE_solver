@@ -9,6 +9,7 @@ import glob
 from typing import Union
 import torch
 import numpy as np
+from copy import deepcopy
 
 from tedeous.device import device_type
 from tedeous.callbacks.callback import Callback
@@ -331,13 +332,15 @@ class Cache(Callback):
 
         net = self.model.net
         domain = self.model.domain
-        equation = self.model.equation
+        equation = CacheUtils.mat_op_coeff(deepcopy(self.model.equation))
         conditions = self.model.conditions
         lambda_operator = self.model.lambda_operator
         lambda_bound = self.model.lambda_bound
         weak_form = self.model.weak_form
 
-        autograd_model = Model(net, domain, equation, conditions)
+        net_autograd = CacheUtils.model_mat(net, domain)
+
+        autograd_model = Model(net_autograd, domain, equation, conditions)
 
         autograd_model.compile('autograd', lambda_operator, lambda_bound, weak_form=weak_form)
 
@@ -380,7 +383,7 @@ class Cache(Callback):
 
         if self.model.mode != 'mat':
             return self._cache_nn()
-        elif self.mdoel.mode == 'mat':
+        elif self.model.mode == 'mat':
             return self._cache_mat()
 
     def on_train_begin(self, logs=None):

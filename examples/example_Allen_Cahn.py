@@ -1,9 +1,5 @@
 import torch
 import numpy as np
-import matplotlib.pyplot as plt
-import scipy
-import time
-import pandas as pd
 import sys
 import os
 
@@ -12,39 +8,35 @@ sys.path.append('../')
 sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver
-from tedeous.solution import Solution
+from tedeous.data import Domain, Conditions, Equation
+from tedeous.model import Model
+from tedeous.callbacks import cache, early_stopping, plot
+from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
-from tedeous.models import FourierNN
 from tedeous.models import Fourier_embedding
 
 solver_device('gpu')
 
-x = torch.from_numpy(np.linspace(-1, 1, 51))
-t = torch.from_numpy(np.linspace(0, 1, 51))
-
 # if the casual_loss is used the time parameter must be
 # at the first place in the grid
 
-grid = torch.cartesian_prod(t, x).float()
+domain = Domain()
+
+domain.variable('t', [0, 1], 51, dtype='float32')
+domain.variable('x', [-1, 1], 51, dtype='float32')
+
+boundaries = Conditions()
 
 # Initial conditions at t=0
-bnd1 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), x).float()
-    
-# u(0,x)=sin(pi*x)
-bndval1 = bnd1[:,1:]**2*torch.cos(np.pi*bnd1[:,1:])
+x = domain.variable_dict['x']
+
+value = x**2*torch.cos(np.pi*x)
+
+boundaries.dirichlet({'x': [-1, 1], 't': 0}, value=value)
+
     
 # Initial conditions at t=1
-bnd2_l = torch.cartesian_prod(t, torch.from_numpy(np.array([-1], dtype=np.float64))).float()
-
-bnd2_r = torch.cartesian_prod(t, torch.from_numpy(np.array([1], dtype=np.float64))).float()
-
-bnd2 = [bnd2_l, bnd2_r]
-
-bnd3_l = torch.cartesian_prod(t, torch.from_numpy(np.array([-1], dtype=np.float64))).float()
-
-bnd3_r = torch.cartesian_prod(t, torch.from_numpy(np.array([1], dtype=np.float64))).float()
+boundaries.periodic([{'x': -1, 't': [0, 1]}, {'x': 1, 't': [0, 1]}])
 
 bop3= {
         'du/dx':
@@ -56,15 +48,10 @@ bop3= {
             }
 }
 
-bnd3 = [bnd2_l, bnd2_r]
-    
-# Putting all bconds together
-bconds = [[bnd1, bndval1, 'dirichlet'],
-        [bnd2, 'periodic'],
-        [bnd3, bop3, 'periodic']]
+boundaries.periodic([{'x': -1, 't': [0, 1]}, {'x': 1, 't': [0, 1]}], operator=bop3)
 
+equation = Equation()
 
-   
 AC = {
     '1*du/dt**1':
         {
@@ -96,11 +83,13 @@ AC = {
         }
 }
 
+equation.add(AC)
+
 FFL = Fourier_embedding(L=[None, 2], M=[None, 10])
 
 out = FFL.out_features
 
-model = torch.nn.Sequential(
+net = torch.nn.Sequential(
     FFL,
     torch.nn.Linear(out, 128),
     torch.nn.Tanh(),
@@ -111,19 +100,23 @@ model = torch.nn.Sequential(
     torch.nn.Linear(128,1)
 )
     
-#model = Modified_MLP([128, 128, 128, 1], L=[None, 2], M=[None, 10]) # NN structure for more accurate solution
+model = Model(net, domain, equation, boundaries)
 
-img_dir=os.path.join(os.path.dirname( __file__ ), 'AC_eq_img')
+model.compile('autograd', lambda_operator=1, lambda_bound=100, tol=10)
 
-if not(os.path.isdir(img_dir)):
-    os.mkdir(img_dir)
+img_dir = os.path.join(os.path.dirname( __file__ ), 'AC_eq_img')
 
-equation = Equation(grid, AC, bconds).set_strategy('autograd')
+cb_cache = cache.Cache(cache_verbose=False, model_randomize_parameter=1e-5)
 
-model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=100,
-                                         verbose=True, learning_rate=1e-3, eps=1e-7, tmin=1000, tmax=1e5,
-                                         use_cache=True,cache_dir='../cache/',cache_verbose=False,
-                                         save_always=False,print_every=1000,
-                                         patience=6,loss_oscillation_window=100,no_improvement_patience=1000,
-                                         model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=None,
-                                         step_plot_print=False, step_plot_save=True, tol=50, image_save_dir=img_dir)
+cb_es = early_stopping.EarlyStopping(eps=1e-7,
+                                     loss_window=100,
+                                     no_improvement_patience=1000,
+                                     patience=5,
+                                     abs_loss=1e-5,
+                                     randomize_parameter=1e-5)
+
+cb_plots = plot.Plots(save_every=1000, print_every=None, img_dir=img_dir)
+
+optimizer = Optimizer('Adam', {'lr': 1e-3}) # gamma=0.9, lr_decay=1000,
+
+model.train(optimizer, 1e5, info_string_every=1000, save_model=True, callbacks=[cb_cache, cb_es, cb_plots])
