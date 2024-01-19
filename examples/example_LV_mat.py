@@ -9,23 +9,20 @@
 
 # Where 'x' represents prey population and 'y' predators population. It’s a system of first-order ordinary differential equations.
 import torch
-import SALib
 import numpy as np
 import matplotlib.pyplot as plt
-import fontTools
 from scipy import integrate
 import time
 import os
 import sys
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver, grid_format_prepare
-from tedeous.solution import Solution
+from tedeous.data import Domain, Conditions, Equation
+from tedeous.model import Model
+from tedeous.callbacks import cache, early_stopping, plot
+from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 from tedeous.models import mat_model
 
@@ -39,28 +36,17 @@ y0 = 2.
 t0 = 0.
 tmax = 2.
 
-Nt = 401
+Nt = 400
 
-solver_device('gpu')
+solver_device('cpu')
 
-t = torch.from_numpy(np.linspace(t0, tmax, Nt))
+domain = Domain()
+domain.variable('t', [t0, tmax], Nt)
 
-grid = t.reshape(-1, 1).float()
-
-h = abs((grid[1]-grid[0]).item())
 #initial conditions
-
-coord_list = [t]
-
-grid = grid_format_prepare(coord_list,mode='mat')
-
-bnd1_0 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
-bndval1_0 = torch.from_numpy(np.array([[x0]], dtype=np.float64))
-bnd1_1 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
-bndval1_1  = torch.from_numpy(np.array([[y0]], dtype=np.float64))
-
-bconds = [[bnd1_0, bndval1_0, 0, 'dirichlet'],
-            [bnd1_1, bndval1_1, 1, 'dirichlet']]
+boundaries = Conditions()
+boundaries.dirichlet({'t': 0}, value=x0, var=0)
+boundaries.dirichlet({'t': 0}, value=y0, var=1)
 
 #equation system
 # eq1: dx/dt = x(alpha-beta*y)
@@ -68,6 +54,8 @@ bconds = [[bnd1_0, bndval1_0, 0, 'dirichlet'],
 
 # x var: 0
 # y var:1
+
+equation = Equation()
 
 eq1 = {
     'dx/dt':{
@@ -111,21 +99,33 @@ eq2 = {
     }
 }
 
-Lotka = [eq1, eq2]
+equation.add(eq1)
+equation.add(eq2)
 
-equation = Equation(grid, Lotka, bconds, h=h).set_strategy('mat')
+net = mat_model(domain, equation)
 
-model = mat_model(grid, Lotka)
+model =  Model(net, domain, equation, boundaries)
 
-img_dir = os.path.join(os.path.dirname( __file__ ), 'img_Lotka_Volterra_mat')
+model.compile("mat", lambda_operator=1, lambda_bound=100, derivative_points=3)
+
+img_dir=os.path.join(os.path.dirname( __file__ ), 'img_Lotka_Volterra_mat')
 
 start = time.time()
 
-model = Solver(grid, equation, model, 'mat').solve(lambda_bound=100, derivative_points=3, gamma=0.9, lr_decay=400,
-                                        verbose=True, learning_rate=1, eps=1e-6,
-                                        print_every=100, patience=3, save_always=True,
-                                        optimizer_mode='LBFGS',
-                                        step_plot_save=True, image_save_dir=img_dir, use_cache=True)
+cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-5)
+
+cb_es = early_stopping.EarlyStopping(eps=1e-6,
+                                    loss_window=100,
+                                    no_improvement_patience=1000,
+                                    patience=5,
+                                    randomize_parameter=1e-5,
+                                    info_string_every=100)
+
+cb_plots = plot.Plots(save_every=100, print_every=None, img_dir=img_dir)
+
+optimizer = Optimizer('LBFGS', {'lr': 1}) # gamma=0.9, lr_decay=400,
+
+model.train(optimizer, 1e5, save_model=True, callbacks=[cb_cache, cb_es, cb_plots])
 
 end = time.time()
 
@@ -138,7 +138,7 @@ def exact():
         doty = y * (-delta + gamma * x)
         return np.array([dotx, doty])
 
-    t = np.linspace(0.,tmax, Nt)
+    t = np.linspace(0.,tmax, Nt+1)
 
     X0 = [x0, y0]
     res = integrate.odeint(deriv, X0, t, args = (alpha, beta, delta, gamma))
@@ -149,16 +149,18 @@ u_exact = exact()
 
 u_exact=torch.from_numpy(u_exact)
 
-model=model.to('cpu')
+net = net.to('cpu')
 
-error_rmse=torch.sqrt(torch.mean((u_exact-model)**2))
+error_rmse=torch.sqrt(torch.mean((u_exact-net)**2))
+
+t = domain.variable_dict['t']
 
 plt.figure()
 plt.grid()
 plt.plot(t, u_exact[0].detach().numpy().reshape(-1), '+', label = 'x_odeint')
 plt.plot(t, u_exact[1].detach().numpy().reshape(-1), '*', label = "y_odeint")
-plt.plot(t, model[0].detach().numpy().reshape(-1), label='x_tedeous')
-plt.plot(t, model[1].detach().numpy().reshape(-1), label='y_tedeous')
+plt.plot(t, net[0].detach().numpy().reshape(-1), label='x_tedeous')
+plt.plot(t, net[1].detach().numpy().reshape(-1), label='y_tedeous')
 plt.xlabel('Time, t')
 plt.ylabel('Population')
 plt.legend(loc='upper right')

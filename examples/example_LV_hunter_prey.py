@@ -1,20 +1,14 @@
-from scipy import integrate
 import time
-import pandas as pd
 import sys
 import os
-import torch
-import SALib
-import numpy as np
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append('../')
-sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver
-from tedeous.solution import Solution
+from tedeous.data import Domain, Conditions, Equation
+from tedeous.model import Model
+from tedeous.callbacks import cache, early_stopping, plot
+from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 from tedeous.models import FourierNN
 
@@ -24,21 +18,13 @@ y0 = 4.
 
 solver_device('cuda')
 
-t1 = np.linspace(0,20,1001)
-
-t = torch.from_numpy(t1)
-
-grid = t.reshape(-1, 1).float()
+domain = Domain()
+domain.variable('t', [0, 20], 1001)
 
 #initial conditions
-
-bnd1_0 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
-bndval1_0 = torch.from_numpy(np.array([[x0]], dtype=np.float64))
-bnd1_1 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
-bndval1_1  = torch.from_numpy(np.array([[y0]], dtype=np.float64))
-
-bconds = [[bnd1_0, bndval1_0, 0, 'dirichlet'],
-            [bnd1_1, bndval1_1, 1, 'dirichlet']]
+boundaries = Conditions()
+boundaries.dirichlet({'t': 0}, value=x0, var=0)
+boundaries.dirichlet({'t': 0}, value=y0, var=1)
 
 #equation system
 # eq1: dx/dt = x(alpha-beta*y)
@@ -46,6 +32,8 @@ bconds = [[bnd1_0, bndval1_0, 0, 'dirichlet'],
 
 # x var: 0
 # y var:1
+
+equation = Equation()
 
 eq1 = {
     '1/x*dx/dt':{
@@ -89,25 +77,32 @@ eq2 = {
     }
 }
 
-Lotka = [eq1, eq2]
+equation.add(eq1)
+equation.add(eq2)
 
-model = FourierNN([512, 512, 512, 512, 2], [15], [7])
+net = FourierNN([512, 512, 512, 512, 2], [15], [7])
 
-equation = Equation(grid, Lotka, bconds).set_strategy('NN')
+model =  Model(net, domain, equation, boundaries)
+
+model.compile("NN", lambda_operator=1, lambda_bound=10, tol=0.01)
 
 img_dir=os.path.join(os.path.dirname( __file__ ), 'LV_hunter_prey')
 
-if not(os.path.isdir(img_dir)):
-    os.mkdir(img_dir)
-
 start = time.time()
 
-model = Solver(grid, equation, model, 'NN').solve(lambda_bound=10,
-                                        verbose=True, learning_rate=1e-3, eps=1e-6, tmin=30000, tmax=1e5,
-                                        use_cache=True, cache_dir='../cache/',cache_verbose=True,
-                                        save_always=False, print_every=5000,
-                                        patience=5,loss_oscillation_window=100, no_improvement_patience=100,
-                                        optimizer_mode='Adam', cache_model=None,
-                                        step_plot_print=False, step_plot_save=True, tol=0.01,image_save_dir=img_dir)
+cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-5)
+
+cb_es = early_stopping.EarlyStopping(eps=1e-6,
+                                    loss_window=100,
+                                    no_improvement_patience=100,
+                                    patience=5,
+                                    randomize_parameter=1e-5,
+                                    info_string_every=500)
+
+cb_plots = plot.Plots(save_every=500, print_every=None, img_dir=img_dir)
+
+optimizer = Optimizer('Adam', {'lr': 1e-3})
+
+model.train(optimizer, 4e4, save_model=False, callbacks=[cb_cache, cb_es, cb_plots])
 
 end = time.time()

@@ -1,72 +1,44 @@
 import torch
-import SALib
 import numpy as np
-import matplotlib.pyplot as plt
-import scipy
 import os
 import sys
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver, grid_format_prepare
-from tedeous.solution import Solution
+from tedeous.data import Domain, Conditions, Equation
+from tedeous.model import Model
+from tedeous.callbacks import cache, early_stopping, plot
+from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 from tedeous.models import mat_model
 
 
 solver_device("cpu")
 
-x_grid = np.linspace(-5, 5, 41)
-t_grid = np.linspace(0, np.pi/2, 41)
+domain = Domain()
+domain.variable('x', [-5, 5], 41)
+domain.variable('t', [0, np.pi/2], 41)
 
-x = torch.from_numpy(x_grid)
-t = torch.from_numpy(t_grid)
-
-coord_list = []
-coord_list.append(x)
-coord_list.append(t)
-
-grid=grid_format_prepare(coord_list,mode='mat')
-
+boundaries = Conditions()
 
 ## BOUNDARY AND INITIAL CONDITIONS
 fun = lambda x: 2/np.cosh(x)
 
 # u(x,0) = 2sech(x), v(x,0) = 0
-bnd1_real = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
-bnd1_imag = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
-
-
-# u(x,0) = 2sech(x)
-bndval1_real = fun(bnd1_real[:,0])
-
-#  v(x,0) = 0
-bndval1_imag = torch.from_numpy(np.zeros_like(bnd1_imag[:,0]))
+x = domain.variable_dict['x']
+boundaries.dirichlet({'x': [-5, 5], 't': 0}, value=fun(x), var=0)
+boundaries.dirichlet({'x': [-5, 5], 't': 0}, value=0, var=1)
 
 
 # u(-5,t) = u(5,t)
-bnd2_real_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.float64)), t).float()
-bnd2_real_right = torch.cartesian_prod(torch.from_numpy(np.array([5], dtype=np.float64)), t).float()
-bnd2_real = [bnd2_real_left,bnd2_real_right]
-
+boundaries.periodic([{'x': -5, 't': [0, np.pi/2]}, {'x': 5, 't': [0, np.pi/2]}], var=0)
 
 # v(-5,t) = v(5,t)
-bnd2_imag_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.float64)), t).float()
-bnd2_imag_right = torch.cartesian_prod(torch.from_numpy(np.array([5], dtype=np.float64)), t).float()
-bnd2_imag = [bnd2_imag_left,bnd2_imag_right]
+boundaries.periodic([{'x': -5, 't': [0, np.pi/2]}, {'x': 5, 't': [0, np.pi/2]}], var=1)
 
 
 # du/dx (-5,t) = du/dx (5,t)
-bnd3_real_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.float64)), t).float()
-bnd3_real_right = torch.cartesian_prod(torch.from_numpy(np.array([5], dtype=np.float64)), t).float()
-bnd3_real = [bnd3_real_left, bnd3_real_right]
-
-
-
 bop3_real = {
             'du/dx':
                 {
@@ -76,12 +48,9 @@ bop3_real = {
                     'var': 0
                 }
 }
+boundaries.periodic([{'x': -5, 't': [0, np.pi/2]}, {'x': 5, 't': [0, np.pi/2]}], operator=bop3_real, var=0)
+
 # dv/dx (-5,t) = dv/dx (5,t)
-bnd3_imag_left = torch.cartesian_prod(torch.from_numpy(np.array([-5], dtype=np.float64)), t).float()
-bnd3_imag_right = torch.cartesian_prod(torch.from_numpy(np.array([5], dtype=np.float64)), t).float()
-bnd3_imag = [bnd3_imag_left,bnd3_imag_right]
-
-
 bop3_imag = {
             'dv/dx':
                 {
@@ -92,15 +61,7 @@ bop3_imag = {
                 }
 }
 
-
-bcond_type = 'periodic'
-
-bconds = [[bnd1_real, bndval1_real, 0, 'dirichlet'],
-        [bnd1_imag, bndval1_imag, 1, 'dirichlet'],
-        [bnd2_real, 0, bcond_type],
-        [bnd2_imag, 1, bcond_type],
-        [bnd3_real, bop3_real, bcond_type],
-        [bnd3_imag, bop3_imag, bcond_type]]
+boundaries.periodic([{'x': -5, 't': [0, np.pi/2]}, {'x': 5, 't': [0, np.pi/2]}], operator=bop3_imag, var=1)
 
 '''
 schrodinger equation:
@@ -112,6 +73,8 @@ dv/dt - 1/2 * d2u/dx2 - (u**2 + v**2) * u
 u = var:0
 v = var:1
 '''
+
+equation = Equation()
 
 schrodinger_eq_real = {
     'du/dt':
@@ -177,17 +140,28 @@ schrodinger_eq_imag = {
 
 }
 
-schrodinger_eq = [schrodinger_eq_real, schrodinger_eq_imag]
+equation.add(schrodinger_eq_real)
+equation.add(schrodinger_eq_imag)
 
-equation_mat = Equation(grid, schrodinger_eq, bconds).set_strategy('mat')
+net = mat_model(domain, equation)
 
-model = mat_model(grid, schrodinger_eq)
+model =  Model(net, domain, equation, boundaries)
+
+model.compile("mat", lambda_operator=1, lambda_bound=1, derivative_points=5)
 
 img_dir=os.path.join(os.path.dirname( __file__ ), 'schrodinger_img_mat')
 
-if not(os.path.isdir(img_dir)):
-    os.mkdir(img_dir)
+cb_cache = cache.Cache(cache_verbose=False, model_randomize_parameter=1e-6)
 
-model = Solver(grid, equation_mat, model, 'mat').solve(lambda_bound=1, verbose=1, learning_rate=0.8, gamma=0.9, lr_decay=200, derivative_points=5,
-                                    eps=1e-6, tmax=1e5, print_every=100, optimizer_mode='LBFGS',step_plot_save=True, use_cache=True, save_always=True,
-                                    cache_verbose=True, image_save_dir=img_dir)
+cb_es = early_stopping.EarlyStopping(eps=1e-6,
+                                    loss_window=100,
+                                    no_improvement_patience=1000,
+                                    patience=5,
+                                    randomize_parameter=1e-6,
+                                    info_string_every=100)
+
+cb_plots = plot.Plots(save_every=100, print_every=None, img_dir=img_dir)
+
+optimizer = Optimizer('LBFGS', {'lr': 0.8}) # gamma=0.9, lr_decay=200,
+
+model.train(optimizer, 1e5, save_model=False, callbacks=[cb_cache, cb_es, cb_plots])

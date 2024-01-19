@@ -13,10 +13,9 @@ import sys
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
-from tedeous.callbacks import adaptive_lambda, cache, early_stopping, plot
+from tedeous.callbacks import cache, early_stopping, plot
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device, check_device, device_type
 
@@ -178,7 +177,7 @@ for grid_res in [30,50,100]:
 
         model = Model(net, domain, equation, boundaries)
 
-        model.compile('autograd', lambda_operator=1, lambda_bound=100)
+        model.compile('NN', lambda_operator=1, lambda_bound=100, h=0.01)
 
         img_dir=os.path.join(os.path.dirname( __file__ ), 'kdv_periodic_img')
 

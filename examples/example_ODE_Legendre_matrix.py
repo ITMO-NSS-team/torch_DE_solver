@@ -5,30 +5,23 @@ Created on Mon May 31 12:33:44 2021
 @author: user
 """
 import torch
-import SALib
 import numpy as np
 import os
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from mpl_toolkits.mplot3d import Axes3D
 from scipy.special import legendre
 import sys
 import time
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
-
-sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
-sys.path.append('../')
 
-
-from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver, grid_format_prepare
-from tedeous.solution import Solution
+from tedeous.data import Domain, Conditions, Equation
+from tedeous.model import Model
+from tedeous.callbacks import cache, early_stopping, plot
+from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 from tedeous.models import mat_model
+
+
 solver_device('cpu')
 
 """
@@ -38,13 +31,8 @@ Grid is an essentially torch.Tensor of a n-D points where n is the problem
 dimensionality
 """
 
-t = np.linspace(0, 1, 100)
-
-coord_list = [t]
-
-
-grid = grid_format_prepare(coord_list,mode='mat')
-
+domain = Domain()
+domain.variable('t', [0, 1], 100)
 
 exp_dict_list=[]
 
@@ -78,13 +66,9 @@ for n in range(3,10):
     
     bval=torch.Tensor prescribed values at every point in the boundary
     """
-    
+    boundaries = Conditions()
     # point t=0
-    bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
-    
-    
-    #  So u(0)=-1/2
-    bndval1 = legendre(n)(bnd1)
+    boundaries.dirichlet({'t': 0}, value=legendre(n)(0))
     
     # point t=1
     bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64)).float()
@@ -98,13 +82,7 @@ for n in range(3,10):
                 'pow': 1
             }
     }
-    
-    # So, du/dt |_{x=1}=3
-    bndval2 = torch.from_numpy(legendre(n).deriv(1)(bnd2))
-    
-    # Putting all bconds together
-    bconds = [[bnd1, bndval1, 'dirichlet'],
-              [bnd2, bop2, bndval2, 'operator']]
+    boundaries.operator({'t': 1}, operator=bop2, value=legendre(n).deriv(1)(1))
     
     """
     Defining Legendre polynomials generating equations
@@ -133,32 +111,28 @@ for n in range(3,10):
     
     
     """
-    
-    
+
     # 1-t^2
     def c1(grid):
         return 1 - grid ** 2
-    
-    
+
     # -2t
     def c2(grid):
         return -2 * grid
-    
-    
-    
-    
-    
+
+    equation = Equation()
+
     # operator is  (1-t^2)*d2u/dt2-2t*du/dt+n*(n-1)*u=0 (n=3)
     legendre_poly= {
         '(1-t^2)*d2u/dt2**1':
             {
-                'coeff': c1(grid), #coefficient is a torch.Tensor
+                'coeff': c1, #coefficient is a torch.Tensor
                 'du/dt': [0, 0],
                 'pow': 1
             },
         '-2t*du/dt**1':
             {
-                'coeff': c2(grid),
+                'coeff': c2,
                 'u*du/dx': [0],
                 'pow':1
             },
@@ -169,34 +143,11 @@ for n in range(3,10):
                 'pow': 1
             }
     }
-    
-    ## this one is to show that coefficients may be callable (not compatible with cache) 
-    #legendre_poly= {
-    #    '(1-t^2)*d2u/dt2**1':
-    #        {
-    #            'coeff': c1, #coefficient is a function
-    #            'du/dt': [0, 0],
-    #            'pow': 1
-    #        },
-    #    '-2t*du/dt**1':
-    #        {
-    #            'coeff': c2,
-    #            'u*du/dx': [0],
-    #            'pow':1
-    #        },
-    #    'n*(n-1)*u**1':
-    #        {
-    #            'coeff': n*(n+1),
-    #            'u':  [None],
-    #            'pow': 1
-    #        }
-    #}
-    
-    
-    
+
+    equation.add(legendre_poly)
+
     for _ in range(10):
 
-    
         start = time.time()
 
         model_arch = torch.nn.Sequential(
@@ -209,33 +160,35 @@ for n in range(3,10):
             torch.nn.Linear(1024, 1)
         )
 
-        equation = Equation(grid, legendre_poly, bconds).set_strategy('mat')
+        net = mat_model(domain, equation)
 
-        model = mat_model(grid, legendre_poly)
+        model =  Model(net, domain, equation, boundaries)
+
+        model.compile("mat", lambda_operator=1, lambda_bound=100)
 
         img_dir=os.path.join(os.path.dirname( __file__ ), 'leg_img_mat')
 
-        if not(os.path.isdir(img_dir)):
-            os.mkdir(img_dir)
+        cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-5, cache_model=model_arch)
 
-        model = Solver(grid, equation, model, 'mat').solve(lambda_bound=100,
-                                         verbose=True, learning_rate=1e-1, eps=1e-7, tmin=1000, tmax=5e6,
-                                         use_cache=True,cache_dir='../cache/',cache_verbose=False,
-                                         save_always=False,print_every=None,
-                                         patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
-                                         model_randomize_parameter=1e-5,optimizer_mode='LBFGS',cache_model=model_arch,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
+        cb_es = early_stopping.EarlyStopping(eps=1e-7,
+                                            loss_window=100,
+                                            no_improvement_patience=1000,
+                                            patience=5,
+                                            randomize_parameter=1e-5)
+
+        cb_plots = plot.Plots(save_every=100, print_every=None, img_dir=img_dir)
+
+        optimizer = Optimizer('LBFGS', {'lr': 1e-1})
+
+        model.train(optimizer, 5e6, save_model=False, callbacks=[cb_cache, cb_plots, cb_es])
 
         end = time.time()
     
         print('Time taken {} = {}'.format(n,  end - start))
-    
-        #fig = plt.figure()
-        #plt.scatter(grid.reshape(-1), model.detach().numpy().reshape(-1))
-        # analytical sln is 1/2*(-1 + 3*t**2)
-        #plt.scatter(grid.reshape(-1), legendre(n)(grid).reshape(-1))
-        #plt.show()
         
-        error_rmse=torch.sqrt(torch.mean((legendre(n)(grid)-model)**2))
+        grid = domain.build('mat')
+
+        error_rmse=torch.sqrt(torch.mean((legendre(n)(grid)-net)**2))
         print('RMSE {}= {}'.format(n, error_rmse))
         
         exp_dict_list.append({'grid_res':100,'time':end - start,'RMSE':error_rmse.detach().numpy(),'type':'L'+str(n),'cache':str(CACHE)})

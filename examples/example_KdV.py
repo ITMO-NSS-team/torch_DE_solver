@@ -5,30 +5,19 @@ Created on Mon May 31 12:33:44 2021
 @author: user
 """
 import torch
-import SALib
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from mpl_toolkits.mplot3d import Axes3D
-import scipy
 import time
 import os
 import sys
 
-
-
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
-sys.path.append('../')
 
-
-from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver
-from tedeous.solution import Solution
-from tedeous.device import solver_device
+from tedeous.data import Domain, Conditions, Equation
+from tedeous.model import Model
+from tedeous.callbacks import cache, early_stopping, plot
+from tedeous.optimizers.optimizer import Optimizer
+from tedeous.device import solver_device, check_device, device_type
 
 
 solver_device('gpu')
@@ -44,14 +33,10 @@ for grid_res in [10,20,30]:
     Grid is an essentially torch.Tensor of a n-D points where n is the problem
     dimensionality
     """
+    domain = Domain()
+    domain.variable('x', [0, 1], grid_res)
+    domain.variable('t', [0, 1], grid_res)
 
-    
-    x = torch.from_numpy(np.linspace(0, 1, grid_res+1))
-    t = torch.from_numpy(np.linspace(0, 1, grid_res+1))
-    
-    grid = torch.cartesian_prod(x, t).float()
-    
-    
     """
     Preparing boundary conditions (BC)
     
@@ -86,13 +71,12 @@ for grid_res in [10,20,30]:
     b1, b2, b3 = [2, 1, 3]
     
     r1, r2 = [5, 5]
+
+    boundaries = Conditions()
     
     """
     Boundary x=0
     """
-    
-    # # points
-    bnd1 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t).float()
     
     # operator a1*d2u/dx2+a2*du/dx+a3*u
     bop1 = {
@@ -118,19 +102,13 @@ for grid_res in [10,20,30]:
                 'var': 0
             }
     }
-    
-    # bop1=[[a1,[0,0],1],[a2,[0],1],[a3,[None],1]]
-    
-    # equal to zero
-    bndval1 = torch.zeros(len(bnd1))
-    
+
+    boundaries.operator({'x': 0, 't': [0, 1]}, operator=bop1, value=0)
+
     """
     Boundary x=1
     """
-    
-    # points
-    bnd2 = torch.cartesian_prod(torch.from_numpy(np.array([1], dtype=np.float64)), t).float()
-    
+
     # operator b1*d2u/dx2+b2*du/dx+b3*u
     bop2 = {
         'b1*d2u/dx2':
@@ -155,17 +133,12 @@ for grid_res in [10,20,30]:
                 'var':0
             }
     }
-    
-    # bop2=[[b1,[0,0],1],[b2,[0],1],[b3,[None],1]]
-    # equal to zero
-    bndval2 = torch.zeros(len(bnd2))
-    
+
+    boundaries.operator({'x': 1, 't': [0, 1]}, operator=bop2, value=0)
     """
     Another boundary x=1
     """
-    # points
-    bnd3 = torch.cartesian_prod(torch.from_numpy(np.array([1], dtype=np.float64)), t).float()
-    
+
     # operator r1*du/dx+r2*u
     bop3 = {
         'r1*du/dx':
@@ -183,30 +156,13 @@ for grid_res in [10,20,30]:
                 'var': 0
             }
     }
-    
-    # bop3=[[r1,[0],1],[r2,[None],1]]
-    
-    # equal to zero
-    bndval3 = torch.zeros(len(bnd3))
-    
+
+    boundaries.operator({'x': 1, 't': [0, 1]}, operator=bop3, value=0)
     """
     Initial conditions at t=0
     """
-    
-    bnd4 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
-    
-    # No operator applied,i.e. u(x,0)=0
-    
-    # equal to zero
-    bndval4 = torch.zeros(len(bnd4))
-    
-    
-    # Putting all bconds together
-    bconds = [[bnd1, bop1, bndval1, 'operator'],
-              [bnd2, bop2, bndval2, 'operator'],
-              [bnd3, bop3, bndval3, 'operator'],
-              [bnd4, bndval4, 'dirichlet']]
-    
+    boundaries.dirichlet({'x': [0, 1], 't': 0}, value=0)
+
     """
     Defining kdv equation
     
@@ -229,10 +185,11 @@ for grid_res in [10,20,30]:
      'pow':[1,1]}
     
     None is for function without derivatives
-    
-    
+
     """
-    
+
+    equation = Equation()
+
     # -sin(x)cos(t)
     def c1(grid):
         return (-1) * torch.sin(grid[:, 0]) * torch.cos(grid[:, 1])
@@ -268,19 +225,20 @@ for grid_res in [10,20,30]:
                 'var':0
             }
     }
-    
-    
-    
+
+    equation.add(kdv)
+
     """
     Solving equation
     """
+
     for _ in range(1):
         sln=np.genfromtxt(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'wolfram_sln/KdV_sln_'+str(grid_res)+'.csv')),delimiter=',')
         sln_torch=torch.from_numpy(sln)
         sln_torch1=sln_torch.reshape(-1,1)
         
         
-        model = torch.nn.Sequential(
+        net = torch.nn.Sequential(
             torch.nn.Linear(2, 100),
             torch.nn.Tanh(),
             torch.nn.Linear(100, 100),
@@ -292,34 +250,39 @@ for grid_res in [10,20,30]:
     
         start = time.time()
         
-        equation = Equation(grid, kdv, bconds, h=0.01).set_strategy('NN')
-
-        img_dir=os.path.join(os.path.dirname( __file__ ), 'kdv_img')
-
-        if not(os.path.isdir(img_dir)):
-            os.mkdir(img_dir)
-
-
-
-        model = Solver(grid, equation, model, 'NN').solve(lambda_bound=100,verbose=1, learning_rate=1e-4,
-                                                    eps=1e-5, tmin=1000, tmax=1e5,use_cache=True,cache_verbose=True,
-                                                    save_always=True,print_every=None,model_randomize_parameter=1e-6,
-                                                    optimizer_mode='Adam',no_improvement_patience=1000,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
-
+        model = Model(net, domain, equation, boundaries)
         
+        model.compile('NN', lambda_operator=1, lambda_bound=100, h=0.01)
+
+        img_dir = os.path.join(os.path.dirname( __file__ ), 'kdv_img')
+
+        cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-6)
+
+        cb_es = early_stopping.EarlyStopping(eps=1e-5,
+                                            loss_window=100,
+                                            no_improvement_patience=1000,
+                                            patience=5,
+                                            randomize_parameter=1e-6)
+        
+        cb_plots = plot.Plots(save_every=1000, print_every=None, img_dir=img_dir)
+
+        optimizer = Optimizer('Adam', {'lr': 1e-4})
+
+        model.train(optimizer, 1e5, save_model=True, callbacks=[cb_es, cb_cache, cb_plots])
+
         end = time.time()
     
-        error_rmse=torch.sqrt(torch.mean((sln_torch1-model(grid))**2))
+        grid = domain.build('NN')
+        net = net.to(device=device_type())
+        grid = check_device(grid)
+        sln_torch1 = check_device(sln_torch1)
+
+        error_rmse=torch.sqrt(torch.mean((sln_torch1-net(grid))**2))
     
-        
-        _, end_loss = Solution(grid=grid, equal_cls=equation, model=model,
-             mode='NN', weak_form=None, lambda_bound=100, lambda_operator=1).evaluate()
-    
-        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().cpu().numpy(),'loss':end_loss.detach().cpu().numpy(),'type':'kdv_eqn','cache':True})
+        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().cpu().numpy(),'type':'kdv_eqn','cache':True})
         
         print('Time taken {}= {}'.format(grid_res, end - start))
         print('RMSE {}= {}'.format(grid_res, error_rmse))
-        print('loss {}= {}'.format(grid_res, end_loss))
 
 
 #CACHE=True
