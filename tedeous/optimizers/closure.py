@@ -12,14 +12,14 @@ class Closure():
         model):
 
         self.mixed_precision = mixed_precision
-        if self.mixed_precision:
-            self._amp_mixed()
         self.set_model(model)
         self.optimizer = self.model.optimizer
         self.normalized_loss_stop = self.model.normalized_loss_stop
         self.device = device_type()
         self.cuda_flag = True if self.device == 'cuda' and self.mixed_precision else False
         self.dtype = torch.float16 if self.device == 'cuda' else torch.bfloat16
+        if self.mixed_precision:
+            self._amp_mixed()
 
 
     def set_model(self, model):

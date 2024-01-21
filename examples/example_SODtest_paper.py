@@ -218,7 +218,7 @@ def SOD_experiment(grid_res, CACHE):
     else:
         callbacks = [cb_es, cb_plots]
 
-    model.train(optimizer, 15, save_model=CACHE, callbacks=callbacks)
+    model.train(optimizer, 1e5, save_model=CACHE, callbacks=callbacks)
 
     end = time.time()
 

@@ -240,7 +240,7 @@ class Conditions():
             elif isinstance(cond['bval'], (float, int)):
                 cond['bval'] = check_device(
                     torch.ones_like(cond['bnd'][:,0])*cond['bval']).to(dtype)
-            elif isinstance(cond['bval'], callable):
+            elif callable(cond['bval']):
                 cond['bval'] = check_device(cond['bval'](cond['bnd'])).to(dtype)
 
         return self.conditions_lst
