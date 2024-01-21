@@ -92,7 +92,9 @@ class EarlyStopping(Callback):
                                                         datetime.datetime.now()))
 
         if self._check is not None or self.t % self.info_string_every == 0:
-            if self._check is None:
+            try:
+                self._line
+            except:
                 self._line_create()
             loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
             info = 'Step = {} loss = {:.6f} normalized loss line= {:.6f}x+{:.6f}. There was {} stop dings already.'.format(

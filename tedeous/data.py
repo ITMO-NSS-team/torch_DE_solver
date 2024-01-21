@@ -74,6 +74,7 @@ class Domain():
             torch.Tensor: resulting grid.
         """
         var_lst = list(self.variable_dict.values())
+        var_lst = [i.cpu() for i in var_lst]
         if mode in ('autograd', 'NN'):
             if len(self.variable_dict) == 1:
                 grid = check_device(var_lst[0].reshape(-1, 1))

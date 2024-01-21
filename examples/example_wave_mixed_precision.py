@@ -125,15 +125,15 @@ def experiment(device):
                                         no_improvement_patience=500,
                                         patience=10,
                                         randomize_parameter=0,
-                                        info_string_every=500)
+                                        info_string_every=1)
 
     img_dir=os.path.join(os.path.dirname( __file__ ), 'wave_eq_img')
 
     cb_plots = plot.Plots(save_every=500, print_every=None, img_dir=img_dir)
 
-    optimizer = Optimizer('Adam', {'lr': 1e-2})
+    optimizer = Optimizer('Adam', {'lr': 1e-2, 'eps': 1e-4})
 
-    model.train(optimizer, 1e5, save_model=False, mixed_precision=True, callbacks=[cb_es, cb_cache, cb_plots])
+    model.train(optimizer, 1e5, save_model=False, mixed_precision=True, callbacks=[cb_es, cb_plots])
 
     end = time.time()
 

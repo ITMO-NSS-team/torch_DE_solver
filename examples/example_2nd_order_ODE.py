@@ -94,6 +94,7 @@ cb_es = early_stopping.EarlyStopping(eps=1e-8,
                                      loss_window=100,
                                      no_improvement_patience=1000,
                                      patience=5,
+                                     info_string_every=2000,
                                      randomize_parameter=1e-5)
 
 img_dir=os.path.join(os.path.dirname( __file__ ), 'ODE_img')
@@ -106,7 +107,7 @@ cb_lambda = adaptive_lambda.AdaptiveLambda(sampling_N=2)
 
 optimizer = Optimizer('Adam', {'lr': 1e-4}) # gamma=None, lr_decay=1000,
 
-model.train(optimizer, 8e3, info_string_every=2000, save_model=True, callbacks=[cb_cache,cb_es, cb_plots, cb_lambda])
+model.train(optimizer, 1e5, save_model=True, callbacks=[cb_cache, cb_es, cb_plots, cb_lambda])
 
 def sln(t):
     return 50/81 + (5/9) * t + (31/81) * torch.exp(9*t) - 2 * torch.exp(t)

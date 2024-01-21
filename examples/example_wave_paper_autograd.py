@@ -6,43 +6,28 @@ Created on Wed Mar 30 13:25:13 2022
 """
 import numpy as np
 import torch
-import matplotlib.pyplot as plt
 import sys
 import os
 import time
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-sys.path.append('../')
-
-
-sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver
-from tedeous.solution import Solution
-from tedeous.device import solver_device,check_device
+from tedeous.data import Domain, Conditions, Equation
+from tedeous.model import Model
+from tedeous.callbacks import early_stopping, plot, cache
+from tedeous.optimizers.optimizer import Optimizer
+from tedeous.device import solver_device, check_device
 
 
 solver_device('cuda')
 
-
-
-
 exp_dict_list=[]
 
 for grid_res in range(20, 110, 10):
-    x = torch.from_numpy(np.linspace(0, 1, grid_res + 1))
-    t = torch.from_numpy(np.linspace(0, 1, grid_res + 1))
-
-    coord_list = []
-    coord_list.append(x)
-    coord_list.append(t)
-
-    grid = torch.cartesian_prod(x, t).float()
-
-
+    domain = Domain()
+    domain.variable('x', [0, 1], grid_res)
+    domain.variable('t', [0, 1], grid_res)
     
     """
     Preparing boundary conditions (BC)
@@ -57,35 +42,20 @@ for grid_res in range(20, 110, 10):
     
     """
     
+    boundaries = Conditions()
+
     # Initial conditions at t=0
-    bnd1 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
-    
-    # u(0,x)=sin(pi*x)
-    bndval1 = torch.sin(np.pi * bnd1[:, 0])
+    x = domain.variable_dict['x']
+    boundaries.dirichlet({'x': [0, 1], 't': 0}, value = torch.sin(np.pi*x))
     
     # Initial conditions at t=1
-    bnd2 = torch.cartesian_prod(x, torch.from_numpy(np.array([1], dtype=np.float64))).float()
-    
-    # u(1,x)=sin(pi*x)
-    bndval2 = torch.sin(np.pi * bnd2[:, 0])
+    boundaries.dirichlet({'x': [0, 1], 't': 1}, value = torch.sin(np.pi*x))
     
     # Boundary conditions at x=0
-    bnd3 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t).float()
-    
-    # u(0,t)=0
-    bndval3 = torch.from_numpy(np.zeros(len(bnd3), dtype=np.float64))
+    boundaries.dirichlet({'x': 0, 't': [0, 1]}, value=0)
     
     # Boundary conditions at x=1
-    bnd4 = torch.cartesian_prod(torch.from_numpy(np.array([1], dtype=np.float64)), t).float()
-    
-    # u(1,t)=0
-    bndval4 = torch.from_numpy(np.zeros(len(bnd4), dtype=np.float64))
-    
-    # Putting all bconds together
-    bconds = [[bnd1, bndval1, 'dirichlet'],
-              [bnd2, bndval2, 'dirichlet'],
-              [bnd3, bndval3, 'dirichlet'],
-              [bnd4, bndval4, 'dirichlet']]
+    boundaries.dirichlet({'x': 1, 't': [0, 1]}, value=0)
     
     """
     Defining wave equation
@@ -112,8 +82,8 @@ for grid_res in range(20, 110, 10):
     
     None is for function without derivatives
     
-    
     """
+    equation = Equation()
     # operator is 4*d2u/dx2-1*d2u/dt2=0
     wave_eq = {
         '4*d2u/dx2**1':
@@ -130,16 +100,14 @@ for grid_res in range(20, 110, 10):
             }
     }
     
-    
+    equation.add(wave_eq)
   
     for _ in range(10):
         sln=np.genfromtxt(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'wolfram_sln/wave_sln_'+str(grid_res)+'.csv')),delimiter=',')
         
-        model= torch.rand(grid[0].shape)
-        
         start = time.time()
         
-        model = torch.nn.Sequential(
+        net = torch.nn.Sequential(
             torch.nn.Linear(2, 100),
             torch.nn.Tanh(),
             torch.nn.Linear(100, 100),
@@ -149,33 +117,30 @@ for grid_res in range(20, 110, 10):
             torch.nn.Linear(100, 1)
         )
 
-        equation = Equation(grid, wave_eq, bconds).set_strategy('autograd')
+        model =  Model(net, domain, equation, boundaries)
 
-        img_dir=os.path.join(os.path.dirname( __file__ ), 'wave_autograd_img')
+        model.compile("autograd", lambda_operator=1, lambda_bound=1000)
 
-        if not(os.path.isdir(img_dir)):
-            os.mkdir(img_dir)
+        cb_es = early_stopping.EarlyStopping(eps=1e-6, abs_loss=0.001)
 
-        model=Solver(grid, equation, model, 'autograd').solve(use_cache=True, verbose=True, print_every=None,
-                                                              cache_verbose=True, abs_loss=0.001, step_plot_print=False,
-                                                              step_plot_save=True,image_save_dir=img_dir)
+        img_dir = os.path.join(os.path.dirname( __file__ ), 'wave_eq_img')
 
+        cb_plots = plot.Plots(save_every=1000, print_every=None, img_dir=img_dir)
 
-    
+        optimizer = Optimizer('Adam', {'lr': 1e-3})
+
+        model.train(optimizer, 1e5, save_model=False, callbacks=[cb_es, cb_plots])
+
         end = time.time()
 
-        error_rmse = np.sqrt(np.mean((sln.reshape(-1) - model(check_device(grid)).detach().cpu().numpy().reshape(-1)) ** 2))
+        grid = domain.build('autograd')
 
+        error_rmse = np.sqrt(np.mean((sln.reshape(-1) - net(check_device(grid)).detach().cpu().numpy().reshape(-1)) ** 2))
 
-
-        _, end_loss = Solution(grid=grid, equal_cls=equation, model=model,
-             mode='autograd', weak_form=None, lambda_bound=100, lambda_operator=1).evaluate()
-
-        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse,'loss':end_loss.detach().cpu().numpy(),'type':'wave_eqn'})
+        exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse,'type':'wave_eqn'})
         
         print('Time taken {}= {}'.format(grid_res, end - start))
         print('RMSE {}= {}'.format(grid_res, error_rmse))
-        print('loss {}= {}'.format(grid_res, end_loss))
 
 
 #import pandas as pd

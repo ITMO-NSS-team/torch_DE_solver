@@ -63,6 +63,7 @@ class Closure():
             self.scaler.update()
         else:
             loss.backward()
+
         self.model.cur_loss = loss_normalized if self.normalized_loss_stop else loss
 
         return loss

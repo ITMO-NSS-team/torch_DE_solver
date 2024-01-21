@@ -82,6 +82,7 @@ cb_es = early_stopping.EarlyStopping(eps=1e-9,
                                      loss_window=100,
                                      no_improvement_patience=1000,
                                      patience=5,
+                                     info_string_every=1000,
                                      randomize_parameter=1e-5)
 
 cb_plots = plot.Plots(save_every=1000, print_every=None, img_dir=img_dir)
@@ -90,7 +91,7 @@ cb_lambda = adaptive_lambda.AdaptiveLambda()
 
 optimizer = Optimizer('Adam', {'lr': 1e-3}) # gamma=0.9, lr_decay=1000,
 
-model.train(optimizer, 13, info_string_every=1000, save_model=True, callbacks=[cb_lambda])
+model.train(optimizer, 1e5, save_model=True, callbacks=[cb_lambda, cb_cache, cb_es, cb_plots])
 
 plt.plot(grid.detach().numpy(), u(grid,a).detach().numpy(), label='Exact')
 plt.plot(grid.detach().numpy(), net(grid).detach().numpy(), '--', label='Predicted')
