@@ -8,6 +8,8 @@ from tedeous.solution import Solution
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.utils import CacheUtils
 from tedeous.optimizers.closure import Closure
+from tedeous.device import device_type
+import datetime
 
 
 class Model():
@@ -107,12 +109,18 @@ class Model():
 
         self.cur_loss = self.min_loss
 
+        print('[{}] initial (min) loss is {}'.format(
+                datetime.datetime.now(), self.min_loss.item()))
+
         while self.t < epochs and self.stop_training == False:
             callbacks.on_epoch_begin()
 
             self.optimizer.zero_grad()
             
-            self.optimizer.step(closure)
+            if device_type() == 'cuda' and mixed_precision:
+                closure()
+            else:
+                self.optimizer.step(closure)
             if optimizer.gamma is not None and self.t % optimizer.decay_every == 0:
                 optimizer.scheduler.step()
 

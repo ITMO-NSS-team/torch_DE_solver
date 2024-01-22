@@ -45,7 +45,7 @@ class EarlyStopping(Callback):
         """
         if self.t % self.loss_window == 0 and self._check is None:
             self._line_create()
-            if abs(self._line[0] / self.cur_loss) < self.eps and self.t > 0:
+            if abs(self._line[0] / self.model.cur_loss) < self.eps and self.t > 0:
                 self._stop_dings += 1
                 if self.mode in ('NN', 'autograd'):
                     self.model.net.apply(self._r)
@@ -69,7 +69,7 @@ class EarlyStopping(Callback):
         """ Stopping criteria. If current loss absolute value is lower then *abs_loss* param,
         the stopping criteria will be achieved.
         """
-        if self.abs_loss is not None and self.cur_loss < self.abs_loss and self._check is None:
+        if self.abs_loss is not None and self.model.cur_loss < self.abs_loss and self._check is None:
             self._stop_dings += 1
             self._check = 'absloss_check'
 
@@ -96,7 +96,7 @@ class EarlyStopping(Callback):
                 self._line
             except:
                 self._line_create()
-            loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
+            loss = self.model.cur_loss.item() if isinstance(self.model.cur_loss, torch.Tensor) else self.mdoel.cur_loss
             info = 'Step = {} loss = {:.6f} normalized loss line= {:.6f}x+{:.6f}. There was {} stop dings already.'.format(
                     self.t, loss, self._line[0] / loss, self._line[1] / loss, self._stop_dings)
             print(info)
@@ -108,11 +108,11 @@ class EarlyStopping(Callback):
         self._patience_check()
         self._absloss_check()
 
-        if self.cur_loss < self.min_loss:
+        if self.model.cur_loss < self.min_loss:
             self.min_loss = self.model.cur_loss.item()
             self._t_imp_start = self.t
         try:
-            self.last_loss[(self.t - 1) % self.loss_window] = self.cur_loss
+            self.last_loss[(self.t - 1) % self.loss_window] = self.model.cur_loss
         except:
             self.last_loss = np.zeros(self.loss_window) + float(self.min_loss)
 
@@ -125,5 +125,4 @@ class EarlyStopping(Callback):
         self.t = self.model.t
         self.mode = self.model.mode
         self._check = self.model._check
-        self.cur_loss = self.model.cur_loss
         self.min_loss = self.model.min_loss

@@ -1,10 +1,6 @@
 import torch
-import numpy as np
-
 from typing import Any
-from copy import deepcopy
-
-from tedeous.device import check_device, device_type
+from tedeous.device import device_type
 
 class Closure():
     def __init__(self,
