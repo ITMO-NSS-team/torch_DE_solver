@@ -7,6 +7,8 @@ from tedeous.utils import create_random_fn
 
 
 class EarlyStopping(Callback):
+    """ Class for using adaptive stop criterias at training process.
+    """
     def __init__(self,
                  eps: float = 1e-5,
                  loss_window: int = 100,
@@ -18,6 +20,23 @@ class EarlyStopping(Callback):
                  info_string_every: Union[int, None] = None,
                  verbose: bool = True
                  ):
+        """_summary_
+
+        Args:
+            eps (float, optional): arbitrarily small number that uses for loss comparison criterion. Defaults to 1e-5.
+            loss_window (int, optional): width of losses window which is used for average loss estimation. Defaults to 100.
+            no_improvement_patience (int, optional):  number of iterations during which
+                    the loss may not improve.. Defaults to 1000.
+            patience (int, optional): maximum number of times the stopping criterion
+                                      can be satisfied.. Defaults to 5.
+            abs_loss (Union[float, None], optional): absolute loss value using in _absloss_check().. Defaults to None.
+            normalized_loss (bool, optional): calculate loss with all lambdas=1. Defaults to False.
+            randomize_parameter (float, optional): some error for resulting
+                                        model weights to to avoid local optima. Defaults to 1e-5.
+            info_string_every (Union[int, None], optional): prints the loss state after every *int*
+                                                    step. Defaults to None.
+            verbose (bool, optional): print or not info about loss and current state of stopping criteria. Defaults to True.
+        """
         super().__init__()
         self.eps = eps
         self.loss_window = loss_window
@@ -34,8 +53,6 @@ class EarlyStopping(Callback):
     def _line_create(self):
         """ Approximating last_loss list (len(last_loss)=loss_oscillation_window) by the line.
 
-        Args:
-            loss_oscillation_window (int): length of last_loss list.
         """
         self._line = np.polyfit(range(self.loss_window), self.last_loss, 1)
 
@@ -56,8 +73,6 @@ class EarlyStopping(Callback):
         when the current loss is bigger then min_loss. If these steps equal to
         no_improvement_patience parameter, the stopping criteria will be achieved.
 
-        Args:
-            no_improvement_patience (int): no improvement steps param.
         """
         if (self.t - self._t_imp_start) == self.no_improvement_patience and self._check is None:
             self._stop_dings += 1
@@ -74,11 +89,7 @@ class EarlyStopping(Callback):
             self._check = 'absloss_check'
 
     def verbose_print(self):
-        """
-
-        Args:
-            no_improvement_patience (int): no improvement steps param. (see patience_check())
-            print_every (Union[None, int]): print or save after *print_every* steps.
+        """ print info about loss and stopping criteria.
         """
 
         if self._check == 'window_check':

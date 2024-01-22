@@ -46,7 +46,7 @@ class Domain():
 
         Args:
             varible_name (str): varible name.
-            spatial_variable (List): [start, stop] list for spatial variable.
+            variable_set (Union[List, torch.Tensor]): [start, stop] list for spatial variable or torch.Tensor with points for variable.
             n_points (int): number of points in discretization for variable.
             dtype (str, optional): dtype of result vector. Defaults to 'float32'.
 
@@ -95,15 +95,16 @@ class Conditions():
 
     def dirichlet(
             self,
-            bnd: dict,
+            bnd: Union[torch.Tensor, dict],
             value: Union[callable, torch.Tensor, float],
             var: int = 0):
         """ determine dirichlet boundary condition.
 
         Args:
             bnd (Union[torch.Tensor, dict]): boundary points can be torch.Tensor
-            or dict with keys as coordinates names and values as coordinates values or list(start, end)
+            or dict with keys as coordinates names and values as coordinates values.
             value (Union[callable, torch.Tensor, float]): values at the boundary (bnd)
+            if callable: value = function(bnd)
             var (int, optional): variable for system case, for single equation is 0. Defaults to 0.
         """
 
@@ -114,16 +115,17 @@ class Conditions():
                                     'type': 'dirichlet'})
 
     def operator(self,
-                 bnd: dict,
+                 bnd: Union[torch.Tensor, dict],
                  operator: dict,
                  value: Union[callable, torch.Tensor, float]):
         """ determine operator boundary condition
 
         Args:
             bnd (Union[torch.Tensor, dict]): boundary points can be torch.Tensor
-            or dict with keys as coordinates names and values as coordinates values or list(start, end)
+            or dict with keys as coordinates names and values as coordinates values
             operator (dict): dictionary with opertor terms: {'operator name':{coeff, term, pow, var}}
             value (Union[callable, torch.Tensor, float]): value on the boundary (bnd).
+            if callable: value = function(bnd)
         """
         try:
             var = operator[operator.keys()[0]]['var']
@@ -137,7 +139,7 @@ class Conditions():
                                     'type': 'operator'})
 
     def periodic(self,
-                 bnd: List[dict],
+                 bnd: Union[List[torch.Tensor], List[dict]],
                  operator: dict = None,
                  var: int = 0):
         """Periodic can be: periodic dirichlet (example u(x,t)=u(-x,t))
@@ -173,7 +175,7 @@ class Conditions():
 
     def data(
         self,
-        bnd: dict,
+        bnd: Union[torch.Tensor, dict],
         operator: Union[dict, None],
         value: torch.Tensor,
         var: int = 0):
@@ -181,7 +183,7 @@ class Conditions():
 
         Args:
             bnd (Union[torch.Tensor, dict]): boundary points can be torch.Tensor
-            or dict with keys as coordinates names and values as coordinates values or list(start, end)
+            or dict with keys as coordinates names and values as coordinates values
             operator (Union[dict, None]): dictionary with opertor terms: {'operator name':{coeff, term, pow, var}}
             value (Union[torch.Tensor, float]): values at the boundary (bnd)
             var (int, optional): variable for system case and periodic dirichlet. Defaults to 0.
@@ -194,7 +196,21 @@ class Conditions():
                                     'var': var,
                                     'type': 'data'})
 
-    def _bnd_grid(self, bnd, variable_dict, dtype):
+    def _bnd_grid(self,
+                  bnd: Union[torch.Tensor, dict],
+                  variable_dict: dict,
+                  dtype) -> torch.Tensor:
+        """ build subgrid for every condition.
+
+        Args:
+            bnd (Union[torch.Tensor, dict]):oundary points can be torch.Tensor
+            or dict with keys as coordinates names and values as coordinates values
+            variable_dict (dict): dictionary with torch.Tensors for each domain variable
+            dtype (dtype): dtype
+
+        Returns:
+            torch.Tensor: subgrid for boundary cond-s.
+        """
 
         dtype = variable_dict[list(variable_dict.keys())[0]].dtype
 
@@ -218,7 +234,16 @@ class Conditions():
             bnd_grid = bnd_grid.reshape(-1, 1)
         return bnd_grid
 
-    def build(self, variable_dict):
+    def build(self,
+              variable_dict: dict) -> List[dict]:
+        """ preprocessing of initial boundaries data.
+
+        Args:
+            variable_dict (dict): dictionary with torch.Tensors for each domain variable
+
+        Returns:
+            List[dict]: list with dicts (where is all info obaut bconds)
+        """
         if self.conditions_lst == []:
             return None
 

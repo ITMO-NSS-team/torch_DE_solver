@@ -2,31 +2,6 @@ from abc import ABC, abstractmethod
 
 class Callback(ABC):
     """Base class used to build new callbacks.
-
-    Callbacks can be passed to keras methods such as `fit()`, `evaluate()`, and
-    `predict()` in order to hook into the various stages of the model training,
-    evaluation, and inference lifecycle.
-
-    To create a custom callback, subclass `keras.callbacks.Callback` and
-    override the method associated with the stage of interest.
-
-    If you want to use `Callback` objects in a custom training loop:
-
-    1. You should pack all your callbacks into a single `callbacks.CallbackList`
-       so they can all be called together.
-    2. You will need to manually call all the `on_*` methods at the appropriate
-       locations in your loop. Like this:
-
-
-    Attributes:
-        params: Dict. Training parameters
-            (eg. verbosity, batch size, number of epochs...).
-        model: Instance of `Model`.
-            Reference of the model being trained.
-
-    The `logs` dictionary that callback methods
-    take as argument will contain keys for quantities relevant to
-    the current batch or epoch (see method-specific docstrings).
     """
 
     def __init__(self):

@@ -18,10 +18,6 @@ class CallbackList(Callback):
 
         Args:
             callbacks: List of `Callback` instances.
-            add_history: Whether a `History` callback should be added, if one
-                does not already exist in the `callbacks` list.
-            add_progbar: Whether a `ProgbarLogger` callback should be added, if
-                one does not already exist in the `callbacks` list.
             model: The `Model` these callbacks are used with.
             **params: If provided, parameters will be passed to each `Callback`
                 via `Callback.set_params`.

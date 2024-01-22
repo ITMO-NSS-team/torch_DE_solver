@@ -17,10 +17,10 @@ class Plots(Callback):
                  img_dir: str = None):
         """
         Args:
-            model (Union[torch.nn.Module, torch.Tensor]): *mat, NN, autograd* model.
-            grid (torch.Tensor): grid in (torch.cartesian_prod or torch.meshgrid) form.
-            mode (str): *mat, NN, autograd*
-            tol (Union[int, float], optional): penalty for casual loss. Defaults to 0.
+            print_every (Union[int, None], optional): print plots after every *print_every* steps. Defaults to 500.
+            save_every (Union[int, None], optional): save plots after every *print_every* steps. Defaults to 500.
+            title (str, optional): plots title. Defaults to None.
+            img_dir (str, optional): directory title where plots are being saved. Defaults to None.
         """
         super().__init__()
         self.print_every = print_every if print_every is not None else 0.1
@@ -30,10 +30,8 @@ class Plots(Callback):
 
     def _print_nn(self):
         """
-        Solution plot for NN method.
+        Solution plot for *NN, autograd* mode.
 
-        Args:
-            title (str): title
         """
 
         try:
@@ -65,10 +63,7 @@ class Plots(Callback):
 
     def _print_mat(self):
         """
-        Solution plot for mat method.
-
-        Args:
-           title (str): title
+        Solution plot for mat mode.
         """
 
         nparams = self.grid.shape[0]
@@ -123,13 +118,7 @@ class Plots(Callback):
 
     def solution_print(
         self):
-        """ printing figures.
-
-        Args:
-            title (str, optional): title of figure. Defaults to None.
-            solution_print (bool, optional): print ot not figure during solving. Defaults to False.
-            solution_save (bool, optional): save ot not figure during solving. Defaults to False.
-            save_dir (str, optional): path to save figure. Defaults to None.
+        """ printing or saving figures.
         """
         print_flag = self.model.t % self.print_every == 0
         save_flag = self.model.t % self.save_every == 0

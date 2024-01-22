@@ -193,14 +193,14 @@ def parameter_registr(model: torch.nn.Module,
         model.register_parameter(key, parameters[key])
 
 
-def mat_model(domain: torch.Tensor,
+def mat_model(domain: Any,
               equation: Any,
               nn_model: torch.nn.Module = None) -> torch.Tensor:
     """ Model creation for *mat* mode.
 
     Args:
-        grid (torch.Tensor): grid.
-        equation (Any): Equation class object (see input_preprocessing module).
+        domain (Any): object of Domian class.
+        equation (Any): Equation class object (see data module).
         nn_model (torch.nn.Module, optional): neural network which outputs will be *mat* model.
         Defaults to None.
 

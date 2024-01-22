@@ -229,8 +229,7 @@ class Finite_diffs():
     """
 
     def __init__(self, term: list, nvars: int, axes_scheme_type: str):
-        """_summary_
-
+        """
         Args:
             term (list): differentiation direction. Example: [0,0]->d2u/dx2 if x is first
                     direction in the grid.

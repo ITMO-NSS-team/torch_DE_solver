@@ -13,22 +13,18 @@ class AdaptiveLambda(Callback):
     def __init__(self,
                  sampling_N: int = 1,
                  second_order_interactions = True):
-        """_summary_
+        """
 
         Args:
-            op_list (list): list with operator solution.
-            bcs_list (list): list with boundary solution.
-            loss_list (list): list with losses.
-            sampling_N (int, optional): parameter for accumulation of solutions (op, bcs).
-                The more sampling_N, the more accurate the estimation of the variance.. Defaults to 1.
-            second_order_interactions (bool, optional): computes second order Sobol indices. Defaults to True.
+            sampling_N (int, optional): essentially determines how often the lambda will be re-evaluated. Defaults to 1.
+            second_order_interactions (bool, optional): Calculate second-order sensitivities. Defaults to True.
         """
         super().__init__()
         self.second_order_interactions = second_order_interactions
         self.sampling_N = sampling_N
 
     @staticmethod
-    def lambda_compute(pointer: int, length_list: list, ST: np.ndarray) -> dict:
+    def lambda_compute(pointer: int, length_list: list, ST: np.ndarray) -> torch.Tensor:
         """ Computes lambdas.
 
         Args:
@@ -37,7 +33,7 @@ class AdaptiveLambda(Callback):
             ST (np.ndarray): result of SALib.ProblemSpec().
 
         Returns:
-            dict: _description_
+            torch.Tensor: calculated lambdas written as vector
         """
 
         lambdas = []
@@ -46,14 +42,15 @@ class AdaptiveLambda(Callback):
             pointer += value
         return torch.tensor(lambdas).float().reshape(1, -1)
 
-    def update(self, op_length: list,
-               bval_length: list,
-               sampling_D: int) -> Tuple[dict, dict]:
+    def update(self,
+               op_length: List,
+               bval_length: List,
+               sampling_D: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """ Updates all lambdas (operator and boundary).
 
         Args:
-            op_length (list): dict with lengths of operator solution.
-            bval_length (list): dict with lengths of boundary solution.
+            op_length (list): list with lengths of operator solution.
+            bval_length (list): list with lengths of boundary solution.
             sampling_D (int): sum of op_length and bval_length.
 
         Returns:
@@ -88,6 +85,8 @@ class AdaptiveLambda(Callback):
         return lambda_op, lambda_bnd
 
     def lambda_update(self):
+        """ Method for lambdas calculation.
+        """
         sln_cls = self.model.solution_cls
         bval = sln_cls.bval
         true_bval = sln_cls.true_bval

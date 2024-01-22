@@ -42,14 +42,7 @@ class CachePreprocessing:
                  ):
         """
         Args:
-            grid (torch.Tensor): grid (domain discretization)
-            equal_cls (Equation class object): Equation class object that contain preprocessed
-                                               operator (equation) and boundary con-s.
-            model (Union[torch.Tensor, torch.nn.Module]): model (neural network or tensor)
-            mode (str): solution strategy (mat, NN, autograd)
-            weak_form (Union[list, None]): list that contains basis function for weak solution.
-                                           If None: soluion in strong form.
-            mixed_precision (bool): flag for on/off torch.amp.
+            model (Model): object of Model class
         """
         self.solution_cls = model.solution_cls
 
@@ -109,8 +102,6 @@ class CachePreprocessing:
         """Looking for the best model (min loss) model from the cache files.
 
         Args:
-            lambda_operator (float, optional): regulariazation parameter for operator term in loss. Defaults to 1.
-            lambda_bound (float, optional): regulariazation parameter for boundary term in loss. Defaults to 1.
             nmodels (Union[int, None], optional): maximal number of models that are taken from cache dir. Defaults to None.
             save_graph (bool, optional): responsible for saving the computational graph. Defaults to False.
             cache_verbose (bool, optional): verbose cache operations. Defaults to False.
@@ -182,9 +173,6 @@ class CachePreprocessing:
             trained_model (torch.nn.Module): the best model (min loss) from cache.
             cache_verbose (bool, optional): verbose on/off of cache operations. Defaults to False.
 
-        Returns:
-            self.model (torch.nn.Module): model trained on the cache model outputs.
-
         """
 
         grid = self.solution_cls.grid
@@ -225,9 +213,6 @@ class CachePreprocessing:
             cache_checkpoint (dict): checkpoint of the cache model
             cache_verbose (bool, optional): on/off printing cache operations. Defaults to False.
 
-        Returns:
-            model (torch.nn.Module): the resulting model.
-            optimizer_state (dict): the state of the optimizer.
         """
 
         model = self.solution_cls.model
@@ -273,15 +258,15 @@ class Cache(Callback):
                 ):
         """
         Args:
-            grid (torch.Tensor): grid (domain discretization)
-            equal_cls (Equation class object): Equation class object that contain preprocessed
-                                               operator (equation) and boundary con-s.
-            model (Union[torch.Tensor, torch.nn.Module]): model (neural network or tensor)
-            mode (str): solution strategy (mat, NN, autograd)
-            weak_form (Union[list, None]): list that contains basis function for weak solution.
-                                           If None: soluion in strong form.
-            mixed_precision (bool): flag for on/off torch.amp.
+            nmodels (Union[int, None], optional): maximal number of models that are taken from cache dir. Defaults to None. Defaults to None.
+            cache_dir (str, optional): directory with cached models. Defaults to '../cache/'.
+            cache_verbose (bool, optional): printing cache operations. Defaults to False.
+            cache_model (Union[torch.nn.Sequential, None], optional): model for mat method, which will be saved in cache. Defaults to None.
+            model_randomize_parameter (Union[int, float], optional): creates a random model parameters (weights, biases)
+                multiplied with a given randomize parameter.. Defaults to 0.
+            clear_cache (bool, optional): clear cache directory. Defaults to False.
         """
+
         self.nmodels = nmodels
         self.cache_dir = cache_dir
         self.cache_verbose = cache_verbose
@@ -290,19 +275,9 @@ class Cache(Callback):
         self.clear_cache = clear_cache
 
     def _cache_nn(self):
-        """  Restores the model from the cache and uses it for *NN, autograd* modes.
-
-        Args:
-            nmodels (Union[int, None]): model quantity taken from cache directory.
-            lambda_operator (float): regulariazation parameter for operator term in loss.
-            lambda_bound (float): regulariazation parameter for boundary term in loss.
-            cache_verbose (bool): verbose cache operations.
-            model_randomize_parameter (Union[float, None]): some error for resulting
-            model weights to to avoid local optima.
-
-        Returns:
-            model (torch.nn.Module): final model for optimization
+        """  take model from cache as initial guess for *NN, autograd* modes.
         """
+
         cache_preproc = CachePreprocessing(self.model)
 
         r = create_random_fn(self.model_randomize_parameter)
@@ -315,19 +290,7 @@ class Cache(Callback):
         self.model.solution_cls.model.apply(r)
 
     def _cache_mat(self) -> torch.Tensor:
-        """ Restores the model from the cache and uses it for *mat* mode.
-
-        Args:
-            nmodels (Union[int, None]): model quantity taken from cache directory.
-            lambda_operator (float):regulariazation parameter for operator term in loss.
-            lambda_bound (float): regulariazation parameter for boundary term in loss.
-            cache_verbose (bool): verbose cache operations.
-            model_randomize_parameter (Union[float, None]): some error for resulting
-            model weights to to avoid local optima.
-            cache_model (Union[torch.nn.Module, None]): user defined cache model.
-
-        Returns:
-            model (torch.Tensor): resulting model for *mat* mode.
+        """  take model from cache as initial guess for *mat* mode.
         """
 
         net = self.model.net
@@ -367,18 +330,6 @@ class Cache(Callback):
 
     def cache(self):
         """ Wrap for cache_mat and cache_nn methods.
-
-        Args:
-            nmodels (Union[int, None]): model quantity taken from cache directory.
-            lambda_operator (_type_): regulariazation parameter for operator term in loss.
-            lambda_bound (float): regulariazation parameter for boundary term in loss.
-            cache_verbose (bool):  verbose cache operations.
-            model_randomize_parameter (Union[float, None]): some error for resulting
-            model weights to to avoid local optima.
-            cache_model (Union[torch.nn.Module, None]): user defined cache model.
-
-        Returns:
-            cache.cache_nn or cache.cache_mat
         """
 
         if self.model.mode != 'mat':
