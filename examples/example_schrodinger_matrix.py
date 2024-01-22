@@ -162,6 +162,6 @@ cb_es = early_stopping.EarlyStopping(eps=1e-6,
 
 cb_plots = plot.Plots(save_every=100, print_every=None, img_dir=img_dir)
 
-optimizer = Optimizer('LBFGS', {'lr': 0.8}) # gamma=0.9, lr_decay=200,
+optimizer = Optimizer('LBFGS', {'lr': 0.8}, gamma=0.9, decay_every=200)
 
 model.train(optimizer, 1e5, save_model=False, callbacks=[cb_cache, cb_es, cb_plots])

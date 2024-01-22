@@ -89,7 +89,7 @@ cb_plots = plot.Plots(save_every=1000, print_every=None, img_dir=img_dir)
 
 cb_lambda = adaptive_lambda.AdaptiveLambda()
 
-optimizer = Optimizer('Adam', {'lr': 1e-3}) # gamma=0.9, lr_decay=1000,
+optimizer = Optimizer('Adam', {'lr': 1e-3}, gamma=0.9, decay_every=1000)
 
 model.train(optimizer, 1e5, save_model=True, callbacks=[cb_lambda, cb_cache, cb_es, cb_plots])
 

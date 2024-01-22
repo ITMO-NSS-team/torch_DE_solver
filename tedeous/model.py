@@ -113,6 +113,8 @@ class Model():
             self.optimizer.zero_grad()
             
             self.optimizer.step(closure)
+            if optimizer.gamma is not None and self.t % optimizer.decay_every == 0:
+                optimizer.scheduler.step()
 
             callbacks.on_epoch_end()
 
