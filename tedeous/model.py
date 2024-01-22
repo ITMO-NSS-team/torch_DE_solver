@@ -45,7 +45,25 @@ class Model():
             derivative_points: int = 2,
             weak_form: List[callable] = None,
             tol: float = 0):
+        """ Compile model for training process.
 
+        Args:
+            mode (str): *mat, NN, autograd*
+            lambda_operator (Union[List[float], float]): weight for operator term.
+            It can be float for single equation or list of float for system.
+            lambda_bound (Union[List[float], float]): weight for boundary term.
+            It can be float for all types of boundary cond-ns or list of float for every condition type.
+            normalized_loss_stop (bool, optional): loss with lambdas=1. Defaults to False.
+            h (float, optional): increment for finite-difference scheme only for *NN*. Defaults to 0.001.
+            inner_order (str, optional): order of finite-difference scheme *'1', '2'* for inner points.
+            Only for *NN*. Defaults to '1'.
+            boundary_order (str, optional): order of finite-difference scheme *'1', '2'* for boundary points.
+            Only for *NN*. Defaults to '2'.
+            derivative_points (int, optional): number of points for finite-difference scheme in *mat* mode.
+            if derivative_points=2 the central scheme are used. Defaults to 2.
+            weak_form (List[callable], optional): basis function for weak loss. Defaults to None.
+            tol (float, optional): tolerance for causual loss. Defaults to 0.
+        """
         self.mode = mode
         self.lambda_bound = lambda_bound
         self.lambda_operator = lambda_operator
@@ -72,10 +90,8 @@ class Model():
         """ Model saving.
 
         Args:
-            cache_utils (CacheUtils): CacheUtils class object.
-            save_always (bool): flag for model saving.
-            scaler (Any): GradScaler for CUDA.
-            name (str): model name.
+            save_model (bool): save model or not.
+            model_name (str): model name.
         """
         if save_model:
             if self.mode == 'mat':
@@ -92,7 +108,18 @@ class Model():
               mixed_precision: bool = False,
               save_model: bool = False,
               model_name: Union[str, None] = None,
-              callbacks=None):
+              callbacks: Union[List, None]=None):
+        """ train model.
+
+        Args:
+            optimizer (Optimizer): the object of Optimizer class
+            epochs (int): number of epoch for training.
+            info_string_every (Union[int, None], optional): print loss state after *info_string_every* epoch. Defaults to None.
+            mixed_precision (bool, optional): apply mixed precision for calculation. Defaults to False.
+            save_model (bool, optional): save resulting model in cache. Defaults to False.
+            model_name (Union[str, None], optional): model name. Defaults to None.
+            callbacks (Union[List, None], optional): callbacks for training process. Defaults to None.
+        """
 
         self.t = 1
         self.stop_training = False
