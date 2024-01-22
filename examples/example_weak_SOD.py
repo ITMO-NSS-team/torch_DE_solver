@@ -5,15 +5,12 @@ import time
 import sys
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-sys.path.append('../')
-
-sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver
-from tedeous.solution import Solution
+from tedeous.data import Domain, Conditions, Equation
+from tedeous.model import Model
+from tedeous.callbacks import early_stopping, plot, cache
+from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 
 solver_device('cpu')
@@ -30,77 +27,61 @@ gam_r = 1.4
 
 x0 = 0.5
 h = 0.05
-x_grid=np.linspace(0,1,15)
-t_grid=np.linspace(0,0.2,15)
 
-x = torch.from_numpy(x_grid)
-t = torch.from_numpy(t_grid)
-
-grid = torch.cartesian_prod(x, t).float()
+domain = Domain()
+domain.variable('x', [0, 1], 15)
+domain.variable('t', [0, 0.2], 15)
+x = domain.variable_dict['x']
+h = x[1]-x[0]
 
 ## BOUNDARY AND INITIAL CONDITIONS
 # p:0, v:1, Ro:2
 
 def u0(x,x0):
-  if x>x0:
-    return [p_r, v_r, Ro_r]
-  else:
-    return [p_l, v_l, Ro_l]
+    if x>x0:
+        return [p_r, v_r, Ro_r]
+    else:
+        return [p_l, v_l, Ro_l]
+
+boundaries = Conditions()
 
 # Initial conditions at t=0
-bnd1 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
-
-u_init0 = np.zeros(bnd1.shape[0], dtype=np.float64)
-u_init1 = np.zeros(bnd1.shape[0], dtype=np.float64)
-u_init2 = np.zeros(bnd1.shape[0], dtype=np.float64)
+u_init0 = np.zeros(x.shape[0])
+u_init1 = np.zeros(x.shape[0])
+u_init2 = np.zeros(x.shape[0])
 j=0
-for i in bnd1:
-  u_init0[j] = u0(i[0], x0)[0]
-  u_init1[j] = u0(i[0], x0)[1]
-  u_init2[j] = u0(i[0], x0)[2]
-  j +=1
+for i in x:
+    u_init0[j] = u0(i, x0)[0]
+    u_init1[j] = u0(i, x0)[1]
+    u_init2[j] = u0(i, x0)[2]
+    j +=1
 
 bndval1_0 = torch.from_numpy(u_init0)
 bndval1_1 = torch.from_numpy(u_init1)
 bndval1_2 = torch.from_numpy(u_init2)
 
-bndval1 = torch.stack((bndval1_0, bndval1_1, bndval1_2),dim=1)
+boundaries.dirichlet({'x': [0, 1], 't': 0}, value=bndval1_0, var=0)
+boundaries.dirichlet({'x': [0, 1], 't': 0}, value=bndval1_1, var=1)
+boundaries.dirichlet({'x': [0, 1], 't': 0}, value=bndval1_2, var=2)
 
 #  Boundary conditions at x=0
-bnd2 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t).float()
-
-bndval2_0 = torch.from_numpy(np.asarray([p_l for i in bnd2[:, 0]], dtype=np.float64))
-bndval2_1 = torch.from_numpy(np.asarray([v_l for i in bnd2[:, 0]], dtype=np.float64))
-bndval2_2 = torch.from_numpy(np.asarray([Ro_l for i in bnd2[:, 0]], dtype=np.float64))
-bndval2 = torch.stack((bndval2_0, bndval2_1, bndval2_2),dim=1)
-
+boundaries.dirichlet({'x': 0, 't': [0, 0.2]}, value=p_l, var=0)
+boundaries.dirichlet({'x': 0, 't': [0, 0.2]}, value=v_l, var=1)
+boundaries.dirichlet({'x': 0, 't': [0, 0.2]}, value=Ro_l, var=2)
 
 # Boundary conditions at x=1
-bnd3 = torch.cartesian_prod(torch.from_numpy(np.array([1], dtype=np.float64)), t).float()
-
-# u(1,t)=0
-bndval3_0 = torch.from_numpy(np.asarray([p_r for i in bnd3[:, 0]], dtype=np.float64))
-bndval3_1 = torch.from_numpy(np.asarray([v_r for i in bnd3[:, 0]], dtype=np.float64))
-bndval3_2 = torch.from_numpy(np.asarray([Ro_r for i in bnd3[:, 0]], dtype=np.float64))
-bndval3 = torch.stack((bndval3_0, bndval3_1, bndval3_2),dim=1)
-
-# Putting all bconds together
-bconds = [[bnd1, bndval1_0, 0, 'dirichlet'],
-          [bnd1, bndval1_1, 1, 'dirichlet'],
-          [bnd1, bndval1_2, 2, 'dirichlet'],
-          [bnd2, bndval2_0, 0, 'dirichlet'],
-          [bnd2, bndval2_1, 1, 'dirichlet'],
-          [bnd2, bndval2_2, 2, 'dirichlet'],
-          [bnd3, bndval3_0, 0, 'dirichlet'],
-          [bnd3, bndval3_1, 1, 'dirichlet'],
-          [bnd3, bndval3_2, 2, 'dirichlet']]
-
+boundaries.dirichlet({'x': 1, 't': [0, 0.2]}, value=p_r, var=0)
+boundaries.dirichlet({'x': 1, 't': [0, 0.2]}, value=v_r, var=1)
+boundaries.dirichlet({'x': 1, 't': [0, 0.2]}, value=Ro_r, var=2)
 
 '''
 gas dynamic system equations:
 Eiler's equations system for Sod test in shock tube
 
 '''
+
+equation = Equation()
+
 gas_eq1={
         'dro/dt':
         {
@@ -123,7 +104,7 @@ gas_eq1={
             'pow': [1, 1],
             'var': [2, 1]
         }
-     }
+    }
 gas_eq2 = {
         'ro*dv/dt':
         {
@@ -146,7 +127,7 @@ gas_eq2 = {
             'pow': 1,
             'var': 0
         }
-     }
+    }
 gas_eq3 =  {
         'dp/dt':
         {
@@ -170,38 +151,47 @@ gas_eq3 =  {
             'var': [1, 0]
         }
 
-     }
+    }
 
-gas_eq = [gas_eq1, gas_eq2, gas_eq3]
+equation.add(gas_eq1)
+equation.add(gas_eq2)
+equation.add(gas_eq3)
 
-model = torch.nn.Sequential(
-        torch.nn.Linear(2, 100),
-        torch.nn.ReLU(),
+net = torch.nn.Sequential(
+        torch.nn.Linear(2, 150),
+        torch.nn.Tanh(),
+        torch.nn.Linear(150, 150),
+        torch.nn.Tanh(),
+        torch.nn.Linear(150, 100),
+        torch.nn.Tanh(),
         torch.nn.Linear(100, 100),
-        torch.nn.ReLU(),
-        torch.nn.Linear(100, 100),
-        torch.nn.ReLU(),
+        torch.nn.Tanh(),
         torch.nn.Linear(100, 3)
-    )
+        )
+
 def v(grid):
     return torch.sin(grid[:,0])+torch.sin(2*grid[:,0])+grid[:,1]
-
-
 weak_form = [v]
 
-start = time.time()
+model =  Model(net, domain, equation, boundaries)
 
-equation = Equation(grid, gas_eq, bconds, h=h).set_strategy('NN')
+model.compile("NN", lambda_operator=1, lambda_bound=100, h=h, weak_form=weak_form)
 
 img_dir=os.path.join(os.path.dirname( __file__ ), 'SOD_NN_weak_img')
 
-if not(os.path.isdir(img_dir)):
-    os.mkdir(img_dir)
+cb_cache = cache.Cache(cache_verbose=False, model_randomize_parameter=1e-5)
 
+cb_es = early_stopping.EarlyStopping(eps=1e-6,
+                                    loss_window=100,
+                                    no_improvement_patience=500,
+                                    patience=2,
+                                    randomize_parameter=1e-5,
+                                    abs_loss=0.0035,
+                                    info_string_every=100
+                                    )
 
-model = Solver(grid, equation, model, 'NN', weak_form=weak_form).solve(
-                                lambda_bound=100, verbose=True, learning_rate=1e-3,
-                                eps=1e-6, tmin=1000, tmax=1e5, use_cache=False, cache_dir='../cache/', cache_verbose=False,
-                                save_always=False,no_improvement_patience=500,print_every=100,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
+cb_plots = plot.Plots(save_every=100, print_every=None, img_dir=img_dir)
 
-end = time.time()
+optimizer = Optimizer('Adam', {'lr': 1e-3})
+
+model.train(optimizer, 1e5, save_model=False, callbacks=[cb_es, cb_plots])
