@@ -119,13 +119,9 @@ class EarlyStopping(Callback):
         self._patience_check()
         self._absloss_check()
 
-        if self.model.cur_loss < self.min_loss:
-            self.min_loss = self.model.cur_loss.item()
+        if self.model.cur_loss < self.model.min_loss:
+            self.model.min_loss = self.model.cur_loss
             self._t_imp_start = self.t
-        try:
-            self.last_loss[(self.t - 1) % self.loss_window] = self.model.cur_loss
-        except:
-            self.last_loss = np.zeros(self.loss_window) + float(self.min_loss)
 
         if self.verbose:
             self.verbose_print()
@@ -136,4 +132,7 @@ class EarlyStopping(Callback):
         self.t = self.model.t
         self.mode = self.model.mode
         self._check = self.model._check
-        self.min_loss = self.model.min_loss
+        try:
+            self.last_loss[(self.t - 3) % self.loss_window] = self.model.cur_loss
+        except:
+            self.last_loss = np.zeros(self.loss_window) + float(self.model.min_loss)

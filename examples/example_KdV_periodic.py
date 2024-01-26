@@ -19,7 +19,6 @@ from tedeous.callbacks import cache, early_stopping, plot
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device, check_device, device_type
 
-
 solver_device('gpu')
 
 exp_dict_list=[]
@@ -187,14 +186,14 @@ for grid_res in [30,50,100]:
                                             loss_window=100,
                                             no_improvement_patience=1000,
                                             patience=5,
-                                            randomize_parameter=1e-6,
-                                            info_string_every=1000)
+                                            info_string_every=1000,
+                                            randomize_parameter=1e-6)
         
         cb_plots = plot.Plots(save_every=1000, print_every=None, img_dir=img_dir)
 
         optimizer = Optimizer('Adam', {'lr': 1e-4})
 
-        model.train(optimizer, 1e5, save_model=True, callbacks=[cb_es, cb_cache, cb_plots])
+        model.train(optimizer, 1e5, save_model=True, callbacks=[cb_es, cb_plots])
 
         end = time.time()
         
