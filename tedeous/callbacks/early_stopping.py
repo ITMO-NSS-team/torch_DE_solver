@@ -57,7 +57,7 @@ class EarlyStopping(Callback):
         self._line = np.polyfit(range(self.loss_window), self.last_loss, 1)
 
     def _window_check(self):
-        """ Stopping criteria. We devide angle coeff of the approximating
+        """ Stopping criteria. We divide angle coeff of the approximating
         line (line_create()) on current loss value and compare one with *eps*
         """
         if self.t % self.loss_window == 0 and self._check is None:

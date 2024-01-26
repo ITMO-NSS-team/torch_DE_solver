@@ -23,7 +23,7 @@ from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 
 
-solver_device('cpu')
+solver_device('gpu')
 
 """
 Preparing grid
@@ -189,7 +189,7 @@ for n in range(3,10):
 
         grid = domain.build('autograd')
         
-        error_rmse=torch.sqrt(torch.mean((legendre(n)(grid.detach())-net(grid))**2))
+        error_rmse=torch.sqrt(torch.mean((legendre(n)(grid.cpu())-net(grid.cpu()))**2))
         print('RMSE {}= {}'.format(n, error_rmse))
         
         exp_dict_list.append({'grid_res':100,'time':end - start,'RMSE':error_rmse.detach().numpy(),'type':'L'+str(n),'cache':str(CACHE)})

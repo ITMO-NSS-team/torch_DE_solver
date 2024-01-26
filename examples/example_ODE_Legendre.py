@@ -22,7 +22,7 @@ from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 
 
-solver_device('cpu')
+solver_device('gpu')
 
 """
 Preparing grid
@@ -185,13 +185,13 @@ for n in range(3,11):
 
         optimizer = Optimizer('Adam', {'lr': 1e-3})
 
-        model.train(optimizer, 1e5, save_model=False, callbacks=[cb_cache, cb_es, cb_plots])
+        model.train(optimizer, 2e3, save_model=True, callbacks=[cb_cache, cb_es, cb_plots])
 
         end = time.time()
     
         print('Time taken {} = {}'.format(n,  end - start))
         
-        error_rmse=torch.sqrt(torch.mean((legendre(n)(grid)-net(grid))**2))
+        error_rmse=torch.sqrt(torch.mean((legendre(n)(grid.detach())-net(grid.detach()))**2))
 
         print('RMSE {}= {}'.format(n, error_rmse))
         

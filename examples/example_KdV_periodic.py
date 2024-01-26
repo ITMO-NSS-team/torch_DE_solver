@@ -187,7 +187,8 @@ for grid_res in [30,50,100]:
                                             loss_window=100,
                                             no_improvement_patience=1000,
                                             patience=5,
-                                            randomize_parameter=1e-6)
+                                            randomize_parameter=1e-6,
+                                            info_string_every=1000)
         
         cb_plots = plot.Plots(save_every=1000, print_every=None, img_dir=img_dir)
 
