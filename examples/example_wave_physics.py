@@ -157,15 +157,15 @@ def wave_experiment(grid_res):
 
     model =  Model(net, domain, equation, boundaries)
 
-    model.compile("autograd", lambda_operator=1, lambda_bound=100)
+    model.compile("NN", lambda_operator=1, lambda_bound=100)
 
-    cb_es = early_stopping.EarlyStopping(eps=1e-5, info_string_every=100)
+    cb_es = early_stopping.EarlyStopping(eps=1e-5, randomize_parameter=1e-6, info_string_every=1000)
 
     cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-6)
 
     img_dir = os.path.join(os.path.dirname( __file__ ), 'wave_img')
 
-    cb_plots = plot.Plots(save_every=100, print_every=None, img_dir=img_dir)
+    cb_plots = plot.Plots(save_every=1000, print_every=None, img_dir=img_dir)
 
     optimizer = Optimizer('Adam', {'lr': 1e-4})
 
@@ -173,7 +173,7 @@ def wave_experiment(grid_res):
 
     end = time.time()
 
-    grid = domain.build('autograd').to('cuda')
+    grid = domain.build('NN').to('cuda')
     net = net.to('cuda')
 
     error_rmse = torch.sqrt(torch.mean((func(grid).reshape(-1, 1) - net(grid)) ** 2))
@@ -185,7 +185,6 @@ def wave_experiment(grid_res):
     print('RMSE {}= {}'.format(grid_res, error_rmse))
 
     return exp_dict_list
-
 
 nruns = 10
 

@@ -76,6 +76,7 @@ class EarlyStopping(Callback):
         """
         if (self.t - self._t_imp_start) == self.no_improvement_patience and self._check is None:
             self._stop_dings += 1
+            self._t_imp_start = self.t
             if self.mode in ('NN', 'autograd'):
                 self.model.net.apply(self._r)
             self._check = 'patience_check'
@@ -112,8 +113,6 @@ class EarlyStopping(Callback):
                     self.t, loss, self._line[0] / loss, self._line[1] / loss, self._stop_dings)
             print(info)
 
-        self._check = None
-
     def on_epoch_end(self, logs=None):
         self._window_check()
         self._patience_check()
@@ -127,6 +126,7 @@ class EarlyStopping(Callback):
             self.verbose_print()
         if self._stop_dings >= self.patience:
             self.model.stop_training = True
+        self._check = None
 
     def on_epoch_begin(self, logs=None):
         self.t = self.model.t

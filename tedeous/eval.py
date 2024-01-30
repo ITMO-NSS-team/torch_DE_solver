@@ -231,9 +231,9 @@ class Bounds():
         self.prepared_bconds = prepared_bconds
         self.model = model.to(device_type())
         self.mode = mode
-        self.apply_operator = Operator(self.grid, self.prepared_bconds,
+        self.operator = Operator(self.grid, self.prepared_bconds,
                                        self.model, self.mode, weak_form,
-                                       derivative_points).apply_operator
+                                       derivative_points)
 
     def _apply_bconds_set(self, operator_set: list) -> torch.Tensor:
         """ Method only for *NN* mode. Calculate boundary conditions with derivatives
@@ -249,7 +249,7 @@ class Bounds():
 
         field_part = []
         for operator in operator_set:
-            field_part.append(self.apply_operator(operator, None))
+            field_part.append(self.operator.apply_operator(operator, None))
         field_part = torch.cat(field_part)
         return field_part
 
@@ -289,10 +289,10 @@ class Bounds():
         if self.mode == 'NN':
             b_op_val = self._apply_bconds_set(bop)
         elif self.mode == 'autograd':
-            b_op_val = self.apply_operator(bop, bnd)
+            b_op_val = self.operator.apply_operator(bop, bnd)
         elif self.mode == 'mat':
             var = bop[list(bop.keys())[0]]['var'][0]
-            b_op_val = self.apply_operator(bop, self.grid)
+            b_op_val = self.operator.apply_operator(bop, self.grid)
             b_val = []
             for position in bnd:
                 b_val.append(b_op_val[var][position])

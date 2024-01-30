@@ -145,7 +145,7 @@ class CachePreprocessing:
                 continue
 
             model = model.to(device)
-            self.solution_cls.model = model
+            self.solution_cls._model_change(model)
             loss, _ = self.solution_cls.evaluate(save_graph=save_graph)
 
             if loss < min_loss:
@@ -155,7 +155,7 @@ class CachePreprocessing:
                 if cache_verbose:
                     print('best_model_num={} , loss={}'.format(i, min_loss.item()))
 
-            self.solution_cls.model = initial_model
+            self.solution_cls._model_change(initial_model)
 
         if best_checkpoint == {}:
             best_checkpoint = None
@@ -200,7 +200,7 @@ class CachePreprocessing:
                 print('Interpolate from trained model t={}, loss={}'.format(
                     t, loss))
         
-        self.solution_cls.model = model
+        self.solution_cls._model_change(model)
 
     def cache_retrain(self,
                       cache_checkpoint: dict,
@@ -228,7 +228,7 @@ class CachePreprocessing:
             model = cache_checkpoint['model']
             model.load_state_dict(cache_checkpoint['model_state_dict'])
             model.train()
-            self.solution_cls.model = model
+            self.solution_cls._model_change(model)
             if cache_verbose:
                 print('Using model from cache')
         # else retrain the input model using the cache model
@@ -326,7 +326,7 @@ class Cache(Callback):
                 autograd_model.solution_cls.grid).reshape(
                 self.model.solution_cls.model.shape).detach()
             
-            self.model.solution_cls.model = model
+            self.model.solution_cls._model_change(model.requires_grad_())
 
     def cache(self):
         """ Wrap for cache_mat and cache_nn methods.

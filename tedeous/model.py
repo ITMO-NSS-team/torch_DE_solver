@@ -128,6 +128,8 @@ class Model():
 
         callbacks.on_train_begin()
 
+        self.net = self.solution_cls.model
+
         self.optimizer = optimizer.optimizer_choice(self.mode, self.net)
 
         closure = Closure(mixed_precision, self).get_closure(optimizer.optimizer)
