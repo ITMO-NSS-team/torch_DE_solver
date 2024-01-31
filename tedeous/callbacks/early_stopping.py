@@ -109,8 +109,8 @@ class EarlyStopping(Callback):
             except:
                 self._line_create()
             loss = self.model.cur_loss.item() if isinstance(self.model.cur_loss, torch.Tensor) else self.mdoel.cur_loss
-            info = 'Step = {} loss = {:.6f} normalized loss line= {:.6f}x+{:.6f}. There was {} stop dings already.'.format(
-                    self.t, loss, self._line[0] / loss, self._line[1] / loss, self._stop_dings)
+            info = '[{}] Step = {} loss = {:.6f} normalized loss line= {:.6f}x+{:.6f}. There was {} stop dings already.'.format(
+                    datetime.datetime.now(), self.t, loss, self._line[0] / loss, self._line[1] / loss, self._stop_dings)
             print(info)
 
     def on_epoch_end(self, logs=None):
