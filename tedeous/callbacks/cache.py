@@ -96,12 +96,14 @@ class CachePreprocessing:
         return init_model, model
 
     def cache_lookup(self,
+                     cache_dir: str,
                      nmodels: Union[int, None] = None,
                      save_graph: bool = False,
                      cache_verbose: bool = False) -> Union[None, dict, torch.nn.Module]:
         """Looking for the best model (min loss) model from the cache files.
 
         Args:
+            cache_dir (str): folder where system looks for cached models.
             nmodels (Union[int, None], optional): maximal number of models that are taken from cache dir. Defaults to None.
             save_graph (bool, optional): responsible for saving the computational graph. Defaults to False.
             cache_verbose (bool, optional): verbose cache operations. Defaults to False.
@@ -109,8 +111,11 @@ class CachePreprocessing:
         Returns:
             Union[None, dict, torch.Tensor]: best model with optimizator state.
         """
+        cache_folder = CacheUtils(cache_dir).cache_dir
+        files = glob.glob(cache_folder + '\*.tar')
 
-        files = glob.glob(CacheUtils().cache_dir + '\*.tar')
+        if cache_verbose:
+            print(f"The CACHE will be searched among the models in the folder {cache_folder}.")
 
         if len(files) == 0:
             best_checkpoint = None
@@ -250,7 +255,7 @@ class Cache(Callback):
 
     def __init__(self,
                  nmodels: Union[int, None] = None,
-                 cache_dir: str = '../cache/',
+                 cache_dir: str = 'tedeous_cache',
                  cache_verbose: bool = False,
                  cache_model: Union[torch.nn.Sequential, None] = None,
                  model_randomize_parameter: Union[int, float] = 0,
@@ -259,7 +264,8 @@ class Cache(Callback):
         """
         Args:
             nmodels (Union[int, None], optional): maximal number of models that are taken from cache dir. Defaults to None. Defaults to None.
-            cache_dir (str, optional): directory with cached models. Defaults to '../cache/'.
+            cache_dir (str, optional): directory with cached models. Defaults to '../tedeous_cache/' in temporary directoy of user system.
+                If cache_dir is custom, then file will be searched in *torch_de_solver* directory.
             cache_verbose (bool, optional): printing cache operations. Defaults to False.
             cache_model (Union[torch.nn.Sequential, None], optional): model for mat method, which will be saved in cache. Defaults to None.
             model_randomize_parameter (Union[int, float], optional): creates a random model parameters (weights, biases)
@@ -282,8 +288,9 @@ class Cache(Callback):
 
         r = create_random_fn(self.model_randomize_parameter)
 
-        cache_checkpoint = cache_preproc.cache_lookup(nmodels=self.nmodels,
-                                                    cache_verbose=self.cache_verbose)
+        cache_checkpoint = cache_preproc.cache_lookup(cache_dir=self.cache_dir,
+                                                      nmodels=self.nmodels,
+                                                      cache_verbose=self.cache_verbose)
 
         cache_preproc.cache_retrain(cache_checkpoint,
                                                cache_verbose=self.cache_verbose)
@@ -312,6 +319,7 @@ class Cache(Callback):
         cache_preproc = CachePreprocessing(autograd_model)
 
         cache_checkpoint = cache_preproc.cache_lookup(
+            cache_dir=self.cache_dir,
             nmodels=self.nmodels,
             cache_verbose=self.cache_verbose)
 

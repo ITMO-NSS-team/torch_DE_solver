@@ -86,7 +86,8 @@ class Model():
     def _model_save(
         self,
         save_model: bool,
-        model_name: str):
+        model_name: str,
+        save_dir: str):
         """ Model saving.
 
         Args:
@@ -95,11 +96,11 @@ class Model():
         """
         if save_model:
             if self.mode == 'mat':
-                CacheUtils().save_model_mat(model=self.net,
+                CacheUtils(save_dir).save_model_mat(model=self.net,
                                             domain=self.domain,
                                             name=model_name)
             else:
-                CacheUtils().save_model(model=self.net, name=model_name)
+                CacheUtils(save_dir).save_model(model=self.net, name=model_name)
 
     def train(self,
               optimizer: Optimizer,
@@ -107,6 +108,7 @@ class Model():
               info_string_every: Union[int, None] = None,
               mixed_precision: bool = False,
               save_model: bool = False,
+              save_dir: str = 'tedeous_cache',
               model_name: Union[str, None] = None,
               callbacks: Union[List, None]=None):
         """ train model.
@@ -164,7 +166,7 @@ class Model():
 
         callbacks.on_train_end()
 
-        self._model_save(save_model, model_name)
+        self._model_save(save_model, model_name, save_dir)
 
 
         

@@ -7,6 +7,7 @@ import os
 import shutil
 import numpy as np
 import torch
+import tempfile
 from tedeous.device import check_device
 
 def create_random_fn(eps: float) -> callable:
@@ -110,13 +111,27 @@ def remove_all_files(folder: str) -> None:
 class CacheUtils:
     """ Mixin class with auxiliary methods
     """
-    def __init__(self):
-        try:
-            file = __file__
-        except:
-            file = os.getcwd()
+    def __init__(self, cache_dir: str):
+        """
 
-        self._cache_dir = os.path.normpath((os.path.join(os.path.dirname(file), '..', 'cache')))
+        Args:
+            cache_dir (str): folder where cache wil be saved or looked for.
+        """
+        if cache_dir == 'tedeous_cache':
+            temp_dir = tempfile.gettempdir()
+            folder_path = os.path.join(temp_dir, 'tedeous_cache/')
+            if os.path.exists(folder_path) and os.path.isdir(folder_path):
+                pass
+            else:
+                os.makedirs(folder_path)
+            self._cache_dir = folder_path
+        else:
+            try:
+                file = __file__
+            except:
+                file = os.getcwd()
+            self._cache_dir = os.path.normpath((os.path.join(os.path.dirname(file), '..', cache_dir)))
+
 
     def get_cache_dir(self):
         """Get cache dir.
@@ -128,7 +143,6 @@ class CacheUtils:
 
     def set_cache_dir(self, string: str) -> None:
         """ Change the directory of cache.
-
         Args:
             string (str): new cache directory.
         """
@@ -224,13 +238,13 @@ class CacheUtils:
 
         try:
             torch.save(parameters_dict, self.cache_dir + '\\' + name + '.tar')
-            print('model is saved in cache')
+            print(f'model is saved in cache dir: {self.cache_dir}')
         except RuntimeError:
             torch.save(parameters_dict, self.cache_dir + '\\' + name + '.tar',
                        _use_new_zipfile_serialization=False)  # cyrrilic in path
-            print('model is saved in cache')
+            print(f'model is saved in cache: {self.cache_dir}')
         except:
-            print('Cannot save model in cache')
+            print(f'Cannot save model in cache: {self.cache_dir}')
 
     def save_model_mat(self,
                        model: torch.Tensor,
