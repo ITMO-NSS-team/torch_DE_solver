@@ -10,12 +10,14 @@ from typing import Union
 import torch
 import numpy as np
 from copy import deepcopy
+import tempfile
+import os
 
 from tedeous.device import device_type
 from tedeous.callbacks.callback import Callback
-from tedeous.utils import create_random_fn
+from tedeous.utils import create_random_fn, mat_op_coeff, model_mat, remove_all_files
 from tedeous.model import Model
-from tedeous.utils import CacheUtils
+
 
 def count_output(model: torch.Tensor) -> int:
     """ Determine the out features of the model.
@@ -111,11 +113,11 @@ class CachePreprocessing:
         Returns:
             Union[None, dict, torch.Tensor]: best model with optimizator state.
         """
-        cache_folder = CacheUtils(cache_dir).cache_dir
-        files = glob.glob(cache_folder + '\*.tar')
+
+        files = glob.glob(cache_dir + '\*.tar')
 
         if cache_verbose:
-            print(f"The CACHE will be searched among the models in the folder {cache_folder}.")
+            print(f"The CACHE will be searched among the models in the folder {cache_dir}.")
 
         if len(files) == 0:
             best_checkpoint = None
@@ -274,11 +276,25 @@ class Cache(Callback):
         """
 
         self.nmodels = nmodels
-        self.cache_dir = cache_dir
         self.cache_verbose = cache_verbose
         self.cache_model = cache_model
         self.model_randomize_parameter = model_randomize_parameter
-        self.clear_cache = clear_cache
+        if cache_dir == 'tedeous_cache':
+            temp_dir = tempfile.gettempdir()
+            folder_path = os.path.join(temp_dir, 'tedeous_cache/')
+            if os.path.exists(folder_path) and os.path.isdir(folder_path):
+                pass
+            else:
+                os.makedirs(folder_path)
+            self.cache_dir = folder_path
+        else:
+            try:
+                file = __file__
+            except:
+                file = os.getcwd()
+            self.cache_dir = os.path.normpath((os.path.join(os.path.dirname(file), '..', '..', cache_dir)))
+        if clear_cache:
+            remove_all_files(self.cache_dir)
 
     def _cache_nn(self):
         """  take model from cache as initial guess for *NN, autograd* modes.
@@ -302,13 +318,13 @@ class Cache(Callback):
 
         net = self.model.net
         domain = self.model.domain
-        equation = CacheUtils.mat_op_coeff(deepcopy(self.model.equation))
+        equation = mat_op_coeff(deepcopy(self.model.equation))
         conditions = self.model.conditions
         lambda_operator = self.model.lambda_operator
         lambda_bound = self.model.lambda_bound
         weak_form = self.model.weak_form
 
-        net_autograd = CacheUtils.model_mat(net, domain)
+        net_autograd = model_mat(net, domain)
 
         autograd_model = Model(net_autograd, domain, equation, conditions)
 
@@ -347,3 +363,4 @@ class Cache(Callback):
 
     def on_train_begin(self, logs=None):
         self.cache()
+        self.model._save_dir = self.cache_dir

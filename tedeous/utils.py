@@ -7,7 +7,6 @@ import os
 import shutil
 import numpy as np
 import torch
-import tempfile
 from tedeous.device import check_device
 
 def create_random_fn(eps: float) -> callable:
@@ -107,179 +106,124 @@ def remove_all_files(folder: str) -> None:
         except Exception as e:
             print('Failed to delete %s. Reason: %s' % (file_path, e))
 
+def mat_op_coeff(equation: Any) -> Any:
+    """ Preparation of coefficients in the operator of the *mat* method
+        to suit methods *NN, autograd*.
 
-class CacheUtils:
-    """ Mixin class with auxiliary methods
+    Args:
+        operator (dict): operator (equation dict).
+
+    Returns:
+        operator (dict): operator (equation dict) with suitable coefficients.
     """
-    def __init__(self, cache_dir: str):
-        """
 
-        Args:
-            cache_dir (str): folder where cache wil be saved or looked for.
-        """
-        if cache_dir == 'tedeous_cache':
-            temp_dir = tempfile.gettempdir()
-            folder_path = os.path.join(temp_dir, 'tedeous_cache/')
-            if os.path.exists(folder_path) and os.path.isdir(folder_path):
-                pass
-            else:
-                os.makedirs(folder_path)
-            self._cache_dir = folder_path
-        else:
-            try:
-                file = __file__
-            except:
-                file = os.getcwd()
-            self._cache_dir = os.path.normpath((os.path.join(os.path.dirname(file), '..', cache_dir)))
+    for op in equation.equation_lst:
+        for label in list(op.keys()):
+            term = op[label]
+            if isinstance(term['coeff'], torch.Tensor):
+                term['coeff'] = term['coeff'].reshape(-1, 1)
+            elif callable(term['coeff']):
+                print("Warning: coefficient is callable,\
+                                it may lead to wrong cache item choice")
+    return equation
 
+def model_mat(model: torch.Tensor,
+                    domain: Any,
+                    cache_model: torch.nn.Module=None) -> Tuple[torch.Tensor, torch.nn.Module]:
+    """ Create model for *NN or autograd* modes from grid
+        and model of *mat* mode.
 
-    def get_cache_dir(self):
-        """Get cache dir.
+    Args:
+        model (torch.Tensor): model from *mat* method.
+        grid (torch.Tensor): grid from *mat* method.
+        cache_model (torch.nn.Module, optional): neural network that will 
+                                                    approximate *mat* model. Defaults to None.
 
-        Returns:
-            str: cache folder directory.
-        """
-        return self._cache_dir
+    Returns:
+        cache_model (torch.nn.Module): model satisfying the *NN, autograd* methods.
+    """
+    grid = domain.build('mat')
+    input_model = grid.shape[0]
+    output_model = model.shape[0]
 
-    def set_cache_dir(self, string: str) -> None:
-        """ Change the directory of cache.
-        Args:
-            string (str): new cache directory.
-        """
-        self._cache_dir = string
+    if cache_model is None:
+        cache_model = torch.nn.Sequential(
+            torch.nn.Linear(input_model, 100),
+            torch.nn.Tanh(),
+            torch.nn.Linear(100, 100),
+            torch.nn.Tanh(),
+            torch.nn.Linear(100, 100),
+            torch.nn.Tanh(),
+            torch.nn.Linear(100, output_model)
+        )
 
-    def clear_cache_dir(self, directory: Union[str, None] = None) -> None:
-        """ Clear cache directory.
+    return cache_model
 
-        Args:
-            directory (str, optional): custom cache directory. Defaults to None.
-        """
-        if directory is None:
-            remove_all_files(self.cache_dir)
-        else:
-            remove_all_files(directory)
+def save_model_nn(
+    cache_dir: str,
+    model: torch.nn.Module,
+    name: Union[str, None] = None) -> None:
+    """
+    Saves model in a cache (uses for 'NN' and 'autograd' methods).
+    Args:
+        cache_dir (str): path to cache folder.
+        model (torch.nn.Module): model to save.
+        (uses only with mixed precision and device=cuda). Defaults to None.
+        name (str, optional): name for a model. Defaults to None.
+    """
 
-    cache_dir = property(get_cache_dir, set_cache_dir, clear_cache_dir)
+    if name is None:
+        name = str(datetime.datetime.now().timestamp())
+    if not os.path.isdir(cache_dir):
+        os.mkdir(cache_dir)
+    parameters_dict = {'model': model.to('cpu'),
+                        'model_state_dict': model.state_dict()}
 
-    @staticmethod
-    def model_mat(model: torch.Tensor,
-                       domain: Any,
-                       cache_model: torch.nn.Module=None) -> Tuple[torch.Tensor, torch.nn.Module]:
-        """ Create grid and model for *NN or autograd* modes from grid
-            and model of *mat* mode.
+    try:
+        torch.save(parameters_dict, cache_dir + '\\' + name + '.tar')
+        print(f'model is saved in cache dir: {cache_dir}')
+    except RuntimeError:
+        torch.save(parameters_dict, cache_dir + '\\' + name + '.tar',
+                    _use_new_zipfile_serialization=False)  # cyrrilic in path
+        print(f'model is saved in cache: {cache_dir}')
+    except:
+        print(f'Cannot save model in cache: {cache_dir}')
 
-        Args:
-            model (torch.Tensor): model from *mat* method.
-            grid (torch.Tensor): grid from *mat* method.
-            cache_model (torch.nn.Module, optional): neural network that will 
-                                                     approximate *mat* model. Defaults to None.
+def save_model_mat(cache_dir: str,
+                    model: torch.Tensor,
+                    domain: Any,
+                    cache_model: Union[torch.nn.Module, None] = None,
+                    name: Union[str, None] = None) -> None:
+    """ Saves model in a cache (uses for 'mat' method).
 
-        Returns:
-            nn_grid (torch.Tensor): grid satisfying neural network inputs.
-            cache_model (torch.nn.Module): model satisfying the *NN, autograd* methods.
-        """
-        grid = domain.build('mat')
-        input_model = grid.shape[0]
-        output_model = model.shape[0]
+    Args:
+        cache_dir (str): path to cache folder.
+        model (torch.Tensor): *mat* model
+        grid (torch.Tensor): grid from *mat* mode
+        cache_model (Union[torch.nn.Module, None], optional): model to save. Defaults to None.
+        name (Union[str, None], optional): name for a model. Defaults to None.
+    """
 
-        if cache_model is None:
-            cache_model = torch.nn.Sequential(
-                torch.nn.Linear(input_model, 100),
-                torch.nn.Tanh(),
-                torch.nn.Linear(100, 100),
-                torch.nn.Tanh(),
-                torch.nn.Linear(100, 100),
-                torch.nn.Tanh(),
-                torch.nn.Linear(100, output_model)
-            )
+    net_autograd = model_mat(model, domain, cache_model)
+    nn_grid = domain.build('autograd')
+    optimizer = torch.optim.Adam(net_autograd.parameters(), lr=0.001)
+    model_res = model.reshape(-1, model.shape[0])
 
-        return cache_model
+    def closure():
+        optimizer.zero_grad()
+        loss = torch.mean((net_autograd(check_device(nn_grid)) - model_res) ** 2)
+        loss.backward()
+        return loss
 
-    @staticmethod
-    def mat_op_coeff(equation: Any) -> Any:
-        """ Preparation of coefficients in the operator of the *mat* method
-            to suit methods *NN, autograd*.
+    loss = np.inf
+    t = 0
+    while loss > 1e-5 and t < 1e5:
+        loss = optimizer.step(closure)
+        t += 1
+        print('Interpolate from trained model t={}, loss={}'.format(
+                t, loss))
 
-        Args:
-            operator (dict): operator (equation dict).
-
-        Returns:
-            operator (dict): operator (equation dict) with suitable coefficients.
-        """
-
-        for op in equation.equation_lst:
-            for label in list(op.keys()):
-                term = op[label]
-                if isinstance(term['coeff'], torch.Tensor):
-                    term['coeff'] = term['coeff'].reshape(-1, 1)
-                elif callable(term['coeff']):
-                    print("Warning: coefficient is callable,\
-                                    it may lead to wrong cache item choice")
-        return equation
-
-    def save_model(
-        self,
-        model: torch.nn.Module,
-        name: Union[str, None] = None) -> None:
-        """
-        Saved model in a cache (uses for 'NN' and 'autograd' methods).
-        Args:
-            model (torch.nn.Module): model to save.
-            (uses only with mixed precision and device=cuda). Defaults to None.
-            name (str, optional): name for a model. Defaults to None.
-        """
-
-        if name is None:
-            name = str(datetime.datetime.now().timestamp())
-        if not os.path.isdir(self.cache_dir):
-            os.mkdir(self.cache_dir)
-        parameters_dict = {'model': model.to('cpu'),
-                           'model_state_dict': model.state_dict()}
-
-        try:
-            torch.save(parameters_dict, self.cache_dir + '\\' + name + '.tar')
-            print(f'model is saved in cache dir: {self.cache_dir}')
-        except RuntimeError:
-            torch.save(parameters_dict, self.cache_dir + '\\' + name + '.tar',
-                       _use_new_zipfile_serialization=False)  # cyrrilic in path
-            print(f'model is saved in cache: {self.cache_dir}')
-        except:
-            print(f'Cannot save model in cache: {self.cache_dir}')
-
-    def save_model_mat(self,
-                       model: torch.Tensor,
-                       domain: Any,
-                       cache_model: Union[torch.nn.Module, None] = None,
-                       name: Union[str, None] = None) -> None:
-        """ Saved model in a cache (uses for 'mat' method).
-
-        Args:
-            model (torch.Tensor): *mat* model
-            grid (torch.Tensor): grid from *mat* mode
-            cache_model (Union[torch.nn.Module, None], optional): model to save. Defaults to None.
-            name (Union[str, None], optional): name for a model. Defaults to None.
-        """
-
-        net_autograd = self.model_mat(model, domain, cache_model)
-        nn_grid = domain.build('autograd')
-        optimizer = torch.optim.Adam(net_autograd.parameters(), lr=0.001)
-        model_res = model.reshape(-1, model.shape[0])
-
-        def closure():
-            optimizer.zero_grad()
-            loss = torch.mean((net_autograd(check_device(nn_grid)) - model_res) ** 2)
-            loss.backward()
-            return loss
-
-        loss = np.inf
-        t = 0
-        while loss > 1e-5 and t < 1e5:
-            loss = optimizer.step(closure)
-            t += 1
-            print('Interpolate from trained model t={}, loss={}'.format(
-                    t, loss))
-
-        self.save_model(net_autograd, name=name)
+    save_model_nn(cache_dir, net_autograd, name=name)
 
 
 class PadTransform(Module):

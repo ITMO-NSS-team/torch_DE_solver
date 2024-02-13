@@ -55,7 +55,7 @@ class Solution():
             self.n_t = grid.shape[1]
         equal_copy = deepcopy(equal_cls)
         prepared_operator = equal_copy.operator_prepare()
-        self._operator_coeff(prepared_operator)
+        self._operator_coeff(equal_cls, prepared_operator)
         self.prepared_bconds = equal_copy.bnd_prepare()
         self.model = model.to(device_type())
         self.mode = mode
@@ -76,16 +76,22 @@ class Solution():
         self.loss_list = []
 
     @staticmethod
-    def _operator_coeff(operator: list):
+    def _operator_coeff(equal_cls: Any, operator: list):
         """ Coefficient checking in operator.
 
         Args:
+            equal_cls (Any): Equation_{NN, mat, autograd} object.
             operator (list): prepared operator (result of operator_prepare())
         """
-        for i, _ in enumerate(operator):
-            eq = operator[i]
+        for i, _ in enumerate(equal_cls.operator):
+            eq = equal_cls.operator[i]
             for key in eq.keys():
-                if isinstance(eq[key]['coeff'], torch.Tensor):
+                if isinstance(eq[key]['coeff'], torch.nn.Parameter):
+                    try:
+                        operator[i][key]['coeff'] = eq[key]['coeff'].to(device_type())
+                    except:
+                        operator[key]['coeff'] = eq[key]['coeff'].to(device_type())
+                elif isinstance(eq[key]['coeff'], torch.Tensor):
                     eq[key]['coeff'] = eq[key]['coeff'].to(device_type())
 
     def _model_change(self, new_model: torch.nn.Module) -> None:

@@ -1,12 +1,14 @@
 import torch
 from typing import Union, List, Any
+import tempfile
+import os
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.input_preprocessing import Operator_bcond_preproc
 from tedeous.callbacks.callback_list import CallbackList
 from tedeous.solution import Solution
 from tedeous.optimizers.optimizer import Optimizer
-from tedeous.utils import CacheUtils
+from tedeous.utils import save_model_nn, save_model_mat
 from tedeous.optimizers.closure import Closure
 from tedeous.device import device_type
 import datetime
@@ -32,6 +34,13 @@ class Model():
         self.equation = equation
         self.conditions = conditions
         self._check = None
+        temp_dir = tempfile.gettempdir()
+        folder_path = os.path.join(temp_dir, 'tedeous_cache/')
+        if os.path.exists(folder_path) and os.path.isdir(folder_path):
+            pass
+        else:
+            os.makedirs(folder_path)
+        self._save_dir = folder_path
 
     def compile(
             self,
@@ -86,8 +95,7 @@ class Model():
     def _model_save(
         self,
         save_model: bool,
-        model_name: str,
-        save_dir: str):
+        model_name: str):
         """ Model saving.
 
         Args:
@@ -96,11 +104,12 @@ class Model():
         """
         if save_model:
             if self.mode == 'mat':
-                CacheUtils(save_dir).save_model_mat(model=self.net,
-                                            domain=self.domain,
-                                            name=model_name)
+                save_model_mat(self._save_dir,
+                                model=self.net,
+                                domain=self.domain,
+                                name=model_name)
             else:
-                CacheUtils(save_dir).save_model(model=self.net, name=model_name)
+                save_model_nn(self._save_dir, model=self.net, name=model_name)
 
     def train(self,
               optimizer: Optimizer,
@@ -108,7 +117,6 @@ class Model():
               info_string_every: Union[int, None] = None,
               mixed_precision: bool = False,
               save_model: bool = False,
-              save_dir: str = 'tedeous_cache',
               model_name: Union[str, None] = None,
               callbacks: Union[List, None]=None):
         """ train model.
@@ -166,7 +174,7 @@ class Model():
 
         callbacks.on_train_end()
 
-        self._model_save(save_model, model_name, save_dir)
+        self._model_save(save_model, model_name)
 
 
         
