@@ -1,5 +1,5 @@
 TEDEouS - Torch Exhaustive Differential Equation Solver
-=============================
+=======================================================
 
 
 
