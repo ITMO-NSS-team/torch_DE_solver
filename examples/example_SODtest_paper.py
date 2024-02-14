@@ -25,20 +25,15 @@ import sys
 
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-sys.path.append('../')
-
-sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver
-from tedeous.solution import Solution
+from tedeous.data import Domain, Conditions, Equation
+from tedeous.model import Model
+from tedeous.callbacks import early_stopping, plot, cache
+from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 
-solver_device('cpu')
+solver_device('cuda')
 # constannts for PDE system
 p_l = 1
 v_l = 0
@@ -56,16 +51,11 @@ x0 = 0.5
 def SOD_experiment(grid_res, CACHE):
     exp_dict_list=[]
     
-    x_grid=np.linspace(0,1,grid_res+1)
-    t_grid=np.linspace(0,0.2,grid_res+1)
-
-    h = x_grid[1]-x_grid[0]
-
-    x = torch.from_numpy(x_grid)
-    t = torch.from_numpy(t_grid)
-
-    grid = torch.cartesian_prod(x, t).float()
-
+    domain = Domain()
+    domain.variable('x', [0, 1], grid_res)
+    domain.variable('t', [0, 0.2], grid_res)
+    x = domain.variable_dict['x']
+    h = x[1]-x[0]
 
     ## BOUNDARY AND INITIAL CONDITIONS
     # p:0, v:1, Ro:2
@@ -76,58 +66,45 @@ def SOD_experiment(grid_res, CACHE):
         else:
             return [p_l, v_l, Ro_l]
 
-    # Initial conditions at t=0
-    bnd1 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
+    boundaries = Conditions()
 
-    u_init0 = np.zeros(bnd1.shape[0], dtype=np.float64)
-    u_init1 = np.zeros(bnd1.shape[0], dtype=np.float64)
-    u_init2 = np.zeros(bnd1.shape[0], dtype=np.float64)
+    # Initial conditions at t=0
+    u_init0 = np.zeros(x.shape[0])
+    u_init1 = np.zeros(x.shape[0])
+    u_init2 = np.zeros(x.shape[0])
     j=0
-    for i in bnd1:
-        u_init0[j] = u0(i[0], x0)[0]
-        u_init1[j] = u0(i[0], x0)[1]
-        u_init2[j] = u0(i[0], x0)[2]
+    for i in x:
+        u_init0[j] = u0(i, x0)[0]
+        u_init1[j] = u0(i, x0)[1]
+        u_init2[j] = u0(i, x0)[2]
         j +=1
 
     bndval1_0 = torch.from_numpy(u_init0)
     bndval1_1 = torch.from_numpy(u_init1)
     bndval1_2 = torch.from_numpy(u_init2)
 
+    boundaries.dirichlet({'x': [0, 1], 't': 0}, value=bndval1_0, var=0)
+    boundaries.dirichlet({'x': [0, 1], 't': 0}, value=bndval1_1, var=1)
+    boundaries.dirichlet({'x': [0, 1], 't': 0}, value=bndval1_2, var=2)
+
     #  Boundary conditions at x=0
-    bnd2 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t).float()
-
-    bndval2_0 = torch.from_numpy(np.asarray([p_l for i in bnd2[:, 0]], dtype=np.float64))
-    bndval2_1 = torch.from_numpy(np.asarray([v_l for i in bnd2[:, 0]], dtype=np.float64))
-    bndval2_2 = torch.from_numpy(np.asarray([Ro_l for i in bnd2[:, 0]], dtype=np.float64))
-
-
+    boundaries.dirichlet({'x': 0, 't': [0, 0.2]}, value=p_l, var=0)
+    boundaries.dirichlet({'x': 0, 't': [0, 0.2]}, value=v_l, var=1)
+    boundaries.dirichlet({'x': 0, 't': [0, 0.2]}, value=Ro_l, var=2)
 
     # Boundary conditions at x=1
-    bnd3 = torch.cartesian_prod(torch.from_numpy(np.array([1], dtype=np.float64)), t).float()
-
-    # u(1,t)=0
-    bndval3_0 = torch.from_numpy(np.asarray([p_r for i in bnd3[:, 0]], dtype=np.float64))
-    bndval3_1 = torch.from_numpy(np.asarray([v_r for i in bnd3[:, 0]], dtype=np.float64))
-    bndval3_2 = torch.from_numpy(np.asarray([Ro_r for i in bnd3[:, 0]], dtype=np.float64))
-
-
-    # Putting all bconds together
-    bconds = [[bnd1, bndval1_0, 0, 'dirichlet'],
-              [bnd1, bndval1_1, 1, 'dirichlet'],
-              [bnd1, bndval1_2, 2, 'dirichlet'],
-              [bnd2, bndval2_0, 0, 'dirichlet'],
-              [bnd2, bndval2_1, 1, 'dirichlet'],
-              [bnd2, bndval2_2, 2, 'dirichlet'],
-              [bnd3, bndval3_0, 0, 'dirichlet'],
-              [bnd3, bndval3_1, 1, 'dirichlet'],
-              [bnd3, bndval3_2, 2, 'dirichlet']]
-
+    boundaries.dirichlet({'x': 1, 't': [0, 0.2]}, value=p_r, var=0)
+    boundaries.dirichlet({'x': 1, 't': [0, 0.2]}, value=v_r, var=1)
+    boundaries.dirichlet({'x': 1, 't': [0, 0.2]}, value=Ro_r, var=2)
 
     '''
     gas dynamic system equations:
     Eiler's equations system for Sod test in shock tube
 
     '''
+
+    equation = Equation()
+
     gas_eq1={
             'dro/dt':
             {
@@ -199,9 +176,11 @@ def SOD_experiment(grid_res, CACHE):
 
         }
 
-    gas_eq = [gas_eq1, gas_eq2, gas_eq3]
+    equation.add(gas_eq1)
+    equation.add(gas_eq2)
+    equation.add(gas_eq3)
 
-    model = torch.nn.Sequential(
+    net = torch.nn.Sequential(
             torch.nn.Linear(2, 150),
             torch.nn.Tanh(),
             torch.nn.Linear(150, 150),
@@ -212,31 +191,45 @@ def SOD_experiment(grid_res, CACHE):
             torch.nn.Tanh(),
             torch.nn.Linear(100, 3)
             )
-
     start = time.time()
 
-    equation = Equation(grid, gas_eq, bconds, h=h).set_strategy('NN')
+    model =  Model(net, domain, equation, boundaries)
+
+    model.compile("NN", lambda_operator=1, lambda_bound=1000, h=h)
 
     img_dir=os.path.join(os.path.dirname( __file__ ), 'SOD_NN_img')
 
-    if not(os.path.isdir(img_dir)):
-        os.mkdir(img_dir)
+    cb_cache = cache.Cache(cache_verbose=False, model_randomize_parameter=1e-6)
 
+    cb_es = early_stopping.EarlyStopping(eps=1e-6,
+                                        loss_window=100,
+                                        no_improvement_patience=500,
+                                        patience=5,
+                                        randomize_parameter=1e-6,
+                                        info_string_every=1000
+                                        )
 
-    model = Solver(grid, equation, model, 'NN').solve(
-                                lambda_bound=1000, verbose=True, learning_rate=1e-2,
-                                eps=1e-6, tmin=1000, tmax=1e5, use_cache=CACHE, cache_dir='../cache/', cache_verbose=False,
-                                save_always=CACHE, no_improvement_patience=500, print_every=None, step_plot_save=True, image_save_dir=img_dir)
+    cb_plots = plot.Plots(save_every=1000, print_every=None, img_dir=img_dir)
+
+    optimizer = Optimizer('Adam', {'lr': 1e-2})
+
+    if CACHE:
+        callbacks = [cb_cache, cb_es, cb_plots]
+    else:
+        callbacks = [cb_es, cb_plots]
+
+    model.train(optimizer, 1e5, save_model=CACHE, callbacks=callbacks)
 
     end = time.time()
 
-    rmse_x_grid=np.linspace(0,1,grid_res+1)
+    rmse_x_grid=np.linspace(0, 1, grid_res+1)
     rmse_t_grid=np.linspace(0,0.2,grid_res+1)
 
     rmse_x = torch.from_numpy(rmse_x_grid)
     rmse_t = torch.from_numpy(rmse_t_grid)
 
     rmse_grid = torch.cartesian_prod(rmse_x, rmse_t).float()
+
     def exact(point):
         N = 100
         Pl = 1
@@ -321,16 +314,12 @@ def SOD_experiment(grid_res, CACHE):
 
     u_exact = torch.from_numpy(u_exact)
 
-    error_rmse=torch.sqrt(torch.mean((u_exact-model(rmse_grid))**2))
+    error_rmse=torch.sqrt(torch.mean((u_exact-net(rmse_grid))**2))
     
-  
-    _, end_loss = Solution(grid=grid, equal_cls=equation, model=model,
-             mode='NN', weak_form=None, lambda_bound=1000,lambda_operator=1).evaluate()
-    exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'SOD_eqn','cache':CACHE})
+    exp_dict_list.append({'grid_res':grid_res, 'time':end - start, 'RMSE':error_rmse.detach().numpy(), 'type':'SOD_eqn','cache':CACHE})
     
     print('Time taken {}= {}'.format(grid_res, end - start))
     print('RMSE {}= {}'.format(grid_res, error_rmse))
-    print('loss {}= {}'.format(grid_res, end_loss))
 
     return exp_dict_list
 
@@ -343,8 +332,6 @@ CACHE=False
 for grid_res in range(10,41,5):
     for _ in range(nruns):
         exp_dict_list.append(SOD_experiment(grid_res,CACHE))
-   
-
 
 exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df=pd.DataFrame(exp_dict_list_flatten)

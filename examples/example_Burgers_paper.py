@@ -3,8 +3,6 @@
 
 import torch
 import numpy as np
-import matplotlib.pyplot as plt
-import scipy
 import time
 import deepxde as dde
 import pandas as pd
@@ -14,39 +12,32 @@ import os
 import tensorflow as tf
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append('../')
-sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver
-from tedeous.solution import Solution
+from tedeous.data import Domain, Conditions, Equation
+from tedeous.model import Model
+from tedeous.callbacks import cache, early_stopping
+from tedeous.optimizers.optimizer import Optimizer
 
 
-def solver_burgers(grid_res, cache, optimizer, iterations):
+def solver_burgers(grid_res, cache_flag, optimizer, iterations):
     exp_dict_list = []
     start = time.time()
     mu = 0.01 / np.pi
-    x = torch.from_numpy(np.linspace(-1, 1, grid_res + 1))
-    t = torch.from_numpy(np.linspace(0, 1, grid_res + 1))
-    h = (x[1] - x[0]).item()
-    grid = torch.cartesian_prod(x, t).float()
 
-    ##initial cond
-    bnd1 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
-    bndval1 = -torch.sin(np.pi * bnd1[:, 0])
+    domain = Domain()
+    domain.variable('x', [-1, 1], grid_res)
+    domain.variable('t', [0, 1], grid_res)
 
-    ##boundary cond
-    bnd2 = torch.cartesian_prod(torch.from_numpy(np.array([-1.], dtype=np.float64)), t).float()
-    bndval2 = torch.zeros_like(bnd2[:, 0])
+    boundaries = Conditions()
+    x = domain.variable_dict['x']
+    boundaries.dirichlet({'x': [-1, 1], 't': 0}, value=-torch.sin(np.pi * x))
 
-    ##boundary cond
-    bnd3 = torch.cartesian_prod(torch.from_numpy(np.array([1.], dtype=np.float64)), t).float()
-    bndval3 = torch.zeros_like(bnd3[:, 0])
+    boundaries.dirichlet({'x': -1, 't': [0, 1]}, value=0)
 
-    bconds = [[bnd1, bndval1, 'dirichlet'],
-              [bnd2, bndval2, 'dirichlet'],
-              [bnd3, bndval3, 'dirichlet']]
+    boundaries.dirichlet({'x': 1, 't': [0, 1]}, value=0)
+
+    equation = Equation()
 
     burgers_eq = {
         'du/dt**1':
@@ -72,7 +63,9 @@ def solver_burgers(grid_res, cache, optimizer, iterations):
             }
     }
 
-    model = torch.nn.Sequential(
+    equation.add(burgers_eq)
+
+    net = torch.nn.Sequential(
         torch.nn.Linear(2, 20),
         torch.nn.Tanh(),
         torch.nn.Linear(20, 20),
@@ -84,21 +77,31 @@ def solver_burgers(grid_res, cache, optimizer, iterations):
         torch.nn.Linear(20, 1)
     )
 
-    equation = Equation(grid, burgers_eq, bconds).set_strategy('autograd')
+    model = Model(net, domain, equation, boundaries)
+
+    model.compile('autograd', lambda_operator=1, lambda_bound=1)
+
+    cb_cache = cache.Cache(cache_verbose=False, model_randomize_parameter=1e-5)
+
+    cb_es = early_stopping.EarlyStopping(eps=1e-6,
+                                        loss_window=100,
+                                        no_improvement_patience=100,
+                                        patience=2,
+                                        randomize_parameter=1e-5,
+                                        verbose=False)
+    if cache:
+        callbacks = [cb_cache, cb_es]
+    else:
+        callbacks = [cb_es]
+    
     if type(optimizer) is list:
         for mode in optimizer:
-            model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=1, verbose=0, learning_rate=1e-3,
-                                                                      eps=1e-6, tmin=10, tmax=iterations,
-                                                                      use_cache=cache, cache_dir='../cache/',
-                                                                      patience=2,
-                                                                      save_always=cache, no_improvement_patience=100,
-                                                                      optimizer_mode=mode)
+            optim = Optimizer(mode, {'lr': 1e-3})
+            model.train(optim, iterations, save_model=cache_flag, callbacks=callbacks)
     else:
-        model = Solver(grid, equation, model, 'autograd').solve(lambda_bound=1, verbose=0, learning_rate=1e-3,
-                                                                  eps=1e-6, tmin=10, tmax=iterations, use_cache=cache,
-                                                                  cache_dir='../cache/', patience=2,
-                                                                  save_always=cache, no_improvement_patience=100,
-                                                                  optimizer_mode='Adam')
+        optim = Optimizer(optimizer, {'lr': 1e-3})
+        model.train(optim, iterations, save_model=cache_flag, callbacks=callbacks)
+
     end = time.time()
     time_part = end - start
 
@@ -107,15 +110,12 @@ def solver_burgers(grid_res, cache, optimizer, iterations):
     grid1 = torch.cartesian_prod(x1, t1).float()
 
     u_exact = exact(grid1)
-    error_rmse = torch.sqrt(torch.mean((u_exact - model(grid1)) ** 2))
-    end_loss, _ = Solution(grid = grid, equal_cls = equation, model = model,
-                        mode = 'autograd', weak_form=None, lambda_operator=1, lambda_bound=1).evaluate()
+    error_rmse = torch.sqrt(torch.mean((u_exact - net(grid1)) ** 2))
     exp_dict_list.append({'grid_res': grid_res, 'time': time_part, 'RMSE': error_rmse.detach().numpy(),
-                          'loss': end_loss.detach().numpy(), 'type': 'solver_burgers', 'cache': cache})
+                           'type': 'solver_burgers', 'cache': cache_flag})
 
     print('Time taken {}= {}'.format(grid_res, end - start))
     print('RMSE {}= {}'.format(grid_res, error_rmse))
-    print('loss {}= {}'.format(grid_res, end_loss))
 
     return exp_dict_list
 
@@ -208,15 +208,15 @@ nruns = 10
 ###########################
 exp_dict_list = []
 
-cache = False
+cache_flag = False
 
 for grid_res in range(10, 41, 10):
     for _ in range(nruns):
-        exp_dict_list.append(solver_burgers(grid_res, cache, 'Adam', 2000))
+        exp_dict_list.append(solver_burgers(grid_res, cache_flag, 'Adam', 2000))
 
 exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df = pd.DataFrame(exp_dict_list_flatten)
-df.to_csv('examples/benchmarking_data/solver_burgers_10_40_cache={}.csv'.format(str(cache)))
+df.to_csv('examples/benchmarking_data/solver_burgers_10_40_cache={}.csv'.format(str(cache_flag)))
 ###########################
 
 ###########################
@@ -234,15 +234,15 @@ df.to_csv('examples/benchmarking_data/deepxde_burgers_10_40_Adam.csv')
 ###########################
 exp_dict_list = []
 
-cache = True
+cache_flag = True
 
 for grid_res in range(10, 41, 10):
     for _ in range(nruns):
-        exp_dict_list.append(solver_burgers(grid_res, cache, 'Adam', 2000))
+        exp_dict_list.append(solver_burgers(grid_res, cache_flag, 'Adam', 2000))
 
 exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df = pd.DataFrame(exp_dict_list_flatten)
-df.to_csv('examples/benchmarking_data/solver_burgers_10_40_cache={}.csv'.format(str(cache)))
+df.to_csv('examples/benchmarking_data/solver_burgers_10_40_cache={}.csv'.format(str(cache_flag)))
 ###########################
 
 ###########################

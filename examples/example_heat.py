@@ -7,19 +7,18 @@ Created on Mon May 31 12:33:44 2021
 import torch
 import numpy as np
 import os
-
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
 import sys
 
-sys.path.append('../')
-sys.path.pop()
+
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver
-from tedeous.solution import Solution
+from tedeous.data import Domain, Conditions, Equation
+from tedeous.model import Model
+from tedeous.callbacks import cache, early_stopping, plot
+from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
+from tedeous.solution import Solution
 import time
 
 
@@ -33,20 +32,15 @@ def func(grid):
         sln+=8*np.exp(-1/4*np.pi**2*t*(2*i-1)**2)*((-1)**i+250*np.pi*(1-2*i))*np.sin(1/2*np.pi*x*(2*i-1))/(np.pi-2*np.pi*i)**2
     return sln
 
-def heat_experiment(grid_res,CACHE):
+def heat_experiment(grid_res, CACHE):
     
     exp_dict_list=[]
     
+    domain = Domain()
 
-    x_grid=np.linspace(0,1,grid_res+1)
-    t_grid=np.linspace(0,1,grid_res+1)
+    domain.variable('x', [0, 1], grid_res)
+    domain.variable('t', [0, 1], grid_res)
     
-    x = torch.from_numpy(x_grid)
-    t = torch.from_numpy(t_grid)
-    
-    grid = torch.cartesian_prod(x, t).float()
-    
-
     """
     Preparing boundary conditions (BC)
     
@@ -74,17 +68,14 @@ def heat_experiment(grid_res,CACHE):
     
     bval=torch.Tensor prescribed values at every point in the boundary
     """
+
+    boundaries = Conditions()
+
     # Boundary conditions at x=0
-    bnd1 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t).float()
-    
-    
-    # u(0,t)=500
-    bndval1 = torch.from_numpy(np.zeros(len(bnd1), dtype=np.float64)+500)
-    
-    
+    boundaries.dirichlet({'x': 0, 't': [0, 1]}, value=500)
+
     # Boundary conditions at x=1
-    bnd2 = torch.cartesian_prod(torch.from_numpy(np.array([1], dtype=np.float64)), t).float()
-    
+
     # u'(1,t)=1
     bop2= {
             'du/dx':
@@ -94,21 +85,12 @@ def heat_experiment(grid_res,CACHE):
                     'pow': 1
                 }
         }
-    
-    # u(x,0)=sin(pi*x)
-    bndval2 = torch.from_numpy(np.zeros(len(bnd1), dtype=np.float64)+1)
+
+    boundaries.operator({'x': 1, 't': [0,1]}, operator=bop2, value=1)
     
     # Initial conditions at t=0
-    bnd3 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
-    
-    
-    # u(x,0)=0
-    bndval3 = torch.from_numpy(np.zeros(len(bnd1), dtype=np.float64))
-    
+    boundaries.dirichlet({'x': [0, 1], 't': 0}, value=0)
 
-    bconds = [[bnd1, bndval1, 'dirichlet'],
-              [bnd2, bop2, bndval2, 'operator'],
-              [bnd3, bndval3, 'dirichlet']]
      
         
     """
@@ -138,6 +120,9 @@ def heat_experiment(grid_res,CACHE):
     
     
     """
+
+    equation = Equation()
+
     # operator is 4*d2u/dx2-1*d2u/dt2=0
     heat_eq = {
         'du/dt**1':
@@ -154,7 +139,9 @@ def heat_experiment(grid_res,CACHE):
             }
     }
 
-    model = torch.nn.Sequential(
+    equation.add(heat_eq)
+
+    net = torch.nn.Sequential(
         torch.nn.Linear(2, 100),
         torch.nn.Tanh(),
         torch.nn.Linear(100, 100),
@@ -162,41 +149,54 @@ def heat_experiment(grid_res,CACHE):
         torch.nn.Linear(100, 1)
     )
 
+    t = domain.variable_dict['t']
     
-    h=abs((t[1]-t[0]).item())
+    h = abs((t[1]-t[0]).item())
 
-    equation = Equation(grid, heat_eq, bconds, h=h).set_strategy('NN')
+    model = Model(net, domain, equation, boundaries)
+
+    model.compile('NN', lambda_operator=1, lambda_bound=10, h=h)
 
     img_dir=os.path.join(os.path.dirname( __file__ ), 'heat_NN_img')
 
-    if not(os.path.isdir(img_dir)):
-        os.mkdir(img_dir)
+    cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-6)
 
+    cb_es = early_stopping.EarlyStopping(eps=1e-6,
+                                        loss_window=100,
+                                        no_improvement_patience=1000,
+                                        patience=5,
+                                        randomize_parameter=1e-6,
+                                        info_string_every=500)
+
+    cb_plots = plot.Plots(save_every=500, print_every=None, img_dir=img_dir)
+
+    optimizer = Optimizer('Adam', {'lr': 1e-4})
+
+    if CACHE:
+        callbacks = [cb_cache, cb_es, cb_plots]
+    else:
+        callbacks = [cb_es, cb_plots]
+    
     start = time.time()
-    
-    model = Solver(grid, equation, model, 'NN').solve(lambda_bound=10, verbose=2, learning_rate=1e-4,
-                                    eps=1e-6, tmin=1000, tmax=1e6,use_cache=CACHE,cache_dir='../cache/',cache_verbose=True
-                                    ,save_always=True, print_every=500, model_randomize_parameter=1e-6,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
+
+    model.train(optimizer, 1e6, save_model=CACHE, callbacks=callbacks)
+
     end = time.time()
-    
-    
-    rmse_x_grid=np.linspace(0,1,grid_res+1)
-    rmse_t_grid=np.linspace(0.1,1,grid_res+1)
+
+    rmse_x_grid=np.linspace(0, 1, grid_res+1)
+    rmse_t_grid=np.linspace(0, 1, grid_res+1)
 
     rmse_x = torch.from_numpy(rmse_x_grid)
     rmse_t = torch.from_numpy(rmse_t_grid)
 
     rmse_grid = torch.cartesian_prod(rmse_x, rmse_t).float()
     
-    error_rmse=torch.sqrt(torch.mean(((func(rmse_grid)-model(rmse_grid))/500)**2))
+    error_rmse=torch.sqrt(torch.mean(((func(rmse_grid) - net(rmse_grid))/500)**2))
 
-    _, end_loss = Solution(grid=grid, equal_cls=equation, model=model,
-             mode='NN', weak_form=None, lambda_bound=100, lambda_operator=1).evaluate()
-    exp_dict_list.append({'grid_res':grid_res,'time':end - start,'RMSE':error_rmse.detach().numpy(),'loss':end_loss.detach().numpy(),'type':'wave_eqn','cache':CACHE})
+    exp_dict_list.append({'grid_res':grid_res, 'time':end - start, 'RMSE':error_rmse.detach().numpy(), 'type':'wave_eqn', 'cache':CACHE})
     
     print('Time taken {}= {}'.format(grid_res, end - start))
     print('RMSE {}= {}'.format(grid_res, error_rmse))
-    print('loss {}= {}'.format(grid_res, end_loss))
     return exp_dict_list
 
 

@@ -6,12 +6,12 @@ import os
 import time
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from tedeous.solver import Solver
-from tedeous.input_preprocessing import Equation
+from tedeous.data import Domain, Conditions, Equation
+from tedeous.model import Model
+from tedeous.callbacks import early_stopping, plot, cache
+from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 
 
@@ -30,24 +30,19 @@ def experiment(device):
     solver_device(device)
     grid_res = 50
 
-    # Grid
-    x_grid = np.linspace(0, 1, grid_res + 1)
-    t_grid = np.linspace(0, 1, grid_res + 1)
+    domain = Domain()
+    domain.variable('x', [0, 1], grid_res)
+    domain.variable('t', [0, 1], grid_res)
 
-    x = torch.from_numpy(x_grid)
-    t = torch.from_numpy(t_grid)
-
-    grid = torch.cartesian_prod(x, t).float()
-
+    boundaries = Conditions()
     # u(x,0)=1e4*sin^2(x(x-1)/10)
-
-    func_bnd1 = lambda x: 10 ** 4 * np.sin((1 / 10) * x * (x - 1)) ** 2
-    bnd1 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
-    bndval1 = func_bnd1(bnd1[:, 0])
+    x = domain.variable_dict['x']
+    func_bnd1 = lambda x: 10 ** 4 * torch.sin((1 / 10) * x * (x - 1)) ** 2
+    boundaries.dirichlet({'x': [0, 1], 't': 0}, value=func_bnd1(x))
 
     # du/dx (x,0) = 1e3*sin^2(x(x-1)/10)
-    func_bnd2 = lambda x: 10 ** 3 * np.sin((1 / 10) * x * (x - 1)) ** 2
-    bnd2 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
+    func_bnd2 = lambda x: 10 ** 3 * torch.sin((1 / 10) * x * (x - 1)) ** 2
+
     bop2 = {
         'du/dt':
             {
@@ -57,18 +52,13 @@ def experiment(device):
                 'var': 0
             }
     }
-    bndval2 = func_bnd2(bnd2[:, 0])
+
+    boundaries.operator({'x': [0, 1], 't': 0}, operator=bop2, value=func_bnd2(x))
 
     # u(0,t) = u(1,t)
-    bnd3_left = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t).float()
-    bnd3_right = torch.cartesian_prod(torch.from_numpy(np.array([1], dtype=np.float64)), t).float()
-    bnd3 = [bnd3_left, bnd3_right]
+    boundaries.periodic([{'x': 0, 't': [0, 1]}, {'x': 1, 't': [0, 1]}])
 
     # du/dt(0,t) = du/dt(1,t)
-    bnd4_left = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t).float()
-    bnd4_right = torch.cartesian_prod(torch.from_numpy(np.array([1], dtype=np.float64)), t).float()
-    bnd4 = [bnd4_left, bnd4_right]
-
     bop4 = {
         'du/dx':
             {
@@ -78,12 +68,9 @@ def experiment(device):
                 'var': 0
             }
     }
-    bcond_type = 'periodic'
+    boundaries.periodic([{'x': 0, 't': [0, 1]}, {'x': 1, 't': [0, 1]}], operator=bop4)
 
-    bconds = [[bnd1, bndval1, 'dirichlet'],
-              [bnd2, bop2, bndval2, 'operator'],
-              [bnd3, bcond_type],
-              [bnd4, bop4, bcond_type]]
+    equation = Equation()
 
     # wave equation is d2u/dt2-(1/4)*d2u/dx2=0
     C = 4
@@ -104,8 +91,10 @@ def experiment(device):
             }
     }
 
+    equation.add(wave_eq)
+
     # NN
-    model = torch.nn.Sequential(
+    net = torch.nn.Sequential(
         torch.nn.Linear(2, 100),
         torch.nn.Tanh(),
         torch.nn.Linear(100, 100),
@@ -114,7 +103,7 @@ def experiment(device):
         torch.nn.Tanh(),
         torch.nn.Linear(100, 1))
 
-    model_1 = torch.nn.Sequential(
+    net_1 = torch.nn.Sequential(
         torch.nn.Linear(2, 100),
         torch.nn.Tanh(),
         torch.nn.Linear(100, 100),
@@ -122,35 +111,49 @@ def experiment(device):
         torch.nn.Linear(100, 100),
         torch.nn.Tanh(),
         torch.nn.Linear(100, 1))
-
-    equation = Equation(grid, wave_eq, bconds, h=0.01).set_strategy('NN')
 
     start = time.time()
 
-    model = Solver(grid, equation, model, 'NN').solve(lambda_bound=1000, verbose=True, learning_rate=1e-2,
-                                                      eps=1e-6, tmin=1000, tmax=1e5, use_cache=True,
-                                                      cache_dir='../cache/', cache_verbose=True,
-                                                      save_always=False, no_improvement_patience=500, print_every=500,
-                                                      step_plot_print=False,
-                                                      step_plot_save=True, mixed_precision=True)
+    model =  Model(net, domain, equation, boundaries)
+
+    model.compile("NN", lambda_operator=1, lambda_bound=1000, h=0.01)
+
+    cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-5)
+
+    cb_es = early_stopping.EarlyStopping(eps=1e-6,
+                                        loss_window=1000,
+                                        no_improvement_patience=500,
+                                        patience=10,
+                                        randomize_parameter=0,
+                                        info_string_every=500)
+
+    img_dir=os.path.join(os.path.dirname( __file__ ), 'wave_eq_img')
+
+    cb_plots = plot.Plots(save_every=500, print_every=None, img_dir=img_dir)
+
+    optimizer = Optimizer('Adam', {'lr': 1e-2})
+
+    model.train(optimizer, 1e5, save_model=False, mixed_precision=True, callbacks=[cb_es, cb_cache, cb_plots])
 
     end = time.time()
 
     start_1 = time.time()
 
-    model_1 = Solver(grid, equation, model_1, 'NN').solve(lambda_bound=1000, verbose=True, learning_rate=1e-2,
-                                                          eps=1e-6, tmin=1000, tmax=1e5, use_cache=True,
-                                                          cache_dir='../cache/', cache_verbose=True,
-                                                          save_always=False, no_improvement_patience=500,
-                                                          print_every=500, step_plot_print=False,
-                                                          step_plot_save=True, mixed_precision=False)
+    model1 =  Model(net, domain, equation, boundaries)
+
+    model1.compile("NN", lambda_operator=1, lambda_bound=1000, h=0.01)
+
+    model1.train(optimizer, 1e5, save_model=False, mixed_precision=False, callbacks=[cb_es, cb_cache, cb_plots])
+
     end_1 = time.time()
 
-    model = model.cpu()
-    model_1 = model_1.cpu()
+    net = net.cpu()
+    net_1 = net_1.cpu()
 
-    mp_true = model(grid).detach().cpu().numpy().flatten()
-    mp_false = model_1(grid).detach().cpu().numpy().flatten()
+    grid = domain.build('NN').cpu()
+
+    mp_true = net(grid).detach().cpu().numpy().flatten()
+    mp_false = net(grid).detach().cpu().numpy().flatten()
 
     rmse = np.mean(np.square(mp_true - mp_false))
 
@@ -166,4 +169,4 @@ for _ in range(10):
 
 df = pd.DataFrame(result)
 
-df.to_csv('benchmarking_data/wave_exp_AMP_speedup.csv', index=False)
+df.to_csv('examples/benchmarking_data/wave_exp_AMP_speedup.csv', index=False)

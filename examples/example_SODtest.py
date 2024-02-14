@@ -4,27 +4,19 @@ import os
 import time
 import matplotlib.pyplot as plt
 from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from mpl_toolkits.mplot3d import Axes3D
-from scipy.spatial import Delaunay
 import sys
 
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-#sys.path.append('../')
-
-#sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver
-from tedeous.solution import Solution
+from tedeous.data import Domain, Conditions, Equation
+from tedeous.model import Model
+from tedeous.callbacks import early_stopping, plot, cache
+from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device, device_type
 
-solver_device('gpu')
+solver_device('cuda')
 
 p_l = 1
 v_l = 0
@@ -38,76 +30,59 @@ gam_r = 1.4
 
 x0 = 0.5
 h = 0.05
-x_grid=np.linspace(0,1,21)
-t_grid=np.linspace(0,0.2,21)
 
-x = torch.from_numpy(x_grid)
-t = torch.from_numpy(t_grid)
+domain = Domain()
+domain.variable('x', [0, 1], 21)
+domain.variable('t', [0, 0.2], 21)
 
-grid = torch.cartesian_prod(x, t).float()
-
-
+boundaries = Conditions()
 ## BOUNDARY AND INITIAL CONDITIONS
 # p:0, v:1, Ro:2
 
-def u0(x,x0):
+def u0(x, x0):
   if x>x0:
     return [p_r, v_r, Ro_r]
   else:
     return [p_l, v_l, Ro_l]
 
 # Initial conditions at t=0
-bnd1 = torch.cartesian_prod(x, torch.from_numpy(np.array([0], dtype=np.float64))).float()
-
-u_init0 = np.zeros(bnd1.shape[0], dtype=np.float64)
-u_init1 = np.zeros(bnd1.shape[0], dtype=np.float64)
-u_init2 = np.zeros(bnd1.shape[0], dtype=np.float64)
+x = domain.variable_dict['x']
+u_init0 = np.zeros(x.shape[0])
+u_init1 = np.zeros(x.shape[0])
+u_init2 = np.zeros(x.shape[0])
 j=0
-for i in bnd1:
-  u_init0[j] = u0(i[0], x0)[0]
-  u_init1[j] = u0(i[0], x0)[1]
-  u_init2[j] = u0(i[0], x0)[2]
+for i in x:
+  u_init0[j] = u0(i, x0)[0]
+  u_init1[j] = u0(i, x0)[1]
+  u_init2[j] = u0(i, x0)[2]
   j +=1
 
 bndval1_0 = torch.from_numpy(u_init0)
 bndval1_1 = torch.from_numpy(u_init1)
 bndval1_2 = torch.from_numpy(u_init2)
 
+boundaries.dirichlet({'x': [0, 1], 't': 0}, value=bndval1_0, var=0)
+boundaries.dirichlet({'x': [0, 1], 't': 0}, value=bndval1_1, var=1)
+boundaries.dirichlet({'x': [0, 1], 't': 0}, value=bndval1_2, var=2)
+
 #  Boundary conditions at x=0
-bnd2 = torch.cartesian_prod(torch.from_numpy(np.array([0], dtype=np.float64)), t).float()
-
-bndval2_0 = torch.from_numpy(np.asarray([p_l for i in bnd2[:, 0]], dtype=np.float64))
-bndval2_1 = torch.from_numpy(np.asarray([v_l for i in bnd2[:, 0]], dtype=np.float64))
-bndval2_2 = torch.from_numpy(np.asarray([Ro_l for i in bnd2[:, 0]], dtype=np.float64))
-
-
+boundaries.dirichlet({'x': 0, 't': [0, 0.2]}, value=p_l, var=0)
+boundaries.dirichlet({'x': 0, 't': [0, 0.2]}, value=v_l, var=1)
+boundaries.dirichlet({'x': 0, 't': [0, 0.2]}, value=Ro_l, var=2)
 
 # Boundary conditions at x=1
-bnd3 = torch.cartesian_prod(torch.from_numpy(np.array([1], dtype=np.float64)), t).float()
-
-# u(1,t)=0
-bndval3_0 = torch.from_numpy(np.asarray([p_r for i in bnd3[:, 0]], dtype=np.float64))
-bndval3_1 = torch.from_numpy(np.asarray([v_r for i in bnd3[:, 0]], dtype=np.float64))
-bndval3_2 = torch.from_numpy(np.asarray([Ro_r for i in bnd3[:, 0]], dtype=np.float64))
-
-
-# Putting all bconds together
-bconds = [[bnd1, bndval1_0, 0, 'dirichlet'],
-          [bnd1, bndval1_1, 1, 'dirichlet'],
-          [bnd1, bndval1_2, 2, 'dirichlet'],
-          [bnd2, bndval2_0, 0, 'dirichlet'],
-          [bnd2, bndval2_1, 1, 'dirichlet'],
-          [bnd2, bndval2_2, 2, 'dirichlet'],
-          [bnd3, bndval3_0, 0, 'dirichlet'],
-          [bnd3, bndval3_1, 1, 'dirichlet'],
-          [bnd3, bndval3_2, 2, 'dirichlet']]
-
+boundaries.dirichlet({'x': 1, 't': [0, 0.2]}, value=p_r, var=0)
+boundaries.dirichlet({'x': 1, 't': [0, 0.2]}, value=v_r, var=1)
+boundaries.dirichlet({'x': 1, 't': [0, 0.2]}, value=Ro_r, var=2)
 
 '''
 gas dynamic system equations:
 Eiler's equations system for Sod test in shock tube
 
 '''
+
+equation = Equation()
+
 gas_eq1={
         'dro/dt':
         {
@@ -179,9 +154,11 @@ gas_eq3 =  {
 
      }
 
-gas_eq = [gas_eq1, gas_eq2, gas_eq3]
+equation.add(gas_eq1)
+equation.add(gas_eq2)
+equation.add(gas_eq3)
 
-model = torch.nn.Sequential(
+net = torch.nn.Sequential(
         torch.nn.Linear(2, 200),
         torch.nn.Tanh(),
         torch.nn.Linear(200, 100),
@@ -192,18 +169,24 @@ model = torch.nn.Sequential(
     )
 start = time.time()
 
-equation = Equation(grid, gas_eq, bconds, h=h).set_strategy('NN')
+model =  Model(net, domain, equation, boundaries)
+
+model.compile("NN", lambda_operator=1, lambda_bound=1000, h=h)
 
 img_dir=os.path.join(os.path.dirname( __file__ ), 'SOD_NN_img')
 
-if not(os.path.isdir(img_dir)):
-    os.mkdir(img_dir)
+cb_es = early_stopping.EarlyStopping(eps=1e-6,
+                                    loss_window=100,
+                                    no_improvement_patience=500,
+                                    patience=5,
+                                    randomize_parameter=1e-6,
+                                    info_string_every=1000)
 
+cb_plots = plot.Plots(save_every=1000, print_every=None, img_dir=img_dir)
 
-model = Solver(grid, equation, model, 'NN').solve(
-                                lambda_bound=1000, verbose=True, learning_rate=1e-2,
-                                eps=1e-6, tmin=1000, tmax=1e5,use_cache=False,cache_dir='../cache/',cache_verbose=False,
-                                save_always=False,no_improvement_patience=500,print_every=1000,step_plot_print=False,step_plot_save=True,image_save_dir=img_dir)
+optimizer = Optimizer('Adam', {'lr': 1e-2})
+
+model.train(optimizer, 1e5, save_model=False, callbacks=[cb_es, cb_plots])
 
 end = time.time()
 
@@ -212,7 +195,8 @@ print('Time taken = {}'.format(end - start))
 solver_device('cpu')
 device = device_type()
 
-model = model.to(device)
+net = net.to(device)
+grid = domain.build('NN')
 grid = grid.to(device)
 
 def exact(point):
@@ -306,11 +290,11 @@ def exact_solution_print(grid, u_exact):
   fig3 = plt.figure()
   ax3 = fig3.add_subplot(projection='3d')
   ax1.plot_trisurf(grid[:,0].reshape(-1), grid[:,1].reshape(-1), u_exact[:,0].reshape(-1), cmap='Blues', linewidth=0.2, alpha=1)
-  ax1.plot_trisurf(grid[:,0].reshape(-1), grid[:,1].reshape(-1), model(grid)[:,0].detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
+  ax1.plot_trisurf(grid[:,0].reshape(-1), grid[:,1].reshape(-1), net(grid)[:,0].detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
   ax2.plot_trisurf(grid[:,0].reshape(-1), grid[:,1].reshape(-1), u_exact[:,1].reshape(-1), cmap='Blues', linewidth=0.2, alpha=1)
-  ax2.plot_trisurf(grid[:,0].reshape(-1), grid[:,1].reshape(-1), model(grid)[:,1].detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
+  ax2.plot_trisurf(grid[:,0].reshape(-1), grid[:,1].reshape(-1), net(grid)[:,1].detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
   ax3.plot_trisurf(grid[:,0].reshape(-1), grid[:,1].reshape(-1), u_exact[:,2].reshape(-1), cmap='Blues', linewidth=0.2, alpha=1)
-  ax3.plot_trisurf(grid[:,0].reshape(-1), grid[:,1].reshape(-1), model(grid)[:,2].detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
+  ax3.plot_trisurf(grid[:,0].reshape(-1), grid[:,1].reshape(-1), net(grid)[:,2].detach().numpy().reshape(-1), cmap=cm.jet, linewidth=0.2, alpha=1)
   ax1.set_xlabel("x")
   ax1.set_ylabel("t")
   ax2.set_xlabel("x")
@@ -321,7 +305,8 @@ def exact_solution_print(grid, u_exact):
 exact_solution_print(grid, u_exact)
 # 1d at one moment of time (t_var) plotting
 t_var = 0.2
-grid1 = torch.cartesian_prod(x, torch.from_numpy(np.array([t_var], dtype=np.float64))).float()
+x = x.to(device)
+grid1 = torch.cartesian_prod(x, torch.tensor([t_var]))
 u_exact = np.zeros((grid1.shape[0],3))
 j=0
 for i in grid1:
@@ -331,13 +316,13 @@ torch.from_numpy(u_exact)
 plt.figure()
 plt.title('pressure')
 plt.plot(grid1[:,0], u_exact[:,0])
-plt.plot(grid1[:,0], model(grid1)[:,0].detach().numpy().reshape(-1), '*')
+plt.plot(grid1[:,0], net(grid1)[:,0].detach().numpy().reshape(-1), '*')
 plt.show()
 plt.title('velocity')
 plt.plot(grid1[:,0], u_exact[:,1])
-plt.plot(grid1[:,0], model(grid1)[:,1].detach().numpy().reshape(-1), '*')
+plt.plot(grid1[:,0], net(grid1)[:,1].detach().numpy().reshape(-1), '*')
 plt.show()
 plt.title('density')
 plt.plot(grid1[:,0], u_exact[:,2])
-plt.plot(grid1[:,0], model(grid1)[:,2].detach().numpy().reshape(-1), '*')
+plt.plot(grid1[:,0], net(grid1)[:,2].detach().numpy().reshape(-1), '*')
 plt.show()

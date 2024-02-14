@@ -9,23 +9,16 @@
 
 # Where 'x' represents prey population and 'y' predators population. It’s a system of first-order ordinary differential equations.
 import torch
-import SALib
-import numpy as np
-import matplotlib.pyplot as plt
-import scipy
-from scipy import integrate
-import time
 import os
 import sys
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver
-from tedeous.solution import Solution
+from tedeous.data import Domain, Conditions, Equation
+from tedeous.model import Model
+from tedeous.callbacks import early_stopping, plot, cache
+from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 
 alpha = 20.
@@ -39,24 +32,25 @@ tmax = 1.
 
 solver_device('cuda')
 
-t = torch.from_numpy(np.linspace(t0, tmax, 111))
-grid = t.reshape(-1, 1).float()
-
-
+domain = Domain()
+domain.variable('t', [t0, tmax], 110)
+t = domain.variable_dict['t']
 h = (t[1]-t[0]).item()
-#h = 0.0001
-#initial conditions
-bnd1_0 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
-bndval1_0 = torch.from_numpy(np.array([[x0]], dtype=np.float64))
-bnd1_1 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
-bndval1_1  = torch.from_numpy(np.array([[y0]], dtype=np.float64))
 
-bconds = [[bnd1_0, bndval1_0, 0, 'dirichlet'],
-          [bnd1_1, bndval1_1, 1, 'dirichlet']]
+boundaries = Conditions()
+#initial conditions
+boundaries.dirichlet({'t': 0}, value=x0, var=0)
+boundaries.dirichlet({'t': 0}, value=y0, var=1)
+
+equation = Equation()
 
 #equation system
+# eq1: dx/dt = x(alpha-beta*y)
+# eq2: dy/dt = y(-delta+gamma*x)
+
 # x var: 0
 # y var:1
+
 eq1 = {
     'dx/dt':{
         'coeff': 1,
@@ -99,9 +93,10 @@ eq2 = {
     }
 }
 
-Lotka = [eq1, eq2]
+equation.add(eq1)
+equation.add(eq2)
 
-model = torch.nn.Sequential(
+net = torch.nn.Sequential(
         torch.nn.Linear(1, 100),
         torch.nn.Tanh(),
         torch.nn.Linear(100, 100),
@@ -115,20 +110,20 @@ def v(grid):
     return (0.5+0.5*torch.sin(grid[:,0]))*(2/h)**(0.5)/10
 weak_form = [v]
 
-equation = Equation(grid, Lotka, bconds, h=h).set_strategy('NN')
+model =  Model(net, domain, equation, boundaries)
 
+model.compile("NN", lambda_operator=1, lambda_bound=100, h=h, weak_form=weak_form)
 
-img_dir=os.path.join(os.path.dirname( __file__ ), 'weak_Lotka_Volterra')
+cb_es = early_stopping.EarlyStopping(eps=1e-6, no_improvement_patience=500, info_string_every=500)
 
+cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-5)
 
-start = time.time()
+img_dir=os.path.join(os.path.dirname( __file__ ), 'img_weak_Lotka_Volterra')
 
-model = Solver(grid, equation, model, 'NN', weak_form=weak_form).solve(lambda_bound=100,
-                                        verbose=True, learning_rate=1e-3, eps=1e-6, tmin=1000, tmax=5e6,
-                                        use_cache=True,cache_dir='../cache/',cache_verbose=True,
-                                        save_always=False,print_every=None,
-                                        patience=5,loss_oscillation_window=100,no_improvement_patience=500,
-                                        model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=None,
-                                    step_plot_print=False, step_plot_save=True, image_save_dir=img_dir)
+cb_plots = plot.Plots(save_every=1000, print_every=None, img_dir=img_dir)
 
-end = time.time()
+optimizer = Optimizer('Adam', {'lr': 1e-4})
+
+callbacks = [cb_es, cb_cache, cb_plots]
+
+model.train(optimizer, 5e6, save_model=False, callbacks=callbacks)

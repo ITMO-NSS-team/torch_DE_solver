@@ -1,23 +1,20 @@
 import torch
-import numpy as np
 import os
 import sys
 import matplotlib.pyplot as plt
-import time
+
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-sys.path.append('../')
-
-sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver
-from tedeous.solution import Solution
+from tedeous.data import Domain, Conditions, Equation
+from tedeous.model import Model
+from tedeous.callbacks import adaptive_lambda, cache, early_stopping, plot
+from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 
 solver_device('cpu')
+
 a = 4
 
 def u(x, a):
@@ -28,22 +25,22 @@ def u_xx(x, a):
 
 t0 = 0
 tmax = 1
-Nt = 100
+Nt = 99
 
-x = torch.from_numpy(np.linspace(t0, tmax, Nt))
-grid = x.reshape(-1, 1).float()
+domain = Domain()
 
-h = (x[1]-x[0]).item()
+domain.variable('t', [t0, tmax], Nt, dtype='float32')
 
-bnd1 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
-bndval1 = torch.from_numpy(np.array([[0]], dtype=np.float64))
-bnd2 = torch.from_numpy(np.array([[1]], dtype=np.float64)).float()
-bndval2  = torch.from_numpy(np.array([[0]], dtype=np.float64))
+boundaries = Conditions()
 
-bconds = [[bnd1, bndval1, 'dirichlet'],
-          [bnd2, bndval2, 'dirichlet']]
+boundaries.dirichlet({'t': 0}, value=0)
+boundaries.dirichlet({'t': 1}, value=0)
+
+grid = domain.variable_dict['t'].reshape(-1,1)
 
 # equation: d2u/dx2 = -16*pi^2*sin(4*pi*x)
+
+equation = Equation()
 
 poisson = {
     'd2u/dx2':
@@ -61,32 +58,41 @@ poisson = {
         }
 }
 
-model = torch.nn.Sequential(
+equation.add(poisson)
+
+net = torch.nn.Sequential(
         torch.nn.Linear(1, 100),
         torch.nn.Tanh(),
         torch.nn.Linear(100, 100),
         torch.nn.Tanh(),
         torch.nn.Linear(100, 1)
     )
-start = time.time()
-equation = Equation(grid, poisson, bconds, h=h).set_strategy('autograd')
 
+model = Model(net, domain, equation, boundaries)
 
-img_dir=os.path.join(os.path.dirname( __file__ ), 'poisson_img')
+model.compile('autograd', lambda_operator=1, lambda_bound=17)
 
-model = Solver(grid, equation, model, 'autograd').solve( lambda_bound=100, lambda_update=True,
-                                         verbose=1, learning_rate=1e-3, eps=1e-9, tmin=1000, tmax=5e6,
-                                         use_cache=True,cache_dir='../cache/',cache_verbose=True,
-                                         save_always=True,print_every=1000, gamma=0.9, lr_decay=1000,
-                                         patience=5,loss_oscillation_window=100,no_improvement_patience=1000,
-                                         model_randomize_parameter=1e-5,optimizer_mode='Adam',cache_model=None,
-                                         step_plot_print=False, step_plot_save=True, image_save_dir=img_dir)
+img_dir = os.path.join(os.path.dirname( __file__ ), 'poisson_img')
 
-end = time.time()
-print(end-start)
+cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-5)
+
+cb_es = early_stopping.EarlyStopping(eps=1e-9,
+                                     loss_window=100,
+                                     no_improvement_patience=1000,
+                                     patience=5,
+                                     info_string_every=1000,
+                                     randomize_parameter=1e-5)
+
+cb_plots = plot.Plots(save_every=1000, print_every=None, img_dir=img_dir)
+
+cb_lambda = adaptive_lambda.AdaptiveLambda()
+
+optimizer = Optimizer('Adam', {'lr': 1e-3}, gamma=0.9, decay_every=1000)
+
+model.train(optimizer, 1e5, save_model=True, callbacks=[cb_lambda, cb_cache, cb_es, cb_plots])
 
 plt.plot(grid.detach().numpy(), u(grid,a).detach().numpy(), label='Exact')
-plt.plot(grid.detach().numpy(), model(grid).detach().numpy(), '--', label='Predicted')
+plt.plot(grid.detach().numpy(), net(grid).detach().numpy(), '--', label='Predicted')
 plt.xlabel('x')
 plt.ylabel('y')
 plt.legend(loc='upper right')

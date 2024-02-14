@@ -9,25 +9,23 @@
 
 # Where 'x' represents prey population and 'y' predators population. It’s a system of first-order ordinary differential equations.
 import torch
-import SALib
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy
 from scipy import integrate
 import time
 import os
 import sys
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver
+from tedeous.data import Domain, Conditions, Equation
+from tedeous.model import Model
+from tedeous.callbacks import early_stopping, plot, adaptive_lambda
+from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 
-solver_device('сpu')
+solver_device('cuda')
 
 alpha = 20.
 beta = 20.
@@ -39,21 +37,15 @@ t0 = 0.
 tmax = 1.
 Nt = 100
 
-t = torch.from_numpy(np.linspace(t0, tmax, Nt))
-
-grid = t.reshape(-1, 1).float()
+domain = Domain()
+domain.variable('t', [t0, tmax], Nt)
 
 h = 0.0001
 
+boundaries = Conditions()
 # initial conditions
-
-bnd1_0 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
-bndval1_0 = torch.from_numpy(np.array([[x0]], dtype=np.float64))
-bnd1_1 = torch.from_numpy(np.array([[0]], dtype=np.float64)).float()
-bndval1_1 = torch.from_numpy(np.array([[y0]], dtype=np.float64))
-
-bconds = [[bnd1_0, bndval1_0, 0, 'dirichlet'],
-          [bnd1_1, bndval1_1, 1, 'dirichlet']]
+boundaries.dirichlet({'t': 0}, value=x0, var=0)
+boundaries.dirichlet({'t': 0}, value=y0, var=1)
 
 # equation system
 # eq1: dx/dt = x(alpha-beta*y)
@@ -61,6 +53,8 @@ bconds = [[bnd1_0, bndval1_0, 0, 'dirichlet'],
 
 # x var: 0
 # y var:1
+
+equation = Equation()
 
 eq1 = {
     'dx/dt': {
@@ -104,9 +98,10 @@ eq2 = {
     }
 }
 
-Lotka = [eq1, eq2]
+equation.add(eq1)
+equation.add(eq2)
 
-model = torch.nn.Sequential(
+net = torch.nn.Sequential(
     torch.nn.Linear(1, 100),
     torch.nn.Tanh(),
     torch.nn.Linear(100, 100),
@@ -116,20 +111,28 @@ model = torch.nn.Sequential(
     torch.nn.Linear(100, 2)
 )
 
-equation = Equation(grid, Lotka, bconds, h=h).set_strategy('NN')
+model =  Model(net, domain, equation, boundaries)
+
+model.compile("NN", lambda_operator=1, lambda_bound=100, h=h)
+
+cb_es = early_stopping.EarlyStopping(eps=1e-8,
+                                    loss_window=100,
+                                    no_improvement_patience=1000,
+                                    patience=12,
+                                    randomize_parameter=1e-5,
+                                    info_string_every=2000)
 
 img_dir = os.path.join(os.path.dirname(__file__), 'img_Lotka_Volterra')
 
+cb_plots = plot.Plots(save_every=2000, print_every=None, img_dir=img_dir)
+
+cb_lambda = adaptive_lambda.AdaptiveLambda()
+
+optimizer = Optimizer('Adam', {'lr': 5e-4})
+
 start = time.time()
 
-model = Solver(grid, equation, model, 'NN').solve(lambda_bound=100, lambda_update=True,
-                                                  verbose=True, learning_rate=5e-4, eps=1e-8, tmin=1000, tmax=5e6,
-                                                  use_cache=False, cache_dir='../cache/', cache_verbose=True,
-                                                  save_always=True, print_every=20000,
-                                                  patience=12, loss_oscillation_window=100, no_improvement_patience=1000,
-                                                  model_randomize_parameter=1e-5, optimizer_mode='Adam',
-                                                  cache_model=None,
-                                                  step_plot_print=False, step_plot_save=True, image_save_dir=img_dir)
+model.train(optimizer, 5e6, save_model=False, callbacks=[cb_es, cb_plots, cb_lambda])
 
 end = time.time()
 
@@ -151,13 +154,16 @@ X0 = [x0, y0]
 res = integrate.odeint(deriv, X0, t, args=(alpha, beta, delta, gamma))
 x, y = res.T
 
+grid = domain.build('NN').cpu()
+net = net.cpu()
+
 plt.figure()
 plt.grid()
 plt.title("odeint and NN methods comparing")
 plt.plot(t, x, '+', label='preys_odeint')
 plt.plot(t, y, '*', label="predators_odeint")
-plt.plot(grid, model(grid)[:, 0].detach().numpy().reshape(-1), label='preys_NN')
-plt.plot(grid, model(grid)[:, 1].detach().numpy().reshape(-1), label='predators_NN')
+plt.plot(grid, net(grid)[:, 0].detach().numpy().reshape(-1), label='preys_NN')
+plt.plot(grid, net(grid)[:, 1].detach().numpy().reshape(-1), label='predators_NN')
 plt.xlabel('Time t, [days]')
 plt.ylabel('Population')
 plt.legend(loc='upper right')
@@ -166,7 +172,7 @@ plt.show()
 plt.figure()
 plt.grid()
 plt.title('Phase plane: prey vs predators')
-plt.plot(model(grid)[:, 0].detach().numpy().reshape(-1), model(grid)[:, 1].detach().numpy().reshape(-1), '-*',
+plt.plot(net(grid)[:, 0].detach().numpy().reshape(-1), net(grid)[:, 1].detach().numpy().reshape(-1), '-*',
          label='NN')
 plt.plot(x, y, label='odeint')
 plt.xlabel('preys')

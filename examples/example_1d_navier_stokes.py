@@ -1,72 +1,28 @@
 import torch
 import math
-import matplotlib.pyplot as plt
-import scipy
 import os
 import sys
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
-#sys.path.pop()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
 
-from tedeous.input_preprocessing import Equation
-from tedeous.solver import Solver
-from tedeous.solution import Solution
+from tedeous.data import Domain, Conditions, Equation
+from tedeous.model import Model
+from tedeous.callbacks import adaptive_lambda, early_stopping, plot
+from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
-from tedeous.models import Fourier_embedding
 
 solver_device('cuda')
 grid_res = 30
 
-x = torch.linspace(0, 5, grid_res + 1)
-t = torch.linspace(0, 2, grid_res + 1)
+domain = Domain()
+domain.variable('t', [0, 2], grid_res)
+domain.variable('x', [0, 5], grid_res)
 
-h = abs((t[1] - t[0]).item())
+boundaries = Conditions()
 
-grid = torch.cartesian_prod(t, x)
-
-def bconds_1():
-    # Boundary conditions at x=0
-    bnd1_u = torch.cartesian_prod(torch.tensor([0.]), t)
-    # u(0,t) = 2
-    bndval1_u = 2 * torch.ones_like(bnd1_u[:, 0])
-    bnd_type_1_u = 'dirichlet'
-
-    # Boundary conditions at x=5
-    bnd2_u = torch.cartesian_prod(torch.tensor([5.]), t)
-    # u(5,t) = 2
-    bndval2_u = 2 * torch.ones_like(bnd2_u[:, 0])
-    bnd_type_2_u = 'dirichlet'
-
-    # Boundary conditions at x=0
-    bnd1_p = torch.cartesian_prod(torch.tensor([0.]), t)
-    # p(0,t) = 0
-    bndval1_p = torch.zeros_like(bnd1_p[:, 0])
-    bnd_type_1_p = 'dirichlet'
-
-    # Boundary conditions at x=5
-    bnd2_p = torch.cartesian_prod(torch.tensor([5.]), t)
-    # p(5,t) = 0
-    bndval2_p = torch.zeros_like(bnd2_p[:, 0])
-    bnd_type_2_p = 'dirichlet'
-
-    # Initial condition at t=0
-    ics_u = torch.cartesian_prod(x, torch.tensor([0.]))
-    icsval_u = torch.sin((2 * math.pi * x) / 5) + 2
-    ics_type_u = 'dirichlet'
-
-    bconds = [[bnd1_u, bndval1_u, 0, bnd_type_1_u],
-              [bnd1_p, bndval1_p, 1, bnd_type_1_p],
-              [bnd2_u, bndval2_u, 0, bnd_type_2_u],
-              [bnd2_p, bndval2_p, 1, bnd_type_2_p],
-              [ics_u, icsval_u, 0, ics_type_u]]
-    return bconds
-
-def bconds_2():
-    # Boundary conditions at x=0
-    bnd1_u = torch.cartesian_prod(t, torch.tensor([0.]))
-    bop1_u = {
+# Boundary conditions at x=0
+bop1_u = {
                 'du/dt':
                     {
                     'coeff': 1,
@@ -75,13 +31,12 @@ def bconds_2():
                     'var': 0
                     }
             }
-    # u_t = t*sin(t)
-    bval1_u = t * torch.sin(t)
-    bnd_type_1_u = 'operator'
+t = domain.variable_dict['t']
+boundaries.operator({'t': [0, 2], 'x': 0}, operator=bop1_u, value=t * torch.sin(t))
 
-    # Boundary conditions at x=5
-    bnd2_u = torch.cartesian_prod(t, torch.tensor([5.]))
-    bop2_u = {
+# Boundary conditions at x=5
+# u_t = t*sin(t)
+bop2_u = {
         'du/dt':
             {
                 'coeff': 1,
@@ -90,37 +45,25 @@ def bconds_2():
                 'var': 0
             }
     }
-    # u_t = t*sin(t)
-    bval2_u = t * torch.sin(t)
-    bnd_type_2_u = 'operator'
 
-    # Boundary conditions at x=0
-    bnd1_p = torch.cartesian_prod(t, torch.tensor([0.]))
-    # p(0,t) = 0
-    bndval1_p = torch.zeros_like(bnd1_p[:, 0])
-    bnd_type_1_p = 'dirichlet'
+boundaries.operator({'t': [0, 2], 'x': 5}, operator=bop2_u, value=t * torch.sin(t))
 
-    # Boundary conditions at x=5
-    bnd2_p = torch.cartesian_prod(t, torch.tensor([5.]))
-    # p(5,t) = 0
-    bndval2_p = torch.zeros_like(bnd2_p[:, 0])
-    bnd_type_2_p = 'dirichlet'
+# Boundary conditions at x=0
+# p(0,t) = 0
+boundaries.dirichlet({'t': [0, 2], 'x': 0}, value=0, var=1)
 
-    # Initial condition at t=0
-    ics_u = torch.cartesian_prod(torch.tensor([0.]), x)
-    icsval_u = torch.sin((math.pi * x) / 5) + 1
-    ics_type_u = 'dirichlet'
+# Boundary conditions at x=5
+# p(5,t) = 0
+boundaries.dirichlet({'t': [0, 2], 'x': 5}, value=0, var=1)
 
-    bconds = [[bnd1_u, bop1_u,bval1_u, 0, bnd_type_1_u],
-              [bnd1_p, bndval1_p, 1, bnd_type_1_p],
-              [bnd2_u,bop2_u, bval2_u, 0, bnd_type_2_u],
-              [bnd2_p, bndval2_p, 1, bnd_type_2_p],
-              [ics_u, icsval_u, 0, ics_type_u]]
-    return bconds
+ # Initial condition at t=0
+x = domain.variable_dict['x']
+boundaries.dirichlet({'t': 0, 'x': [0, 5]}, value=torch.sin((math.pi * x) / 5) + 1, var=0)
 
-bconds = bconds_2()
 ro = 1
 mu = 1
+
+equation = Equation()
 
 NS_1 = {
     'du/dx':
@@ -162,11 +105,11 @@ NS_2 = {
          }
 }
 
-navier_stokes = [NS_1, NS_2]
-FFL = Fourier_embedding(L=[1, 1], M=[1, 1])
-out = FFL.out_features
+equation.add(NS_1)
+equation.add(NS_2)
 
-model = torch.nn.Sequential(
+
+net = torch.nn.Sequential(
     torch.nn.Linear(2, 100),
     torch.nn.Tanh(),
     torch.nn.Linear(100, 100),
@@ -178,13 +121,21 @@ model = torch.nn.Sequential(
     torch.nn.Linear(100, 2)
 )
 
-equation = Equation(grid, navier_stokes, bconds, h=h).set_strategy('autograd')
+model = Model(net, domain, equation, boundaries)
+
+model.compile('autograd', lambda_operator=1, lambda_bound=1000, tol=0.1)
+
+cb_es = early_stopping.EarlyStopping(eps=1e-5,
+                                     loss_window=100,
+                                     no_improvement_patience=1000,
+                                     patience=10,
+                                     info_string_every=5000,
+                                     randomize_parameter=1e-5)
 
 img_dir = os.path.join(os.path.dirname(__file__), 'navier_stokes_img')
 
-model = Solver(grid, equation, model, 'autograd').solve(tol=0.1,lambda_bound=1000,verbose=True, learning_rate=1e-5,
-                                                  eps=1e-5, tmax=1e6, use_cache=False, cache_verbose=True,
-                                                  save_always=True, print_every=5000, model_randomize_parameter=1e-5,
-                                                  optimizer_mode='Adam', no_improvement_patience=1000, patience=10,
-                                                  step_plot_print=False, step_plot_save=True, image_save_dir=img_dir)
+cb_plots = plot.Plots(save_every=5000, print_every=None, img_dir=img_dir)
 
+optimizer = Optimizer('Adam', {'lr': 1e-5})
+
+model.train(optimizer, 1e6, save_model=True, callbacks=[cb_es, cb_plots])

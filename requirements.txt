@@ -7,3 +7,4 @@ torch >=2.0
 autodocsumm
 typing
 SALib
+git+https://github.com/uwjunqi/Pytorch-Tensor-Train-Network.git
