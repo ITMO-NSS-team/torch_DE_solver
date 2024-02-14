@@ -193,7 +193,7 @@ for grid_res in [30,50,100]:
 
         optimizer = Optimizer('Adam', {'lr': 1e-4})
 
-        model.train(optimizer, 1e5, save_model=True, callbacks=[cb_es, cb_plots])
+        model.train(optimizer, 1e5, save_model=True, callbacks=[cb_es,cb_cache, cb_plots])
 
         end = time.time()
         
