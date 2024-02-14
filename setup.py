@@ -53,10 +53,10 @@ setuptools.setup(
     packages=setuptools.find_packages(exclude=['test*']),
     include_package_data=True,
     install_requires=_get_requirements('requirements.txt'),
-    extras_require={
-        key: _get_requirements(Path('other_requirements', f'{key}.txt'))
-        for key in ('docs', 'examples', 'extra', 'profilers')
-    },
+    #extras_require={
+     #   key: _get_requirements(Path('other_requirements', f'{key}.txt'))
+     #   for key in ('docs', 'examples', 'extra', 'profilers')
+    #},
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Programming Language :: Python :: 3',
