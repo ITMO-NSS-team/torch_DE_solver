@@ -19,7 +19,7 @@ VERSION = version_info['__version__']
 AUTHOR = 'AH and NSS Lab'
 SHORT_DESCRIPTION = 'TEDEouS - Torch Exhaustive Differential Equations Solver. Differential equation solver, based on pytorch library'
 README = Path(HERE, 'README.rst').read_text(encoding='utf-8')
-URL = 'https://github.com/aimclub/FEDOT'
+URL = 'https://github.com/ITMO-NSS-team/torch_DE_solver'
 REQUIRES_PYTHON = '>=3.8'
 LICENSE = 'MIT License'
 
