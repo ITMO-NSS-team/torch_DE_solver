@@ -1,7 +1,7 @@
 """Module of derivative calculations.
 """
 
-from typing import Any, Union, List, Tuple
+from typing import Any, Union, List, Tuple,Callable
 import numpy as np
 from scipy import linalg
 import torch
@@ -49,7 +49,10 @@ class Derivative_NN(DerivativeInt):
             for k, grid in enumerate(scheme):
                 grid_sum += self.model(grid)[:, term['var'][j]].reshape(-1, 1)\
                     * term[dif_dir][1][j][k]
-            der_term = der_term * grid_sum ** term['pow'][j]
+            if isinstance(term['pow'][j],(int,float)):
+                der_term = der_term * grid_sum ** term['pow'][j]
+            elif isinstance(term['pow'][j],Callable):
+                der_term = term['pow'][j]( der_term * grid_sum )
         der_term = coeff * der_term
 
         return der_term
@@ -120,7 +123,10 @@ class Derivative_autograd(DerivativeInt):
             else:
                 der = self._nn_autograd(
                     self.model, grid_points, term['var'][j], axis=derivative)
-            der_term = der_term * der ** term['pow'][j]
+            if isinstance(term['pow'][j],(int,float)):
+                der_term = der_term * der ** term['pow'][j]
+            elif isinstance(term['pow'][j],Callable):
+                der_term = term['pow'][j]( der_term * der )
         der_term = coeff * der_term
 
         return der_term
@@ -308,7 +314,10 @@ class Derivative_mat(DerivativeInt):
                         continue
                     h = self._step_h(grid_points)[axis]
                     prod = self._derivative(prod, h, axis)
-            der_term = der_term * prod ** term['pow'][j]
+            if isinstance(term['pow'][j],(int,float)):
+                der_term = der_term * prod ** term['pow'][j]
+            elif isinstance(term['pow'][j],Callable):
+                der_term = term['pow'][j]( der_term * prod )
         if callable(term['coeff']) is True:
             der_term = term['coeff'](grid_points) * der_term
         else:
