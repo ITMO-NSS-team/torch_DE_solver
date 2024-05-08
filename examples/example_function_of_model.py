@@ -18,8 +18,10 @@ solver_device('cpu')
 a = 4
 
 
+slncoefftan=float(torch.tan(torch.Tensor([1/2])))
+
 def u(x, a):
-  return 2*torch.atan(torch.exp(x)*torch.tan(1/2))
+  return 2*torch.atan(torch.exp(x)*slncoefftan)
 
 def u_xx(x, a):
   return (torch.pi * a) ** 2 * torch.sin(torch.pi * a * x)
@@ -93,7 +95,7 @@ optimizer = Optimizer('Adam', {'lr': 1e-3}, gamma=0.9, decay_every=1000)
 model.train(optimizer, 1e5, save_model=True, callbacks=[cb_cache, cb_es, cb_plots])
 
 plt.plot(grid.detach().numpy(), u(grid,a).detach().numpy(), label='Exact')
-plt.plot(grid.detach().numpy(), net(grid).detach().numpy(), '--', label='Predicted')
+plt.plot(grid.detach().numpy(), model.net(grid).detach().numpy(), '--', label='Predicted')
 plt.xlabel('x')
 plt.ylabel('y')
 plt.legend(loc='upper right')
