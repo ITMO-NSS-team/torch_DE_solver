@@ -114,8 +114,9 @@ class PSO(torch.optim.Optimizer):
         matrix = torch.cat(matrix)
         variance = torch.FloatTensor(self.pop_size, self.vec_shape).uniform_(
             -self.variance, self.variance).to(device_type())
-        swarm = (matrix + variance).clone().detach().requires_grad_(True)
-        return swarm
+        swarm = matrix + variance
+        swarm[0] = matrix[0]
+        return swarm.clone().detach().requires_grad_(True)
 
     def update_pso_params(self) -> None:
         """Method for updating pso parameters if c_decrease=True.

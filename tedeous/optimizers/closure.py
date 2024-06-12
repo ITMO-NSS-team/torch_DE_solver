@@ -95,6 +95,14 @@ class Closure():
 
         return losses, gradients
 
+    def _closure_NGD(self):
+        op_res = self.model.solution_cls.operator.operator_compute()
+        bval, true_bval, _, _ = self.model.solution_cls.boundary.apply_bcs()
+        loss = self.model.solution_cls.evaluate()
+
+        return op_res, bval, true_bval, loss
+
+
     def get_closure(self, _type: str):
         if _type == 'PSO':
             return self._closure_pso

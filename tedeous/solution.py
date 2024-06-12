@@ -145,4 +145,13 @@ class Solution():
             self.lambda_bound,
             save_graph)
 
+        # operator_grad = {'coeff': -1, 'term': [[0, 0, 0]], 'pow': [1], 'var': [0]}
+
+        # deriv = Derivative(self.model, 2).set_strategy('autograd')
+
+        # reg_loss = deriv.take_derivative(operator_grad, self.grid)
+        # mr = self.grid.shape[0]
+        # self.loss += mr**(-1.5)*torch.max(abs(reg_loss))
+
+
         return self.loss, self.loss_normalized
