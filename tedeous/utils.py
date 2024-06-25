@@ -235,6 +235,7 @@ def replace_none_by_zero(tuple_data):
         return new_tuple
     return tuple_data
 
+
 class PadTransform(Module):
     """Pad tensor to a fixed length with given padding value.
     
