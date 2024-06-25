@@ -1,0 +1,14 @@
+,grid_res,l2_loss,l2_op_loss,l2_norm,error_bound,type
+0,2,[7.532641e-12],"tensor(3.3884e-12, device='cuda:0', grad_fn=<MeanBackward0>)",0.9048334,-1.9979692567062557e-08,Poisson
+1,5,[1.6109544e-10],"tensor(4.8927e-11, device='cuda:0', grad_fn=<MeanBackward0>)",0.0011741032,-1.6644786882125118e-08,Poisson
+2,8,[5.9189476e-10],"tensor(5.6406e-10, device='cuda:0', grad_fn=<MeanBackward0>)",0.00053349836,42.02973175048828,Poisson
+3,10,[1.1092318e-09],"tensor(1.0434e-09, device='cuda:0', grad_fn=<MeanBackward0>)",0.0005675391,167.0570526123047,Poisson
+4,40,[8.8057894e-10],"tensor(8.3112e-10, device='cuda:0', grad_fn=<MeanBackward0>)",0.0009064129,9.571019172668457,Poisson
+5,70,[7.669042e-10],"tensor(7.2774e-10, device='cuda:0', grad_fn=<MeanBackward0>)",0.00059976487,-6.0065357132543795e-09,Poisson
+6,100,[7.0016326e-10],"tensor(6.4968e-10, device='cuda:0', grad_fn=<MeanBackward0>)",0.00081911706,3.499872036627494e-07,Poisson
+7,400,[2.6878695e-09],"tensor(2.6750e-09, device='cuda:0', grad_fn=<MeanBackward0>)",0.0002934588,0.0001242553407792002,Poisson
+8,700,[2.7570457e-10],"tensor(2.1718e-10, device='cuda:0', grad_fn=<MeanBackward0>)",0.0005845067,1.695984428806696e-05,Poisson
+9,1000,[7.346557e-10],"tensor(7.1494e-10, device='cuda:0', grad_fn=<MeanBackward0>)",0.0005676064,2.21098744077608e-05,Poisson
+10,4000,[7.296208e-09],"tensor(7.2735e-09, device='cuda:0', grad_fn=<MeanBackward0>)",0.00039598305,0.03556821495294571,Poisson
+11,7000,[7.5657985e-10],"tensor(7.5294e-10, device='cuda:0', grad_fn=<MeanBackward0>)",0.0001262687,0.004203049931675196,Poisson
+12,10000,[2.1488195e-10],"tensor(2.0311e-10, device='cuda:0', grad_fn=<MeanBackward0>)",0.00038108035,3.6652445793151855,Poisson
