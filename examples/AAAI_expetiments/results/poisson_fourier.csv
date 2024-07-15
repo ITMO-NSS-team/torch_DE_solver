@@ -1,0 +1,14 @@
+,grid_res,l2_loss,l2_norm,type
+0,2,[1.5161977e-10],70.71297,Poisson_Fourier_layers
+1,5,[7.5015424e-07],481.05997,Poisson_Fourier_layers
+2,8,[7.911277e-10],70.70748,Poisson_Fourier_layers
+3,10,[0.03898031],201.4773,Poisson_Fourier_layers
+4,40,[1.4867708e-06],0.06872125,Poisson_Fourier_layers
+5,70,[4.8348185e-05],0.0030187406,Poisson_Fourier_layers
+6,100,[4.144755e-05],0.004978143,Poisson_Fourier_layers
+7,400,[2.2489761e-05],0.0028023925,Poisson_Fourier_layers
+8,700,[9.201962e-05],0.00551295,Poisson_Fourier_layers
+9,1000,[4.8488266e-05],0.0072874613,Poisson_Fourier_layers
+10,4000,[4.1005558e-05],0.0061858105,Poisson_Fourier_layers
+11,7000,[6.944651e-05],0.0066503542,Poisson_Fourier_layers
+12,10000,[6.265571e-05],0.010681829,Poisson_Fourier_layers
