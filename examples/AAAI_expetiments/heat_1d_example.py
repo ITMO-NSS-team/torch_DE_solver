@@ -26,45 +26,17 @@ import pandas as pd
 
 solver_device('cuda')
 
-a = 4
+mu = 1 / 4
 
-def u(x):
-  return torch.sin(torch.pi * a * x)
+def u(grid):
+  return torch.exp(-torch.pi**2*grid[:,1]*mu)*torch.sin(torch.pi*grid[:,0])
 
-def u_x(x):
-   return (torch.pi * a) * torch.cos(torch.pi * a * x)
-
-def u_xx(x):
-  return -(torch.pi * a) ** 2 * torch.sin(torch.pi * a * x)
 
 def u_net(net, x):
     net = net.to('cpu')
     x = x.to('cpu')
     return net(x).detach()
 
-def u_net_x(net, x):
-    x = x.to('cpu')
-    net = net.to('cpu')
-    x.requires_grad_()
-    u = net(x)
-    u_x = torch.autograd.grad(sum(u), x)[0]
-    return u_x.detach()
-
-def u_net_xx(net, x):
-    x = x.to('cpu')
-    net = net.to('cpu')
-    x.requires_grad_()
-    u = net(x)
-    u_x = torch.autograd.grad(sum(u), x, create_graph=True)[0]
-    u_xx = torch.autograd.grad(sum(u_x), x)[0]
-    return u_xx.detach()
-
-def c2_norm(net, x):
-    norms = [(u, u_net), (u_x, u_net_x), (u_xx, u_net_xx)]
-    norm = 0
-    for exact, predict in norms:
-        norm += torch.max(abs(exact(x).cpu().reshape(-1) - predict(net, x).cpu().reshape(-1)))
-    return norm.detach().cpu().numpy()
 
 def l2_norm(net, x):
     x = x.to('cpu')
@@ -92,52 +64,53 @@ def l2_norm_fourier(net, x):
 
 
 
-def poisson1d_problem_formulation(grid_res):
-    x0 = 0
-    xmax = 1
-
+def heat1d_problem_formulation(grid_res):
+    
     domain = Domain()
-
-    domain.variable('x', [x0, xmax], grid_res, dtype='float32')
+    domain.variable('x', [0, 1], grid_res, dtype='float64')
+    domain.variable('t', [0, 1], grid_res, dtype='float64')
 
     boundaries = Conditions()
+    x = domain.variable_dict['x']
+    boundaries.dirichlet({'x': [0, 1], 't': 0}, value=torch.sin(np.pi * x))
 
-    boundaries.dirichlet({'x': x0}, value=u)
-    boundaries.dirichlet({'x': xmax}, value=u)
+    boundaries.dirichlet({'x': 0., 't': [0, 1]}, value=0)
 
-    grid = domain.variable_dict['x'].reshape(-1,1)
-
-    # equation: d2u/dx2 = -16*pi^2*sin(4*pi*x)
+    boundaries.dirichlet({'x': 1., 't': [0, 1]}, value=0)
 
     equation = Equation()
 
-    poisson = {
-        '-d2u/dx2':
+    heat_eq = {
+        'du/dt**1':
             {
-            'coeff': -1,
-            'term': [0, 0],
-            'pow': 1,
+                'coeff': 1.,
+                'du/dt': [1],
+                'pow': 1,
+                'var': 0
             },
-
-        'f(x)':
+        '-mu*d2u/dx2':
             {
-            'coeff': u_xx(grid),
-            'term': [None],
-            'pow': 0,
+                'coeff': -mu,
+                'd2u/dx2': [0, 0],
+                'pow': 1,
+                'var': 0
             }
     }
 
-    equation.add(poisson)
+    equation.add(heat_eq)
+
+    grid = domain.build('autograd')
+
     return grid,domain,equation,boundaries
 
 
 
 
-def experiment_data_amount_poisson_1d_PINN(grid_res,exp_name='poisson1d_PINN',save_plot=True):
+def experiment_data_amount_heat_1d_PINN(grid_res,exp_name='poisson1d_PINN',save_plot=True):
     solver_device('cuda')
     exp_dict_list = []
 
-    grid,domain,equation,boundaries = poisson1d_problem_formulation(grid_res)
+    grid,domain,equation,boundaries = heat1d_problem_formulation(grid_res)
 
     net = torch.nn.Sequential(
             torch.nn.Linear(1, 50),
@@ -708,7 +681,7 @@ def grid_line_search_factory(loss, steps):
 def experiment_data_amount_poisson_1d_NGD(grid_res,NGD_info_string=True,exp_name='poisson1d_NGD',save_plot=True):
     solver_device('cuda')
     exp_dict_list = []
-    
+    start = time.time()
     l_op = 1
     l_bound = 1
 
@@ -764,9 +737,6 @@ def experiment_data_amount_poisson_1d_NGD(grid_res,NGD_info_string=True,exp_name
     ls_update = grid_line_search_factory(model.solution_cls.evaluate, steps)
 
     loss, _ = model.solution_cls.evaluate()
-
-    start = time.time()
-
     iteration=0
     #for iteration in range(100):
     while loss.item()>1e-7:
@@ -900,8 +870,6 @@ if __name__ == '__main__':
     df = pd.DataFrame(exp_dict_list_flatten)
     df.to_csv('examples\\AAAI_expetiments\\results\\poisson_PINN.csv')
 
-    plt.close()
-
     exp_dict_list=[]
 
 
@@ -915,9 +883,6 @@ if __name__ == '__main__':
     df = pd.DataFrame(exp_dict_list_flatten)
     df.to_csv('examples\\AAAI_expetiments\\results\\poisson_PSO.csv')
 
-
-    plt.close()
-
     exp_dict_list=[]
 
     for N in grid_n:
@@ -930,9 +895,6 @@ if __name__ == '__main__':
     df = pd.DataFrame(exp_dict_list_flatten)
     df.to_csv('examples\\AAAI_expetiments\\results\\poisson_mat.csv')
 
-
-    plt.close()
-
     exp_dict_list=[]
 
     for N in grid_n:
@@ -943,9 +905,6 @@ if __name__ == '__main__':
     exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
     df = pd.DataFrame(exp_dict_list_flatten)
     df.to_csv('examples\\AAAI_expetiments\\results\\poisson_lam.csv')
-
-    plt.close()
-
 
     exp_dict_list=[]
 
@@ -958,9 +917,6 @@ if __name__ == '__main__':
     exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
     df = pd.DataFrame(exp_dict_list_flatten)
     df.to_csv('examples\\AAAI_expetiments\\results\\poisson_fourier.csv')
-
-
-    plt.close()
 
     exp_dict_list=[]
 
