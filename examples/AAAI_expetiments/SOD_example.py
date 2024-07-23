@@ -441,6 +441,7 @@ def experiment_data_amount_SOD_PSO(grid_res,exp_name='SOD_PSO',save_plot=True):
                                         no_improvement_patience=100,
                                         patience=2,
                                         randomize_parameter=1e-5,
+                                        info_string_every=1,
                                         verbose=True)
 
     optim = Optimizer('PSO', {'pop_size': 50, #30

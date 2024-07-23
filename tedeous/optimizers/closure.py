@@ -74,7 +74,7 @@ class Closure():
 
             if self.optimizer.use_grad:
                 grads = self.optimizer.gradient(loss)
-                grads = torch.where(grads == float('nan'), torch.zeros_like(grads), grads)
+                grads = torch.where(grads != grads, torch.zeros_like(grads), grads)
             else:
                 grads = torch.tensor([0.])
 
@@ -89,6 +89,7 @@ class Closure():
             grads_swarm.append(grads.reshape(1, -1))
 
         losses = torch.stack(loss_swarm).reshape(-1)
+
         gradients = torch.vstack(grads_swarm)
 
         self.model.cur_loss = min(loss_swarm)
