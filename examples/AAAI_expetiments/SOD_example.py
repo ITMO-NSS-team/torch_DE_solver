@@ -1,4 +1,3 @@
-
 import torch
 import os
 import sys
@@ -27,32 +26,99 @@ import pandas as pd
 
 solver_device('cuda')
 
-mu = 0.01 / np.pi
+p_l = 1
+v_l = 0
+Ro_l = 1
+gam_l = 1.4
 
+p_r = 0.1
+v_r = 0
+Ro_r = 0.125
+gam_r = 1.4
 
+x0 = 0.5
+h = 0.05
+
+def exact(point):
+    N = 100
+    Pl = 1
+    Pr = 0.1
+    Rg = 519.4
+    Gl = 1.4
+    Gr = 1.4
+    Tl = 273
+    Tr = 248
+    Rol = 1
+    Ror = 0.125
+
+    Cr = (Gr * Pr / Ror) ** (1 / 2)
+    Cl = (Gl * Pl / Rol) ** (1 / 2)
+    vl = 0
+    vr = 0
+    t = float(point[-1])
+    x = float(point[0])
+    x0 = 0
+    x1 = 1
+    xk = 0.5
+
+    eps = 1e-5
+    Pc1 = Pl / 2
+    vc1 = 0.2
+    u = 1
+    while u >= eps:
+        Pc = Pc1
+        vc = vc1
+        f = vl + 2 / (Gl - 1) * Cl * (-(Pc / Pl) ** ((Gl - 1) / (2 * Gl)) + 1) - vc
+        g = vr + (Pc - Pr) / (Ror * Cr * ((Gr + 1) / (2 * Gr) * Pc / Pr + (Gr - 1) / (2 * Gr)) ** (1 / 2)) - vc
+        fp = -2 / (Gl - 1) * Cl * (1 / Pl) ** ((Gl - 1) / 2 / Gl) * (Gl - 1) / 2 / Gl * Pc ** ((Gl - 1) / (2 * Gl) - 1)
+        gp = (1 - (Pc - Pr) * (Gr + 1) / (4 * Gr * Pr * ((Gr + 1) / (2 * Gr) * Pc / Pr + (Gr - 1) / (2 * Gr)))) / (
+                Ror * Cr * ((Gr + 1) / (2 * Gr) * Pc / Pr + (Gr - 1) / (2 * Gr)) ** (1 / 2))
+        fu = -1
+        gu = -1
+        Pc1 = Pc - (fu * g - gu * f) / (fu * gp - gu * fp)
+        vc1 = vc - (f * gp - g * fp) / (fu - gp - gu * fp)
+        u1 = abs((Pc - Pc1) / Pc)
+        u2 = abs((vc - vc1) / vc)
+        u = max(u1, u2)
+
+    Pc = Pc1
+    vc = vc1
+
+    if x <= xk - Cl * t:
+        p = Pl
+        v = vl
+        T = Tl
+        Ro = Rol
+    Roc = Rol / (Pl / Pc) ** (1 / Gl)
+    if xk - Cl * t < x <= xk + (vc - (Gl * Pc / Roc) ** (1 / 2)) * t:
+        Ca = (vl + 2 * Cl / (Gl - 1) + (xk - x) / t) / (1 + 2 / (Gl - 1))
+        va = Ca - (xk - x) / t
+        p = Pl * (Ca / Cl) ** (2 * Gl / (Gl - 1))
+        v = va
+        Ro = Rol / (Pl / p) ** (1 / Gl)
+        T = p / Rg / Ro
+    if xk + (vc - (Gl * Pc / Roc) ** (1 / 2)) * t < x <= xk + vc * t:
+        p = Pc
+        Ro = Roc
+        v = vc
+        T = p / Rg / Ro
+    D = vr + Cr * ((Gr + 1) / (2 * Gr) * Pc / Pr + (Gr - 1) / (2 * Gr)) ** (1 / 2)
+    if xk + vc * t < x <= xk + D * t:
+        p = Pc
+        v = vc
+        Ro = Ror * ((Gr + 1) * Pc + (Gr - 1) * Pr) / ((Gr + 1) * Pr + (Gr - 1) * Pc)
+        T = p / Rg / Ro
+    if xk + D * t < x:
+        p = Pr
+        v = vr
+        Ro = Ror
+        T = p / Rg / Ro
+    return p, v, Ro
 
 def u(grid):
-    
-    def f(y):
-        return np.exp(-np.cos(np.pi * y) / (2 * np.pi * mu))
-
-    def integrand1(m, x, t):
-        return np.sin(np.pi * (x - m)) * f(x - m) * np.exp(-m ** 2 / (4 * mu * t))
-
-    def integrand2(m, x, t):
-        return f(x - m) * np.exp(-m ** 2 / (4 * mu * t))
-
-    def u(x, t):
-        if t == 0:
-            return -np.sin(np.pi * x)
-        else:
-            return -quad(integrand1, -np.inf, np.inf, args=(x, t))[0] / quad(integrand2, -np.inf, np.inf, args=(x, t))[
-                0]
-
     solution = []
     for point in grid:
-        solution.append(u(point[0].item(), point[1].item()))
-
+        solution.append(exact(point))
     return torch.tensor(solution)
 
 
@@ -67,8 +133,13 @@ def l2_norm(net, x):
     net = net.to('cpu')
     predict = net(x).detach().cpu().reshape(-1)
     exact = u(x).detach().cpu().reshape(-1)
-    l2_norm = torch.sqrt(sum((predict-exact)**2))
-    return l2_norm.detach().cpu().numpy()
+
+
+    l2_norm_pressure = torch.sqrt(sum((predict[:, 0]-exact[:, 0])**2))
+    l2_norm_velocity = torch.sqrt(sum((predict[:, 1]-exact[:, 1])**2))
+    l2_norm_density = torch.sqrt(sum((predict[:, 2]-exact[:, 2])**2))
+
+    return l2_norm_pressure.detach().cpu().numpy(),l2_norm_velocity.detach().cpu().numpy(),l2_norm_density.detach().cpu().numpy()
 
 def l2_norm_mat(net, x):
     x = x.to('cpu')
@@ -88,47 +159,136 @@ def l2_norm_fourier(net, x):
 
 
 
-def burgers1d_problem_formulation(grid_res):
+def SOD_problem_formulation(grid_res):
     
     domain = Domain()
-    domain.variable('x', [-1, 1], grid_res)
-    domain.variable('t', [0, 1], grid_res)
+    domain.variable('x', [0, 1], grid_res)
+    domain.variable('t', [0, 0.2], grid_res)
+
+    ## BOUNDARY AND INITIAL CONDITIONS
+    # p:0, v:1, Ro:2
+
+    def u0(x, x0):
+        if x > x0:
+            return [p_r, v_r, Ro_r]
+        else:
+            return [p_l, v_l, Ro_l]
 
     boundaries = Conditions()
+
+    # Initial conditions at t=0
     x = domain.variable_dict['x']
-    boundaries.dirichlet({'x': [-1, 1], 't': 0}, value=-torch.sin(np.pi * x))
 
-    boundaries.dirichlet({'x': -1, 't': [0, 1]}, value=0)
+    u_init0 = np.zeros(x.shape[0])
+    u_init1 = np.zeros(x.shape[0])
+    u_init2 = np.zeros(x.shape[0])
+    j=0
+    for i in x:
+      u_init0[j] = u0(i, x0)[0]
+      u_init1[j] = u0(i, x0)[1]
+      u_init2[j] = u0(i, x0)[2]
+      j +=1
 
-    boundaries.dirichlet({'x': 1, 't': [0, 1]}, value=0)
+    bndval1_0 = torch.from_numpy(u_init0)
+    bndval1_1 = torch.from_numpy(u_init1)
+    bndval1_2 = torch.from_numpy(u_init2)
+
+    boundaries.dirichlet({'x': [0, 1], 't': 0}, value=bndval1_0, var=0)
+    boundaries.dirichlet({'x': [0, 1], 't': 0}, value=bndval1_1, var=1)
+    boundaries.dirichlet({'x': [0, 1], 't': 0}, value=bndval1_2, var=2)
+
+    #  Boundary conditions at x=0
+    boundaries.dirichlet({'x': 0, 't': [0, 0.2]}, value=p_l, var=0)
+    boundaries.dirichlet({'x': 0, 't': [0, 0.2]}, value=v_l, var=1)
+    boundaries.dirichlet({'x': 0, 't': [0, 0.2]}, value=Ro_l, var=2)
+
+    # Boundary conditions at x=1
+    boundaries.dirichlet({'x': 1, 't': [0, 0.2]}, value=p_r, var=0)
+    boundaries.dirichlet({'x': 1, 't': [0, 0.2]}, value=v_r, var=1)
+    boundaries.dirichlet({'x': 1, 't': [0, 0.2]}, value=Ro_r, var=2)
+
+    '''
+    gas dynamic system equations:
+    Eiler's equations system for Sod test in shock tube
+
+    '''
 
     equation = Equation()
 
-    burgers_eq = {
-        'du/dt**1':
-            {
-                'coeff': 1.,
-                'du/dt': [1],
-                'pow': 1,
-                'var': 0
-            },
-        '+u*du/dx':
+    gas_eq1={
+            'dro/dt':
             {
                 'coeff': 1,
-                'u*du/dx': [[None], [0]],
-                'pow': [1, 1],
-                'var': [0, 0]
+                'term': [1],
+                'pow': 1,
+                'var': 2
             },
-        '-mu*d2u/dx2':
+            'v*dro/dx':
             {
-                'coeff': -mu,
-                'd2u/dx2': [0, 0],
+                'coeff': 1,
+                'term': [[None], [0]],
+                'pow': [1, 1],
+                'var': [1, 2]
+            },
+            'ro*dv/dx':
+            {
+                'coeff': 1,
+                'term': [[None], [0]],
+                'pow': [1, 1],
+                'var': [2, 1]
+            }
+         }
+    gas_eq2 = {
+            'ro*dv/dt':
+            {
+                'coeff': 1,
+                'term': [[None], [1]],
+                'pow': [1, 1],
+                'var': [2, 1]
+            },
+            'ro*v*dv/dx':
+            {
+                'coeff': 1,
+                'term': [[None],[None], [0]],
+                'pow': [1, 1, 1],
+                'var': [2, 1, 1]
+            },
+            'dp/dx':
+            {
+                'coeff': 1,
+                'term': [0],
                 'pow': 1,
                 'var': 0
             }
-    }
+         }
+    gas_eq3 =  {
+            'dp/dt':
+            {
+                'coeff': 1,
+                'term': [1],
+                'pow': 1,
+                'var': 0
+            },
+            'gam*p*dv/dx':
+            {
+                'coeff': gam_l,
+                'term': [[None], [0]],
+                'pow': [1, 1],
+                'var': [0, 1]
+            },
+            'v*dp/dx':
+            {
+                'coeff': 1,
+                'term': [[None], [0]],
+                'pow': [1, 1],
+                'var': [1, 0]
+            }
 
-    equation.add(burgers_eq)
+         }
+
+    equation.add(gas_eq1)
+    equation.add(gas_eq2)
+    equation.add(gas_eq3)
 
     grid = domain.build('autograd')
 
@@ -137,70 +297,71 @@ def burgers1d_problem_formulation(grid_res):
 
 
 
-def experiment_data_amount_burgers_1d_PINN(grid_res,exp_name='burgers1d_PINN',save_plot=True):
+def experiment_data_amount_SOD_PINN(grid_res,exp_name='SOD_PINN',save_plot=True):
     solver_device('cuda')
     exp_dict_list = []
 
-    grid,domain,equation,boundaries = burgers1d_problem_formulation(grid_res)
+    grid,domain,equation,boundaries = SOD_problem_formulation(grid_res)
 
     net = torch.nn.Sequential(
-        torch.nn.Linear(2, 32),
-        torch.nn.Tanh(),
-        torch.nn.Linear(32, 32),
-        torch.nn.Tanh(),
-        torch.nn.Linear(32, 1)
+    torch.nn.Linear(2, 64),
+    torch.nn.Tanh(),
+    torch.nn.Linear(64, 256),
+    torch.nn.Tanh(),
+    torch.nn.Linear(256, 256),
+    torch.nn.Tanh(),
+    torch.nn.Linear(256, 3)
     )
 
     model = Model(net, domain, equation, boundaries)
 
-    model.compile('autograd', lambda_operator=1/2, lambda_bound=1/2)
+    model.compile("autograd", lambda_operator=1, lambda_bound=100)
 
     cb_es = early_stopping.EarlyStopping(eps=1e-6,
-                                        loss_window=100,
-                                        no_improvement_patience=100,
-                                        patience=2,
-                                        randomize_parameter=1e-5,
-                                        verbose=False)
+                                    loss_window=100,
+                                    no_improvement_patience=500,
+                                    patience=5,
+                                    randomize_parameter=1e-6)
 
     optim = Optimizer('Adam', {'lr': 1e-3})
 
     start=time.time()
-    model.train(optim, 2e5, callbacks=[cb_es])
+    model.train(optim, 1e5, callbacks=[cb_es])
     end = time.time()
 
     run_time = end - start
 
     grid = domain.build('autograd')
 
-    grid_test = torch.cartesian_prod(torch.linspace(0, 1, 100), torch.linspace(0, 1, 100))
+    grid_test = torch.cartesian_prod(torch.linspace(0, 1, 100), torch.linspace(0, 0.2, 100))
 
-    u_exact_train = u(grid).reshape(-1)
+    u_exact_train = u(grid)
 
-    u_exact_test = u(grid_test).reshape(-1)
+    u_exact_test = u(grid_test)
 
-    error_train = torch.sqrt(torch.mean((u_exact_train - net(grid).reshape(-1)) ** 2))
+    error_train = torch.sqrt(torch.mean((u_exact_train - net(grid))** 2, dim=0))
 
-    error_test = torch.sqrt(torch.mean((u_exact_test - net(grid_test).reshape(-1)) ** 2))
+    error_test = torch.sqrt(torch.mean((u_exact_test - net(grid_test)) ** 2 , dim=0))
 
     loss = model.solution_cls.evaluate()[0].detach().cpu().numpy()
 
-    lu_f = model.solution_cls.operator.operator_compute()
-
-    lu_f, gr = integration(lu_f, grid)
-
-    lu_f, _ = integration(lu_f, gr)
 
 
     exp_dict={'grid_res': grid_res,
-                          'error_train': error_train.item(),
-                          'error_test': error_test.item(),
+                          'error_train_pressure': error_train[0].item(),
+                          'error_train_velocity': error_train[1].item(),
+                          'error_train_density': error_train[2].item(),
+                          'error_test_pressure': error_test[0].item(),
+                          'error_test_velocity': error_test[1].item(),
+                          'error_test_density': error_test[2].item(),
                           'loss': loss.item(),
-                          "lu_f_adam": lu_f.item(),
                           'time_adam': run_time,
                           'type': exp_name}
 
     print('Time taken {}= {}'.format(grid_res, end - start))
-    print('RMSE {}= {}'.format(grid_res, error_test))
+    print('RMSE p {}= {}'.format(grid_res, error_test[0]))
+    print('RMSE v {}= {}'.format(grid_res, error_test[1]))
+    print('RMSE ro {}= {}'.format(grid_res, error_test[2]))
 
     exp_dict_list.append(exp_dict)
 
@@ -218,58 +379,60 @@ def experiment_data_amount_burgers_1d_PINN(grid_res,exp_name='burgers1d_PINN',sa
     return exp_dict_list
 
 
-def experiment_data_amount_burgers_1d_PSO(grid_res,exp_name='burgers1d_PSO',save_plot=True):
+def experiment_data_amount_SOD_PSO(grid_res,exp_name='SOD_PSO',save_plot=True):
     solver_device('cuda')
     exp_dict_list = []
 
-    grid,domain,equation,boundaries = burgers1d_problem_formulation(grid_res)
+    grid,domain,equation,boundaries = SOD_problem_formulation(grid_res)
 
     net = torch.nn.Sequential(
-        torch.nn.Linear(2, 32),
-        torch.nn.Tanh(),
-        torch.nn.Linear(32, 32),
-        torch.nn.Tanh(),
-        torch.nn.Linear(32, 1)
+    torch.nn.Linear(2, 64),
+    torch.nn.Tanh(),
+    torch.nn.Linear(64, 256),
+    torch.nn.Tanh(),
+    torch.nn.Linear(256, 256),
+    torch.nn.Tanh(),
+    torch.nn.Linear(256, 3)
     )
 
     model = Model(net, domain, equation, boundaries)
 
-    model.compile('autograd', lambda_operator=1/2, lambda_bound=1/2)
+    model.compile("autograd", lambda_operator=1, lambda_bound=100)
 
     cb_es = early_stopping.EarlyStopping(eps=1e-6,
-                                        loss_window=100,
-                                        no_improvement_patience=100,
-                                        patience=2,
-                                        randomize_parameter=1e-5,
-                                        verbose=False)
+                                    loss_window=100,
+                                    no_improvement_patience=500,
+                                    patience=5,
+                                    randomize_parameter=1e-6)
 
     optim = Optimizer('Adam', {'lr': 1e-3})
 
     start=time.time()
-    model.train(optim, 2e5, callbacks=[cb_es])
+    model.train(optim, 1e5, callbacks=[cb_es])
     end = time.time()
 
-    time_adam = end - start
+    run_time_adam = end - start
 
     grid = domain.build('autograd')
 
-    grid_test = torch.cartesian_prod(torch.linspace(0, 1, 100), torch.linspace(0, 1, 100))
+    grid_test = torch.cartesian_prod(torch.linspace(0, 1, 100), torch.linspace(0, 0.2, 100))
 
-    u_exact_train = u(grid).reshape(-1)
+    u_exact_train = u(grid)
 
-    u_exact_test = u(grid_test).reshape(-1)
+    u_exact_test = u(grid_test)
 
-    error_adam_train = torch.sqrt(torch.mean((u_exact_train - net(grid).reshape(-1)) ** 2))
+    error_train_adam = torch.sqrt(torch.mean((u_exact_train - net(grid))** 2, dim=0))
 
-    error_adam_test = torch.sqrt(torch.mean((u_exact_test - net(grid_test).reshape(-1)) ** 2))
+    error_test_adam = torch.sqrt(torch.mean((u_exact_test - net(grid_test)) ** 2 , dim=0))
 
     loss_adam = model.solution_cls.evaluate()[0].detach().cpu().numpy()
 
-    lu_f = model.solution_cls.operator.operator_compute()
 
-    lu_f, gr = integration(lu_f, grid)
+    print('Time taken adam {}= {}'.format(grid_res, run_time_adam))
+    print('RMSE p {}= {}'.format(grid_res, error_test_adam[0]))
+    print('RMSE v {}= {}'.format(grid_res, error_test_adam[1]))
+    print('RMSE ro {}= {}'.format(grid_res, error_test_adam[2]))
 
-    lu_f_adam, _ = integration(lu_f, gr)
 
     ########
 
@@ -278,7 +441,7 @@ def experiment_data_amount_burgers_1d_PSO(grid_res,exp_name='burgers1d_PSO',save
                                         no_improvement_patience=100,
                                         patience=2,
                                         randomize_parameter=1e-5,
-                                        verbose=False)
+                                        verbose=True)
 
     optim = Optimizer('PSO', {'pop_size': 50, #30
                                   'b': 0.4, #0.5
@@ -289,42 +452,42 @@ def experiment_data_amount_burgers_1d_PSO(grid_res,exp_name='burgers1d_PSO',save
     start = time.time()
     model.train(optim, 2e4, save_model=False, callbacks=[cb_es])
     end = time.time()
-    time_pso = end - start
 
-    error_pso_train = torch.sqrt(torch.mean((u_exact_train - net(grid).reshape(-1)) ** 2))
+    run_time_pso=end-start
 
-    error_pso_test = torch.sqrt(torch.mean((u_exact_test - net(grid_test).reshape(-1)) ** 2))
+    error_train_pso = torch.sqrt(torch.mean((u_exact_train - net(grid))** 2, dim=0))
+
+    error_test_pso = torch.sqrt(torch.mean((u_exact_test - net(grid_test)) ** 2 , dim=0))
 
     loss_pso = model.solution_cls.evaluate()[0].detach().cpu().numpy()
-
-    lu_f = model.solution_cls.operator.operator_compute()
-
-    grid = domain.build('autograd')
-
-    lu_f, gr = integration(lu_f, grid)
-
-    lu_f_pso, _ = integration(lu_f, gr)
 
     #########
 
     
 
     exp_dict={'grid_res': grid_res,
-                          'error_adam_train': error_adam_train.item(),
-                          'error_adam_test': error_adam_test.item(),
-                          'error_PSO_train': error_pso_train.item(),
-                          'error_PSO_test': error_pso_test.item(),
-                          'loss_adam': loss_adam.item(),
-                          'loss_pso': loss_pso.item(),
-                          "lu_f_adam": lu_f_adam.item(),
-                          "lu_f_pso": lu_f_pso.item(),
-                          'time_adam': time_adam,
-                          'time_pso': time_pso,
-                          'type': exp_name}
+                        'error_train_pressure_adam': error_train_adam[0].item(),
+                        'error_train_velocity_adam': error_train_adam[1].item(),
+                        'error_train_density_adam': error_train_adam[2].item(),
+                        'error_test_pressure_adam': error_train_adam[0].item(),
+                        'error_test_velocity_adam': error_train_adam[1].item(),
+                        'error_test_density_adam': error_train_adam[2].item(),
+                        'error_train_pressure_pso': error_train_pso[0].item(),
+                        'error_train_velocity_pso': error_train_pso[1].item(),
+                        'error_train_density_pso': error_train_pso[2].item(),
+                        'error_test_pressure_pso': error_train_pso[0].item(),
+                        'error_test_velocity_pso': error_train_pso[1].item(),
+                        'error_test_density_pso': error_train_pso[2].item(),
+                        'loss_adam': loss_adam.item(),
+                        'loss_pso': loss_pso.item(),
+                        'time_adam': run_time_adam,
+                        'time_pso': run_time_pso,
+                        'type': exp_name}
 
-    print('Time taken {}= {}'.format(grid_res, end - start))
-    print('RMSE_adam {}= {}'.format(grid_res, error_adam_test))
-    print('RMSE_pso {}= {}'.format(grid_res, error_pso_test))
+    print('Time taken pso {}= {}'.format(grid_res, run_time_pso))
+    print('RMSE p {}= {}'.format(grid_res, error_test_pso[0]))
+    print('RMSE v {}= {}'.format(grid_res, error_test_pso[1]))
+    print('RMSE ro {}= {}'.format(grid_res, error_test_pso[2]))
 
     exp_dict_list.append(exp_dict)
 
@@ -333,12 +496,12 @@ def experiment_data_amount_burgers_1d_PSO(grid_res,exp_name='burgers1d_PSO',save
 
 
 
-def experiment_data_amount_burgers_1d_lam(grid_res,exp_name='burgers1d_lam',save_plot=True):
+def experiment_data_amount_kdv_lam(grid_res,exp_name='kdv_lam',save_plot=True):
 
     solver_device('cuda')
     exp_dict_list = []
 
-    grid,domain,equation,boundaries = burgers1d_problem_formulation(grid_res)
+    grid,domain,equation,boundaries = kdv_problem_formulation(grid_res)
 
     net = torch.nn.Sequential(
         torch.nn.Linear(2, 32),
@@ -350,14 +513,13 @@ def experiment_data_amount_burgers_1d_lam(grid_res,exp_name='burgers1d_lam',save
 
     model = Model(net, domain, equation, boundaries)
 
-    model.compile('autograd', lambda_operator=1/2, lambda_bound=1/2)
+    model.compile('autograd', lambda_operator=1, lambda_bound=100)
 
     cb_es = early_stopping.EarlyStopping(eps=1e-6,
                                         loss_window=100,
-                                        no_improvement_patience=100,
-                                        patience=2,
-                                        randomize_parameter=1e-5,
-                                        verbose=False)
+                                        no_improvement_patience=1000,
+                                        patience=5,
+                                        randomize_parameter=1e-6)
 
     cb_lam = adaptive_lambda.AdaptiveLambda()
 
@@ -408,11 +570,11 @@ def experiment_data_amount_burgers_1d_lam(grid_res,exp_name='burgers1d_lam',save
 
 
 
-def experiment_data_amount_burgers_1d_fourier(grid_res,exp_name='burgers1d_fourier',save_plot=True):
+def experiment_data_amount_kdv_fourier(grid_res,exp_name='kdv_fourier',save_plot=True):
     solver_device('cuda')
     exp_dict_list = []
 
-    grid,domain,equation,boundaries = burgers1d_problem_formulation(grid_res)
+    grid,domain,equation,boundaries = kdv_problem_formulation(grid_res)
 
     FFL = Fourier_embedding(L=[2,2], M=[1,1])
 
@@ -430,14 +592,13 @@ def experiment_data_amount_burgers_1d_fourier(grid_res,exp_name='burgers1d_fouri
 
     model = Model(net, domain, equation, boundaries)
 
-    model.compile('autograd', lambda_operator=1/2, lambda_bound=1/2)
+    model.compile('autograd', lambda_operator=1, lambda_bound=100)
 
     cb_es = early_stopping.EarlyStopping(eps=1e-6,
                                         loss_window=100,
-                                        no_improvement_patience=100,
-                                        patience=2,
-                                        randomize_parameter=1e-5,
-                                        verbose=False)
+                                        no_improvement_patience=1000,
+                                        patience=5,
+                                        randomize_parameter=1e-6)
 
     optim = Optimizer('Adam', {'lr': 1e-3})
 
@@ -538,17 +699,17 @@ def grid_line_search_factory(loss, steps):
     return grid_line_search_update
 
 
-def experiment_data_amount_burgers_1d_NGD(grid_res,NGD_info_string=True,exp_name='burgers1d_NGD',save_plot=True):
+def experiment_data_amount_kdv_NGD(grid_res,NGD_info_string=True,exp_name='burgers1d_NGD',save_plot=True):
 
     exp_dict_list = []
 
     
     l_op = 1
-    l_bound = 1
+    l_bound = 100
     grid_steps = torch.linspace(0, 30, 31)
     steps = 0.5**grid_steps
 
-    grid,domain,equation,boundaries = burgers1d_problem_formulation(grid_res)
+    grid,domain,equation,boundaries = kdv_problem_formulation(grid_res)
     
     net = torch.nn.Sequential(
         torch.nn.Linear(2, 32),
@@ -680,58 +841,58 @@ if __name__ == '__main__':
 
     #for grid_res in range(10, 101, 10):
     #    for _ in range(nruns):
-    #        exp_dict_list.append(experiment_data_amount_poisson_1d_PINN(N))
+    #        exp_dict_list.append(experiment_data_amount_SOD_PINN(grid_res))
 
     
 
     #exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
     #df = pd.DataFrame(exp_dict_list_flatten)
-    #df.to_csv('examples\\AAAI_expetiments\\results\\burgers_PINN.csv')
+    #df.to_csv('examples\\AAAI_expetiments\\results\\SOD_PINN.csv')
 
     #exp_dict_list=[]
 
 
+    for grid_res in range(10, 101, 10):
+        for _ in range(nruns):
+            exp_dict_list.append(experiment_data_amount_SOD_PSO(grid_res))
+
+    
+
+    exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+    df = pd.DataFrame(exp_dict_list_flatten)
+    df.to_csv('examples\\AAAI_expetiments\\results\\SOD_PSO.csv')
+
+
+    #exp_dict_list=[]
+
     #for grid_res in range(10, 101, 10):
     #    for _ in range(nruns):
-    #        exp_dict_list.append(experiment_data_amount_burgers_1d_PSO(grid_res))
+    #        exp_dict_list.append(experiment_data_amount_kdv_lam(grid_res))
+
+
+    #exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+    #df = pd.DataFrame(exp_dict_list_flatten)
+    #df.to_csv('examples\\AAAI_expetiments\\results\\kdv_lam.csv')
+
+    #exp_dict_list=[]
+
+    #for grid_res in range(10, 101, 10):
+    #    for _ in range(nruns):
+    #        exp_dict_list.append(experiment_data_amount_kdv_fourier(grid_res))
 
     
 
     #exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
     #df = pd.DataFrame(exp_dict_list_flatten)
-    #df.to_csv('examples\\AAAI_expetiments\\results\\burgers_PSO.csv')
+    #df.to_csv('examples\\AAAI_expetiments\\results\\kdv_fourier.csv')
 
+    #exp_dict_list=[]
 
-    exp_dict_list=[]
-
-    for grid_res in range(10, 101, 10):
-        for _ in range(nruns):
-            exp_dict_list.append(experiment_data_amount_burgers_1d_lam(grid_res))
-
-
-    exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-    df = pd.DataFrame(exp_dict_list_flatten)
-    df.to_csv('examples\\AAAI_expetiments\\results\\burgers_lam.csv')
-
-    exp_dict_list=[]
-
-    for grid_res in range(10, 101, 10):
-        for _ in range(nruns):
-            exp_dict_list.append(experiment_data_amount_burgers_1d_fourier(grid_res))
-
-    
-
-    exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-    df = pd.DataFrame(exp_dict_list_flatten)
-    df.to_csv('examples\\AAAI_expetiments\\results\\burgers_fourier.csv')
-
-    exp_dict_list=[]
-
-    for grid_res in range(10, 101, 10):
-        for _ in range(nruns):
-            exp_dict_list.append(experiment_data_amount_burgers_1d_NGD(grid_res,NGD_info_string=True))
+    #for grid_res in range(10, 101, 10):
+    #    for _ in range(nruns):
+    #        exp_dict_list.append(experiment_data_amount_kdv_NGD(grid_res,NGD_info_string=True))
 
   
-    exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-    df = pd.DataFrame(exp_dict_list_flatten)
-    df.to_csv('examples\\AAAI_expetiments\\results\\burgers_NGD.csv')
+    #exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+    #df = pd.DataFrame(exp_dict_list_flatten)
+    #df.to_csv('examples\\AAAI_expetiments\\results\\kdv_NGD.csv')

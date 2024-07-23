@@ -330,12 +330,12 @@ def experiment_data_amount_kdv_PSO(grid_res,exp_name='kdv_PSO',save_plot=True):
 
 
 
-def experiment_data_amount_burgers_1d_lam(grid_res,exp_name='burgers1d_lam',save_plot=True):
+def experiment_data_amount_kdv_lam(grid_res,exp_name='kdv_lam',save_plot=True):
 
     solver_device('cuda')
     exp_dict_list = []
 
-    grid,domain,equation,boundaries = burgers1d_problem_formulation(grid_res)
+    grid,domain,equation,boundaries = kdv_problem_formulation(grid_res)
 
     net = torch.nn.Sequential(
         torch.nn.Linear(2, 32),
@@ -347,14 +347,13 @@ def experiment_data_amount_burgers_1d_lam(grid_res,exp_name='burgers1d_lam',save
 
     model = Model(net, domain, equation, boundaries)
 
-    model.compile('autograd', lambda_operator=1/2, lambda_bound=1/2)
+    model.compile('autograd', lambda_operator=1, lambda_bound=100)
 
     cb_es = early_stopping.EarlyStopping(eps=1e-6,
                                         loss_window=100,
-                                        no_improvement_patience=100,
-                                        patience=2,
-                                        randomize_parameter=1e-5,
-                                        verbose=False)
+                                        no_improvement_patience=1000,
+                                        patience=5,
+                                        randomize_parameter=1e-6)
 
     cb_lam = adaptive_lambda.AdaptiveLambda()
 
@@ -405,11 +404,11 @@ def experiment_data_amount_burgers_1d_lam(grid_res,exp_name='burgers1d_lam',save
 
 
 
-def experiment_data_amount_burgers_1d_fourier(grid_res,exp_name='burgers1d_fourier',save_plot=True):
+def experiment_data_amount_kdv_fourier(grid_res,exp_name='kdv_fourier',save_plot=True):
     solver_device('cuda')
     exp_dict_list = []
 
-    grid,domain,equation,boundaries = burgers1d_problem_formulation(grid_res)
+    grid,domain,equation,boundaries = kdv_problem_formulation(grid_res)
 
     FFL = Fourier_embedding(L=[2,2], M=[1,1])
 
@@ -427,14 +426,13 @@ def experiment_data_amount_burgers_1d_fourier(grid_res,exp_name='burgers1d_fouri
 
     model = Model(net, domain, equation, boundaries)
 
-    model.compile('autograd', lambda_operator=1/2, lambda_bound=1/2)
+    model.compile('autograd', lambda_operator=1, lambda_bound=100)
 
     cb_es = early_stopping.EarlyStopping(eps=1e-6,
                                         loss_window=100,
-                                        no_improvement_patience=100,
-                                        patience=2,
-                                        randomize_parameter=1e-5,
-                                        verbose=False)
+                                        no_improvement_patience=1000,
+                                        patience=5,
+                                        randomize_parameter=1e-6)
 
     optim = Optimizer('Adam', {'lr': 1e-3})
 
@@ -535,17 +533,17 @@ def grid_line_search_factory(loss, steps):
     return grid_line_search_update
 
 
-def experiment_data_amount_burgers_1d_NGD(grid_res,NGD_info_string=True,exp_name='burgers1d_NGD',save_plot=True):
+def experiment_data_amount_kdv_NGD(grid_res,NGD_info_string=True,exp_name='burgers1d_NGD',save_plot=True):
 
     exp_dict_list = []
 
     
     l_op = 1
-    l_bound = 1
+    l_bound = 100
     grid_steps = torch.linspace(0, 30, 31)
     steps = 0.5**grid_steps
 
-    grid,domain,equation,boundaries = burgers1d_problem_formulation(grid_res)
+    grid,domain,equation,boundaries = kdv_problem_formulation(grid_res)
     
     net = torch.nn.Sequential(
         torch.nn.Linear(2, 32),
@@ -677,58 +675,58 @@ if __name__ == '__main__':
 
     #for grid_res in range(10, 101, 10):
     #    for _ in range(nruns):
-    #        exp_dict_list.append(experiment_data_amount_poisson_1d_PINN(N))
+    #        exp_dict_list.append(experiment_data_amount_kdv_PINN(N))
 
     
 
     #exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
     #df = pd.DataFrame(exp_dict_list_flatten)
-    #df.to_csv('examples\\AAAI_expetiments\\results\\burgers_PINN.csv')
+    #df.to_csv('examples\\AAAI_expetiments\\results\\kdv_PINN.csv')
+
+    #exp_dict_list=[]
+
+
+    #for grid_res in range(10, 101, 10):
+    #    for _ in range(nruns):
+    #        exp_dict_list.append(experiment_data_amount_kdv_PSO(grid_res))
+
+    
+
+    #exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+    #df = pd.DataFrame(exp_dict_list_flatten)
+    #df.to_csv('examples\\AAAI_expetiments\\results\\kdv_PSO.csv')
+
 
     exp_dict_list=[]
 
+    for grid_res in range(10, 101, 10):
+        for _ in range(nruns):
+            exp_dict_list.append(experiment_data_amount_kdv_lam(grid_res))
+
+
+    exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+    df = pd.DataFrame(exp_dict_list_flatten)
+    df.to_csv('examples\\AAAI_expetiments\\results\\kdv_lam.csv')
+
+    exp_dict_list=[]
 
     for grid_res in range(10, 101, 10):
         for _ in range(nruns):
-            exp_dict_list.append(experiment_data_amount_kdv_PSO(grid_res))
+            exp_dict_list.append(experiment_data_amount_kdv_fourier(grid_res))
 
     
 
     exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
     df = pd.DataFrame(exp_dict_list_flatten)
-    df.to_csv('examples\\AAAI_expetiments\\results\\kdv_PSO.csv')
+    df.to_csv('examples\\AAAI_expetiments\\results\\kdv_fourier.csv')
 
+    exp_dict_list=[]
 
-    #exp_dict_list=[]
-
-    #for grid_res in range(10, 101, 10):
-    #    for _ in range(nruns):
-    #        exp_dict_list.append(experiment_data_amount_burgers_1d_lam(N))
-
-
-    #exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-    #df = pd.DataFrame(exp_dict_list_flatten)
-    #df.to_csv('examples\\AAAI_expetiments\\results\\burgers_lam.csv')
-
-    #exp_dict_list=[]
-
-    #for grid_res in range(10, 101, 10):
-    #    for _ in range(nruns):
-    #        exp_dict_list.append(experiment_data_amount_burgers_1d_fourier(N))
-
-    
-
-    #exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-    #df = pd.DataFrame(exp_dict_list_flatten)
-    #df.to_csv('examples\\AAAI_expetiments\\results\\burgers_fourier.csv')
-
-    #exp_dict_list=[]
-
-    #for grid_res in range(10, 101, 10):
-    #    for _ in range(nruns):
-    #        exp_dict_list.append(experiment_data_amount_burgers_1d_NGD(N,NGD_info_string=True))
+    for grid_res in range(10, 101, 10):
+        for _ in range(nruns):
+            exp_dict_list.append(experiment_data_amount_kdv_NGD(grid_res,NGD_info_string=True))
 
   
-    #exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-    #df = pd.DataFrame(exp_dict_list_flatten)
-    #df.to_csv('examples\\AAAI_expetiments\\results\\burgers_NGD.csv')
+    exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+    df = pd.DataFrame(exp_dict_list_flatten)
+    df.to_csv('examples\\AAAI_expetiments\\results\\kdv_NGD.csv')
