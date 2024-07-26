@@ -572,7 +572,14 @@ def experiment_data_amount_burgers_1d_NGD(grid_res,NGD_info_string=True,exp_name
 
     iteration=0
     #for iteration in range(100):
-    while loss.item()>1e-6:
+
+    last_loss=1e6
+
+    cur_loss=loss.item()
+
+    patience=0
+
+    while patience<5:
         
         loss, _ = model.solution_cls.evaluate()
         grads = torch.autograd.grad(loss, model.net.parameters(), retain_graph=True, allow_unused=True)
@@ -611,13 +618,20 @@ def experiment_data_amount_burgers_1d_NGD(grid_res,NGD_info_string=True,exp_name
         # one step of NGD
         actual_step = ls_update(model.net, f_nat_grad)
         iteration+=1
+
+        last_loss=cur_loss
+        cur_loss=model.solution_cls.evaluate()[0].item()
+
+        if abs(actual_step.item())<1e-6:
+            patience+=1
+            if NGD_info_string:
+                print('iteration= ', iteration)
+                print('step= ', actual_step.item())
+                print('loss=' , model.solution_cls.evaluate()[0].item())
         if iteration>1000:
             break
         #if iteration%10 == 0 and NGD_info_string:
-        ##if NGD_info_string:
-        #    print('iteration= ', iteration)
-        #    print('step= ', actual_step.item())
-        #    print('loss=' , model.solution_cls.evaluate()[0].item())
+
     if NGD_info_string:
         print('iteration= ', iteration)
         print('step= ', actual_step.item())
@@ -702,28 +716,28 @@ if __name__ == '__main__':
     #df.to_csv('examples\\AAAI_expetiments\\results\\burgers_PSO.csv')
 
 
-    exp_dict_list=[]
+    #exp_dict_list=[]
 
-    for grid_res in range(10, 101, 10):
-        for _ in range(nruns):
-            exp_dict_list.append(experiment_data_amount_burgers_1d_lam(grid_res))
+    #for grid_res in range(10, 101, 10):
+    #    for _ in range(nruns):
+    #        exp_dict_list.append(experiment_data_amount_burgers_1d_lam(grid_res))
 
 
-    exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-    df = pd.DataFrame(exp_dict_list_flatten)
-    df.to_csv('examples\\AAAI_expetiments\\results\\burgers_lam.csv')
+    #exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+    #df = pd.DataFrame(exp_dict_list_flatten)
+    #df.to_csv('examples\\AAAI_expetiments\\results\\burgers_lam.csv')
 
-    exp_dict_list=[]
+    #exp_dict_list=[]
 
-    for grid_res in range(10, 101, 10):
-        for _ in range(nruns):
-            exp_dict_list.append(experiment_data_amount_burgers_1d_fourier(grid_res))
+    #for grid_res in range(10, 101, 10):
+    #    for _ in range(nruns):
+    #        exp_dict_list.append(experiment_data_amount_burgers_1d_fourier(grid_res))
 
     
 
-    exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-    df = pd.DataFrame(exp_dict_list_flatten)
-    df.to_csv('examples\\AAAI_expetiments\\results\\burgers_fourier.csv')
+    #exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+    #df = pd.DataFrame(exp_dict_list_flatten)
+    #df.to_csv('examples\\AAAI_expetiments\\results\\burgers_fourier.csv')
 
     exp_dict_list=[]
 

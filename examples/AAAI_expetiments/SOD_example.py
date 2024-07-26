@@ -441,15 +441,14 @@ def experiment_data_amount_SOD_PSO(grid_res,exp_name='SOD_PSO',save_plot=True):
                                         no_improvement_patience=100,
                                         patience=2,
                                         randomize_parameter=1e-5,
-                                        info_string_every=1,
-                                        verbose=True)
+                                        verbose=False)
 
     optim = Optimizer('PSO', {'pop_size': 50, #30
                                   'b': 0.4, #0.5
                                   'c2': 0.5, #0.05
                                   'c1': 0.5, 
                                   'variance': 5e-2,
-                                  'lr': 1e-4})
+                                  'lr': 1e-3})
     start = time.time()
     model.train(optim, 2e4, save_model=False, callbacks=[cb_es])
     end = time.time()

@@ -8,13 +8,40 @@ from torch.nn.utils import parameters_to_vector, vector_to_parameters
 from tedeous.device import device_type
 from tedeous.utils import replace_none_by_zero
 
+def replace_none_with_zero(tuple_data):
+    if isinstance(tuple_data, torch.Tensor):
+        tuple_data[tuple_data == None] = 0
+    elif tuple_data is None:
+        tuple_data = torch.tensor([0.])
+    elif isinstance(tuple_data, tuple):
+        new_tuple = tuple(replace_none_with_zero(item) for item in tuple_data)
+        return new_tuple
+    return tuple_data
+
+def gramian(net, residuals):
+        # Compute the jacobian on batched data
+    def jacobian():
+        jac = []
+        loss = residuals
+        for l in loss:
+            j = torch.autograd.grad(l, net.parameters(), retain_graph=True, allow_unused=True)
+            j = replace_none_with_zero(j)
+            j = parameters_to_vector(j).reshape(1, -1)
+            jac.append(j)
+        return torch.cat(jac)
+
+    J = jacobian()
+    return 1.0 / len(residuals) * J.T @ J
+
+
+
 def grid_line_search_factory(loss, steps):
 
     def loss_at_step(step, model, tangent_params):
         params = parameters_to_vector(model.parameters())
         new_params = params - step*tangent_params
         vector_to_parameters(new_params, model.parameters())
-        loss_val = loss(model, x_Omega, x_Gamma)
+        loss_val, _ = loss()
         vector_to_parameters(params, model.parameters())
         return loss_val
 
@@ -39,6 +66,9 @@ def grid_line_search_factory(loss, steps):
 class NGD(torch.optim.Optimizer):
     def __init__(self, params):
         self.params = params
+        self.grid_steps = torch.linspace(0, 30, 31)
+        self.steps = 0.5**self.grid_steps
+        self.ls_update = grid_line_search_factory(self.model.solution_cls.evaluate, self.steps)
     
     def gram_factory(self, residuals):
         def jacobian():
@@ -59,6 +89,11 @@ class NGD(torch.optim.Optimizer):
         grads = torch.autograd.grad(loss, self.params(), retain_graph=True, allow_unused=True)
         grads = replace_none_by_zero(grads)
         f_grads = parameters_to_vector(grads)
+
+
+        int_res = self.model.solution_cls.operator._pde_compute()
+        bval, true_bval, _, _ = self.model.solution_cls.boundary.apply_bcs()
+        bound_res = bval-true_bval
 
         # assemble gramian
         G_int  = self.gram_factory(int_res)

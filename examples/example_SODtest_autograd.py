@@ -160,15 +160,24 @@ equation.add(gas_eq1)
 equation.add(gas_eq2)
 equation.add(gas_eq3)
 
+#net = torch.nn.Sequential(
+#    torch.nn.Linear(2, 32),
+#    torch.nn.Tanh(),
+#    torch.nn.Linear(64, 256),
+#    torch.nn.Tanh(),
+#    torch.nn.Linear(256, 256),
+#    torch.nn.Tanh(),
+#    torch.nn.Linear(256, 3)
+#)
+
 net = torch.nn.Sequential(
-    torch.nn.Linear(2, 64),
+    torch.nn.Linear(2, 32),
     torch.nn.Tanh(),
-    torch.nn.Linear(64, 256),
+    torch.nn.Linear(32, 32),
     torch.nn.Tanh(),
-    torch.nn.Linear(256, 256),
-    torch.nn.Tanh(),
-    torch.nn.Linear(256, 3)
+    torch.nn.Linear(32, 3)
 )
+
 start = time.time()
 
 model =  Model(net, domain, equation, boundaries)
