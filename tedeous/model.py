@@ -21,7 +21,9 @@ class Model():
             net: Union[torch.nn.Module, torch.Tensor],
             domain: Domain,
             equation: Equation,
-            conditions: Conditions):
+            conditions: Conditions,
+            method: str = 'PINN',
+            train_data: torch.Tensor = None):
         """
         Args:
             net (Union[torch.nn.Module, torch.Tensor]): neural network or torch.Tensor for mode *mat*
@@ -33,6 +35,9 @@ class Model():
         self.domain = domain
         self.equation = equation
         self.conditions = conditions
+        self.method = method
+        self.train_data = train_data
+
         self._check = None
         temp_dir = tempfile.gettempdir()
         folder_path = os.path.join(temp_dir, 'tedeous_cache/')
@@ -88,9 +93,9 @@ class Model():
 
         self.equation_cls = Operator_bcond_preproc(grid, operator, bconds, h=h, inner_order=inner_order,
                                                    boundary_order=boundary_order).set_strategy(mode)
-        
+
         self.solution_cls = Solution(grid, self.equation_cls, self.net, mode, weak_form,
-                                     lambda_operator, lambda_bound, tol, derivative_points)
+                                         lambda_operator, lambda_bound, tol, derivative_points, self.method, self.train_data)
 
     def _model_save(
         self,
@@ -118,7 +123,7 @@ class Model():
               mixed_precision: bool = False,
               save_model: bool = False,
               model_name: Union[str, None] = None,
-              callbacks: Union[List, None]=None):
+              callbacks: Union[List, None] = None):
         """ train model.
 
         Args:
@@ -151,7 +156,7 @@ class Model():
         print('[{}] initial (min) loss is {}'.format(
                 datetime.datetime.now(), self.min_loss.item()))
 
-        while self.t < epochs and self.stop_training == False:
+        while self.t < epochs and self.stop_training is False:
             callbacks.on_epoch_begin()
 
             self.optimizer.zero_grad()
