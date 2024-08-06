@@ -386,24 +386,25 @@ def experiment_data_amount_SOD_PSO(grid_res,exp_name='SOD_PSO',save_plot=True):
     grid,domain,equation,boundaries = SOD_problem_formulation(grid_res)
 
     net = torch.nn.Sequential(
-    torch.nn.Linear(2, 64),
-    torch.nn.Tanh(),
-    torch.nn.Linear(64, 256),
-    torch.nn.Tanh(),
-    torch.nn.Linear(256, 256),
-    torch.nn.Tanh(),
-    torch.nn.Linear(256, 3)
+        torch.nn.Linear(2, 32),
+        torch.nn.Tanh(),
+        torch.nn.Linear(32, 32),
+        torch.nn.Tanh(),
+        torch.nn.Linear(32, 3)
     )
 
     model = Model(net, domain, equation, boundaries)
 
     model.compile("autograd", lambda_operator=1, lambda_bound=100)
 
+
     cb_es = early_stopping.EarlyStopping(eps=1e-6,
-                                    loss_window=100,
-                                    no_improvement_patience=500,
-                                    patience=5,
-                                    randomize_parameter=1e-6)
+                                        loss_window=100,
+                                        no_improvement_patience=500,
+                                        patience=5,
+                                        randomize_parameter=1e-6,
+                                        info_string_every=1000,
+                                        abs_loss=0.0001)
 
     optim = Optimizer('Adam', {'lr': 1e-3})
 

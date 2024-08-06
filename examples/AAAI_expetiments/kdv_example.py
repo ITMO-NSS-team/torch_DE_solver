@@ -533,7 +533,11 @@ def grid_line_search_factory(loss, steps):
     return grid_line_search_update
 
 
-def experiment_data_amount_kdv_NGD(grid_res,NGD_info_string=True,exp_name='burgers1d_NGD',save_plot=True):
+from tedeous.utils import create_random_fn
+
+def experiment_data_amount_kdv_NGD(grid_res,NGD_info_string=True,exp_name='kdv_NGD',save_plot=True,loss_window=20,randomize_parameter=1e-6):
+
+    _r= create_random_fn(randomize_parameter)
 
     exp_dict_list = []
 
@@ -565,14 +569,18 @@ def experiment_data_amount_kdv_NGD(grid_res,NGD_info_string=True,exp_name='burge
 
     start = time.time()
 
-    last_loss=1e6
-
-    cur_loss=loss.item()
-
     iteration=0
+    #for iteration in range(100):
+
+    
+
+    min_loss=loss.item()
+
+    last_loss = np.zeros(loss_window) + float(min_loss)
+
     patience=0
 
-    while patience<5:
+    while True:
         
         loss, _ = model.solution_cls.evaluate()
         grads = torch.autograd.grad(loss, model.net.parameters(), retain_graph=True, allow_unused=True)
@@ -600,10 +608,18 @@ def experiment_data_amount_kdv_NGD(grid_res,NGD_info_string=True,exp_name='burge
         #f_nat_grad = torch.from_numpy(np.array(f_nat_grad)).to(torch.float64).to("cuda:0")
 
 
-        G = G.detach().cpu()
-        f_grads =f_grads.detach().cpu()
-        f_nat_grad=torch.linalg.lstsq(G, f_grads,driver='gelsd')[0] 
+
+        #G = G.detach().cpu()
+        #f_grads =f_grads.detach().cpu()
+        #f_nat_grad=torch.linalg.lstsq(G, f_grads)[0] 
         
+        G = G.detach().cpu().numpy()
+        f_grads =f_grads.detach().cpu().numpy()
+
+        f_nat_grad=np.linalg.lstsq(G, f_grads,rcond=None)[0] 
+
+        f_nat_grad=torch.from_numpy(f_nat_grad)
+
         f_nat_grad = f_nat_grad.to("cuda:0")
 
         
@@ -612,18 +628,34 @@ def experiment_data_amount_kdv_NGD(grid_res,NGD_info_string=True,exp_name='burge
         actual_step = ls_update(model.net, f_nat_grad)
         iteration+=1
 
-        last_loss=cur_loss
         cur_loss=model.solution_cls.evaluate()[0].item()
+        
+        if abs(cur_loss)<1e-8:
+            break
 
-        if abs(actual_step.item())<1e-6:
-            patience+=1
-            if NGD_info_string:
-                print('iteration= ', iteration)
-                print('step= ', actual_step.item())
-                print('loss=' , model.solution_cls.evaluate()[0].item())
+        last_loss[(iteration-3)%loss_window]=cur_loss
+
+        if iteration>0 and iteration%loss_window==0:
+            line = np.polyfit(range(loss_window), last_loss, 1)
+            print(last_loss)
+            print('crit={}'.format(abs(line[0] / cur_loss)))
+            if abs(line[0] / cur_loss)<1e-6:
+                print('increasing patience')
+                patience+=1
+                if patience < 5:
+                    print('model before = {}'.format(parameters_to_vector(model.net.parameters())))
+                    loss, _ = model.solution_cls.evaluate()
+                    print('loss before = {}'.format(loss.item()))
+                    model.net=model.net.apply(_r)
+                    print('model after = {}'.format(parameters_to_vector(model.net.parameters())))
+                    loss, _ = model.solution_cls.evaluate()
+                    print('loss after = {}'.format(loss.item()))
+                else:
+                    break
+                
+
         if iteration>1000:
             break
-        #if iteration%10 == 0 and NGD_info_string:
 
     if NGD_info_string:
         print('iteration= ', iteration)
@@ -734,11 +766,11 @@ if __name__ == '__main__':
 
     exp_dict_list=[]
 
-    for grid_res in range(10, 101, 10):
+    for grid_res in range(10, 61, 10):
         for _ in range(nruns):
             exp_dict_list.append(experiment_data_amount_kdv_NGD(grid_res,NGD_info_string=True))
-
+            exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+            df = pd.DataFrame(exp_dict_list_flatten)
+            df.to_csv('examples\\AAAI_expetiments\\results\\kdv_NGD_{}.csv'.format(grid_res))
   
-    exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-    df = pd.DataFrame(exp_dict_list_flatten)
-    df.to_csv('examples\\AAAI_expetiments\\results\\kdv_NGD.csv')
+
