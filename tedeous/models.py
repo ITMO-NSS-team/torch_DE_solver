@@ -134,7 +134,7 @@ class FeedForward(nn.Module):
     """Simple MLP neural network"""
 
     def __init__(self,
-                 layers: List=[2, 100, 100, 100, 1],
+                 layers: List = [2, 100, 100, 100, 1],
                  activation: nn.Module = nn.Tanh(),
                  parameters: dict = None):
         """
@@ -151,7 +151,7 @@ class FeedForward(nn.Module):
         self.model = []
 
         for i in range(len(layers) - 2):
-            self.model.append(nn.Linear(layers[i], layers[i+1]))
+            self.model.append(nn.Linear(layers[i], layers[i + 1]))
             self.model.append(activation)
         self.model.append(nn.Linear(layers[-2], layers[-1]))
         self.net = torch.nn.Sequential(*self.model)
@@ -179,11 +179,16 @@ class FeedForward(nn.Module):
         """
         for key, value in parameters.items():
             parameters[key] = torch.nn.Parameter(torch.tensor([value],
-                                           requires_grad=True).float())
+                                                              requires_grad=True).float())
             self.net.register_parameter(key, parameters[key])
 
 
 class KANLinear(torch.nn.Module):
+    """
+    Class that implements linear layer using Kolmogorov-Arnold splines.
+    It allows you to model nonlinear dependencies between input and output data using splines.
+    """
+
     def __init__(
             self,
             in_features,
@@ -234,6 +239,11 @@ class KANLinear(torch.nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
+        """
+        A method for initializing layer parameters,
+        including base model weights and spline weights.
+        """
+
         torch.nn.init.kaiming_uniform_(self.base_weight, a=math.sqrt(5) * self.scale_base)
         with torch.no_grad():
             noise = (
@@ -252,11 +262,11 @@ class KANLinear(torch.nn.Module):
                 )
             )
             if self.enable_standalone_scale_spline:
-                # torch.nn.init.constant_(self.spline_scaler, self.scale_spline)
                 torch.nn.init.kaiming_uniform_(self.spline_scaler, a=math.sqrt(5) * self.scale_spline)
 
     def b_splines(self,
-                  x: torch.Tensor):
+                  x: torch.Tensor
+                  ) -> torch.Tensor:
         """
         Compute the B-spline bases for the given input tensor.
 
@@ -270,7 +280,7 @@ class KANLinear(torch.nn.Module):
 
         grid: torch.Tensor = (
             self.grid
-        )  # (in_features, grid_size + 2 * spline_order + 1)
+        )
         x = x.unsqueeze(-1)
         bases = ((x >= grid[:, :-1]) & (x < grid[:, 1:])).to(x.dtype)
         for k in range(1, self.spline_order + 1):
@@ -293,7 +303,8 @@ class KANLinear(torch.nn.Module):
 
     def curve2coeff(self,
                     x: torch.Tensor,
-                    y: torch.Tensor):
+                    y: torch.Tensor
+                    ) -> torch.Tensor:
         """
         Compute the coefficients of the curve that interpolates the given points.
 
@@ -309,14 +320,14 @@ class KANLinear(torch.nn.Module):
 
         A = self.b_splines(x).transpose(
             0, 1
-        )  # (in_features, batch_size, grid_size + spline_order)
-        B = y.transpose(0, 1)  # (in_features, batch_size, out_features)
+        )
+        B = y.transpose(0, 1)
         solution = torch.linalg.lstsq(
             A, B
-        ).solution  # (in_features, grid_size + spline_order, out_features)
+        ).solution
         result = solution.permute(
             2, 0, 1
-        )  # (out_features, in_features, grid_size + spline_order)
+        )
 
         assert result.size() == (
             self.out_features,
@@ -334,9 +345,8 @@ class KANLinear(torch.nn.Module):
         )
 
     def forward(self,
-                x: torch.Tensor):
-        a = x.size(-1)
-        b = self.in_features
+                x: torch.Tensor
+                ) -> torch.Tensor:
         assert x.size(-1) == self.in_features
         original_shape = x.shape
         x = x.reshape(-1, self.in_features)
@@ -355,19 +365,23 @@ class KANLinear(torch.nn.Module):
     def update_grid(self,
                     x: torch.Tensor,
                     margin=0.01):
+        """ Method to update the grid based on the input data to improve interpolation
+
+            Args:
+                x (torch.tensor): Input tensor of shape (batch_size, in_features).
+                margin: The value to be added to the grid value range. Defaults to 0.01
+        """
+
         assert x.dim() == 2 and x.size(1) == self.in_features
         batch = x.size(0)
 
-        splines = self.b_splines(x)  # (batch, in, coeff)
-        splines = splines.permute(1, 0, 2)  # (in, batch, coeff)
-        orig_coeff = self.scaled_spline_weight  # (out, in, coeff)
-        orig_coeff = orig_coeff.permute(1, 2, 0)  # (in, coeff, out)
-        unreduced_spline_output = torch.bmm(splines, orig_coeff)  # (in, batch, out)
-        unreduced_spline_output = unreduced_spline_output.permute(
-            1, 0, 2
-        )  # (batch, in, out)
+        splines = self.b_splines(x)
+        splines = splines.permute(1, 0, 2)
+        orig_coeff = self.scaled_spline_weight
+        orig_coeff = orig_coeff.permute(1, 2, 0)
+        unreduced_spline_output = torch.bmm(splines, orig_coeff)
+        unreduced_spline_output = unreduced_spline_output.permute(1, 0, 2)
 
-        # sort each channel individually to collect data distribution
         x_sorted = torch.sort(x, dim=0)[0]
         grid_adaptive = x_sorted[
             torch.linspace(
@@ -405,6 +419,15 @@ class KANLinear(torch.nn.Module):
     def regularization_loss(self,
                             regularize_activation=1.0,
                             regularize_entropy=1.0):
+        """ Calculate regularization loss for spline weights
+
+            Args:
+                regularize_activation (float): Regularization factor for activation. Defaults to 1.0.
+                regularize_entropy (float): Regularization factor for entropy. Defaults to 1.0.
+
+            Returns:
+                torch.Tensor: Regularization loss
+        """
 
         l1_fake = self.spline_weight.abs().mean(-1)
         regularization_loss_activation = l1_fake.sum()
@@ -418,6 +441,8 @@ class KANLinear(torch.nn.Module):
 
 
 class KAN(torch.nn.Module):
+    """Class for realization of multilayer network using Kolmogorov-Arnold splines."""
+
     def __init__(
             self,
             layers_hidden=[2, 100, 1],
@@ -454,7 +479,18 @@ class KAN(torch.nn.Module):
 
     def forward(self,
                 x: torch.Tensor,
-                update_grid=False):
+                update_grid=False
+                ) -> torch.Tensor:
+        """ Forward run
+
+            Args:
+                x (torch.Tensor): Network inputs.
+                update_grid (bool): Flag to update the grid in each layer. Defaults to False.
+
+            Returns:
+                torch.Tensor: Output tensor of shape (batch_size, out_features).
+        """
+
         for layer in self.model:
             if update_grid:
                 layer.update_grid(x)
@@ -462,7 +498,19 @@ class KAN(torch.nn.Module):
 
         return x
 
-    def regularization_loss(self, regularize_activation=1.0, regularize_entropy=1.0):
+    def regularization_loss(self,
+                            regularize_activation=1.0,
+                            regularize_entropy=1.0):
+        """ Calculate regularization loss for all network
+
+            Args:
+                regularize_activation (float): Regularization factor for activation. Defaults to 1.0.
+                regularize_entropy (float): Regularization factor for entropy. Defaults to 1.0.
+
+            Returns:
+                Regularization loss
+        """
+
         return sum(
             layer.regularization_loss(regularize_activation, regularize_entropy) for layer in self.model
         )
@@ -479,7 +527,7 @@ def parameter_registr(model: torch.nn.Module,
     """
     for key, value in parameters.items():
         parameters[key] = torch.nn.Parameter(torch.tensor([value],
-                                        requires_grad=True).float())
+                                                          requires_grad=True).float())
         model.register_parameter(key, parameters[key])
 
 
@@ -512,10 +560,3 @@ def mat_model(domain: Any,
         model = torch.ones(shape)
 
     return model
-
-
-
-
-
-
-
