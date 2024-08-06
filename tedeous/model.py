@@ -21,9 +21,7 @@ class Model():
             net: Union[torch.nn.Module, torch.Tensor],
             domain: Domain,
             equation: Equation,
-            conditions: Conditions,
-            method: str = 'PINN',
-            train_data: torch.Tensor = None):
+            conditions: Conditions):
         """
         Args:
             net (Union[torch.nn.Module, torch.Tensor]): neural network or torch.Tensor for mode *mat*
@@ -35,8 +33,6 @@ class Model():
         self.domain = domain
         self.equation = equation
         self.conditions = conditions
-        self.method = method
-        self.train_data = train_data
 
         self._check = None
         temp_dir = tempfile.gettempdir()
@@ -95,7 +91,7 @@ class Model():
                                                    boundary_order=boundary_order).set_strategy(mode)
 
         self.solution_cls = Solution(grid, self.equation_cls, self.net, mode, weak_form,
-                                         lambda_operator, lambda_bound, tol, derivative_points, self.method, self.train_data)
+                                         lambda_operator, lambda_bound, tol, derivative_points)
 
     def _model_save(
         self,
