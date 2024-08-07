@@ -777,7 +777,7 @@ if __name__ == '__main__':
 
     #exp_dict_list=[]
 
-    for grid_res in range(10, 61, 10):
+    for grid_res in range(60, 61, 10):
         for _ in range(nruns):
             exp_dict_list.append(experiment_data_amount_burgers_1d_NGD(grid_res,NGD_info_string=True))
             exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
