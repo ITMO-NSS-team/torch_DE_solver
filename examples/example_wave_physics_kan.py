@@ -170,7 +170,7 @@ def wave_experiment(grid_res):
 
     cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-6)
 
-    img_dir = os.path.join(os.path.dirname( __file__ ), 'wave_img')
+    img_dir = os.path.join(os.path.dirname( __file__ ), 'wave_kan_img')
 
     cb_plots = plot.Plots(save_every=5000, print_every=5000, img_dir=img_dir)
 
