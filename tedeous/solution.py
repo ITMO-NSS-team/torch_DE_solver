@@ -30,7 +30,8 @@ class Solution():
         lambda_operator,
         lambda_bound,
         tol: float = 0,
-        derivative_points: int = 2):
+        derivative_points: int = 2,
+        batch_size: int = None):
         """
         Args:
             grid (torch.Tensor): discretization of comp-l domain.
@@ -42,6 +43,7 @@ class Solution():
             lambda_bound (_type_): regularization parameter for boundary term in loss.
             tol (float, optional): penalty in *casual loss*. Defaults to 0.
             derivative_points (int, optional): points number for derivative calculation.
+            batch_size (int): size of batch.
             For details to Derivative_mat class.. Defaults to 2.
         """
 
@@ -49,10 +51,14 @@ class Solution():
         if mode == 'NN':
             sorted_grid = Points_type(self.grid).grid_sort()
             self.n_t = len(sorted_grid['central'][:, 0].unique())
+            self.n_t_operation = lambda sorted_grid: len(sorted_grid['central'][:, 0].unique())
         elif mode == 'autograd':
             self.n_t = len(self.grid[:, 0].unique())
+            self.n_t_operation = lambda grid: len(grid[:, 0].unique())
         elif mode == 'mat':
             self.n_t = grid.shape[1]
+            self.n_t_operation = lambda grid: grid.shape[1]
+        
         equal_copy = deepcopy(equal_cls)
         prepared_operator = equal_copy.operator_prepare()
         self._operator_coeff(equal_cls, prepared_operator)
@@ -64,13 +70,19 @@ class Solution():
         self.lambda_bound = lambda_bound
         self.tol = tol
         self.derivative_points = derivative_points
+        self.batch_size = batch_size
+        if self.batch_size is None:
+            self.n_t_operation = None
+        
 
         self.operator = Operator(self.grid, prepared_operator, self.model,
-                                   self.mode, weak_form, derivative_points)
+                                   self.mode, weak_form, derivative_points, 
+                                   self.batch_size)
         self.boundary = Bounds(self.grid,self.prepared_bconds, self.model,
                                    self.mode, weak_form, derivative_points)
 
-        self.loss_cls = Losses(self.mode, self.weak_form, self.n_t, self.tol)
+        self.loss_cls = Losses(self.mode, self.weak_form, self.n_t, self.tol, 
+                               self.n_t_operation) # n_t calculate for each batch 
         self.op_list = []
         self.bval_list = []
         self.loss_list = []
@@ -111,7 +123,8 @@ class Solution():
                                           new_model,
                                           self.mode,
                                           self.weak_form,
-                                          self.derivative_points)
+                                          self.derivative_points,
+                                          self.batch_size)
 
     def evaluate(self,
                  save_graph: bool = True) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -129,7 +142,6 @@ class Solution():
         Returns:
             Tuple[torch.Tensor, torch.Tensor]: loss
         """
-
         self.op = self.operator.operator_compute()
         self.bval, self.true_bval,\
             self.bval_keys, self.bval_length = self.boundary.apply_bcs()
@@ -144,5 +156,13 @@ class Solution():
             self.lambda_operator,
             self.lambda_bound,
             save_graph)
+        if self.batch_size is not None: 
+            if self.operator.new_init: # if first batch in epoch
+                self.save_op = self.op
+                self.operator.new_init = False
+            else:
+                self.save_op = torch.cat((self.save_op, self.operator.operator_compute()), 0) # cat curent losses to previous
+            del self.op
+            torch.cuda.empty_cache()
 
         return self.loss, self.loss_normalized
