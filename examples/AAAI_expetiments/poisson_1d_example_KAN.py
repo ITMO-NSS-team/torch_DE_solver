@@ -15,7 +15,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname('AAAI_expetiments')
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
 from tedeous.models import mat_model, Fourier_embedding
-from tedeous.callbacks import plot, early_stopping, adaptive_lambda
+from tedeous.callbacks import plot, early_stopping, adaptive_lambda, cache
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 from tedeous.eval import integration
@@ -133,77 +133,6 @@ def poisson1d_problem_formulation(grid_res):
 
 
 
-def experiment_data_amount_poisson_1d_PINN(grid_res,exp_name='poisson1d_PINN',save_plot=True):
-    solver_device('cuda')
-    exp_dict_list = []
-
-    grid,domain,equation,boundaries = poisson1d_problem_formulation(grid_res)
-
-
-    net = KAN(layers_hidden=[1,50,50,1])
-
-    model = Model(net, domain, equation, boundaries)
-
-    model.compile('autograd', lambda_operator=1, lambda_bound=1)
-    
-    cb_es = early_stopping.EarlyStopping(eps=1e-9, randomize_parameter=1e-6)
-
-    optimizer = Optimizer('Adam', {'lr': 1e-4})
-     
-    start=time.time()
-
-    model.train(optimizer, 5e5, save_model=False, callbacks=[cb_es])
-
-    end=time.time()
-
-    run_time=end-start
-
-    end_loss = model.solution_cls.evaluate()[0].detach().cpu().numpy()
-
-    lu_f = model.solution_cls.operator.operator_compute()
-
-    lu_f, _ = integration(lu_f, grid)
-
-    lu = u_net_xx(net, grid)
-
-    lu, _ = integration(lu, grid)
-
-    grid_test = torch.linspace(0, 1, 100).reshape(-1, 1).float()
-
-    exp_dict={'grid_res': grid_res,
-                        'l2_error_train': l2_norm(net, grid),
-                        'l2_error_test': l2_norm(net, grid_test),
-                        'c2_error_train': c2_norm(net, grid),
-                        'c2_error_test': c2_norm(net, grid_test),
-                        'loss': end_loss,
-                        "lu_f": lu_f.item(),
-                        "lu": lu.item(),
-                        'run_time': run_time,
-                        'type':exp_name}
-
-    exp_dict_list.append(exp_dict)
-
-
-    print('grid_res=', grid_res)
-    print('c2_norm = ', c2_norm(net, grid))
-    print('l2_norm = ', l2_norm(net, grid))
-    print('lu_f = ', lu_f.item())
-    print('lu = ', lu.item())
-
-    if save_plot:
-        if not os.path.isdir('examples\\AAAI_expetiments\\figures_{}'.format(exp_name)):
-            os.mkdir('examples\\AAAI_expetiments\\figures_{}'.format(exp_name))
-        plt.figure()
-        plt.plot(grid.detach().cpu().numpy(), u(grid).detach().cpu().numpy(), label='Exact')
-        plt.plot(grid.detach().cpu().numpy(), net(grid.cpu()).detach().cpu().numpy(), '--', label='Predicted')
-        plt.xlabel('x')
-        plt.ylabel('y')
-        plt.legend(loc='upper right')
-        plt.savefig('examples\\AAAI_expetiments\\figures_{}\\img_{}.png'.format(exp_name,N))
-
-    return exp_dict_list
-
-
 def experiment_data_amount_poisson_1d_PSO_KAN(grid_res,exp_name='poisson1d_PSO_KAN',save_plot=True):
     solver_device('cuda')
     exp_dict_list = []
@@ -216,13 +145,15 @@ def experiment_data_amount_poisson_1d_PSO_KAN(grid_res,exp_name='poisson1d_PSO_K
 
     model.compile('autograd', lambda_operator=1, lambda_bound=1)
     
-    cb_es = early_stopping.EarlyStopping(eps=1e-9, randomize_parameter=1e-6)
+    cb_es = early_stopping.EarlyStopping(eps=1e-6, randomize_parameter=1e-6)
+
+    cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-6)
 
     optimizer = Optimizer('Adam', {'lr': 1e-4})
 
     start=time.time()
 
-    model.train(optimizer, 5e5, save_model=False, callbacks=[cb_es])
+    model.train(optimizer, 5e5, save_model=True, callbacks=[cb_es,cb_cache])
 
     l2_pinn = l2_norm(net, grid)
     print('l2_norm_before_PSO = ', l2_pinn)
@@ -239,7 +170,12 @@ def experiment_data_amount_poisson_1d_PSO_KAN(grid_res,exp_name='poisson1d_PSO_K
 
     ########
 
-    cb_es = early_stopping.EarlyStopping(eps=1e-9, randomize_parameter=1e-6, info_string_every=1000)
+    cb_es = early_stopping.EarlyStopping(eps=1e-6,
+                                        loss_window=100,
+                                        no_improvement_patience=100,
+                                        patience=2,
+                                        randomize_parameter=1e-5,
+                                        verbose=False)
 
     optimizer = Optimizer('PSO', {'pop_size': 50, #30
                                   'b': 0.4, #0.5
@@ -298,7 +234,7 @@ def experiment_data_amount_poisson_1d_PSO_KAN(grid_res,exp_name='poisson1d_PSO_K
         plt.xlabel('x')
         plt.ylabel('y')
         plt.legend(loc='upper right')
-        plt.savefig('examples\\AAAI_expetiments\\figures_{}\\img_{}.png'.format(exp_name,N))
+        plt.savefig('examples\\AAAI_expetiments\\figures_{}\\img_{}.png'.format(exp_name,grid_res))
 
     return exp_dict_list
 
@@ -370,7 +306,7 @@ def experiment_data_amount_poisson_1d_lam_KAN(grid_res,exp_name='poisson1d_lam_K
         plt.xlabel('x')
         plt.ylabel('y')
         plt.legend(loc='upper right')
-        plt.savefig('examples\\AAAI_expetiments\\figures_{}\\img_{}.png'.format(exp_name,N))
+        plt.savefig('examples\\AAAI_expetiments\\figures_{}\\img_{}.png'.format(exp_name,grid_res))
 
     return exp_dict_list
 
@@ -594,8 +530,13 @@ if __name__ == '__main__':
     if not os.path.isdir('examples\\AAAI_expetiments\\results'):
         os.mkdir('examples\\AAAI_expetiments\\results')
     
-
+    part1 = np.arange(2, 10, 3)
+    part2 = np.arange(10, 100, 30)
+    part3 = np.arange(100, 1000, 300)
+    #part4 = np.arange(1000, 11000, 3000)
     
+    #grid_n = np.concatenate([part1, part2, part3, part4])
+    grid_n = np.concatenate([part1, part2, part3])
 
     nruns = 1
 
@@ -617,7 +558,7 @@ if __name__ == '__main__':
     exp_dict_list=[]
 
 
-    for grid_res in range(10, 101, 10):
+    for grid_res in grid_n:
         for _ in range(nruns):
             exp_dict_list.append(experiment_data_amount_poisson_1d_PSO_KAN(grid_res))
 
