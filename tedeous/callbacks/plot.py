@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import torch
 from tedeous.callbacks.callback import Callback
+from mpl_toolkits.mplot3d import Axes3D
 
 
 class Plots(Callback):
