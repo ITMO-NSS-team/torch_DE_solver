@@ -129,7 +129,7 @@ class Operator():
             del self.sorted_grid
             torch.cuda.empty_cache()
             self.init_mini_batches()
-            self.new_init = True
+            self.current_batch_i = 0
         self.derivative = Derivative(self.model,
                                 self.derivative_points).set_strategy(self.mode).take_derivative
     
@@ -177,7 +177,7 @@ class Operator():
                 self.grid_batch = next(self.grid_iter)
             except: # if no batches left then reinit
                 self.init_mini_batches()
-                self.new_init = True
+                self.current_batch_i = -1
         else:
             sorted_grid = self.sorted_grid
         num_of_eq = len(self.prepared_operator)

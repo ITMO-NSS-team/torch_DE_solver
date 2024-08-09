@@ -157,11 +157,11 @@ class Solution():
             self.lambda_bound,
             save_graph)
         if self.batch_size is not None: 
-            if self.operator.new_init: # if first batch in epoch
+            if self.operator.current_batch_i == 0: # if first batch in epoch
                 self.save_op = self.op
-                self.operator.new_init = False
             else:
-                self.save_op = torch.cat((self.save_op, self.operator.operator_compute()), 0) # cat curent losses to previous
+                self.save_op = torch.cat((self.save_op, self.op), 0) # cat curent losses to previous
+            self.operator.current_batch_i += 1
             del self.op
             torch.cuda.empty_cache()
 
