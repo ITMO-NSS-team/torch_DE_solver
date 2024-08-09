@@ -1,7 +1,6 @@
 from typing import Tuple
 import torch
-import jax.numpy as jnp
-from jax.numpy.linalg import lstsq
+from numpy.linalg import lstsq
 from copy import copy
 import numpy as np
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
@@ -105,8 +104,8 @@ class NGD(torch.optim.Optimizer):
         Id = torch.eye(len(G))
         G = torch.min(torch.tensor([loss, 0.0])) * Id + G
         # compute natural gradient
-        G = jnp.array(G.detach().cpu().numpy(), dtype=jnp.float64)
-        f_grads =jnp.array(f_grads.detach().cpu().numpy(), dtype=jnp.float64)
+        G = np.array(G.detach().cpu().numpy(), dtype=np.float64)
+        f_grads =np.array(f_grads.detach().cpu().numpy(), dtype=np.float64)
         f_nat_grad = lstsq(G, f_grads)[0]
         f_nat_grad = torch.from_numpy(np.array(f_nat_grad)).to(torch.float64).to('cuda')
 
