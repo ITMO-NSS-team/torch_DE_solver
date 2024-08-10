@@ -497,19 +497,19 @@ def experiment_data_amount_SOD_PSO(grid_res,exp_name='SOD_PSO',save_plot=True):
 
 
 
-def experiment_data_amount_kdv_lam(grid_res,exp_name='kdv_lam',save_plot=True):
+def experiment_data_amount_SOD_lam(grid_res,exp_name='SOD_lam',save_plot=True):
 
     solver_device('cuda')
     exp_dict_list = []
 
-    grid,domain,equation,boundaries = kdv_problem_formulation(grid_res)
+    grid,domain,equation,boundaries = SOD_problem_formulation(grid_res)
 
     net = torch.nn.Sequential(
         torch.nn.Linear(2, 32),
         torch.nn.Tanh(),
         torch.nn.Linear(32, 32),
         torch.nn.Tanh(),
-        torch.nn.Linear(32, 1)
+        torch.nn.Linear(32, 3)
     )
 
     model = Model(net, domain, equation, boundaries)
@@ -536,13 +536,13 @@ def experiment_data_amount_kdv_lam(grid_res,exp_name='kdv_lam',save_plot=True):
 
     grid_test = torch.cartesian_prod(torch.linspace(0, 1, 100), torch.linspace(0, 1, 100))
 
-    u_exact_train = u(grid).reshape(-1)
+    u_exact_train = u(grid)
 
-    u_exact_test = u(grid_test).reshape(-1)
+    u_exact_test = u(grid_test)
 
-    error_train = torch.sqrt(torch.mean((u_exact_train - net(grid).reshape(-1)) ** 2))
+    error_train = torch.sqrt(torch.mean((u_exact_train - net(grid))** 2, dim=0))
 
-    error_test = torch.sqrt(torch.mean((u_exact_test - net(grid_test).reshape(-1)) ** 2))
+    error_test = torch.sqrt(torch.mean((u_exact_test - net(grid_test)) ** 2 , dim=0))
 
     loss = model.solution_cls.evaluate()[0].detach().cpu().numpy()
 
@@ -554,15 +554,20 @@ def experiment_data_amount_kdv_lam(grid_res,exp_name='kdv_lam',save_plot=True):
 
 
     exp_dict={'grid_res': grid_res,
-                          'error_train': error_train.item(),
-                          'error_test': error_test.item(),
-                          'loss': loss.item(),
-                          "lu_f_adam": lu_f.item(),
-                          'time_adam': run_time,
-                          'type': exp_name}
+                        'error_train_pressure': error_train[0].item(),
+                        'error_train_velocity': error_train[1].item(),
+                        'error_train_density': error_train[2].item(),
+                        'error_test_pressure': error_train[0].item(),
+                        'error_test_velocity': error_train[1].item(),
+                        'error_test_density': error_train[2].item(),
+                        'loss': loss.item(),
+                        'time': run_time,
+                        'type': exp_name}
 
-    print('Time taken {}= {}'.format(grid_res, end - start))
-    print('RMSE {}= {}'.format(grid_res, error_test))
+    print('Time taken pso {}= {}'.format(grid_res, run_time))
+    print('RMSE p {}= {}'.format(grid_res, error_test[0]))
+    print('RMSE v {}= {}'.format(grid_res, error_test[1]))
+    print('RMSE ro {}= {}'.format(grid_res, error_test[2]))
 
     exp_dict_list.append(exp_dict)
 
@@ -571,11 +576,11 @@ def experiment_data_amount_kdv_lam(grid_res,exp_name='kdv_lam',save_plot=True):
 
 
 
-def experiment_data_amount_kdv_fourier(grid_res,exp_name='kdv_fourier',save_plot=True):
+def experiment_data_amount_SOD_fourier(grid_res,exp_name='SOD_fourier',save_plot=True):
     solver_device('cuda')
     exp_dict_list = []
 
-    grid,domain,equation,boundaries = kdv_problem_formulation(grid_res)
+    grid,domain,equation,boundaries = SOD_problem_formulation(grid_res)
 
     FFL = Fourier_embedding(L=[2,2], M=[1,1])
 
@@ -613,13 +618,13 @@ def experiment_data_amount_kdv_fourier(grid_res,exp_name='kdv_fourier',save_plot
 
     grid_test = torch.cartesian_prod(torch.linspace(0, 1, 100), torch.linspace(0, 1, 100))
 
-    u_exact_train = u(grid).reshape(-1)
+    u_exact_train = u(grid)
 
-    u_exact_test = u(grid_test).reshape(-1)
+    u_exact_test = u(grid_test)
 
-    error_train = torch.sqrt(torch.mean((u_exact_train - net(grid).reshape(-1)) ** 2))
+    error_train = torch.sqrt(torch.mean((u_exact_train - net(grid))** 2, dim=0))
 
-    error_test = torch.sqrt(torch.mean((u_exact_test - net(grid_test).reshape(-1)) ** 2))
+    error_test = torch.sqrt(torch.mean((u_exact_test - net(grid_test)) ** 2 , dim=0))
 
     loss = model.solution_cls.evaluate()[0].detach().cpu().numpy()
 
@@ -700,7 +705,7 @@ def grid_line_search_factory(loss, steps):
     return grid_line_search_update
 
 
-def experiment_data_amount_kdv_NGD(grid_res,NGD_info_string=True,exp_name='burgers1d_NGD',save_plot=True):
+def experiment_data_amount_SOD_NGD(grid_res,NGD_info_string=True,exp_name='burgers1d_NGD',save_plot=True):
 
     exp_dict_list = []
 
@@ -710,7 +715,7 @@ def experiment_data_amount_kdv_NGD(grid_res,NGD_info_string=True,exp_name='burge
     grid_steps = torch.linspace(0, 30, 31)
     steps = 0.5**grid_steps
 
-    grid,domain,equation,boundaries = kdv_problem_formulation(grid_res)
+    grid,domain,equation,boundaries = SOD_problem_formulation(grid_res)
     
     net = torch.nn.Sequential(
         torch.nn.Linear(2, 32),
@@ -791,13 +796,13 @@ def experiment_data_amount_kdv_NGD(grid_res,NGD_info_string=True,exp_name='burge
 
     grid_test = torch.cartesian_prod(torch.linspace(0, 1, 100), torch.linspace(0, 1, 100))
 
-    u_exact_train = u(grid).reshape(-1)
+    u_exact_train = u(grid)
 
-    u_exact_test = u(grid_test).reshape(-1)
+    u_exact_test = u(grid_test)
 
-    error_train = torch.sqrt(torch.mean((u_exact_train - net(grid).reshape(-1)) ** 2))
+    error_train = torch.sqrt(torch.mean((u_exact_train - net(grid))** 2, dim=0))
 
-    error_test = torch.sqrt(torch.mean((u_exact_test - net(grid_test).reshape(-1)) ** 2))
+    error_test = torch.sqrt(torch.mean((u_exact_test - net(grid_test)) ** 2 , dim=0))
 
     loss = model.solution_cls.evaluate()[0].detach().cpu().numpy()
 
@@ -835,65 +840,56 @@ if __name__ == '__main__':
     if not os.path.isdir('examples\\AAAI_expetiments\\results'):
         os.mkdir('examples\\AAAI_expetiments\\results')
     
+    nruns = 1
+
 
     exp_dict_list=[]
 
-    nruns = 1
+    
+
+
 
     #for grid_res in range(10, 101, 10):
     #    for _ in range(nruns):
-    #        exp_dict_list.append(experiment_data_amount_SOD_PINN(grid_res))
+    #        exp_dict_list.append(experiment_data_amount_SOD_PSO(grid_res))
 
     
 
     #exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
     #df = pd.DataFrame(exp_dict_list_flatten)
-    #df.to_csv('examples\\AAAI_expetiments\\results\\SOD_PINN.csv')
+    #df.to_csv('examples\\AAAI_expetiments\\results\\SOD_PSO.csv')
 
-    #exp_dict_list=[]
 
+    exp_dict_list=[]
 
     for grid_res in range(10, 101, 10):
         for _ in range(nruns):
-            exp_dict_list.append(experiment_data_amount_SOD_PSO(grid_res))
+            exp_dict_list.append(experiment_data_amount_SOD_lam(grid_res))
 
-    
 
     exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
     df = pd.DataFrame(exp_dict_list_flatten)
-    df.to_csv('examples\\AAAI_expetiments\\results\\SOD_PSO.csv')
-
-
-    #exp_dict_list=[]
-
-    #for grid_res in range(10, 101, 10):
-    #    for _ in range(nruns):
-    #        exp_dict_list.append(experiment_data_amount_kdv_lam(grid_res))
-
-
-    #exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-    #df = pd.DataFrame(exp_dict_list_flatten)
-    #df.to_csv('examples\\AAAI_expetiments\\results\\kdv_lam.csv')
+    df.to_csv('examples\\AAAI_expetiments\\results\\SOD_lam.csv')
 
     #exp_dict_list=[]
 
     #for grid_res in range(10, 101, 10):
     #    for _ in range(nruns):
-    #        exp_dict_list.append(experiment_data_amount_kdv_fourier(grid_res))
+    #        exp_dict_list.append(experiment_data_amount_SOD_fourier(grid_res))
 
     
 
     #exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
     #df = pd.DataFrame(exp_dict_list_flatten)
-    #df.to_csv('examples\\AAAI_expetiments\\results\\kdv_fourier.csv')
+    #df.to_csv('examples\\AAAI_expetiments\\results\\SOD_fourier.csv')
 
     #exp_dict_list=[]
 
     #for grid_res in range(10, 101, 10):
     #    for _ in range(nruns):
-    #        exp_dict_list.append(experiment_data_amount_kdv_NGD(grid_res,NGD_info_string=True))
+    #        exp_dict_list.append(experiment_data_amount_SOD_NGD(grid_res,NGD_info_string=True))
 
   
     #exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
     #df = pd.DataFrame(exp_dict_list_flatten)
-    #df.to_csv('examples\\AAAI_expetiments\\results\\kdv_NGD.csv')
+    #df.to_csv('examples\\AAAI_expetiments\\results\\SOD_NGD.csv')
