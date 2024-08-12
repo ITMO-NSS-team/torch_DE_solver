@@ -862,34 +862,18 @@ if __name__ == '__main__':
 
     exp_dict_list=[]
 
-    for grid_res in range(10, 101, 10):
+    for grid_res in range(10, 61, 10):
         for _ in range(nruns):
             exp_dict_list.append(experiment_data_amount_SOD_lam(grid_res))
+            exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+            df = pd.DataFrame(exp_dict_list_flatten)
+            df.to_csv('examples\\AAAI_expetiments\\results\\SOD_lam_{}.csv'.format(grid_res))
 
+    exp_dict_list=[]
 
-    exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-    df = pd.DataFrame(exp_dict_list_flatten)
-    df.to_csv('examples\\AAAI_expetiments\\results\\SOD_lam.csv')
-
-    #exp_dict_list=[]
-
-    #for grid_res in range(10, 101, 10):
-    #    for _ in range(nruns):
-    #        exp_dict_list.append(experiment_data_amount_SOD_fourier(grid_res))
-
-    
-
-    #exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-    #df = pd.DataFrame(exp_dict_list_flatten)
-    #df.to_csv('examples\\AAAI_expetiments\\results\\SOD_fourier.csv')
-
-    #exp_dict_list=[]
-
-    #for grid_res in range(10, 101, 10):
-    #    for _ in range(nruns):
-    #        exp_dict_list.append(experiment_data_amount_SOD_NGD(grid_res,NGD_info_string=True))
-
-  
-    #exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-    #df = pd.DataFrame(exp_dict_list_flatten)
-    #df.to_csv('examples\\AAAI_expetiments\\results\\SOD_NGD.csv')
+    for grid_res in range(10, 61, 10):
+        for _ in range(nruns):
+            exp_dict_list.append(experiment_data_amount_SOD_NGD(grid_res,NGD_info_string=True))
+            exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+            df = pd.DataFrame(exp_dict_list_flatten)
+            df.to_csv('examples\\AAAI_expetiments\\results\\SOD_NGD_{}.csv'.format(grid_res))
