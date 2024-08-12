@@ -218,7 +218,7 @@ if __name__ == '__main__':
     nruns = 1
 
 
-    for grid_res in range(10, 101, 10):
+    for grid_res in range(50, 101, 10):
         for _ in range(nruns):
             exp_dict_list.append(experiment_data_amount_burgers_1d_lam_KAN(grid_res))
             exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]

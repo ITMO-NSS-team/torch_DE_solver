@@ -210,7 +210,7 @@ def experiment_data_amount_kdv_lam_KAN(grid_res,exp_name='kdv_lam_KAN',save_plot
 if __name__ == '__main__':
 
     if not os.path.isdir('examples\\AAAI_expetiments\\results'):
-    os.mkdir('examples\\AAAI_expetiments\\results')
+        os.mkdir('examples\\AAAI_expetiments\\results')
     
 
     exp_dict_list=[]
@@ -218,7 +218,7 @@ if __name__ == '__main__':
     nruns = 1
 
 
-    for grid_res in range(10, 101, 10):
+    for grid_res in range(30, 101, 10):
         for _ in range(nruns):
             exp_dict_list.append(experiment_data_amount_kdv_lam_KAN(grid_res))
             exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
