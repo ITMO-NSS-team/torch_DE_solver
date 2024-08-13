@@ -705,7 +705,11 @@ def grid_line_search_factory(loss, steps):
     return grid_line_search_update
 
 
-def experiment_data_amount_SOD_NGD(grid_res,NGD_info_string=True,exp_name='burgers1d_NGD',save_plot=True):
+from tedeous.utils import create_random_fn
+
+def experiment_data_amount_SOD_NGD(grid_res,NGD_info_string=True,exp_name='SOD_NGD',save_plot=True,loss_window=20,randomize_parameter=1e-6):
+
+    _r= create_random_fn(randomize_parameter)
 
     exp_dict_list = []
 
@@ -738,8 +742,14 @@ def experiment_data_amount_SOD_NGD(grid_res,NGD_info_string=True,exp_name='burge
     start = time.time()
 
     iteration=0
-    #for iteration in range(100):
-    while loss.item()>1e-6:
+
+    min_loss=loss.item()
+
+    last_loss = np.zeros(loss_window) + float(min_loss)
+
+    patience=0
+
+    while True:
         
         loss, _ = model.solution_cls.evaluate()
         grads = torch.autograd.grad(loss, model.net.parameters(), retain_graph=True, allow_unused=True)
@@ -747,8 +757,11 @@ def experiment_data_amount_SOD_NGD(grid_res,NGD_info_string=True,exp_name='burge
         f_grads = parameters_to_vector(grads)
 
         int_res = model.solution_cls.operator._pde_compute()
+
+        int_res = int_res.reshape(-1)
+
         bval, true_bval, _, _ = model.solution_cls.boundary.apply_bcs()
-        bound_res = bval-true_bval
+        bound_res = bval.reshape(-1)-true_bval.reshape(-1)
 
         # assemble gramian
         G_int  = gramian(model.net, int_res)
@@ -767,10 +780,18 @@ def experiment_data_amount_SOD_NGD(grid_res,NGD_info_string=True,exp_name='burge
         #f_nat_grad = torch.from_numpy(np.array(f_nat_grad)).to(torch.float64).to("cuda:0")
 
 
-        G = G.detach().cpu()
-        f_grads =f_grads.detach().cpu()
-        f_nat_grad=torch.linalg.lstsq(G, f_grads,driver='gelsd')[0] 
+
+        #G = G.detach().cpu()
+        #f_grads =f_grads.detach().cpu()
+        #f_nat_grad=torch.linalg.lstsq(G, f_grads)[0] 
         
+        G = G.detach().cpu().numpy()
+        f_grads =f_grads.detach().cpu().numpy()
+
+        f_nat_grad=np.linalg.lstsq(G, f_grads,rcond=None)[0] 
+
+        f_nat_grad=torch.from_numpy(f_nat_grad)
+
         f_nat_grad = f_nat_grad.to("cuda:0")
 
         
@@ -778,17 +799,35 @@ def experiment_data_amount_SOD_NGD(grid_res,NGD_info_string=True,exp_name='burge
         # one step of NGD
         actual_step = ls_update(model.net, f_nat_grad)
         iteration+=1
+
+        cur_loss=model.solution_cls.evaluate()[0].item()
+        
+        if abs(cur_loss)<1e-8:
+            break
+
+        last_loss[(iteration-3)%loss_window]=cur_loss
+
+        if iteration>0 and iteration%loss_window==0:
+            line = np.polyfit(range(loss_window), last_loss, 1)
+            print(last_loss)
+            print('crit={}'.format(abs(line[0] / cur_loss)))
+            if abs(line[0] / cur_loss)<1e-6:
+                print('increasing patience')
+                patience+=1
+                if patience < 5:
+                    print('model before = {}'.format(parameters_to_vector(model.net.parameters())))
+                    loss, _ = model.solution_cls.evaluate()
+                    print('loss before = {}'.format(loss.item()))
+                    model.net=model.net.apply(_r)
+                    print('model after = {}'.format(parameters_to_vector(model.net.parameters())))
+                    loss, _ = model.solution_cls.evaluate()
+                    print('loss after = {}'.format(loss.item()))
+                else:
+                    break
+                
+
         if iteration>1000:
             break
-        #if iteration%10 == 0 and NGD_info_string:
-        ##if NGD_info_string:
-        #    print('iteration= ', iteration)
-        #    print('step= ', actual_step.item())
-        #    print('loss=' , model.solution_cls.evaluate()[0].item())
-    if NGD_info_string:
-        print('iteration= ', iteration)
-        print('step= ', actual_step.item())
-        print('loss=' , model.solution_cls.evaluate()[0].item())
     end = time.time()
     run_time = end-start
     
@@ -814,20 +853,26 @@ def experiment_data_amount_SOD_NGD(grid_res,NGD_info_string=True,exp_name='burge
 
 
     exp_dict={'grid_res': grid_res,
-                          'error_train': error_train.item(),
-                          'error_test': error_test.item(),
-                          'loss': loss.item(),
-                          "lu_f_adam": lu_f.item(),
-                          'time_adam': run_time,
-                          'type': exp_name}
+                        'error_train_pressure': error_train[0].item(),
+                        'error_train_velocity': error_train[1].item(),
+                        'error_train_density': error_train[2].item(),
+                        'error_test_pressure': error_train[0].item(),
+                        'error_test_velocity': error_train[1].item(),
+                        'error_test_density': error_train[2].item(),
+                        'loss': loss.item(),
+                        'time': run_time,
+                        'type': exp_name}
 
     exp_dict_list.append(exp_dict)
 
 
 
-    print('grid_res=', grid_res)
-    print('l2_norm = ', error_train.item())
-    print('lu_f = ', lu_f.item())
+
+
+    print('Time taken pso {}= {}'.format(grid_res, run_time))
+    print('RMSE p {}= {}'.format(grid_res, error_test[0]))
+    print('RMSE v {}= {}'.format(grid_res, error_test[1]))
+    print('RMSE ro {}= {}'.format(grid_res, error_test[2]))
 
 
     return exp_dict_list
@@ -841,33 +886,6 @@ if __name__ == '__main__':
         os.mkdir('examples\\AAAI_expetiments\\results')
     
     nruns = 1
-
-
-    exp_dict_list=[]
-
-    
-
-
-
-    #for grid_res in range(10, 101, 10):
-    #    for _ in range(nruns):
-    #        exp_dict_list.append(experiment_data_amount_SOD_PSO(grid_res))
-
-    
-
-    #exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-    #df = pd.DataFrame(exp_dict_list_flatten)
-    #df.to_csv('examples\\AAAI_expetiments\\results\\SOD_PSO.csv')
-
-
-    exp_dict_list=[]
-
-    for grid_res in range(10, 61, 10):
-        for _ in range(nruns):
-            exp_dict_list.append(experiment_data_amount_SOD_lam(grid_res))
-            exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-            df = pd.DataFrame(exp_dict_list_flatten)
-            df.to_csv('examples\\AAAI_expetiments\\results\\SOD_lam_{}.csv'.format(grid_res))
 
     exp_dict_list=[]
 

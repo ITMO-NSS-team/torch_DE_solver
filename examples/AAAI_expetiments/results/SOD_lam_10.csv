@@ -1,0 +1,2 @@
+,grid_res,error_train_pressure,error_train_velocity,error_train_density,error_test_pressure,error_test_velocity,error_test_density,loss,time,type
+0,10,0.1566501259803772,0.3157793879508972,0.18498679995536804,0.1566501259803772,0.3157793879508972,0.18498679995536804,0.02738380804657936,1566.9964413642883,SOD_lam

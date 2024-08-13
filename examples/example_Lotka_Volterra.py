@@ -26,7 +26,7 @@ from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device, check_device, device_type
 
 
-solver_device('сpu')
+solver_device('gpu')
 
 alpha = 20.
 beta = 20.
@@ -104,18 +104,16 @@ equation.add(eq1)
 equation.add(eq2)
 
 net = torch.nn.Sequential(
-        torch.nn.Linear(1, 100),
+        torch.nn.Linear(1, 32),
         torch.nn.Tanh(),
-        torch.nn.Linear(100, 100),
+        torch.nn.Linear(32, 32),
         torch.nn.Tanh(),
-        torch.nn.Linear(100, 100),
-        torch.nn.Tanh(),
-        torch.nn.Linear(100, 2)
+        torch.nn.Linear(32, 2)
     )
 
 model =  Model(net, domain, equation, boundaries)
 
-model.compile("NN", lambda_operator=1, lambda_bound=100, h=h)
+model.compile("autograd", lambda_operator=1, lambda_bound=100)
 
 img_dir=os.path.join(os.path.dirname( __file__ ), 'img_Lotka_Volterra')
 
@@ -126,7 +124,7 @@ cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-5)
 cb_es = early_stopping.EarlyStopping(eps=1e-6,
                                     loss_window=100,
                                     no_improvement_patience=1000,
-                                    patience=5,
+                                    patience=3,
                                     randomize_parameter=1e-5)
 
 cb_plots = plot.Plots(save_every=1000, print_every=None, img_dir=img_dir)
