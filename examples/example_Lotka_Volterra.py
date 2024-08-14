@@ -113,7 +113,7 @@ net = torch.nn.Sequential(
 
 model =  Model(net, domain, equation, boundaries)
 
-model.compile("autograd", lambda_operator=1, lambda_bound=100)
+model.compile("autograd", lambda_operator=1, lambda_bound=10, tol=0.01)
 
 img_dir=os.path.join(os.path.dirname( __file__ ), 'img_Lotka_Volterra')
 
@@ -159,8 +159,8 @@ plt.grid()
 plt.title("odeint and NN methods comparing")
 plt.plot(t, x, '+', label = 'preys_odeint')
 plt.plot(t, y, '*', label = "predators_odeint")
-plt.plot(grid, net(grid)[:,0].detach().numpy().reshape(-1), label='preys_NN')
-plt.plot(grid, net(grid)[:,1].detach().numpy().reshape(-1), label='predators_NN')
+plt.plot(grid.cpu(), net(grid.cpu())[:,0].cpu().detach().numpy().reshape(-1), label='preys_NN')
+plt.plot(grid.cpu(), net(grid.cpu())[:,1].cpu().detach().numpy().reshape(-1), label='predators_NN')
 plt.xlabel('Time t, [days]')
 plt.ylabel('Population')
 plt.legend(loc='upper right')
