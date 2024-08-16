@@ -55,7 +55,7 @@ from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device, check_device, device_type
 
 
-
+from tedeous.models import KAN
 
 
 alpha = 20.
@@ -203,13 +203,7 @@ def experiment_data_amount_LV_PSO(grid_res,exp_name='LV_PSO',save_plot=True):
 
     grid,domain,equation,boundaries = LV_problem_formulation(grid_res)
 
-    net = torch.nn.Sequential(
-            torch.nn.Linear(1, 32),
-            torch.nn.Tanh(),
-            torch.nn.Linear(32, 32),
-            torch.nn.Tanh(),
-            torch.nn.Linear(32, 2)
-        )
+    net = KAN(layers_hidden=[1,32,32,2])
 
     model = Model(net, domain, equation, boundaries)
 
@@ -329,7 +323,7 @@ if __name__ == '__main__':
             exp_dict_list.append(experiment_data_amount_LV_PSO(grid_res))
             exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
             df = pd.DataFrame(exp_dict_list_flatten)
-            df_path=os.path.join(results_dir,'LV_PSO_{}.csv'.format(grid_res))
+            df_path=os.path.join(results_dir,'LV_PSO_KAN_{}.csv'.format(grid_res))
             df.to_csv(df_path)
 
 

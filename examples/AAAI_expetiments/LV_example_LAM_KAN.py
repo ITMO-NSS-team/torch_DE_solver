@@ -50,11 +50,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
-from tedeous.callbacks import  early_stopping
+from tedeous.callbacks import cache, early_stopping, plot
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device, check_device, device_type
 
-
+from tedeous.models import KAN
 
 
 
@@ -197,19 +197,15 @@ def LV_problem_formulation(grid_res):
 
 
 
-def experiment_data_amount_LV_PSO(grid_res,exp_name='LV_PSO',save_plot=True):
+def experiment_data_amount_LV_lam(grid_res,exp_name='LV_lam',save_plot=True):
+
     solver_device('cuda')
     exp_dict_list = []
 
+
     grid,domain,equation,boundaries = LV_problem_formulation(grid_res)
 
-    net = torch.nn.Sequential(
-            torch.nn.Linear(1, 32),
-            torch.nn.Tanh(),
-            torch.nn.Linear(32, 32),
-            torch.nn.Tanh(),
-            torch.nn.Linear(32, 2)
-        )
+    net = KAN(layers_hidden=[1,32,32,2])
 
     model = Model(net, domain, equation, boundaries)
 
@@ -222,13 +218,15 @@ def experiment_data_amount_LV_PSO(grid_res,exp_name='LV_PSO',save_plot=True):
                                         patience=3,
                                         randomize_parameter=1e-5)
 
+    cb_lam = adaptive_lambda.AdaptiveLambda()
+
     optim = Optimizer('Adam', {'lr': 1e-3})
 
     start=time.time()
-    model.train(optim, 1e6, callbacks=[cb_es])
+    model.train(optim, 2e5, callbacks=[cb_es,cb_lam])
     end = time.time()
 
-    run_time_adam = end - start
+    run_time = end - start
 
     grid = domain.build('autograd')
 
@@ -238,67 +236,25 @@ def experiment_data_amount_LV_PSO(grid_res,exp_name='LV_PSO',save_plot=True):
 
     u_exact_test = u(grid_test.cpu().reshape(-1))
 
-    error_train_adam = torch.sqrt(torch.mean((u_exact_train - net(grid))** 2, dim=0))
+    error_train = torch.sqrt(torch.mean((u_exact_train - net(grid))** 2, dim=0))
 
-    error_test_adam = torch.sqrt(torch.mean((u_exact_test - net(grid_test.reshape(-1,1))) ** 2 , dim=0))
+    error_test = torch.sqrt(torch.mean((u_exact_test - net(grid_test.reshape(-1,1))) ** 2 , dim=0))
 
-    loss_adam = model.solution_cls.evaluate()[0].detach().cpu().numpy()
+    loss = model.solution_cls.evaluate()[0].detach().cpu().numpy()
 
-
-    print('Time taken adam {}= {}'.format(grid_res, run_time_adam))
-    print('RMSE u {}= {}'.format(grid_res, error_test_adam[0]))
-    print('RMSE v {}= {}'.format(grid_res, error_test_adam[1]))
-
-
-    ########
-
-    cb_es = early_stopping.EarlyStopping(eps=1e-6,
-                                        loss_window=100,
-                                        no_improvement_patience=100,
-                                        patience=2,
-                                        randomize_parameter=1e-5,
-                                        verbose=False)
-
-    optim = Optimizer('PSO', {'pop_size': 50, #30
-                                  'b': 0.4, #0.5
-                                  'c2': 0.5, #0.05
-                                  'c1': 0.5, 
-                                  'variance': 5e-2,
-                                  'lr': 1e-3})
-    start = time.time()
-    model.train(optim, 2e4, save_model=False, callbacks=[cb_es])
-    end = time.time()
-
-    run_time_pso=end-start
-
-    error_train_pso = torch.sqrt(torch.mean((u_exact_train - net(grid))** 2, dim=0))
-
-    error_test_pso = torch.sqrt(torch.mean((u_exact_test - net(grid_test.reshape(-1,1))) ** 2 , dim=0))
-
-    loss_pso = model.solution_cls.evaluate()[0].detach().cpu().numpy()
-
-    #########
-
-    
 
     exp_dict={'grid_res': grid_res,
-                        'error_train_u_adam': error_train_adam[0].item(),
-                        'error_train_v_adam': error_train_adam[1].item(),
-                        'error_test_u_adam': error_train_adam[0].item(),
-                        'error_test_v_adam': error_train_adam[1].item(),
-                        'error_train_u_pso': error_train_pso[0].item(),
-                        'error_train_v_pso': error_train_pso[1].item(),
-                        'error_test_u_pso': error_train_pso[0].item(),
-                        'error_test_v_pso': error_train_pso[1].item(),
-                        'loss_adam': loss_adam.item(),
-                        'loss_pso': loss_pso.item(),
-                        'time_adam': run_time_adam,
-                        'time_pso': run_time_pso,
+                        'error_train_u': error_train[0].item(),
+                        'error_train_v': error_train[1].item(),
+                        'error_test_u': error_train[0].item(),
+                        'error_test_v': error_train[1].item(),
+                        'loss': loss.item(),
+                        'time': run_time,
                         'type': exp_name}
 
-    print('Time taken pso {}= {}'.format(grid_res, run_time_pso))
-    print('RMSE u {}= {}'.format(grid_res, error_test_pso[0]))
-    print('RMSE v {}= {}'.format(grid_res, error_test_pso[1]))
+    print('Time taken lam {}= {}'.format(grid_res, run_time))
+    print('RMSE u {}= {}'.format(grid_res, error_test[0]))
+    print('RMSE v {}= {}'.format(grid_res, error_test[1]))
 
     exp_dict_list.append(exp_dict)
 
@@ -306,11 +262,8 @@ def experiment_data_amount_LV_PSO(grid_res,exp_name='LV_PSO',save_plot=True):
 
 
 
-
-
-
-
 if __name__ == '__main__':
+
 
     results_dir=os.path.join(os.path.abspath(os.path.join(os.path.dirname( __file__ ))),'results')
 
@@ -326,11 +279,8 @@ if __name__ == '__main__':
 
     for grid_res in range(10, 101, 10):
         for _ in range(nruns):
-            exp_dict_list.append(experiment_data_amount_LV_PSO(grid_res))
+            exp_dict_list.append(experiment_data_amount_LV_lam(grid_res))
             exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
             df = pd.DataFrame(exp_dict_list_flatten)
-            df_path=os.path.join(results_dir,'LV_PSO_{}.csv'.format(grid_res))
+            df_path=os.path.join(results_dir,'LV_LAM_{}.csv'.format(grid_res))
             df.to_csv(df_path)
-
-
-

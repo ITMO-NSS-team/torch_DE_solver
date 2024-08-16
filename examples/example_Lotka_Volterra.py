@@ -113,7 +113,7 @@ net = torch.nn.Sequential(
 
 model =  Model(net, domain, equation, boundaries)
 
-model.compile("autograd", lambda_operator=1, lambda_bound=10, tol=0.01)
+model.compile("NN", lambda_operator=1, lambda_bound=100,h=h,tol=0.01)
 
 img_dir=os.path.join(os.path.dirname( __file__ ), 'img_Lotka_Volterra')
 
@@ -131,7 +131,7 @@ cb_plots = plot.Plots(save_every=1000, print_every=None, img_dir=img_dir)
 
 optimizer = Optimizer('Adam', {'lr': 1e-4})
 
-model.train(optimizer, 5e6, save_model=True, callbacks=[cb_es, cb_cache, cb_plots])
+model.train(optimizer, 5e6, save_model=True, callbacks=[cb_es, cb_plots])
 
 end = time.time()
     
@@ -169,7 +169,7 @@ plt.show()
 plt.figure()
 plt.grid()
 plt.title('Phase plane: prey vs predators')
-plt.plot(net(grid)[:,0].detach().numpy().reshape(-1), net(grid)[:,1].detach().numpy().reshape(-1), '-*', label='NN')
+plt.plot(net(grid.cpu())[:,0].cpu().detach().numpy().reshape(-1), net(grid.cpu())[:,1].cpu().detach().numpy().reshape(-1), '-*', label='NN')
 plt.plot(x,y, label='odeint')
 plt.xlabel('preys')
 plt.ylabel('predators')

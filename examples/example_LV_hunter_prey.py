@@ -106,3 +106,4 @@ optimizer = Optimizer('Adam', {'lr': 1e-3})
 model.train(optimizer, 4e4, save_model=False, callbacks=[cb_cache, cb_es, cb_plots])
 
 end = time.time()
+
