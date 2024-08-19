@@ -9,6 +9,7 @@ import numpy as np
 import os
 import sys
 import time
+import torch.nn.functional as F
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -20,8 +21,8 @@ from tedeous.callbacks import early_stopping, plot, cache
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 
-# Custom models
-from tedeous.models import KAN
+import kan
+
 
 """
 Preparing grid
@@ -110,8 +111,6 @@ def wave_experiment(grid_res):
     description/comments and are not used in model directly thus order of
     items must be preserved as (coeff,op,pow)
 
-
-
     term is a dict term={coefficient:c1,[sterm1,sterm2],'pow': power}
 
     c1 may be integer, function of grid or tensor of dimension of grid
@@ -146,19 +145,10 @@ def wave_experiment(grid_res):
 
     equation.add(wave_eq)
 
-    # net = torch.nn.Sequential(
-    #     torch.nn.Linear(2, 100),
-    #     torch.nn.Tanh(),
-    #     torch.nn.Linear(100, 100),
-    #     torch.nn.Tanh(),
-    #     torch.nn.Linear(100, 100),
-    #     torch.nn.Tanh(),
-    #     torch.nn.Linear(100, 100),
-    #     torch.nn.Tanh(),
-    #     torch.nn.Linear(100, 1)
-    # )
-
-    net = KAN()
+    net = kan.KAN(
+        width=[2, 100, 1],
+        base_fun='silu'
+    )
 
     start = time.time()
 
@@ -166,11 +156,11 @@ def wave_experiment(grid_res):
 
     model.compile("autograd", lambda_operator=1, lambda_bound=100)
 
-    cb_es = early_stopping.EarlyStopping(eps=1e-5, randomize_parameter=1e-6, info_string_every=500)
+    cb_es = early_stopping.EarlyStopping(eps=1e-5, randomize_parameter=1e-6, info_string_every=50)
 
     cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-6)
 
-    img_dir = os.path.join(os.path.dirname( __file__ ), 'wave_img')
+    img_dir = os.path.join(os.path.dirname( __file__ ), 'wave_img_kan')
 
     cb_plots = plot.Plots(save_every=5000, print_every=5000, img_dir=img_dir)
 
