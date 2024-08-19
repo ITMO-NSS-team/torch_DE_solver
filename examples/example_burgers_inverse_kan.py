@@ -14,8 +14,7 @@ from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 from tedeous.models import parameter_registr
 
-from tedeous.models import KAN
-
+import kan
 
 solver_device('cuda')
 
@@ -43,21 +42,10 @@ bndval1 = bndval1[id_f]
 
 boundaries.data(bnd=bnd1, operator=None, value=bndval1)
 
-# net = torch.nn.Sequential(
-#     torch.nn.Linear(2, 100),
-#     torch.nn.Tanh(),
-#     torch.nn.Linear(100, 100),
-#     torch.nn.Tanh(),
-#     torch.nn.Linear(100, 100),
-#     torch.nn.Tanh(),
-#     torch.nn.Linear(100, 100),
-#     torch.nn.Tanh(),
-#     torch.nn.Linear(100, 100),
-#     torch.nn.Tanh(),
-#     torch.nn.Linear(100, 1)
-# )
-
-net = KAN()
+net = kan.KAN(
+        width=[2, 100, 1],
+        base_fun='silu'
+)
 
 parameters = {'lam1': 2., 'lam2': 0.2}  # true parameters: lam1 = 1, lam2 = -0.01*pi
 
@@ -95,7 +83,7 @@ model = Model(net, domain, equation, boundaries)
 
 model.compile('autograd', lambda_operator=1, lambda_bound=100)
 
-img_dir = os.path.join(os.path.dirname( __file__ ), 'burgers_eq_img')
+img_dir = os.path.join(os.path.dirname( __file__ ), 'burgers_eq_img_kan')
 
 cb_es = early_stopping.EarlyStopping(eps=1e-7,
                                      loss_window=100,
@@ -105,10 +93,10 @@ cb_es = early_stopping.EarlyStopping(eps=1e-7,
                                      randomize_parameter=1e-5,
                                      info_string_every=10)
 
-cb_plots = plot.Plots(save_every=50, print_every=50, img_dir=img_dir)
+cb_plots = plot.Plots(save_every=500, print_every=500, img_dir=img_dir)
 
 cb_params = inverse_task.InverseTask(parameters=parameters, info_string_every=10)
 
-optimizer = Optimizer('Adam', {'lr': 1e-3})
+optimizer = Optimizer('Adam', {'lr': 1e-4})
 
 model.train(optimizer, 25e3, save_model=False, callbacks=[cb_es, cb_plots, cb_params])
