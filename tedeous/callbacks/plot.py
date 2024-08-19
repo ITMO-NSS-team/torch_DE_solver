@@ -35,27 +35,24 @@ class Plots(Callback):
 
         """
 
-        # Original
-        # try:
-        #     nvars_model = self.net[-1].out_features
-        # except:
-        #     nvars_model = self.net.model[-1].out_features
-
-        attributes = [['model', 'out_features'],
-                      ['layers', 'out_features'],
-                      ['layers', 'output_dim']]
+        attributes = {'model': ['out_features', 'output_dim', 'width_out'],
+                      'layers': ['out_features', 'output_dim', 'width_out']}
 
         nvars_model = None
 
-        for attribute in attributes:
-            try:
-                nvars_model = getattr(getattr(self.net, attribute[0])[-1], attribute[-1])
-                break
-            except AttributeError:
-                pass
+        for key, values in attributes.items():
+            for value in values:
+                try:
+                    nvars_model = getattr(getattr(self.net, key)[-1], value)
+                    break
+                except AttributeError:
+                    pass
 
         if nvars_model is None:
-            nvars_model = self.net[-1].out_features
+            try:
+                nvars_model = self.net[-1].out_features
+            except:
+                nvars_model = self.net.width_out[-1]
 
         nparams = self.grid.shape[1]
         fig = plt.figure(figsize=(15, 8))
@@ -157,3 +154,5 @@ class Plots(Callback):
 
     def on_epoch_end(self, logs=None):
         self.solution_print()
+
+
