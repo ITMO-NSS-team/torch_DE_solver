@@ -5,6 +5,7 @@ Created on Tue Aug 24 11:50:12 2021
 @author: user
 """
 
+from functools import cache
 import glob
 from typing import Union
 import torch
@@ -134,14 +135,25 @@ class CachePreprocessing:
 
         for i in cache_n:
             file = files[i]
-            checkpoint = torch.load(file)
+            
+            try:
+                checkpoint = torch.load(file)
+            except Exception:
+                if cache_verbose:
+                    print('Error loading file {}'.format(file))
+                continue
 
             model = checkpoint['model']
             model.load_state_dict(checkpoint['model_state_dict'])
 
             # this one for the input shape fix if needed
 
-            solver_model, cache_model = self._model_reform(self.solution_cls.model, model)
+            try:
+                solver_model, cache_model = self._model_reform(self.solution_cls.model, model)
+            except Exception:
+                if cache_verbose:
+                    print('Error reforming file {}'.format(file))
+                continue
 
             if cache_model[0].in_features != solver_model[0].in_features:
                 continue
