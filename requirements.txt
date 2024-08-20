@@ -8,7 +8,3 @@ autodocsumm
 typing
 SALib
 #git+https://github.com/uwjunqi/Pytorch-Tensor-Train-Network.git
-git+https://github.com/KindXiaoming/pykan.git
-git+https://github.com/Blealtan/efficient-kan.git
-git+https://github.com/ZiyaoLi/fast-kan.git
-
