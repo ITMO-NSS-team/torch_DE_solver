@@ -1,0 +1,4 @@
+git+https://github.com/KindXiaoming/pykan.git
+git+https://github.com/Blealtan/efficient-kan.git
+git+https://github.com/ZiyaoLi/fast-kan.git
+
