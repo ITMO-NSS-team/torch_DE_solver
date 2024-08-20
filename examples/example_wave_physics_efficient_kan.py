@@ -145,8 +145,8 @@ def wave_experiment(grid_res):
     equation.add(wave_eq)
 
     net = efficient_kan.KAN(
-        [2, 100, 1],
-        grid_size=10,
+        [2, 100, 100, 100, 1],
+        grid_size=8,
         spline_order=3,
         scale_noise=0.1,
         scale_base=1.0,
@@ -168,7 +168,7 @@ def wave_experiment(grid_res):
 
     img_dir = os.path.join(os.path.dirname( __file__ ), 'wave_img_efficient_kan')
 
-    cb_plots = plot.Plots(save_every=5000, print_every=5000, img_dir=img_dir)
+    cb_plots = plot.Plots(save_every=500, print_every=500, img_dir=img_dir)
 
     optimizer = Optimizer('Adam', {'lr': 1e-4})
 
