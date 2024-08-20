@@ -147,12 +147,12 @@ def wave_experiment(grid_res):
 
     net = fastkan.FastKAN(
         [2, 100, 100, 100, 1],
-        grid_min=-5.,
-        grid_max=5.,
+        grid_min=-4.,
+        grid_max=4.,
         num_grids=2,
         use_base_update=True,
-        base_activation=F.silu,
-        spline_weight_init_scale=0.1  
+        base_activation=F.tanh,
+        spline_weight_init_scale=0.05
     )
 
     start = time.time()
@@ -161,7 +161,7 @@ def wave_experiment(grid_res):
 
     model.compile("autograd", lambda_operator=1, lambda_bound=100)
 
-    cb_es = early_stopping.EarlyStopping(eps=1e-5, randomize_parameter=1e-6, info_string_every=10)
+    cb_es = early_stopping.EarlyStopping(eps=1e-5, randomize_parameter=1e-6, info_string_every=50)
 
     cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-6)
 
