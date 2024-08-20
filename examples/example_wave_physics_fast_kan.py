@@ -21,7 +21,7 @@ from tedeous.callbacks import early_stopping, plot, cache
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 
-import kan
+import fastkan
 
 
 """
@@ -145,19 +145,14 @@ def wave_experiment(grid_res):
 
     equation.add(wave_eq)
 
-    net = kan.KAN(
-        width=[2, 5, 5, 5, 1],
-        grid=5,
-        k=3,
-        mult_arity=2,
-        noise_scale=1.0,
-        scale_base_mu=0.0,
-        scale_base_sigma=1.0,
-        base_fun='silu',
-        symbolic_enabled=True,
-        affine_trainable=False,
-        grid_eps=1.0,
-        grid_range=[-5, 5]
+    net = fastkan.FastKAN(
+        [2, 100, 100, 100, 1],
+        grid_min=-5.,
+        grid_max=5.,
+        num_grids=2,
+        use_base_update=True,
+        base_activation=F.silu,
+        spline_weight_init_scale=0.1  
     )
 
     start = time.time()
@@ -170,7 +165,7 @@ def wave_experiment(grid_res):
 
     cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-6)
 
-    img_dir = os.path.join(os.path.dirname( __file__ ), 'wave_img_kan')
+    img_dir = os.path.join(os.path.dirname( __file__ ), 'wave_img_fast_kan')
 
     cb_plots = plot.Plots(save_every=1000, print_every=1000, img_dir=img_dir)
 
