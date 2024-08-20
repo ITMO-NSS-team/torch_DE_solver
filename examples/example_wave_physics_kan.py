@@ -146,8 +146,18 @@ def wave_experiment(grid_res):
     equation.add(wave_eq)
 
     net = kan.KAN(
-        width=[2, 100, 1],
-        base_fun='silu'
+        width=[2, 5, 5, 5, 1],
+        grid=5,
+        k=3,
+        mult_arity=2,
+        noise_scale=1.0,
+        scale_base_mu=0.0,
+        scale_base_sigma=1.0,
+        base_fun='silu',
+        symbolic_enabled=True,
+        affine_trainable=False,
+        grid_eps=1.0,
+        grid_range=[-5, 5]
     )
 
     start = time.time()
@@ -156,13 +166,13 @@ def wave_experiment(grid_res):
 
     model.compile("autograd", lambda_operator=1, lambda_bound=100)
 
-    cb_es = early_stopping.EarlyStopping(eps=1e-5, randomize_parameter=1e-6, info_string_every=50)
+    cb_es = early_stopping.EarlyStopping(eps=1e-5, randomize_parameter=1e-6, info_string_every=10)
 
     cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-6)
 
     img_dir = os.path.join(os.path.dirname( __file__ ), 'wave_img_kan')
 
-    cb_plots = plot.Plots(save_every=5000, print_every=5000, img_dir=img_dir)
+    cb_plots = plot.Plots(save_every=1000, print_every=1000, img_dir=img_dir)
 
     optimizer = Optimizer('Adam', {'lr': 1e-4})
 
