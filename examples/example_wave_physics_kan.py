@@ -146,8 +146,8 @@ def wave_experiment(grid_res):
     equation.add(wave_eq)
 
     net = kan.KAN(
-        width=[2, 5, 5, 5, 1],
-        grid=5,
+        width=[2, 3, 3, 3, 1],
+        grid=50,
         k=3,
         mult_arity=2,
         noise_scale=1.0,
@@ -172,9 +172,9 @@ def wave_experiment(grid_res):
 
     img_dir = os.path.join(os.path.dirname( __file__ ), 'wave_img_kan')
 
-    cb_plots = plot.Plots(save_every=1000, print_every=1000, img_dir=img_dir)
+    cb_plots = plot.Plots(save_every=500, print_every=500, img_dir=img_dir)
 
-    optimizer = Optimizer('Adam', {'lr': 1e-4})
+    optimizer = Optimizer('Adam', {'lr': 5e-4})
 
     model.train(optimizer, 5e6, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
 
