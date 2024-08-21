@@ -97,11 +97,11 @@ cb_es = early_stopping.EarlyStopping(eps=1e-7,
                                      patience=3,
                                      abs_loss=1e-5,
                                      randomize_parameter=1e-5,
-                                     info_string_every=1)
+                                     info_string_every=10)
 
 cb_plots = plot.Plots(save_every=500, print_every=500, img_dir=img_dir)
 
-cb_params = inverse_task.InverseTask(parameters=parameters, info_string_every=500)
+cb_params = inverse_task.InverseTask(parameters=parameters, info_string_every=10)
 
 optimizer = Optimizer('Adam', {'lr': 1e-4})
 
