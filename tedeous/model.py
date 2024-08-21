@@ -35,6 +35,7 @@ class Model():
         self.domain = domain
         self.equation = equation
         self.conditions = conditions
+
         self._check = None
         temp_dir = tempfile.gettempdir()
         folder_path = os.path.join(temp_dir, 'tedeous_cache/')
@@ -91,10 +92,11 @@ class Model():
 
         self.equation_cls = Operator_bcond_preproc(grid, operator, bconds, h=h, inner_order=inner_order,
                                                    boundary_order=boundary_order).set_strategy(mode)
-        
+
         self.solution_cls = Solution(grid, self.equation_cls, self.net, mode, weak_form,
                                      lambda_operator, lambda_bound, tol, derivative_points,
                                      batch_size=self.batch_size)
+
 
     def _model_save(
         self,
@@ -122,7 +124,7 @@ class Model():
               mixed_precision: bool = False,
               save_model: bool = False,
               model_name: Union[str, None] = None,
-              callbacks: Union[List, None]=None):
+              callbacks: Union[List, None] = None):
         """ train model.
 
         Args:
@@ -155,7 +157,7 @@ class Model():
         print('[{}] initial (min) loss is {}'.format(
                 datetime.datetime.now(), self.min_loss.item()))
 
-        while self.t < epochs and self.stop_training == False:
+        while self.t < epochs and self.stop_training is False:
             callbacks.on_epoch_begin()
             self.optimizer.zero_grad()
             iter_count = 1 if self.batch_size is None else self.solution_cls.operator.n_batches

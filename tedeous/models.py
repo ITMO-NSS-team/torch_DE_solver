@@ -1,5 +1,4 @@
 """Module keeps custom models arctectures"""
-
 from typing import List, Any
 import torch
 from torch import nn
@@ -81,7 +80,6 @@ class FourierNN(nn.Module):
     def __init__(self, layers=[100, 100, 100, 1], L=[1], M=[1],
                  activation=nn.Tanh(), ones=False):
         """
-
         Args:
             layers (list, optional): neurons quantity in each layer (exclusion input layer),
             the number of neurons in the hidden layers must match. Defaults to [100, 100, 100, 1].
@@ -103,6 +101,7 @@ class FourierNN(nn.Module):
 
         self.activation = activation
         self.model = nn.ModuleList([FFL])
+
         for i in range(len(layers) - 1):
             self.model.append(nn.Linear(layers[i], layers[i + 1]))
 
@@ -132,7 +131,7 @@ class FeedForward(nn.Module):
     """Simple MLP neural network"""
 
     def __init__(self,
-                 layers: List=[2, 100, 100, 100, 1],
+                 layers: List = [2, 100, 100, 100, 1],
                  activation: nn.Module = nn.Tanh(),
                  parameters: dict = None):
         """
@@ -144,13 +143,15 @@ class FeedForward(nn.Module):
             parameters (dict, optional): parameters initial values (for inverse task).
             Defaults to None.
         """
+
         super().__init__()
-        model = []
-        for i in range(len(layers)-2):
-            model.append(nn.Linear(layers[i], layers[i+1]))
-            model.append(activation)
-        model.append(nn.Linear(layers[-2], layers[-1]))
-        self.net = torch.nn.Sequential(*model)
+        self.model = []
+
+        for i in range(len(layers) - 2):
+            self.model.append(nn.Linear(layers[i], layers[i + 1]))
+            self.model.append(activation)
+        self.model.append(nn.Linear(layers[-2], layers[-1]))
+        self.net = torch.nn.Sequential(*self.model)
         if parameters is not None:
             self.reg_param(parameters)
 
@@ -165,7 +166,8 @@ class FeedForward(nn.Module):
         """
         return self.net(x)
 
-    def reg_param(self, parameters: dict):
+    def reg_param(self,
+                  parameters: dict):
         """ Parameters registration as neural network parameters.
         Should be used in inverse coefficients tasks.
 
@@ -174,7 +176,7 @@ class FeedForward(nn.Module):
         """
         for key, value in parameters.items():
             parameters[key] = torch.nn.Parameter(torch.tensor([value],
-                                           requires_grad=True).float())
+                                                              requires_grad=True).float())
             self.net.register_parameter(key, parameters[key])
 
 
@@ -189,7 +191,7 @@ def parameter_registr(model: torch.nn.Module,
     """
     for key, value in parameters.items():
         parameters[key] = torch.nn.Parameter(torch.tensor([value],
-                                        requires_grad=True).float())
+                                                          requires_grad=True).float())
         model.register_parameter(key, parameters[key])
 
 
@@ -215,8 +217,7 @@ def mat_model(domain: Any,
     shape = [eq_num] + list(grid.shape)[1:]
 
     if nn_model is not None:
-        nn_grid = torch.vstack([grid[i].reshape(-1) for i in \
-                                range(grid.shape[0])]).T.float()
+        nn_grid = torch.vstack([grid[i].reshape(-1) for i in range(grid.shape[0])]).T.float()
         model = nn_model(nn_grid).detach()
         model = model.reshape(shape)
     else:

@@ -11,6 +11,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 class Plots(Callback):
     """Class for ploting solutions."""
+
     def __init__(self,
                  print_every: Union[int, None] = 500,
                  save_every: Union[int, None] = 500,
@@ -25,7 +26,7 @@ class Plots(Callback):
         """
         super().__init__()
         self.print_every = print_every if print_every is not None else 0.1
-        self.save_every =  save_every if save_every is not None else 0.1
+        self.save_every = save_every if save_every is not None else 0.1
         self.title = title
         self.img_dir = img_dir
 
@@ -35,10 +36,24 @@ class Plots(Callback):
 
         """
 
-        try:
-            nvars_model = self.net[-1].out_features
-        except:
-            nvars_model = self.net.model[-1].out_features
+        attributes = {'model': ['out_features', 'output_dim', 'width_out'],
+                      'layers': ['out_features', 'output_dim', 'width_out']}
+
+        nvars_model = None
+
+        for key, values in attributes.items():
+            for value in values:
+                try:
+                    nvars_model = getattr(getattr(self.net, key)[-1], value)
+                    break
+                except AttributeError:
+                    pass
+
+        if nvars_model is None:
+            try:
+                nvars_model = self.net[-1].out_features
+            except:
+                nvars_model = self.net.width_out[-1]
 
         nparams = self.grid.shape[1]
         fig = plt.figure(figsize=(15, 8))
@@ -56,9 +71,9 @@ class Plots(Callback):
                     ax1.set_title(self.title + ' variable {}'.format(i))
 
                 ax1.plot_trisurf(self.grid[:, 0].detach().cpu().numpy(),
-                                    self.grid[:, 1].detach().cpu().numpy(),
-                                    self.net(self.grid)[:, i].detach().cpu().numpy(),
-                                    cmap=cm.jet, linewidth=0.2, alpha=1)
+                                 self.grid[:, 1].detach().cpu().numpy(),
+                                 self.net(self.grid)[:, i].detach().cpu().numpy(),
+                                 cmap=cm.jet, linewidth=0.2, alpha=1)
                 ax1.set_xlabel("x1")
                 ax1.set_ylabel("x2")
 
@@ -69,23 +84,23 @@ class Plots(Callback):
 
         nparams = self.grid.shape[0]
         nvars_model = self.net.shape[0]
-        fig = plt.figure(figsize=(15,8))
+        fig = plt.figure(figsize=(15, 8))
         for i in range(nvars_model):
             if nparams == 1:
-                ax1 = fig.add_subplot(1, nvars_model, i+1)
+                ax1 = fig.add_subplot(1, nvars_model, i + 1)
                 if self.title is not None:
-                    ax1.set_title(self.title+' variable {}'.format(i))
+                    ax1.set_title(self.title + ' variable {}'.format(i))
                 ax1.scatter(self.grid.detach().cpu().numpy().reshape(-1),
                             self.net[i].detach().cpu().numpy().reshape(-1))
             else:
-                ax1 = fig.add_subplot(1, nvars_model, i+1, projection='3d')
+                ax1 = fig.add_subplot(1, nvars_model, i + 1, projection='3d')
 
                 if self.title is not None:
-                    ax1.set_title(self.title+' variable {}'.format(i))
+                    ax1.set_title(self.title + ' variable {}'.format(i))
                 ax1.plot_trisurf(self.grid[0].detach().cpu().numpy().reshape(-1),
-                            self.grid[1].detach().cpu().numpy().reshape(-1),
-                            self.net[i].detach().cpu().numpy().reshape(-1),
-                            cmap=cm.jet, linewidth=0.2, alpha=1)
+                                 self.grid[1].detach().cpu().numpy().reshape(-1),
+                                 self.net[i].detach().cpu().numpy().reshape(-1),
+                                 cmap=cm.jet, linewidth=0.2, alpha=1)
             ax1.set_xlabel("x1")
             ax1.set_ylabel("x2")
 
@@ -109,7 +124,7 @@ class Plots(Callback):
             if not os.path.isdir(img_dir):
                 os.mkdir(img_dir)
             directory = os.path.abspath(os.path.join(img_dir,
-                                        str(datetime.datetime.now().timestamp()) + '.png'))
+                                                     str(datetime.datetime.now().timestamp()) + '.png'))
         else:
             if not os.path.isdir(save_dir):
                 os.mkdir(save_dir)
@@ -118,7 +133,7 @@ class Plots(Callback):
         return directory
 
     def solution_print(
-        self):
+            self):
         """ printing or saving figures.
         """
         print_flag = self.model.t % self.print_every == 0
@@ -137,6 +152,8 @@ class Plots(Callback):
             if print_flag:
                 plt.show()
             plt.close()
-    
+
     def on_epoch_end(self, logs=None):
         self.solution_print()
+
+
