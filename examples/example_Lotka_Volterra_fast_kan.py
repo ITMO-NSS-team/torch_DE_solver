@@ -105,10 +105,10 @@ equation.add(eq1)
 equation.add(eq2)
 
 net = fastkan.FastKAN(
-    [1, 20, 20, 20, 20, 2],
-    grid_min=-10.,
-    grid_max=10.,
-    num_grids=2,
+    [1, 10, 10, 10, 2],
+    grid_min=-4.,
+    grid_max=4.,
+    num_grids=10,
     use_base_update=True,
     use_layernorm=False,
     base_activation=F.tanh,
@@ -134,7 +134,7 @@ cb_es = early_stopping.EarlyStopping(eps=1e-6,
 
 cb_plots = plot.Plots(save_every=1000, print_every=1000, img_dir=img_dir)
 
-optimizer = Optimizer('Adam', {'lr': 5e-4})
+optimizer = Optimizer('Adam', {'lr': 1e-4})
 
 model.train(optimizer, 5e6, save_model=True, callbacks=[cb_es, cb_cache, cb_plots])
 
