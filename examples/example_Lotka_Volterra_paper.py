@@ -38,7 +38,7 @@ tmax = 1.
 def Lotka_experiment(grid_res, CACHE):
     exp_dict_list = []
 
-    solver_device('cpu')
+    solver_device('gpu')
 
     domain = Domain()
     domain.variable('t', [0, tmax], grid_res)
@@ -105,18 +105,16 @@ def Lotka_experiment(grid_res, CACHE):
     equation.add(eq2)
 
     net = torch.nn.Sequential(
-            torch.nn.Linear(1, 100),
+            torch.nn.Linear(1, 32),
             torch.nn.Tanh(),
-            torch.nn.Linear(100, 100),
+            torch.nn.Linear(32, 32),
             torch.nn.Tanh(),
-            torch.nn.Linear(100, 100),
-            torch.nn.Tanh(),
-            torch.nn.Linear(100, 2)
+            torch.nn.Linear(32, 2)
         )
 
-    model =  Model(net, domain, equation, boundaries)
+    model =  Model(net, domain, equation, boundaries,batch_size=16)
 
-    model.compile("NN", lambda_operator=1, lambda_bound=100, h=h)
+    model.compile("autograd", lambda_operator=1, lambda_bound=100)
     
     img_dir=os.path.join(os.path.dirname( __file__ ), 'img_Lotka_Volterra_paper')
 
@@ -126,6 +124,7 @@ def Lotka_experiment(grid_res, CACHE):
                                         loss_window=100,
                                         no_improvement_patience=500,
                                         patience=3,
+                                        info_string_every=100,
                                         randomize_parameter=1e-5)
     
     cb_plots = plot.Plots(save_every=1000, print_every=None, img_dir=img_dir)
@@ -175,10 +174,10 @@ def Lotka_experiment(grid_res, CACHE):
     plt.figure()
     plt.grid()
     plt.title("odeint and NN methods comparing")
-    plt.plot(t, u_exact[:,0].detach().numpy().reshape(-1), '+', label = 'preys_odeint')
-    plt.plot(t, u_exact[:,1].detach().numpy().reshape(-1), '*', label = "predators_odeint")
-    plt.plot(grid, net(grid)[:,0].detach().numpy().reshape(-1), label='preys_NN')
-    plt.plot(grid, net(grid)[:,1].detach().numpy().reshape(-1), label='predators_NN')
+    plt.plot(t.cpu(), u_exact[:,0].detach().numpy().reshape(-1), '+', label = 'preys_odeint')
+    plt.plot(t.cpu(), u_exact[:,1].detach().numpy().reshape(-1), '*', label = "predators_odeint")
+    plt.plot(grid.cpu(), net(grid.cpu())[:,0].detach().numpy().reshape(-1), label='preys_NN')
+    plt.plot(grid.cpu(), net(grid.cpu())[:,1].detach().numpy().reshape(-1), label='predators_NN')
     plt.xlabel('Time t, [days]')
     plt.ylabel('Population')
     plt.legend(loc='upper right')
@@ -186,7 +185,7 @@ def Lotka_experiment(grid_res, CACHE):
 
     return exp_dict_list
 
-nruns=10
+nruns=1
 
 exp_dict_list=[]
 

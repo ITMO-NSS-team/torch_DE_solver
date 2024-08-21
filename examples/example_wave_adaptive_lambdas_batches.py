@@ -101,10 +101,9 @@ cb_es = early_stopping.EarlyStopping(eps=1e-7,
                                     no_improvement_patience=1000,
                                     patience=10,
                                     randomize_parameter=1e-5,
-                                    abs_loss=0.1,
                                     info_string_every=500)
 
-img_dir=os.path.join(os.path.dirname( __file__ ), 'wave_eq_img')
+img_dir=os.path.join(os.path.dirname( __file__ ), 'wave_eq_img_batch')
 
 cb_plots = plot.Plots(save_every=500, print_every=None, img_dir=img_dir)
 

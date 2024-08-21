@@ -14,7 +14,7 @@ from tedeous.callbacks import early_stopping, plot
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 
-solver_device('cpu')
+solver_device('gpu')
 # Grid
 domain = Domain()
 
@@ -92,13 +92,13 @@ weak_form = [v]
 
 start = time.time()
 
-model =  Model(net, domain, equation, boundaries, batch_size=32)
+model =  Model(net, domain, equation, boundaries, batch_size=64)
 
 model.compile("NN", lambda_operator=1, lambda_bound=1000, h=0.01)
 
 cb_es = early_stopping.EarlyStopping(eps=1e-6, no_improvement_patience=500, info_string_every=1000)
 
-img_dir = os.path.join(os.path.dirname( __file__ ), 'wave_periodic_weak_img')
+img_dir = os.path.join(os.path.dirname( __file__ ), 'wave_periodic_weak_img_batch')
 
 cb_plots = plot.Plots(save_every=100, print_every=None, img_dir=img_dir)
 
