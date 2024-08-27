@@ -33,17 +33,70 @@ gamma = 20.
 x0 = 4.
 y0 = 2.
 t0 = 0.
-tmax = 1.
+tmax = 1
+
+
+from copy import deepcopy
+
+
+# Define the model
+class MultiOutputModel(torch.nn.Module):
+    def __init__(self):
+        super(MultiOutputModel, self).__init__()
+        
+        self.width_out=[2]
+
+        # Shared layers (base network)
+        self.shared_fc1 = torch.nn.Linear(1, 100)  # Input size of 1 (for t)
+        self.shared_fc2 = torch.nn.Linear(100, 100)
+        self.shared_fc3 = torch.nn.Linear(100, 100)
+        self.shared_fc4 = torch.nn.Linear(100, 100)
+        # Output head for Process 1
+        self.process1_fc = torch.nn.Linear(100, 1)
+        
+        # Output head for Process 2
+        self.process2_fc = torch.nn.Linear(100, 1)
+    
+    def forward(self, t):
+        # Shared layers forward pass
+        x = torch.tanh(self.shared_fc1(t))
+        x = torch.tanh(self.shared_fc2(x))
+        x = torch.tanh(self.shared_fc3(x))
+        x = torch.tanh(self.shared_fc4(x))
+        # Process 1 output head
+        process1_out = self.process1_fc(x)
+        
+        # Process 2 output head
+        process2_out = self.process2_fc(x)
+        
+        out=torch.cat((process1_out, process2_out), dim=1)
+
+        return out
+
+# Initialize the model
+#model = 
+
 
 def Lotka_experiment(grid_res, CACHE):
-    exp_dict_list = []
 
-    solver_device('cpu')
+    exp_dict_list = []
+    solver_device('gpu')
+
+    #net = torch.nn.Sequential(
+    #    torch.nn.Linear(1, 32),
+    #    torch.nn.Tanh(),
+    #    torch.nn.Linear(32, 32),
+    #    torch.nn.Tanh(),
+    #    torch.nn.Linear(32, 2)
+    #)
+
+    net=MultiOutputModel()
+
+
+    
 
     domain = Domain()
-    domain.variable('t', [0, tmax], grid_res)
-
-    h = 0.0001
+    domain.variable('t', [0, 1], grid_res)
 
     boundaries = Conditions()
     #initial conditions
@@ -104,35 +157,30 @@ def Lotka_experiment(grid_res, CACHE):
     equation.add(eq1)
     equation.add(eq2)
 
-    net = torch.nn.Sequential(
-            torch.nn.Linear(1, 100),
-            torch.nn.Tanh(),
-            torch.nn.Linear(100, 100),
-            torch.nn.Tanh(),
-            torch.nn.Linear(100, 100),
-            torch.nn.Tanh(),
-            torch.nn.Linear(100, 2)
-        )
 
-    model =  Model(net, domain, equation, boundaries)
 
-    model.compile("NN", lambda_operator=1, lambda_bound=100, h=h)
+    model =  Model(net, domain, equation, boundaries, batch_size=64)
+
+    model.compile("autograd", lambda_operator=1, lambda_bound=100)
     
     img_dir=os.path.join(os.path.dirname( __file__ ), 'img_Lotka_Volterra_paper')
 
     start = time.time()
 
     cb_es = early_stopping.EarlyStopping(eps=1e-6,
-                                        loss_window=100,
-                                        no_improvement_patience=500,
-                                        patience=3,
-                                        randomize_parameter=1e-5)
+                                    loss_window=1000,
+                                    no_improvement_patience=500,
+                                    patience=3,
+                                    info_string_every=100,
+                                    randomize_parameter=1e-5)
     
     cb_plots = plot.Plots(save_every=1000, print_every=None, img_dir=img_dir)
 
+    #cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-5)
+
     optimizer = Optimizer('Adam', {'lr': 1e-4})
 
-    model.train(optimizer, 5e6, save_model=True, callbacks=[cb_es, cb_plots])
+    model.train(optimizer, 2e5, save_model=True, callbacks=[cb_es, cb_plots])
 
     end = time.time()
     
@@ -151,7 +199,7 @@ def Lotka_experiment(grid_res, CACHE):
             doty = y * (-delta + gamma * x)
             return np.array([dotx, doty])
 
-        t = np.linspace(0., tmax, grid_res+1)
+        t = np.linspace(0, 1, grid_res+1)
 
         X0 = [x0, y0]
         res = integrate.odeint(deriv, X0, t, args = (alpha, beta, delta, gamma))
@@ -169,30 +217,33 @@ def Lotka_experiment(grid_res, CACHE):
     print('Time taken {}= {}'.format(grid_res, end - start))
     print('RMSE {}= {}'.format(grid_res, error_rmse))
 
-    t = domain.variable_dict['t']
+    #t = domain.variable_dict['t']
     grid = domain.build('NN')
+
+    t = np.linspace(0, 1, grid_res+1)
 
     plt.figure()
     plt.grid()
     plt.title("odeint and NN methods comparing")
     plt.plot(t, u_exact[:,0].detach().numpy().reshape(-1), '+', label = 'preys_odeint')
     plt.plot(t, u_exact[:,1].detach().numpy().reshape(-1), '*', label = "predators_odeint")
-    plt.plot(grid, net(grid)[:,0].detach().numpy().reshape(-1), label='preys_NN')
-    plt.plot(grid, net(grid)[:,1].detach().numpy().reshape(-1), label='predators_NN')
+    plt.plot(grid.cpu(), net(grid.cpu())[:,0].detach().numpy().reshape(-1), label='preys_NN')
+    plt.plot(grid.cpu(), net(grid.cpu())[:,1].detach().numpy().reshape(-1), label='predators_NN')
     plt.xlabel('Time t, [days]')
     plt.ylabel('Population')
     plt.legend(loc='upper right')
-    plt.show()
+    plt.savefig(os.path.join(img_dir,'compare_{}.png'.format(grid_res)))
+
 
     return exp_dict_list
 
-nruns=10
+nruns=1
 
 exp_dict_list=[]
 
 CACHE=False
 
-for grid_res in range(60,101,10):
+for grid_res in range(60,1001,100):
     for _ in range(nruns):
         exp_dict_list.append(Lotka_experiment(grid_res,CACHE))
    

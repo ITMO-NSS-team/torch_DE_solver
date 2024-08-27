@@ -26,7 +26,7 @@ from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device, check_device, device_type
 
 
-solver_device('сpu')
+solver_device('gpu')
 
 alpha = 20.
 beta = 20.
@@ -113,7 +113,7 @@ net = torch.nn.Sequential(
         torch.nn.Linear(100, 2)
     )
 
-model =  Model(net, domain, equation, boundaries)
+model =  Model(net, domain, equation, boundaries, batch_size=32)
 
 model.compile("NN", lambda_operator=1, lambda_bound=100, h=h)
 
@@ -133,7 +133,7 @@ cb_plots = plot.Plots(save_every=1000, print_every=None, img_dir=img_dir)
 
 optimizer = Optimizer('Adam', {'lr': 1e-4})
 
-model.train(optimizer, 5e6, save_model=True, callbacks=[cb_es, cb_cache, cb_plots])
+model.train(optimizer, 5e6, save_model=True, callbacks=[cb_es, cb_cache,cb_plots])
 
 end = time.time()
     
@@ -161,8 +161,8 @@ plt.grid()
 plt.title("odeint and NN methods comparing")
 plt.plot(t, x, '+', label = 'preys_odeint')
 plt.plot(t, y, '*', label = "predators_odeint")
-plt.plot(grid, net(grid)[:,0].detach().numpy().reshape(-1), label='preys_NN')
-plt.plot(grid, net(grid)[:,1].detach().numpy().reshape(-1), label='predators_NN')
+plt.plot(grid.cpu(), net(grid.cpu())[:,0].detach().numpy().reshape(-1), label='preys_NN')
+plt.plot(grid.cpu(), net(grid.cpu())[:,1].detach().numpy().reshape(-1), label='predators_NN')
 plt.xlabel('Time t, [days]')
 plt.ylabel('Population')
 plt.legend(loc='upper right')
@@ -171,7 +171,7 @@ plt.show()
 plt.figure()
 plt.grid()
 plt.title('Phase plane: prey vs predators')
-plt.plot(net(grid)[:,0].detach().numpy().reshape(-1), net(grid)[:,1].detach().numpy().reshape(-1), '-*', label='NN')
+plt.plot(net(grid.cpu())[:,0].detach().numpy().reshape(-1), net(grid.cpu())[:,1].detach().numpy().reshape(-1), '-*', label='NN')
 plt.plot(x,y, label='odeint')
 plt.xlabel('preys')
 plt.ylabel('predators')
