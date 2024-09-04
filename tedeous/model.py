@@ -92,9 +92,9 @@ class Model():
 
         self.equation_cls = Operator_bcond_preproc(grid, operator, bconds, h=h, inner_order=inner_order,
                                                    boundary_order=boundary_order).set_strategy(mode)
-
-        if len(grid)<self.batch_size:
-            self.batch_size=None
+        if self.batch_size != None:
+            if len(grid)<self.batch_size:
+                self.batch_size=None
 
         self.solution_cls = Solution(grid, self.equation_cls, self.net, mode, weak_form,
                                      lambda_operator, lambda_bound, tol, derivative_points,

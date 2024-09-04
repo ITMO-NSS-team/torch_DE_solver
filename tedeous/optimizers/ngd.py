@@ -1,8 +1,8 @@
 import torch
-from numpy.linalg import lstsq
 import numpy as np
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
 from tedeous.utils import replace_none_by_zero
+from tedeous.device import check_device
 
 
 class NGD(torch.optim.Optimizer):
@@ -23,6 +23,8 @@ class NGD(torch.optim.Optimizer):
         self.grid_steps_number = grid_steps_number
         self.grid_steps = torch.linspace(0, self.grid_steps_number, self.grid_steps_number + 1)
         self.steps = 0.5**self.grid_steps
+        self.cuda_out_of_memory_flag=False
+        self.cuda_empty_once_for_test=True
 
     def grid_line_search_update(self, loss_function: callable, f_nat_grad: torch.Tensor) -> None:
         """ Update models paramters by natural gradient.
@@ -73,6 +75,31 @@ class NGD(torch.optim.Optimizer):
 
         J = jacobian()
         return 1.0 / len(residuals) * J.T @ J
+
+
+    def gram_factory_cpu(self, residuals: torch.Tensor) -> torch.Tensor:
+        """ Make Gram matrice.
+
+        Args:
+            residuals (callable): PDE residual.
+
+        Returns:
+            torch.Tensor: Gram matrice.
+        """
+        # Make Gram matrice.
+        def jacobian() -> torch.Tensor:
+            jac = []
+            for l in residuals:
+                j = torch.autograd.grad(l, self.params, retain_graph=True, allow_unused=True)
+                j = replace_none_by_zero(j)
+                j = parameters_to_vector(j).reshape(1, -1)
+                jac.append(j)
+            return torch.cat(jac)
+
+        J = jacobian().cpu()
+        return 1.0 / len(residuals) * J.T @ J
+
+
     
     def torch_cuda_lstsq(self, A: torch.Tensor, B: torch.Tensor, tol: float = None) -> torch.Tensor:
         """ Find lstsq (least-squares solution) for torch.tensor cuda.
@@ -95,6 +122,22 @@ class NGD(torch.optim.Optimizer):
         SpinvUhB = Spinv * UhB
         return Vh.adjoint() @ SpinvUhB
 
+
+
+    def numpy_lstsq(self, A: torch.Tensor, B: torch.Tensor, rcond: float = None) -> torch.Tensor:
+
+        A = A.detach().cpu().numpy()
+        B = B.detach().cpu().numpy()
+
+        f_nat_grad = np.linalg.lstsq(A, B,rcond=rcond)[0] 
+
+        f_nat_grad=torch.from_numpy(f_nat_grad)
+
+        f_nat_grad = check_device(f_nat_grad)
+
+        return f_nat_grad
+
+
     def step(self, closure=None) -> torch.Tensor:
         """ It runs ONE step on the natural gradient descent.
 
@@ -109,17 +152,58 @@ class NGD(torch.optim.Optimizer):
 
         bound_res = bval-true_bval
 
-        # assemble gramian
-        G_int  = self.gram_factory(int_res)
-        G_bdry = self.gram_factory(bound_res)
-        G      = G_int + G_bdry
+        ## assemble gramian
+        #G_int  = self.gram_factory(int_res.reshape(-1))
+        #G_bdry = self.gram_factory(bound_res.reshape(-1))
+        #G      = G_int + G_bdry
 
-        # Marquardt-Levenberg
-        Id = torch.eye(len(G))
-        G = torch.min(torch.tensor([loss, 0.0])) * Id + G
+        ## Marquardt-Levenberg
+        #Id = torch.eye(len(G))
+        #G = torch.min(torch.tensor([loss, 0.0])) * Id + G
+
+        
 
         # compute natural gradient
-        f_nat_grad = self.torch_cuda_lstsq(G, f_grads)
+        if not self.cuda_out_of_memory_flag:
+            try:
+                if self.cuda_empty_once_for_test:
+                    #print('Initial GPU check')
+                    torch.cuda.empty_cache()
+                    self.cuda_empty_once_for_test=False
+                
+                # assemble gramian
+
+                #print('NGD GPU step')
+
+                G_int  = self.gram_factory(int_res.reshape(-1))
+                G_bdry = self.gram_factory(bound_res.reshape(-1))
+                G      = G_int + G_bdry
+
+                # Marquardt-Levenberg
+                Id = torch.eye(len(G))
+                G = torch.min(torch.tensor([loss, 0.0])) * Id + G
+
+                f_nat_grad = self.torch_cuda_lstsq(G, f_grads)   
+            except torch.OutOfMemoryError:
+                print('[Warning] Least square returned CUDA out of memory error, CPU and RAM are used, which is significantly slower')
+                self.cuda_out_of_memory_flag=True
+
+                G_int  = self.gram_factory_cpu(int_res.reshape(-1).cpu())
+                G_bdry = self.gram_factory_cpu(bound_res.reshape(-1).cpu())
+                G      = G_int + G_bdry
+
+
+                f_nat_grad = self.numpy_lstsq(G, f_grads)
+        else:
+
+
+            #print('NGD CPU step')
+
+            G_int  = self.gram_factory_cpu(int_res.reshape(-1).cpu())
+            G_bdry = self.gram_factory_cpu(bound_res.reshape(-1).cpu())
+            G      = G_int + G_bdry
+
+            f_nat_grad = self.numpy_lstsq(G, f_grads)
 
         # one step of NGD
         self.grid_line_search_update(loss_function, f_nat_grad)
