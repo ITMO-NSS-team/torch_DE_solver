@@ -39,63 +39,21 @@ tmax = 1
 from copy import deepcopy
 
 
-# Define the model
-class MultiOutputModel(torch.nn.Module):
-    def __init__(self):
-        super(MultiOutputModel, self).__init__()
-        
-        self.width_out=[2]
-
-        # Shared layers (base network)
-        self.shared_fc1 = torch.nn.Linear(1, 64)  # Input size of 1 (for t)
-        self.shared_fc2 = torch.nn.Linear(64, 32)
-        # Output head for Process 1
-        self.process1_fc = torch.nn.Linear(32, 1)
-        
-        # Output head for Process 2
-        self.process2_fc = torch.nn.Linear(32, 1)
-    
-    def forward(self, t):
-        # Shared layers forward pass
-        x = torch.tanh(self.shared_fc1(t))
-        x = torch.tanh(self.shared_fc2(x))
-        # Process 1 output head
-        process1_out = self.process1_fc(x)
-        
-        # Process 2 output head
-        process2_out = self.process2_fc(x)
-        
-        out=torch.cat((process1_out, process2_out), dim=1)
-
-        return out
-
-# Initialize the model
-#model = 
-
 
 def Lotka_experiment(grid_res, CACHE):
 
     exp_dict_list = []
     solver_device('gpu')
 
-    FFL = Fourier_embedding(L=[5], M=[2])
-
-    out = FFL.out_features
-
 
     net = torch.nn.Sequential(
-        FFL,
-        torch.nn.Linear(out, 32),
+        torch.nn.Linear(1, 32),
         torch.nn.Tanh(),
         torch.nn.Linear(32, 32),
         torch.nn.Tanh(),
         torch.nn.Linear(32, 2)
     )
-
-    net=MultiOutputModel()
-
-
-    
+  
 
     domain = Domain()
     domain.variable('t', [0, 1], grid_res)
@@ -182,7 +140,8 @@ def Lotka_experiment(grid_res, CACHE):
 
     optimizer = Optimizer('Adam', {'lr': 1e-4})
 
-    model.train(optimizer, 1e4, save_model=True, callbacks=[cb_es, cb_plots])
+    model.train(optimizer, 2e5, save_model=True, callbacks=[cb_es, cb_plots])
+
 
     end = time.time()
     
