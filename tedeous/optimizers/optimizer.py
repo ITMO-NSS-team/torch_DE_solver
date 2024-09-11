@@ -2,6 +2,7 @@ import torch
 from abc import ABC
 from typing import Union, Any
 from tedeous.optimizers.pso import PSO
+from tedeous.optimizers.CSO import CSO
 from tedeous.optimizers.nat_grad import NGD
 from torch.optim.lr_scheduler import ExponentialLR
 
@@ -43,6 +44,8 @@ class Optimizer():
             torch_optim = torch.optim.LBFGS
         elif self.optimizer == 'PSO':
             torch_optim = PSO
+        elif self.optimizer == 'CSO':
+            torch_optim = CSO
         elif self.optimizer == 'NGD':
             torch_optim = NGD
 
