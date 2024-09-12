@@ -277,7 +277,7 @@ def experiment_data_amount_kdv_CSO(grid_res,exp_name='kdv_CSO',save_plot=True):
     optim = Optimizer('Adam', {'lr': 1e-3})
 
     start=time.time()
-    model.train(optim, 2e3, callbacks=[cb_es], info_string_every=500)
+    model.train(optim, 2e5, callbacks=[cb_es], info_string_every=500)
     end = time.time()
 
     time_adam = end - start
@@ -371,7 +371,7 @@ if __name__ == '__main__':
     nruns = 1
 
 
-    for grid_res in range(80, 101, 10):
+    for grid_res in range(100, 101, 10):
         for _ in range(nruns):
             exp_dict_list.append(experiment_data_amount_kdv_CSO(grid_res))
             exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
