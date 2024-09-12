@@ -331,6 +331,115 @@ def experiment_data_amount_burgers_1d_PSO(grid_res,exp_name='burgers1d_PSO',save
     return exp_dict_list
 
 
+def experiment_data_amount_burgers_1d_CSO(grid_res,exp_name='burgers1d_PSO',save_plot=True):
+    solver_device('cuda')
+    exp_dict_list = []
+
+    grid,domain,equation,boundaries = burgers1d_problem_formulation(grid_res)
+
+    net = torch.nn.Sequential(
+        torch.nn.Linear(2, 32),
+        torch.nn.Tanh(),
+        torch.nn.Linear(32, 32),
+        torch.nn.Tanh(),
+        torch.nn.Linear(32, 1)
+    )
+
+    model = Model(net, domain, equation, boundaries)
+
+    model.compile('autograd', lambda_operator=1/2, lambda_bound=1/2)
+
+    cb_es = early_stopping.EarlyStopping(eps=1e-6,
+                                        loss_window=100,
+                                        no_improvement_patience=100,
+                                        patience=2,
+                                        randomize_parameter=1e-5,
+                                        verbose=False)
+
+    optim = Optimizer('Adam', {'lr': 1e-3})
+
+    start=time.time()
+    model.train(optim, 2e5, callbacks=[cb_es], info_string_every=500)
+    end = time.time()
+
+    time_adam = end - start
+
+    grid = domain.build('autograd')
+
+    grid_test = torch.cartesian_prod(torch.linspace(0, 1, 100), torch.linspace(0, 1, 100))
+
+    u_exact_train = u(grid).reshape(-1)
+
+    u_exact_test = u(grid_test).reshape(-1)
+
+    error_adam_train = torch.sqrt(torch.mean((u_exact_train - net(grid).reshape(-1)) ** 2))
+
+    error_adam_test = torch.sqrt(torch.mean((u_exact_test - net(grid_test).reshape(-1)) ** 2))
+
+    loss_adam = model.solution_cls.evaluate()[0].detach().cpu().numpy()
+
+    lu_f = model.solution_cls.operator.operator_compute()
+
+    lu_f, gr = integration(lu_f, grid)
+
+    lu_f_adam, _ = integration(lu_f, gr)
+
+    ########
+
+    cb_es = early_stopping.EarlyStopping(eps=1e-6,
+                                        loss_window=100,
+                                        no_improvement_patience=100,
+                                        patience=2,
+                                        randomize_parameter=1e-5,
+                                        verbose=False)
+
+    optim = Optimizer('CSO', {'pop_size': 20, #30
+                                  'variance': 5e-4,
+                                  'lr': 1e-4})
+    start = time.time()
+    model.train(optim, 2e4, save_model=False, callbacks=[cb_es], info_string_every=20)
+    end = time.time()
+    time_pso = end - start
+
+    error_pso_train = torch.sqrt(torch.mean((u_exact_train - net(grid).reshape(-1)) ** 2))
+
+    error_pso_test = torch.sqrt(torch.mean((u_exact_test - net(grid_test).reshape(-1)) ** 2))
+
+    loss_pso = model.solution_cls.evaluate()[0].detach().cpu().numpy()
+
+    lu_f = model.solution_cls.operator.operator_compute()
+
+    grid = domain.build('autograd')
+
+    lu_f, gr = integration(lu_f, grid)
+
+    lu_f_pso, _ = integration(lu_f, gr)
+
+    #########
+
+    
+
+    exp_dict={'grid_res': grid_res,
+                          'error_adam_train': error_adam_train.item(),
+                          'error_adam_test': error_adam_test.item(),
+                          'error_PSO_train': error_pso_train.item(),
+                          'error_PSO_test': error_pso_test.item(),
+                          'loss_adam': loss_adam.item(),
+                          'loss_pso': loss_pso.item(),
+                          "lu_f_adam": lu_f_adam.item(),
+                          "lu_f_pso": lu_f_pso.item(),
+                          'time_adam': time_adam,
+                          'time_pso': time_pso,
+                          'type': exp_name}
+
+    print('Time taken {}= {}'.format(grid_res, end - start))
+    print('RMSE_adam {}= {}'.format(grid_res, error_adam_test))
+    print('RMSE_pso {}= {}'.format(grid_res, error_pso_test))
+
+    exp_dict_list.append(exp_dict)
+
+    return exp_dict_list
+
 
 
 def experiment_data_amount_burgers_1d_lam(grid_res,exp_name='burgers1d_lam',save_plot=True):
@@ -777,12 +886,12 @@ if __name__ == '__main__':
 
     #exp_dict_list=[]
 
-    for grid_res in range(60, 61, 10):
+    for grid_res in range(60, 101, 10):
         for _ in range(nruns):
-            exp_dict_list.append(experiment_data_amount_burgers_1d_NGD(grid_res,NGD_info_string=True))
+            exp_dict_list.append(experiment_data_amount_burgers_1d_CSO(grid_res))
             exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
             df = pd.DataFrame(exp_dict_list_flatten)
-            df.to_csv('examples\\AAAI_expetiments\\results\\burgers_NGD_res_{}.csv'.format(grid_res))
+            df.to_csv('examples\\AAAI_expetiments\\results\\burgers_CSO_{}.csv'.format(grid_res))
   
     #exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
     #df = pd.DataFrame(exp_dict_list_flatten)

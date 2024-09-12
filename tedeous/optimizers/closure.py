@@ -105,7 +105,7 @@ class Closure():
 
 
     def get_closure(self, _type: str):
-        if _type == 'PSO':
+        if _type in ('PSO', 'CSO'):
             return self._closure_pso
         else:
             return self._closure
