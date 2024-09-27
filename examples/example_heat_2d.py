@@ -204,7 +204,7 @@ def heat_2d_experiment(grid_res, CACHE):
 
     model.compile('NN', lambda_operator=1, lambda_bound=10, h=h)
 
-    img_dir = os.path.join(os.path.dirname(__file__), 'heat_3d_NN_img')
+    img_dir = os.path.join(os.path.dirname(__file__), 'heat_2d_NN_img')
 
     cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-6)
 
