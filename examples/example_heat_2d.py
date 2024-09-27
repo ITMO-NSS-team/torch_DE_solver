@@ -43,11 +43,11 @@ def func(grid):
     # # var 2
     # sln = torch.sin(np.pi * x) * torch.sinh(np.pi * y) * torch.exp(-2 * np.pi ** 2 * t)
 
-    # var 3
-    sln = torch.sin(np.pi * x) * torch.sin(np.pi * y) * torch.exp(-2 * np.pi ** 2 * t)
+    # # var 3
+    # sln = torch.sin(np.pi * x) * torch.sin(np.pi * y) * torch.exp(-2 * np.pi ** 2 * t)
 
-    # # var 4
-    # sln = 10 * torch.sin(np.pi * x) ** 10 * torch.sin(np.pi * y) ** 10 * torch.sin(np.pi * t) ** 10
+    # var 4
+    sln = 10 * torch.sin(np.pi * x) ** 10 * torch.sin(np.pi * y) ** 10 * torch.sin(np.pi * t) ** 10
 
     return sln
 
@@ -173,7 +173,7 @@ def heat_2d_experiment(grid_res, CACHE):
 
     equation.add(heat_eq)
 
-    neurons = 50
+    neurons = 100
 
     net = torch.nn.Sequential(
         torch.nn.Linear(3, neurons),
@@ -193,7 +193,7 @@ def heat_2d_experiment(grid_res, CACHE):
 
     for m in net.modules():
         if isinstance(m, torch.nn.Linear):
-            torch.nn.init.xavier_uniform_(m.weight)
+            torch.nn.init.xavier_normal_(m.weight)
             torch.nn.init.zeros_(m.bias)
 
     t = domain.variable_dict['t']
@@ -217,9 +217,9 @@ def heat_2d_experiment(grid_res, CACHE):
 
     cb_plots = plot.Plots(save_every=20, print_every=None, img_dir=img_dir)
 
-    optimizer = Optimizer('Adam', {'lr': 10e-4})
-    # optimizer = Optimizer('LBFGS', {'lr': 10e-4})
-    # optimizer = Optimizer('RMSprop', {'lr': 10e-4})
+    optimizer = Optimizer('Adam', {'lr': 1e-3})
+    # optimizer = Optimizer('LBFGS', {'lr': 1e-3})
+    # optimizer = Optimizer('RMSprop', {'lr': 1e-3})
 
     if CACHE:
         callbacks = [cb_cache, cb_es, cb_plots]
