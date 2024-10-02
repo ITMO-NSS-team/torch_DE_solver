@@ -156,7 +156,10 @@ class Model():
             callbacks.on_epoch_begin()
 
             self.optimizer.zero_grad()
-            
+            if optimizer.optimizer == 'NNCG' and (self.t-1) % 20 == 0: #Hard-coded preconditional freq
+                grads = self.optimizer.gradient(self.cur_loss)
+                self.optimizer.update_preconditioner(grads)
+
             if device_type() == 'cuda' and mixed_precision:
                 closure()
             else:
