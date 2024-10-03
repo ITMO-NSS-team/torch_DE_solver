@@ -3,6 +3,7 @@ from abc import ABC
 from typing import Union, Any
 from tedeous.optimizers.pso import PSO
 from torch.optim.lr_scheduler import ExponentialLR
+from torch.optim import Adam, SGD, LBFGS, RMSprop, AdamW
 
 
 class Optimizer():
@@ -10,17 +11,17 @@ class Optimizer():
             self,
             optimizer: str,
             params: dict,
-            gamma: Union[float, None]=None,
-            decay_every: Union[int, None]=None):
+            gamma: Union[float, None] = None,
+            decay_every: Union[int, None] = None):
         self.optimizer = optimizer
         self.params = params
         self.gamma = gamma
         self.decay_every = decay_every
 
     def optimizer_choice(
-        self,
-        mode,
-        model) -> \
+            self,
+            mode,
+            model) -> \
             Union[torch.optim.Adam, torch.optim.SGD, torch.optim.LBFGS, PSO]:
         """ Setting optimizer. If optimizer is string type, it will get default settings,
             or it may be custom optimizer defined by user.
@@ -35,20 +36,34 @@ class Optimizer():
         """
 
         if self.optimizer == 'Adam':
-            torch_optim = torch.optim.Adam
+            torch_optim = Adam
+        elif self.optimizer == 'AdamW':
+            torch_optim = AdamW
         elif self.optimizer == 'SGD':
-            torch_optim = torch.optim.SGD
+            torch_optim = SGD
         elif self.optimizer == 'LBFGS':
-            torch_optim = torch.optim.LBFGS
+            torch_optim = LBFGS
         elif self.optimizer == 'PSO':
             torch_optim = PSO
+        elif self.optimizer == 'RMSprop':
+            torch_optim = RMSprop
 
         if mode in ('NN', 'autograd'):
             optimizer = torch_optim(model.parameters(), **self.params)
         elif mode == 'mat':
             optimizer = torch_optim([model.requires_grad_()], **self.params)
-        
+
         if self.gamma is not None:
             self.scheduler = ExponentialLR(optimizer, gamma=self.gamma)
 
         return optimizer
+
+
+
+
+
+
+
+
+
+
