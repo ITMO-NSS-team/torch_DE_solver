@@ -24,7 +24,7 @@ from tedeous.model import Model
 from tedeous.callbacks import cache, early_stopping, plot
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device, check_device, device_type
-
+from tedeous.models import Fourier_embedding
 
 alpha = 20.
 beta = 20.
@@ -39,61 +39,21 @@ tmax = 1
 from copy import deepcopy
 
 
-# Define the model
-class MultiOutputModel(torch.nn.Module):
-    def __init__(self):
-        super(MultiOutputModel, self).__init__()
-        
-        self.width_out=[2]
-
-        # Shared layers (base network)
-        self.shared_fc1 = torch.nn.Linear(1, 100)  # Input size of 1 (for t)
-        self.shared_fc2 = torch.nn.Linear(100, 100)
-        self.shared_fc3 = torch.nn.Linear(100, 100)
-        self.shared_fc4 = torch.nn.Linear(100, 100)
-        # Output head for Process 1
-        self.process1_fc = torch.nn.Linear(100, 1)
-        
-        # Output head for Process 2
-        self.process2_fc = torch.nn.Linear(100, 1)
-    
-    def forward(self, t):
-        # Shared layers forward pass
-        x = torch.tanh(self.shared_fc1(t))
-        x = torch.tanh(self.shared_fc2(x))
-        x = torch.tanh(self.shared_fc3(x))
-        x = torch.tanh(self.shared_fc4(x))
-        # Process 1 output head
-        process1_out = self.process1_fc(x)
-        
-        # Process 2 output head
-        process2_out = self.process2_fc(x)
-        
-        out=torch.cat((process1_out, process2_out), dim=1)
-
-        return out
-
-# Initialize the model
-#model = 
-
 
 def Lotka_experiment(grid_res, CACHE):
 
     exp_dict_list = []
     solver_device('gpu')
 
-    #net = torch.nn.Sequential(
-    #    torch.nn.Linear(1, 32),
-    #    torch.nn.Tanh(),
-    #    torch.nn.Linear(32, 32),
-    #    torch.nn.Tanh(),
-    #    torch.nn.Linear(32, 2)
-    #)
 
-    net=MultiOutputModel()
-
-
-    
+    net = torch.nn.Sequential(
+        torch.nn.Linear(1, 32),
+        torch.nn.Tanh(),
+        torch.nn.Linear(32, 32),
+        torch.nn.Tanh(),
+        torch.nn.Linear(32, 2)
+    )
+  
 
     domain = Domain()
     domain.variable('t', [0, 1], grid_res)
@@ -181,6 +141,7 @@ def Lotka_experiment(grid_res, CACHE):
     optimizer = Optimizer('Adam', {'lr': 1e-4})
 
     model.train(optimizer, 2e5, save_model=True, callbacks=[cb_es, cb_plots])
+
 
     end = time.time()
     

@@ -92,6 +92,9 @@ class Model():
 
         self.equation_cls = Operator_bcond_preproc(grid, operator, bconds, h=h, inner_order=inner_order,
                                                    boundary_order=boundary_order).set_strategy(mode)
+        if self.batch_size != None:
+            if len(grid)<self.batch_size:
+                self.batch_size=None
 
         if len(grid)<self.batch_size:
             self.batch_size=None

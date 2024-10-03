@@ -235,6 +235,20 @@ def save_model_mat(cache_dir: str,
 
     save_model_nn(cache_dir, net_autograd, name=name)
 
+def replace_none_by_zero(tuple_data: tuple | None) -> torch.Tensor:
+    """ Make tensor from tuple (or None element) ad replace None elements to zero.
+
+    Args:
+        tuple_data (tuple): path to cache folder.
+    """
+    if isinstance(tuple_data, torch.Tensor):
+        tuple_data[tuple_data == None] = 0
+    elif tuple_data is None:
+        tuple_data = torch.tensor([0.])
+    elif isinstance(tuple_data, tuple):
+        new_tuple = tuple(replace_none_by_zero(item) for item in tuple_data)
+        return new_tuple
+    return tuple_data
 
 class PadTransform(Module):
     """Pad tensor to a fixed length with given padding value.
