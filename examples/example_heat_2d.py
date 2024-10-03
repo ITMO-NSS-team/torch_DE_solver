@@ -25,7 +25,7 @@ solver_device('cpu')
 def func(grid):
     x, y, t = grid[:, 0], grid[:, 1], grid[:, 2]
 
-    temp = 100
+    temp = 1
 
     # # var 1
     # # Stationary part of solve
@@ -38,16 +38,23 @@ def func(grid):
     #     sin_x = np.sin(np.pi / 2 * x * (2 * i - 1))
     #     sin_y = np.sin(np.pi / 2 * y * (2 * i - 1))
     #
-    #     sln += 8 * exp_term * ((-1) ** i + temp / 2 * np.pi * (1 - 2 * i)) * sin_x * sin_y / (np.pi - 2 * np.pi * i) ** 2
+    #     sln += 8 * exp_term * ((-1) ** i + temp / 2 * np.pi * (1 - 2 * i)) * sin_x * sin_y / (
+    #                 np.pi - 2 * np.pi * i) ** 2
 
-    # # var 2
-    # sln = torch.sin(np.pi * x) * torch.sinh(np.pi * y) * torch.exp(-2 * np.pi ** 2 * t)
+    # var 2
+    sln = torch.sin(np.pi * x) * torch.sinh(np.pi * y) * torch.exp(-2 * np.pi ** 2 * t)
 
     # # var 3
     # sln = torch.sin(np.pi * x) * torch.sin(np.pi * y) * torch.exp(-2 * np.pi ** 2 * t)
 
-    # var 4
-    sln = 10 * torch.sin(np.pi * x) ** 10 * torch.sin(np.pi * y) ** 10 * torch.sin(np.pi * t) ** 10
+    # # var 4
+    # sln = 10 * torch.sin(np.pi * x) ** 10 * torch.sin(np.pi * y) ** 10 * torch.sin(np.pi * t) ** 10
+
+    # # var 5
+    # r = torch.sqrt((x - 0.5) ** 2 + (y - 0.5) ** 2)
+    # # sln = (r - 0.25) * (r < 0.25)
+    # # sln = (torch.sqrt((x-0.5)**2 + (y-0.5)**2) - 0.25)**2 *  # (torch.sqrt((x-0.5)**2 + (y-0.5)**2) - 0.25)**2
+    # sln = torch.exp(-(r * 7) ** 2) / 2
 
     return sln
 
@@ -91,8 +98,8 @@ def heat_2d_experiment(grid_res, CACHE):
 
     boundaries = Conditions()
 
-    # Initial conditions at t=0
-    boundaries.dirichlet({'x': [0, 1], 'y': [0, 1], 't': 0}, value=0)
+    # Initial conditions at t=0: u(x, y, 0)
+    boundaries.dirichlet({'x': [0, 1], 'y': [0, 1], 't': 0}, value=func)
     bop = {
         'du/dt':
             {
@@ -104,17 +111,17 @@ def heat_2d_experiment(grid_res, CACHE):
     }
     boundaries.operator({'x': [0, 1], 'y': [0, 1], 't': 0}, operator=bop, value=0)
 
-    # Boundary conditions at x=0
+    # Boundary conditions at x=0: u(0, y, t)
     boundaries.dirichlet({'x': 0, 'y': [0, 1], 't': [0, 1]}, value=0)
 
-    # Boundary conditions at y=0
+    # Boundary conditions at y=0: u(x, 0, t)
     boundaries.dirichlet({'x': [0, 1], 'y': 0, 't': [0, 1]}, value=0)
 
-    # Boundary conditions at x=1
+    # Boundary conditions at x=1: u(1, y, t)
     boundaries.dirichlet({'x': 1, 'y': [0, 1], 't': [0, 1]}, value=0)
 
-    # Boundary conditions at y=1
-    boundaries.dirichlet({'x': [0, 1], 'y': 1, 't': [0, 1]}, value=100)
+    # # Boundary conditions at y=1: u(x, 1, t)
+    # boundaries.dirichlet({'x': [0, 1], 'y': 1, 't': [0, 1]}, value=1)
 
     """
     Defining wave equation
@@ -197,12 +204,11 @@ def heat_2d_experiment(grid_res, CACHE):
             torch.nn.init.zeros_(m.bias)
 
     t = domain.variable_dict['t']
-
     h = abs((t[1] - t[0]).item())
 
     model = Model(net, domain, equation, boundaries)
 
-    model.compile('NN', lambda_operator=1, lambda_bound=10, h=h)
+    model.compile('autograd', lambda_operator=1, lambda_bound=1, h=h)
 
     img_dir = os.path.join(os.path.dirname(__file__), 'heat_2d_NN_img')
 
@@ -215,11 +221,12 @@ def heat_2d_experiment(grid_res, CACHE):
                                          randomize_parameter=1e-6,
                                          info_string_every=10)
 
-    cb_plots = plot.Plots(save_every=20, print_every=None, img_dir=img_dir)
+    cb_plots = plot.Plots(save_every=100, print_every=None, img_dir=img_dir)
 
-    optimizer = Optimizer('Adam', {'lr': 1e-3})
-    # optimizer = Optimizer('LBFGS', {'lr': 1e-3})
-    # optimizer = Optimizer('RMSprop', {'lr': 1e-3})
+    # optimizer = Optimizer('Adam', {'lr': 5e-4})
+    optimizer = Optimizer('AdamW', {'lr': 1e-4})
+    # optimizer = Optimizer('LBFGS', {'lr': 3e-3})
+    # optimizer = Optimizer('RMSprop', {'lr': 3e-3})
 
     if CACHE:
         callbacks = [cb_cache, cb_es, cb_plots]
@@ -234,7 +241,7 @@ def heat_2d_experiment(grid_res, CACHE):
 
     grid = domain.build('NN').to('cuda')
 
-    error_rmse = torch.sqrt(torch.mean(((func(grid) - net(grid)) / 100) ** 2))
+    error_rmse = torch.sqrt(torch.mean((func(grid).reshape(-1, 1) - net(grid)) ** 2))
 
     exp_dict_list.append(
         {'grid_res': grid_res, 'time': end - start, 'RMSE': error_rmse.detach().numpy(), 'type': 'wave_eqn',
@@ -262,9 +269,3 @@ df = pd.DataFrame(exp_dict_list_flatten)
 df.boxplot(by='grid_res', column='time', fontsize=42, figsize=(20, 10))
 df.boxplot(by='grid_res', column='RMSE', fontsize=42, figsize=(20, 10), showfliers=False)
 df.to_csv('benchmarking_data/heat_experiment_10_100_cache={}.csv'.format(str(CACHE)))
-
-
-
-
-
-
