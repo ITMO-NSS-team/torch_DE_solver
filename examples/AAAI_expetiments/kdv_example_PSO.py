@@ -160,12 +160,13 @@ def experiment_data_amount_kdv_PSO(grid_res,exp_name='kdv_PSO',save_plot=True):
                                         loss_window=100,
                                         no_improvement_patience=1000,
                                         patience=5,
-                                        randomize_parameter=1e-6)
+                                        randomize_parameter=1e-6,
+                                        info_string_every=500)
 
     optim = Optimizer('Adam', {'lr': 1e-3})
 
     start=time.time()
-    model.train(optim, 2e5, callbacks=[cb_es], info_string_every=500)
+    model.train(optim, 2e5, callbacks=[cb_es])
     end = time.time()
 
     time_adam = end - start
@@ -197,7 +198,8 @@ def experiment_data_amount_kdv_PSO(grid_res,exp_name='kdv_PSO',save_plot=True):
                                         no_improvement_patience=100,
                                         patience=2,
                                         randomize_parameter=1e-5,
-                                        verbose=False)
+                                        verbose=False,
+                                        info_string_every=500)
 
     optim = Optimizer('PSO', {'pop_size': 20, #30
                                   'b': 0.4, #0.5
@@ -272,12 +274,13 @@ def experiment_data_amount_kdv_CSO(grid_res,exp_name='kdv_CSO',save_plot=True):
                                         loss_window=100,
                                         no_improvement_patience=1000,
                                         patience=5,
-                                        randomize_parameter=1e-6)
+                                        randomize_parameter=1e-6,
+                                        info_string_every=500)
 
     optim = Optimizer('Adam', {'lr': 1e-3})
 
     start=time.time()
-    model.train(optim, 2e5, callbacks=[cb_es], info_string_every=500)
+    model.train(optim, 2e5, callbacks=[cb_es])
     end = time.time()
 
     time_adam = end - start
@@ -309,13 +312,14 @@ def experiment_data_amount_kdv_CSO(grid_res,exp_name='kdv_CSO',save_plot=True):
                                         no_improvement_patience=100,
                                         patience=2,
                                         randomize_parameter=1e-5,
-                                        verbose=False)
+                                        verbose=False, 
+                                        info_string_every=20)
 
     optim = Optimizer('CSO', {'pop_size': 20, #30 
                                   'variance': 5e-4,
                                   'lr': 1e-4})
     start = time.time()
-    model.train(optim, 2e4, save_model=False, callbacks=[cb_es], info_string_every=20)
+    model.train(optim, 2e4, save_model=False, callbacks=[cb_es])
     end = time.time()
     time_pso = end - start
 

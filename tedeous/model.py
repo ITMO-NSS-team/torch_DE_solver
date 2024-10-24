@@ -170,7 +170,7 @@ class Model():
             if info_string_every is not None:
                 if self.t % info_string_every == 0:
                     loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
-                    info = 'Step = {} loss = {:.6f}.'.format(self.t, loss)
+                    info = '[{}] Step = {} loss = {:.6f}.'.format(datetime.datetime.now(),self.t, loss)
                     print(info)
 
         callbacks.on_train_end()
