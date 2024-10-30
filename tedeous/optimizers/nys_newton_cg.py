@@ -1,3 +1,6 @@
+"""This code copied from https://github.com/pratikrathore8/opt_for_pinns"""
+
+
 import torch
 from torch.optim import Optimizer
 from torch.func import vmap
