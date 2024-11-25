@@ -1,10 +1,11 @@
 matplotlib
-numpy
+numpy==1.20.0
 pandas
-scipy
+scipy==1.6.0
 seaborn
 torch >=2.0
 autodocsumm
 typing
 SALib
+geoopt
 #git+https://github.com/uwjunqi/Pytorch-Tensor-Train-Network.git

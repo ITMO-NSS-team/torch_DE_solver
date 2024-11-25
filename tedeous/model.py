@@ -97,9 +97,6 @@ class Model():
             if len(grid)<self.batch_size:
                 self.batch_size=None
 
-        if len(grid)<self.batch_size:
-            self.batch_size=None
-
         self.solution_cls = Solution(grid, self.equation_cls, self.net, mode, weak_form,
                                      lambda_operator, lambda_bound, tol, derivative_points,
                                      batch_size=self.batch_size)

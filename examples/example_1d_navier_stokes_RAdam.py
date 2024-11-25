@@ -13,6 +13,12 @@ from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 
 solver_device('cuda')
+
+# if MacOSX with M processor
+# solver_device('mps')
+# import matplotlib as mpl
+# mpl.use('MacOSX')
+
 grid_res = 30
 
 domain = Domain()
@@ -132,11 +138,12 @@ cb_es = early_stopping.EarlyStopping(eps=1e-5,
                                      info_string_every=5000,
                                      randomize_parameter=1e-5)
 
-img_dir = os.path.join(os.path.dirname(__file__), 'navier_stokes_img')
+img_dir = os.path.join(os.path.dirname(__file__), 'navier_stokes_img_RAdam')
 
 cb_plots = plot.Plots(save_every=5000, print_every=None, img_dir=img_dir)
 
-optimizer = Optimizer('Adam', {'lr': 1e-5})
+optimizer = Optimizer('RAdam', {'lr': 1e-5})
+# optimizer = Optimizer('RAdam', {})
 
 model.train(optimizer, 1e6, save_model=True, callbacks=[cb_es, cb_plots])
 

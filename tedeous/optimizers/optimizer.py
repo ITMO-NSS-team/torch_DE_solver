@@ -4,6 +4,7 @@ from typing import Union, Any
 from tedeous.optimizers.pso import PSO
 from tedeous.optimizers.ngd import NGD
 from torch.optim.lr_scheduler import ExponentialLR
+from geoopt.optim import RiemannianAdam
 
 
 class Optimizer():
@@ -37,6 +38,8 @@ class Optimizer():
 
         if self.optimizer == 'Adam':
             torch_optim = torch.optim.Adam
+        elif self.optimizer == 'RAdam':
+            torch_optim = RiemannianAdam
         elif self.optimizer == 'SGD':
             torch_optim = torch.optim.SGD
         elif self.optimizer == 'LBFGS':
