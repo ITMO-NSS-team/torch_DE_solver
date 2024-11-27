@@ -3,6 +3,7 @@ from abc import ABC
 from typing import Union, Any
 from tedeous.optimizers.pso import PSO
 from tedeous.optimizers.ngd import NGD
+from tedeous.optimizers.CSO import CSO
 from torch.optim.lr_scheduler import ExponentialLR
 
 
@@ -45,6 +46,9 @@ class Optimizer():
             torch_optim = PSO
         elif self.optimizer == 'NGD':
             torch_optim = NGD
+        elif self.optimizer == 'CSO':
+            torch_optim = CSO
+
 
         if mode in ('NN', 'autograd'):
             optimizer = torch_optim(model.parameters(), **self.params)
