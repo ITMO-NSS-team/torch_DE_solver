@@ -1,2 +1,0 @@
-,Unnamed: 0,grid_res,error_train,error_test,loss_adam,lu_f_adam,time_adam,type
-0,0,10,0.0171253839514439,0.1337832063684166,7.219097710731148e-07,4.555251575250052e-12,318.7447259426117,burgers1d_PINN_KAN

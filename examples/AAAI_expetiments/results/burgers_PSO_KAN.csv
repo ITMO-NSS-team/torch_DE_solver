@@ -1,2 +1,0 @@
-,Unnamed: 0,grid_res,error_train,error_test,loss_pso,lu_f_pso,time_pso,type
-0,0,10,0.0150189724983654,0.1320760772873643,4.9349004882515154e-09,1.347290076507098e-16,53774.22987437248,burgers1d_PSO_KAN
