@@ -4,6 +4,7 @@ from typing import Union, Any
 from tedeous.optimizers.pso import PSO
 from tedeous.optimizers.ngd import NGD
 from tedeous.optimizers.CSO import CSO
+from tedeous.optimizers.nys_newton_cg import NysNewtonCG
 from torch.optim.lr_scheduler import ExponentialLR
 
 
@@ -23,7 +24,7 @@ class Optimizer():
         self,
         mode,
         model) -> \
-            Union[torch.optim.Adam, torch.optim.SGD, torch.optim.LBFGS, PSO]:
+            Union[torch.optim.Adam, torch.optim.SGD, torch.optim.LBFGS, PSO, CSO, NysNewtonCG]:
         """ Setting optimizer. If optimizer is string type, it will get default settings,
             or it may be custom optimizer defined by user.
 
@@ -42,6 +43,8 @@ class Optimizer():
             torch_optim = torch.optim.SGD
         elif self.optimizer == 'LBFGS':
             torch_optim = torch.optim.LBFGS
+        elif self.optimizer == 'NNCG':
+            torch_optim = NysNewtonCG
         elif self.optimizer == 'PSO':
             torch_optim = PSO
         elif self.optimizer == 'NGD':
