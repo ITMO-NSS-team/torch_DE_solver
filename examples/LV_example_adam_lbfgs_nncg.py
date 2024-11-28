@@ -226,7 +226,7 @@ def experiment_data_amount_LV_adam_lbfgs_nncg(grid_res,exp_name='LV_adam_lbfgs_n
     optim = Optimizer('Adam', {'lr': 1e-3})
 
     start=time.time()
-    model.train(optim, 1000, callbacks=[cb_es])
+    model.train(optim, 10000, callbacks=[cb_es])
     #model.train(optim, 10, callbacks=[cb_es])
     end = time.time()
 
@@ -266,7 +266,7 @@ def experiment_data_amount_LV_adam_lbfgs_nncg(grid_res,exp_name='LV_adam_lbfgs_n
                                 "line_search_fn": 'strong_wolfe'})
 
     start = time.time()
-    model.train(optim, 100, save_model=False, callbacks=[cb_es])
+    model.train(optim, 1000, save_model=False, callbacks=[cb_es])
     end = time.time()
     time_LBFGS = end - start
 
@@ -297,7 +297,6 @@ def experiment_data_amount_LV_adam_lbfgs_nncg(grid_res,exp_name='LV_adam_lbfgs_n
                                'line_search_fn': "armijo",
                                "precond_update_frequency": 20,
                                "eigencdecomp_shift_attepmt_count":10,
-                               'cg_max_iters':10000,
                                'verbose': False})
 
     start = time.time()
