@@ -165,6 +165,14 @@ class Model():
         while self.t < epochs and self.stop_training is False:
             callbacks.on_epoch_begin()
             self.optimizer.zero_grad()
+
+            #this fellow should be in NNCG closure, but since it calls closure many times, it updates several time, which casuses instability
+            if optimizer.optimizer == 'NNCG' and (self.t-1) % optimizer.params['precond_update_frequency'] == 0: 
+                print('here t={} and freq={}'.format(self.t-1,optimizer.params['precond_update_frequency']))
+                grads = self.optimizer.gradient(self.cur_loss)
+                self.optimizer.update_preconditioner(grads)
+
+
             iter_count = 1 if self.batch_size is None else self.solution_cls.operator.n_batches
             for _ in range(iter_count): # if batch mod then iter until end of batches else only once
                 if device_type() == 'cuda' and mixed_precision:
