@@ -167,8 +167,9 @@ class Model():
             self.optimizer.zero_grad()
 
             #this fellow should be in NNCG closure, but since it calls closure many times, it updates several time, which casuses instability
-            if optimizer.optimizer == 'NNCG' and (self.t-1) % optimizer.params['precond_update_frequency'] == 0: 
+            if optimizer.optimizer == 'NNCG' and ((self.t-1) % optimizer.params['precond_update_frequency'] == 0): 
                 grads = self.optimizer.gradient(self.cur_loss)
+                grads = torch.where(grads != grads, torch.zeros_like(grads), grads)
                 self.optimizer.update_preconditioner(grads)
 
 

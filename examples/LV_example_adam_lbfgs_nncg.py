@@ -226,7 +226,7 @@ def experiment_data_amount_LV_adam_lbfgs_nncg(grid_res,exp_name='LV_adam_lbfgs_n
     optim = Optimizer('Adam', {'lr': 1e-3})
 
     start=time.time()
-    model.train(optim, 10000, callbacks=[cb_es])
+    model.train(optim, 1000, callbacks=[cb_es])
     #model.train(optim, 10, callbacks=[cb_es])
     end = time.time()
 
@@ -291,12 +291,13 @@ def experiment_data_amount_LV_adam_lbfgs_nncg(grid_res,exp_name='LV_adam_lbfgs_n
                                         verbose=False,
                                         info_string_every=1)
 
-    optim = Optimizer('NNCG', {'mu': 1e-4,
-                               'lr': 1e-3,
-                               "rank": 60,
+    optim = Optimizer('NNCG', {'mu': 1e-1,
+                               'lr': 1,
+                               "rank": 10,
                                'line_search_fn': "armijo",
                                "precond_update_frequency": 20,
                                "eigencdecomp_shift_attepmt_count":10,
+                               #'cg_max_iters':1000,
                                'verbose': False})
 
     start = time.time()
