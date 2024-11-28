@@ -168,7 +168,6 @@ class Model():
 
             #this fellow should be in NNCG closure, but since it calls closure many times, it updates several time, which casuses instability
             if optimizer.optimizer == 'NNCG' and (self.t-1) % optimizer.params['precond_update_frequency'] == 0: 
-                print('here t={} and freq={}'.format(self.t-1,optimizer.params['precond_update_frequency']))
                 grads = self.optimizer.gradient(self.cur_loss)
                 self.optimizer.update_preconditioner(grads)
 
