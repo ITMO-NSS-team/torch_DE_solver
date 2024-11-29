@@ -54,14 +54,14 @@ equation = Equation()
 # Operator: -d2u/dx2 - d2u/dy2 = 0
 
 poisson = {
-    '+d2u/dx2':
+    '-d2u/dx2':
         {
             'coeff': -1.,
             'term': [0, 0],
             'pow': 1,
             'var': 0
         },
-    '+d2u/dy2':
+    '-d2u/dy2':
         {
             'coeff': -1.,
             'term': [1, 1],
