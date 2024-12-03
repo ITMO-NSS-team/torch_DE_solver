@@ -4,13 +4,12 @@ import torch
 
 
 def inside_circle(coord, circ_geom):
-    center = circ_geom[0: -1]
-    radius = circ_geom[-1]
+    center = torch.tensor(circ_geom[0: -1], dtype=torch.float32)
+    radius = torch.tensor(circ_geom[-1], dtype=torch.float32)
 
-    num_dim = len(center)
+    num_dim = center.shape[0]
 
-    return torch.sum(torch.tensor([(coord[i] - center[i]) ** 2 for i in range(num_dim)],
-                              dtype=torch.float32)) < radius ** 2
+    return torch.sum(torch.tensor([(coord[i] - center[i]) ** 2 for i in range(num_dim)])) < radius ** 2
 
 
 def boundary_circle(coord, circ_geom):
@@ -20,7 +19,7 @@ def boundary_circle(coord, circ_geom):
     num_dim = center.shape[0]
 
     return torch.isclose(
-        torch.sum(torch.tensor([(coord[i] - center[i]) ** 2 for i in range(num_dim)], dtype=torch.float32)),
+        torch.sum(torch.tensor([(coord[i] - center[i]) ** 2 for i in range(num_dim)])),
         radius ** 2,
         rtol=1e-4
     )
@@ -35,7 +34,7 @@ def inside_rectangle(coord, rect_geom):
 
 
 def csg_domain_difference(grid, geom_figure):
-    csg_grid, csg_cut = [], []
+    csg_grid = []
 
     for point in grid:
         if geom_figure['name'] == 'rectangle':
@@ -58,7 +57,7 @@ def csg_boundary_circle(grid, geom_figure):
 
     for point in grid:
         if boundary_circle(point, (center, radius)):
-            csg_bnd.append([float(point[0]), float(point[1])])
+            csg_bnd.append([float(p) for p in point])
 
     return torch.tensor(csg_bnd, dtype=torch.float32)
 
