@@ -132,7 +132,7 @@ class Operator():
             self.current_batch_i = 0
         self.derivative = Derivative(self.model,
                                 self.derivative_points).set_strategy(self.mode).take_derivative
-    
+
     def init_mini_batches(self):
         """ Initialization of batch iterator.
 
@@ -353,6 +353,29 @@ class Bounds():
                 b_op_val = self._apply_neumann(bnd[0], bop).reshape(-1, 1)
                 for i in range(1, len(bnd)):
                     b_op_val -= self._apply_neumann(bnd[i], bop).reshape(-1, 1)
+        return b_op_val
+
+    def _apply_robin(self, bnd: torch.Tensor, bop: list, var: int, alpha: float, beta: float) -> torch.Tensor:
+        """ Applies Robin boundary conditions.
+
+        Args:
+            bnd (torch.Tensor): boundary points of prepared boundary conditions.
+            bop (list): prepared boundary derivative operator.
+            alpha (float): coefficient for the boundary function value.
+            beta (float): coefficient for the derivative term.
+
+        Returns:
+            torch.Tensor: calculated Robin boundary condition.
+        """
+
+        value_term = alpha * self._apply_dirichlet(bnd, var)
+
+        if self.mode == 'NN':
+            derivative_term = beta * self._apply_bconds_set(bop)
+        else:
+            derivative_term = beta * self._apply_neumann(bnd, bop)
+
+        b_op_val = value_term + derivative_term
         return b_op_val
 
     def _apply_data(self, bnd: torch.Tensor, bop: list, var: int) -> torch.Tensor:
