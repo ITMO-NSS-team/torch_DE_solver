@@ -16,6 +16,7 @@ import datetime
 
 class Model():
     """class for preprocessing"""
+
     def __init__(
             self,
             net: Union[torch.nn.Module, torch.Tensor],
@@ -57,7 +58,8 @@ class Model():
             boundary_order: str = '2',
             derivative_points: int = 2,
             weak_form: List[callable] = None,
-            tol: float = 0):
+            tol: float = 0,
+            removed_domains: List = None):
         """ Compile model for training process.
 
         Args:
@@ -82,8 +84,9 @@ class Model():
         self.lambda_operator = lambda_operator
         self.normalized_loss_stop = normalized_loss_stop
         self.weak_form = weak_form
+        self.removed_domains = removed_domains
 
-        grid = self.domain.build(mode=mode)
+        grid = self.domain.build(mode=mode, removed_domains=removed_domains)
         dtype = grid.dtype
         self.net.to(dtype)
         variable_dict = self.domain.variable_dict
@@ -94,21 +97,17 @@ class Model():
                                                    boundary_order=boundary_order).set_strategy(mode)
 
         if self.batch_size != None:
-            if len(grid)<self.batch_size:
-                self.batch_size=None
-
-        if len(grid)<self.batch_size:
-            self.batch_size=None
+            if len(grid) < self.batch_size:
+                self.batch_size = None
 
         self.solution_cls = Solution(grid, self.equation_cls, self.net, mode, weak_form,
                                      lambda_operator, lambda_bound, tol, derivative_points,
                                      batch_size=self.batch_size)
 
-
     def _model_save(
-        self,
-        save_model: bool,
-        model_name: str):
+            self,
+            save_model: bool,
+            model_name: str):
         """ Model saving.
 
         Args:
@@ -118,9 +117,9 @@ class Model():
         if save_model:
             if self.mode == 'mat':
                 save_model_mat(self._save_dir,
-                                model=self.net,
-                                domain=self.domain,
-                                name=model_name)
+                               model=self.net,
+                               domain=self.domain,
+                               name=model_name)
             else:
                 save_model_nn(self._save_dir, model=self.net, name=model_name)
 
@@ -162,13 +161,20 @@ class Model():
         self.cur_loss = self.min_loss
 
         print('[{}] initial (min) loss is {}'.format(
-                datetime.datetime.now(), self.min_loss.item()))
+            datetime.datetime.now(), self.min_loss.item()))
 
         while self.t < epochs and self.stop_training is False:
             callbacks.on_epoch_begin()
             self.optimizer.zero_grad()
+
+            # this fellow should be in NNCG closure, but since it calls closure many times, it updates several time, which casuses instability
+            if optimizer.optimizer == 'NNCG' and ((self.t - 1) % optimizer.params['precond_update_frequency'] == 0):
+                grads = self.optimizer.gradient(self.cur_loss)
+                grads = torch.where(grads != grads, torch.zeros_like(grads), grads)
+                self.optimizer.update_preconditioner(grads)
+
             iter_count = 1 if self.batch_size is None else self.solution_cls.operator.n_batches
-            for _ in range(iter_count): # if batch mod then iter until end of batches else only once
+            for _ in range(iter_count):  # if batch mod then iter until end of batches else only once
                 if device_type() == 'cuda' and mixed_precision:
                     closure()
                 else:
@@ -181,7 +187,7 @@ class Model():
             if info_string_every is not None:
                 if self.t % info_string_every == 0:
                     loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
-                    info = 'Step = {} loss = {:.6f}.'.format(self.t, loss)
+                    info = '[{}] Step = {} loss = {:.6f}.'.format(datetime.datetime.now(), self.t, loss)
                     print(info)
 
         callbacks.on_train_end()
@@ -189,4 +195,3 @@ class Model():
         self._model_save(save_model, model_name)
 
 
-        
