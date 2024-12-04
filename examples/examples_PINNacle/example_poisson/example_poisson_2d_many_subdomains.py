@@ -38,38 +38,38 @@ boundaries = Conditions()
 
 # Operator: u + du/dn = 0
 
-# bop_x_min = {
-#     'u':
-#         {
-#             'coeff': 1,
-#             'term': [None],
-#             'pow': 1
-#         },
-#     'du/dn':
-#         {
-#             'coeff': -1,
-#             'term': [0],
-#             'pow': 1,
-#             'var': 0
-#         }
-# }
-# boundaries.robin({'x': x_min, 'y': [y_min, y_max]}, operator=bop_x_min, value=0)
-# bop_x_max = {
-#     'u':
-#         {
-#             'coeff': 1,
-#             'term': [None],
-#             'pow': 1
-#         },
-#     'du/dn':
-#         {
-#             'coeff': 1,
-#             'term': [0],
-#             'pow': 1,
-#             'var': 0
-#         }
-# }
-# boundaries.robin({'x': x_min, 'y': [y_min, y_max]}, operator=bop_x_max, value=0)
+bop_x_min = {
+    'u':
+        {
+            'coeff': 1,
+            'term': [None],
+            'pow': 1
+        },
+    'du/dn':
+        {
+            'coeff': -1,
+            'term': [0],
+            'pow': 1,
+            'var': 0
+        }
+}
+boundaries.robin({'x': x_min, 'y': [y_min, y_max]}, operator=bop_x_min, value=0)
+bop_x_max = {
+    'u':
+        {
+            'coeff': 1,
+            'term': [None],
+            'pow': 1
+        },
+    'du/dn':
+        {
+            'coeff': 1,
+            'term': [0],
+            'pow': 1,
+            'var': 0
+        }
+}
+boundaries.robin({'x': x_max, 'y': [y_min, y_max]}, operator=bop_x_max, value=0)
 
 bop_y_min = {
     'u':
@@ -86,7 +86,7 @@ bop_y_min = {
             'var': 0
         }
 }
-boundaries.robin({'x': [x_min, x_max], 'y': y_min}, operator=bop_y_min, value=-y)
+boundaries.robin({'x': [x_min, x_max], 'y': y_min}, operator=bop_y_min, value=0)
 bop_y_max = {
     'u':
         {
@@ -102,7 +102,7 @@ bop_y_max = {
             'var': 0
         }
 }
-boundaries.robin({'x': [x_min, x_max], 'y': y_max}, operator=bop_y_max, value=0)
+boundaries.robin({'x': [x_min, x_max], 'y': y_max}, operator=bop_y_max, value=-y)
 
 
 def compute_domain(grid):
@@ -112,15 +112,15 @@ def compute_domain(grid):
     return dom, res
 
 
-def a_coeff(grid):
+def compute_a_coeff(grid):
     dom, _ = compute_domain(grid)
     return a_cof[dom[0], dom[1]]
 
 
-a_coeff = np.vectorize(a_coeff, signature="(2)->()")
+a_coeff = np.vectorize(compute_a_coeff, signature="(2)->()")
 
 
-def forcing_term(grid):
+def compute_forcing_term(grid):
     dom, res = compute_domain(grid)
 
     def f_fn(coef):
@@ -134,7 +134,7 @@ def forcing_term(grid):
     return f_fn(f_cof[dom[0], dom[1]])
 
 
-forcing_term = np.vectorize(forcing_term, signature="(2)->()")
+forcing_term = np.vectorize(compute_forcing_term, signature="(2)->()")
 
 
 def get_a_coeff(x):
