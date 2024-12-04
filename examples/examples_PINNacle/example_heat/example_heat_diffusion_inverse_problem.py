@@ -156,15 +156,13 @@ cb_es = early_stopping.EarlyStopping(eps=1e-6,
 cb_plots = plot.Plots(save_every=500,
                       print_every=None,
                       img_dir=img_dir,
-                      img_dim='2d')
+                      img_dim='2d')  # 3 image dimension options: 3d, 2d, 2d_scatter
 
-optimizer = Optimizer('Adam', {'lr': 1e-3})  # 3 image dimension options: 3d, 2d, 2d_scatter
+optimizer = Optimizer('Adam', {'lr': 1e-3})
 
 callbacks = [cb_cache, cb_es, cb_plots]
 
 start = time.time()
 
 model.train(optimizer, 1e6, save_model=True, callbacks=callbacks)
-
-
 
