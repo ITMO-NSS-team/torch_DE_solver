@@ -33,7 +33,8 @@ def u_func(grid):
 # Function a(x, y)
 def a_diffusion_coeff(grid):
     x, y = grid[:, 0], grid[:, 1]
-    return 2 + torch.sin(np.pi * x) * torch.sin(np.pi * y)
+    a = 2 + torch.sin(np.pi * x) * torch.sin(np.pi * y)
+    return -a
 
 
 # Source function f(x, y, t)
@@ -51,7 +52,7 @@ def f_right_hand(grid):
 
 x_min, x_max = -1, 1
 y_min, y_max = -1, 1
-T = 1
+t_max = 1
 grid_res = 10
 N_samples = 2500
 
@@ -59,7 +60,11 @@ domain = Domain()
 
 domain.variable('x', [x_min, x_max], grid_res)
 domain.variable('y', [y_min, y_max], grid_res)
-domain.variable('t', [0, T], grid_res)
+domain.variable('t', [0, t_max], grid_res)
+
+x = domain.variable_dict['x']
+y = domain.variable_dict['y']
+t = domain.variable_dict['t']
 
 data = np.loadtxt(os.path.abspath(os.path.join(os.path.dirname(__file__), 'heatinv_points.dat')))
 
@@ -77,11 +82,15 @@ ind_bnd = np.random.choice(len(data_grid), N_samples, replace=False)
 bnd_data = data_grid[ind_bnd]
 u_bnd_val = u_bnd_val[ind_bnd]
 
-boundaries.data(bnd=bnd_data, operator=None, value=u_bnd_val)
+boundaries.data(bnd=bnd_data, operator=None, value=u_bnd_val, var=0)
+boundaries.dirichlet({'x': x_min, 'y': [y_min, y_max], 't': [0, t_max]}, value=a_diffusion_coeff, var=1)
+boundaries.dirichlet({'x': x_max, 'y': [y_min, y_max], 't': [0, t_max]}, value=a_diffusion_coeff, var=1)
+boundaries.dirichlet({'x': [x_min, x_max], 'y': y_min, 't': [0, t_max]}, value=a_diffusion_coeff, var=1)
+boundaries.dirichlet({'x': [x_min, x_max], 'y': y_max, 't': [0, t_max]}, value=a_diffusion_coeff, var=1)
 
 equation = Equation()
 
-# Operator: du/dt - a * (d2u/dx2 + d2u/dy2) = f
+# Operator: −∇(a∇u) = f
 
 heat_inverse = {
     'du/dt**1':
@@ -91,19 +100,33 @@ heat_inverse = {
             'pow': 1,
             'var': 0
         },
+    '-(da/dx * du/dx)**1':
+        {
+            'coeff': -1,
+            'd2u/dx2': [[0], [0]],
+            'pow': [1, 1],
+            'var': [1, 0]
+        },
     '-a * d2u/dx2**1':
         {
-            'coeff': a_diffusion_coeff,
-            'd2u/dx2': [0, 0],
-            'pow': 1,
-            'var': 0
+            'coeff': -1,
+            'd2u/dx2': [[None], [0, 0]],
+            'pow': [1, 1],
+            'var': [1, 0]
+        },
+    '-(da/dy * du/dy)**1':
+        {
+            'coeff': -1,
+            'd2u/dy2': [[1], [1]],
+            'pow': [1, 1],
+            'var': [1, 0]
         },
     '-a * d2u/dy2**1':
         {
-            'coeff': a_diffusion_coeff,
-            'd2u/dy2': [1, 1],
-            'pow': 1,
-            'var': 0
+            'coeff': -1,
+            'd2u/dx2': [[None], [1, 1]],
+            'pow': [1, 1],
+            'var': [1, 0]
         },
     'f(x, y, t)':
         {
@@ -130,7 +153,7 @@ net = torch.nn.Sequential(
     torch.nn.Tanh(),
     torch.nn.Linear(neurons, neurons),
     torch.nn.Tanh(),
-    torch.nn.Linear(neurons, 1)
+    torch.nn.Linear(neurons, 2)
 )
 
 for m in net.modules():
@@ -153,7 +176,7 @@ cb_es = early_stopping.EarlyStopping(eps=1e-6,
                                      randomize_parameter=1e-6,
                                      info_string_every=10)
 
-cb_plots = plot.Plots(save_every=500,
+cb_plots = plot.Plots(save_every=50,
                       print_every=None,
                       img_dir=img_dir,
                       img_dim='2d')  # 3 image dimension options: 3d, 2d, 2d_scatter
