@@ -166,34 +166,5 @@ start = time.time()
 
 model.train(optimizer, 1e6, save_model=True, callbacks=callbacks)
 
-# end = time.time()
-#
-# grid = domain.build('NN').to('cuda')
-#
-# error_rmse = torch.sqrt(torch.mean((func(grid).reshape(-1, 1) - net(grid)) ** 2))
-#
-# exp_dict_list.append(
-#     {'grid_res': grid_res, 'time': end - start, 'RMSE': error_rmse.detach().numpy(), 'type': 'wave_eqn',
-#      'cache': True})
-#
-# print('Time taken {}= {}'.format(grid_res, end - start))
-# print('RMSE {}= {}'.format(grid_res, error_rmse))
-#
-# nruns = 10
-#
-# exp_dict_list = []
-#
-# CACHE = True
-#
-# for grid_res in range(10, 101, 10):
-#     for _ in range(nruns):
-#         exp_dict_list.append(heat_2d_experiment(grid_res, CACHE))
-#
-# import pandas as pd
-#
-# exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-# df = pd.DataFrame(exp_dict_list_flatten)
-# df.boxplot(by='grid_res', column='time', fontsize=42, figsize=(20, 10))
-# df.boxplot(by='grid_res', column='RMSE', fontsize=42, figsize=(20, 10), showfliers=False)
-# df.to_csv('benchmarking_data/heat_experiment_10_100_cache={}.csv'.format(str(CACHE)))
+
 
