@@ -355,7 +355,7 @@ class Bounds():
                     b_op_val -= self._apply_neumann(bnd[i], bop).reshape(-1, 1)
         return b_op_val
 
-    def _apply_robin(self, bnd: torch.Tensor, bop: list, var: int, alpha: float, beta: float) -> torch.Tensor:
+    def _apply_robin(self, bnd: torch.Tensor, bop: Union[list, dict], var: int) -> torch.Tensor:
         """ Applies Robin boundary conditions.
 
         Args:
@@ -367,6 +367,8 @@ class Bounds():
         Returns:
             torch.Tensor: calculated Robin boundary condition.
         """
+
+        alpha, beta = [bop[list(bop.keys())[i]]['coeff'] for i in range(len(bop))]
 
         value_term = alpha * self._apply_dirichlet(bnd, var)
 
@@ -407,16 +409,18 @@ class Bounds():
             torch.Tensor: calculated operator on the boundary.
         """
 
+        b_op_val = None
+
         if bcond['type'] == 'dirichlet':
             b_op_val = self._apply_dirichlet(bcond['bnd'], bcond['var'])
         elif bcond['type'] == 'operator':
             b_op_val = self._apply_neumann(bcond['bnd'], bcond['bop'])
         elif bcond['type'] == 'periodic':
-            b_op_val = self._apply_periodic(bcond['bnd'], bcond['bop'],
-                                           bcond['var'])
+            b_op_val = self._apply_periodic(bcond['bnd'], bcond['bop'], bcond['var'])
+        elif bcond['type'] == 'robin':
+            b_op_val = self._apply_robin(bcond['bnd'], bcond['bop'], bcond['var'])
         elif bcond['type'] == 'data':
-            b_op_val = self._apply_data(bcond['bnd'], bcond['bop'],
-                                           bcond['var'])
+            b_op_val = self._apply_data(bcond['bnd'], bcond['bop'], bcond['var'])
         return b_op_val
 
     def apply_bcs(self) -> Tuple[torch.Tensor, torch.Tensor, list, list]:
