@@ -47,7 +47,7 @@ def f_right_hand(grid):
                        cos(pi * x) ** 2 * sin(pi * y) ** 2 -
                        sin(pi * x) ** 2 * cos(pi * y) ** 2)
 
-    return torch.exp(-t) * (term1 + term2)
+    return -torch.exp(-t) * (term1 + term2)
 
 
 x_min, x_max = -1, 1
