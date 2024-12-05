@@ -395,17 +395,21 @@ class Plots(Callback):
                     if self.t_values is None:
                         self.t_values = torch.unique(self.grid[:, 2]).detach().cpu().numpy()
 
-                    selected_t_values = [self.t_values[1],
+                    selected_t_values = [self.t_values[0],
                                          self.t_values[len(self.t_values) // 4],
-                                         self.t_values[len(self.t_values) // 2]]
+                                         self.t_values[len(self.t_values) // 2],
+                                         self.t_values[len(self.t_values) // 4 * 3],
+                                         self.t_values[-1]]
                     self._plot_solution_2d(selected_t_values)
                 elif self.grid.shape[-1] == 4:
                     if self.t_values is None:
                         self.t_values = torch.unique(self.grid[:, 3]).detach().cpu().numpy()
 
-                    selected_t_values = [self.t_values[1],
+                    selected_t_values = [self.t_values[0],
                                          self.t_values[len(self.t_values) // 4],
-                                         self.t_values[len(self.t_values) // 2]]
+                                         self.t_values[len(self.t_values) // 2],
+                                         self.t_values[len(self.t_values) // 4 * 3],
+                                         self.t_values[-1]]
                     self._plot_solution_3d(selected_t_values)
                     self._plot_solution_2d(selected_t_values)
 
