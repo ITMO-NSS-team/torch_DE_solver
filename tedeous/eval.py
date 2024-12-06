@@ -192,7 +192,6 @@ class Operator():
             op = torch.cat(op_list, 1)
         return op
 
-
     def _weak_pde_compute(self) -> torch.Tensor:
         """ Computes PDE residual in weak form.
 
@@ -368,14 +367,16 @@ class Bounds():
             torch.Tensor: calculated Robin boundary condition.
         """
 
-        alpha, beta = [bop[list(bop.keys())[i]]['coeff'] for i in range(len(bop))]
+        alpha, *betas = [bop[list(bop.keys())[i]]['coeff'] for i in range(len(bop))]
 
         value_term = alpha * self._apply_dirichlet(bnd, var)
 
-        if self.mode == 'NN':
-            derivative_term = beta * self._apply_bconds_set(bop)
-        else:
-            derivative_term = beta * self._apply_neumann(bnd, bop)
+        derivative_term = 0
+        for beta in betas:
+            if self.mode == 'NN':
+                derivative_term += beta * self._apply_bconds_set(bop)
+            else:
+                derivative_term += beta * self._apply_neumann(bnd, bop)
 
         b_op_val = value_term + derivative_term
         return b_op_val
