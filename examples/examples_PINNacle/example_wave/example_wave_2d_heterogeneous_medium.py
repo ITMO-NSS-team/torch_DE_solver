@@ -128,9 +128,9 @@ def wave2d_heterogeneous_experiment(grid_res):
                 'd2u/dx2': [1, 1],
                 'pow': 1
             },
-        '(1 / coef) * d2u/dt2**1':
+        '-(1 / coef) * d2u/dt2**1':
             {
-                'coeff': lambda grid: 1 / coef(grid),
+                'coeff': lambda grid: -1 / coef(grid),
                 'd2u/dt2': [2, 2],
                 'pow': 1
             },
