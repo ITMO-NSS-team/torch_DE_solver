@@ -80,8 +80,6 @@ class Domain():
         var_lst = list(self.variable_dict.values())
         var_lst = [i.cpu() for i in var_lst]
 
-        grid = None
-
         if mode in ('autograd', 'NN'):
             if len(self.variable_dict) == 1:
                 grid = check_device(var_lst[0].reshape(-1, 1))
@@ -106,9 +104,9 @@ class Domain():
                         grid = csg_domain_difference(grid, geom_figure)
         else:
             grid = np.meshgrid(*var_lst, indexing='ij')
-            grid = check_device(torch.tensor(np.array(grid)))
+            grid = check_device(torch.tensor(grid.cpu().numpy()))
 
-        grid = check_device(torch.tensor(np.array(grid)))
+        grid = check_device(torch.tensor(grid.cpu().numpy()))
         return grid
 
 
