@@ -70,7 +70,7 @@ def wave2d_heterogeneous_experiment(grid_res):
     # u(x, 0) = f_init(x, 0)
     boundaries.dirichlet({'x': [x_min, x_max], 'y': [y_min, y_max], 't': 0}, value=init_func)
 
-    # u(x, 0) = 0
+    # u_t(x, 0) = 0
     bop = {
         'du/dt':
             {
@@ -95,19 +95,19 @@ def wave2d_heterogeneous_experiment(grid_res):
         }
         return bop
 
-    # u(x_min, y, t) = 0
+    # u_x_min(x_min, y, t) = 0
     bop = bop_generation(-1, 0)
     boundaries.operator({'x': x_min, 'y': [y_min, y_max], 't': [0, t_max]}, operator=bop, value=0)
 
-    # u(x_max, y, t) = 0
+    # u_x_max(x_max, y, t) = 0
     bop = bop_generation(1, 0)
     boundaries.operator({'x': x_max, 'y': [y_min, y_max], 't': [0, t_max]}, operator=bop, value=0)
 
-    # u(x, y_min, t) = 0
+    # u_y_min(x, y_min, t) = 0
     bop = bop_generation(-1, 1)
     boundaries.operator({'x': [x_min, x_max], 'y': y_min, 't': [0, t_max]}, operator=bop, value=0)
 
-    # u(x, y_max, t) = 0
+    # u_y_max(x, y_max, t) = 0
     bop = bop_generation(1, 1)
     boundaries.operator({'x': [x_min, x_max], 'y': y_max, 't': [0, t_max]}, operator=bop, value=0)
 
@@ -176,7 +176,7 @@ def wave2d_heterogeneous_experiment(grid_res):
                                          randomize_parameter=1e-6,
                                          info_string_every=10)
 
-    cb_plots = plot.Plots(save_every=100,
+    cb_plots = plot.Plots(save_every=50,
                           print_every=None,
                           img_dir=img_dir,
                           img_dim='2d')  # 3 image dimension options: 3d, 2d, 2d_scatter
