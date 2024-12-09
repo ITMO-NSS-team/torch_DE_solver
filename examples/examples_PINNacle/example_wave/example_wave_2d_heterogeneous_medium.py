@@ -23,11 +23,70 @@ from tedeous.device import solver_device
 
 solver_device('gpu')
 
-wave_data = np.loadtxt("wave_darcy.dat")
+wave_datapath = "wave_darcy.dat"
 darcy_2d_coef_data = np.loadtxt("darcy_2d_coef_256.dat")
 
 
+def func_data(datapath):
+
+    t_transpose = True
+
+    input_dim = 3
+    output_dim = 2
+
+    def trans_time_data_to_dataset(datapath, ref_data):
+        data = ref_data
+        slice = (data.shape[1] - input_dim + 1) // output_dim
+        assert slice * output_dim == data.shape[
+            1] - input_dim + 1, "Data shape is not multiple of pde.output_dim"
+
+        with open(datapath, "r", encoding='utf-8') as f:
+            def extract_time(string):
+                index = string.find("t=")
+                if index == -1:
+                    return None
+                return float(string[index + 2:].split(' ')[0])
+
+            t = None
+            for line in f.readlines():
+                if line.startswith('%') and line.count('@') == slice * output_dim:
+                    t = line.split('@')[1:]
+                    t = list(map(extract_time, t))
+            if t is None or None in t:
+                raise ValueError("Reference Data not in Comsol format or does not contain time info")
+            t = np.array(t[::output_dim])
+
+        t, x0 = np.meshgrid(t, data[:, 0])
+        list_x = [x0.reshape(-1)]
+        for i in range(1, input_dim - 1):
+            list_x.append(np.stack([data[:, i] for _ in range(slice)]).T.reshape(-1))
+        list_x.append(t.reshape(-1))
+        for i in range(output_dim):
+            list_x.append(data[:, input_dim - 1 + i::output_dim].reshape(-1))
+        return np.stack(list_x).T
+
+    scale = 1
+
+    def transform_fn(data):
+        data[:, :input_dim] *= scale
+        return data
+
+    def load_ref_data(datapath, transform_fn=None, t_transpose=False):
+        ref_data = np.loadtxt(datapath, comments="%", encoding='utf-8').astype(np.float32)
+        if t_transpose:
+            ref_data = trans_time_data_to_dataset(datapath, ref_data)
+        if transform_fn is not None:
+            ref_data = transform_fn(ref_data)
+            return ref_data
+
+    load_ref_data(datapath)
+    load_ref_data(datapath, transform_fn, t_transpose)
+
+    return load_ref_data
+
+
 def func(grid):
+    wave_data = func_data(wave_datapath)
     sln = torch.Tensor(
         interpolate.griddata(wave_data[:, 0:2], wave_data[:, 2],
                              (grid.detach().cpu().numpy()[:, 0:2] + 1) / 2)
@@ -49,7 +108,7 @@ def wave2d_heterogeneous_experiment(grid_res):
     x_min, x_max = -1, 1
     y_min, y_max = -1, 1
     t_max = 5
-    grid_res *= 4
+    # grid_res *= 4
 
     mu_1, mu_2 = -0.5, 0
     sigma = 0.3
