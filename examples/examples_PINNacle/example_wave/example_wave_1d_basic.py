@@ -29,7 +29,7 @@ def func(grid, a=4):
     return sln
 
 
-def wave_experiment(grid_res):
+def wave1d_basic_experiment(grid_res):
     exp_dict_list = []
 
     x_min, x_max = 0, 1
@@ -50,7 +50,7 @@ def wave_experiment(grid_res):
     init_func = torch.sin(torch.pi * x) * torch.sin(4 * torch.pi * x) / 2
 
     # u(x, 0) = f_init(x, 0)
-    boundaries.dirichlet({'x': [0, 1], 't': 0}, value=init_func)
+    boundaries.dirichlet({'x': [x_min, x_max], 't': 0}, value=init_func)
 
     # u(x, 0) = 0
     bop = {
@@ -62,7 +62,7 @@ def wave_experiment(grid_res):
                 'var': 0
             }
     }
-    boundaries.operator({'x': [0, 1], 't': 0}, operator=bop, value=0)
+    boundaries.operator({'x': [x_min, x_max], 't': 0}, operator=bop, value=0)
 
     # Boundary conditions ##############################################################################################
 
@@ -70,10 +70,10 @@ def wave_experiment(grid_res):
                torch.sin(4 * torch.pi * x) / 2 * torch.cos(8 * torch.pi * t)
 
     # u(0, t) = f_bnd(x, t)
-    boundaries.dirichlet({'x': 0, 't': [0, 1]}, value=bnd_func)
+    boundaries.dirichlet({'x': x_min, 't': [0, t_max]}, value=bnd_func)
 
     # u(1, t) = f_bnd(x, t)
-    boundaries.dirichlet({'x': 1, 't': [0, 1]}, value=bnd_func)
+    boundaries.dirichlet({'x': x_max, 't': [0, t_max]}, value=bnd_func)
 
     equation = Equation()
 
@@ -165,7 +165,7 @@ exp_dict_list = []
 
 for grid_res in range(10, 101, 10):
     for _ in range(nruns):
-        exp_dict_list.append(wave_experiment(grid_res))
+        exp_dict_list.append(wave1d_basic_experiment(grid_res))
 
 import pandas as pd
 
