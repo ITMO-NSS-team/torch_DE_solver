@@ -76,13 +76,14 @@ for i in range(n_dim):
             d_max[variable_names_lst[j]] = [x_min, x_max]
 
     d_min['t'] = [0, t_max]
-    d_min['t'] = [0, t_max]
+    d_max['t'] = [0, t_max]
 
     operator_min = bop_generation(x_min, i)
     operator_max = bop_generation(x_max, i)
 
     boundaries.robin(d_min, operator=operator_min, value=g_x)
     boundaries.robin(d_max, operator=operator_max, value=g_x)
+
 
 equation = Equation()
 
@@ -91,7 +92,7 @@ def forcing_term(grid):
     return -k * x_norm(grid) * g_x(grid)
 
 
-# Operator: −∆u = pi ** 2 / 4 * sum(sin(pi / 2 * x_i))
+# Operator: du/dt = k * ∆u + f(x, t)
 
 heat_N_dim = {
     'du/dt':
@@ -119,7 +120,7 @@ equation.add(heat_N_dim)
 neurons = 100
 
 net = torch.nn.Sequential(
-    torch.nn.Linear(n_dim, neurons),
+    torch.nn.Linear(n_dim + 1, neurons),
     torch.nn.Tanh(),
     torch.nn.Linear(neurons, neurons),
     torch.nn.Tanh(),
