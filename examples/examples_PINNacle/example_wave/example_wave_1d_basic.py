@@ -52,7 +52,7 @@ def wave1d_basic_experiment(grid_res):
     # u(x, 0) = f_init(x, 0)
     boundaries.dirichlet({'x': [x_min, x_max], 't': 0}, value=init_func)
 
-    # u(x, 0) = 0
+    # u_t(x, 0) = 0
     bop = {
         'du/dt':
             {
