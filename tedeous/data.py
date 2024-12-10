@@ -104,9 +104,9 @@ class Domain():
                         grid = csg_domain_difference(grid, geom_figure)
         else:
             grid = np.meshgrid(*var_lst, indexing='ij')
-            grid = check_device(torch.tensor(grid.cpu().numpy()))
+            grid = check_device(grid)
 
-        grid = check_device(torch.tensor(grid.cpu().numpy()))
+        grid = check_device(grid)
         return grid
 
 
