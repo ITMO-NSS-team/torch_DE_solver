@@ -5,8 +5,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import torch
-from tedeous.callbacks.callback import Callback
-from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.tri import Triangulation
 from scipy.interpolate import griddata
 from tedeous.callbacks.callback import Callback
@@ -39,30 +37,39 @@ class Plots(Callback):
         self.t_values = t_values
         self.mask = removed_domains
 
+        self.attributes = {'model': ['out_features', 'output_dim', 'width_out'],
+                           'layers': ['out_features', 'output_dim', 'width_out']}
+
+    def _init_nvars_model(self):
+        """
+        Initialization nvars_model object that describes the number of outputs.
+
+        Returns:
+            int: number of outputs
+        """
+        nvars_model = None
+
+        for key, values in self.attributes.items():
+            for value in values:
+                try:
+                    nvars_model = getattr(getattr(self.net, key)[-1], value)
+                    break
+                except AttributeError:
+                    pass
+
+        if nvars_model is None:
+            try:
+                return self.net[-1].out_features
+            except:
+                return self.net.width_out[-1]
+
     def _print_nn(self):
         """
         Solution plot for *NN, autograd* mode.
 
         """
 
-        attributes = {'model': ['out_features', 'output_dim', 'width_out'],
-                      'layers': ['out_features', 'output_dim', 'width_out']}
-
-        self.nvars_model = None
-
-        for key, values in attributes.items():
-            for value in values:
-                try:
-                    self.nvars_model = getattr(getattr(self.net, key)[-1], value)
-                    break
-                except AttributeError:
-                    pass
-
-        if self.nvars_model is None:
-            try:
-                self.nvars_model = self.net[-1].out_features
-            except:
-                self.nvars_model = self.net.width_out[-1]
+        self.nvars_model = self._init_nvars_model()
 
         nparams = self.grid.shape[1]
         fig = plt.figure(figsize=(15, 8))
@@ -161,27 +168,10 @@ class Plots(Callback):
             t_values (List[float]): List of time points to plot the solution for.
         """
 
-        grid_x = self.grid[:, 0].detach().cpu().numpy()
-        grid_y = self.grid[:, 1].detach().cpu().numpy()
+        grid_x = self.grid[:, 0]
+        grid_y = self.grid[:, 1]
 
-        attributes = {'model': ['out_features', 'output_dim', 'width_out'],
-                      'layers': ['out_features', 'output_dim', 'width_out']}
-
-        self.nvars_model = None
-
-        for key, values in attributes.items():
-            for value in values:
-                try:
-                    self.nvars_model = getattr(getattr(self.net, key)[-1], value)
-                    break
-                except AttributeError:
-                    pass
-
-        if self.nvars_model is None:
-            try:
-                self.nvars_model = self.net[-1].out_features
-            except:
-                self.nvars_model = self.net.width_out[-1]
+        self.nvars_model = self._init_nvars_model()
 
         if self.img_dim == '3d':
             for coord_3 in coord_3_values:
@@ -194,9 +184,10 @@ class Plots(Callback):
                     axes = [axes]
 
                 for i in range(self.nvars_model):
-                    z_values = self.net(self.grid[coord_3_mask])[:, i].detach().cpu().numpy().flatten()
-
-                    axes[i].plot_trisurf(grid_x[coord_3_mask], grid_y[coord_3_mask], z_values,
+                    z_values = self.net(self.grid[coord_3_mask])[:, i]
+                    axes[i].plot_trisurf(grid_x[coord_3_mask].detach().cpu().numpy(),
+                                         grid_y[coord_3_mask].detach().cpu().numpy(),
+                                         z_values.detach().cpu().numpy().flatten(),
                                          cmap=cm.jet,
                                          linewidth=0.2,
                                          alpha=1)
@@ -226,12 +217,22 @@ class Plots(Callback):
 
                     axes_size = int(self.grid.shape[0] ** 0.5)
 
-                    xi = np.linspace(grid_x.min(), grid_x.max(), axes_size)
-                    yi = np.linspace(grid_y.min(), grid_y.max(), axes_size)
-                    zi = griddata((grid_x[coord_3_mask], grid_y[coord_3_mask]), z_values, (xi[None, :], yi[:, None]),
+                    xi = np.linspace(grid_x.detach().cpu().numpy().min(),
+                                     grid_x.detach().cpu().numpy().max(),
+                                     axes_size)
+                    yi = np.linspace(grid_y.detach().cpu().numpy().min(),
+                                     grid_y.detach().cpu().numpy().max(),
+                                     axes_size)
+                    zi = griddata((grid_x[coord_3_mask].detach().cpu().numpy(),
+                                   grid_y[coord_3_mask].detach().cpu().numpy()),
+                                  z_values,
+                                  (xi[None, :], yi[:, None]),
                                   method='cubic')
 
-                    im = axes[i].imshow(zi, extent=(grid_x.min(), grid_x.max(), grid_y.min(), grid_y.max()),
+                    im = axes[i].imshow(zi, extent=(grid_x.detach().cpu().numpy().min(),
+                                                    grid_x.detach().cpu().numpy().max(),
+                                                    grid_y.detach().cpu().numpy().min(),
+                                                    grid_y.detach().cpu().numpy().max()),
                                         origin='lower', cmap=cm.jet, aspect='auto')
 
                     axes[i].set_title(f'Function {i + 1} at t = {coord_3}')
@@ -249,15 +250,15 @@ class Plots(Callback):
         elif self.img_dim == '2d_scatter':
             for coord_3 in coord_3_values:
                 coord_3_mask = self.grid[:, 2] == coord_3
-                fig, axes = plt.subplots(1, self.nvars_model, figsize=(6 * self.nvars_model, 5))
+                fig, axes = plt.subplots(1, self.nvars_model, figsize=(10 * self.nvars_model, 20))
 
                 if self.nvars_model == 1:
                     axes = [axes]
 
                 for i in range(self.nvars_model):
                     z_values = self.net(self.grid[coord_3_mask])[:, i].detach().cpu().numpy().flatten()
-                    x_values = grid_x[coord_3_mask.cpu().numpy()]
-                    y_values = grid_y[coord_3_mask.cpu().numpy()]
+                    x_values = grid_x[coord_3_mask].detach().cpu().numpy()
+                    y_values = grid_y[coord_3_mask].detach().cpu().numpy()
 
                     scatter = axes[i].scatter(
                         x_values,
@@ -415,6 +416,3 @@ class Plots(Callback):
 
     def on_epoch_end(self, logs=None):
         self.solution_print()
-
-
-
