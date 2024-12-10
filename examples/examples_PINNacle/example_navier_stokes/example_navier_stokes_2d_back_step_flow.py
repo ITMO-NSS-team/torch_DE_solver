@@ -11,7 +11,7 @@ from tedeous.callbacks import early_stopping, plot
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 
-solver_device('cuda')
+solver_device('gpu')
 
 ro = 1
 mu = 0.01
@@ -25,7 +25,7 @@ removed_domains_lst = [
     {'rectangle': {'coords_min': [0, 1], 'coords_max': [2, 2]}}
 ]
 
-domain = Domain(complex_geometry_flag=True)
+domain = Domain()
 domain.variable('x', [x_min, x_max], grid_res)
 domain.variable('y', [y_min, y_max], grid_res)
 
