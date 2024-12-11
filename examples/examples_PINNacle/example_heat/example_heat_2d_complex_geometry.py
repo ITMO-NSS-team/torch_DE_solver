@@ -19,7 +19,7 @@ from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 import time
 
-solver_device('cpu')
+solver_device('gpu')
 
 
 def func(grid):
@@ -75,83 +75,44 @@ def heat_2d_experiment(grid_res, CACHE):
     boundaries.dirichlet({'x': [x_min, x_max], 'y': [y_min, y_max], 't': 0},
                          value=torch.sin(20 * np.pi * x) * torch.sin(np.pi * y))
 
-    # Boundary conditions: −n*(−c∇u) = g−qu, c = 1, g = 0.1, q = 1 #################################################
+    # Boundary conditions: −n*(−c∇u) = g−qu, c = 1, g = 0.1, q = 1 #####################################################
+
+    def bop_generation(alpha, beta, grid_i):
+        bop = {
+            'alpha * u':
+                {
+                    'coeff': alpha,
+                    'term': [None],
+                    'pow': 1
+                },
+            'beta * du/dx':
+                {
+                    'coeff': beta,
+                    'term': [grid_i],
+                    'pow': 1
+                }
+        }
+        return bop
 
     c_rec, g_rec, q_rec = 1, 0.1, 1
 
-    bop_x_min = {
-        'q * u':
-            {
-                'coeff': q_rec,
-                'term': [None],
-                'pow': 1
-            },
-        '-c * du/dx':
-            {
-                'coeff': -c_rec,
-                'term': [0],
-                'pow': 1,
-                'var': 0
-            }
-    }
+    bop_x_min = bop_generation(-1, q_rec, 0)
     boundaries.robin({'x': x_min, 'y': [y_min, y_max], 't': [0, t_max]}, operator=bop_x_min, value=g_rec)
-    bop_x_max = {
-        'q * u':
-            {
-                'coeff': q_rec,
-                'term': [None],
-                'pow': 1
-            },
-        'c * du/dx':
-            {
-                'coeff': c_rec,
-                'term': [0],
-                'pow': 1,
-                'var': 0
-            }
-    }
+
+    bop_x_max = bop_generation(1, q_rec, 0)
     boundaries.robin({'x': x_max, 'y': [y_min, y_max], 't': [0, t_max]}, operator=bop_x_max, value=g_rec)
 
-    bop_y_min = {
-        'q * u':
-            {
-                'coeff': q_rec,
-                'term': [None],
-                'pow': 1
-            },
-        '-c * du/dy':
-            {
-                'coeff': -c_rec,
-                'term': [1],
-                'pow': 1,
-                'var': 0
-            }
-    }
+    bop_y_min = bop_generation(-1, q_rec, 1)
     boundaries.robin({'x': [x_min, x_max], 'y': y_min, 't': [0, t_max]}, operator=bop_y_min, value=g_rec)
-    bop_y_max = {
-        'q * u':
-            {
-                'coeff': q_rec,
-                'term': [None],
-                'pow': 1
-            },
-        'c * du/dy':
-            {
-                'coeff': c_rec,
-                'term': [1],
-                'pow': 1,
-                'var': 0
-            }
-    }
+
+    bop_y_max = bop_generation(1, q_rec, 1)
     boundaries.robin({'x': [x_min, x_max], 'y': y_max, 't': [0, t_max]}, operator=bop_y_max, value=g_rec)
 
     # CSG boundaries ###################################################################################################
 
-    bconds = boundaries.build(domain.variable_dict)
-
-    def bop_generation(x0, y0, r, c, q, bnd):
-        coeff_x = lambda grid: c * (bnd[:, 0] - x0) / r
-        coeff_y = lambda grid: c * (bnd[:, 1] - y0) / r
+    def bopCSG_generation(x0, y0, r, c, q):
+        coeff_x = lambda bnd: c * (bnd[:, 0] - x0) / r
+        coeff_y = lambda bnd: c * (bnd[:, 1] - y0) / r
 
         bop = {
             'q * u':
@@ -175,18 +136,13 @@ def heat_2d_experiment(grid_res, CACHE):
         }
         return bop
 
-    def bounds_generation(domains, c, g, q, flag=False):
+    def bounds_generation(domains, c, g, q):
         for i, rd in enumerate(domains):
             if list(rd.keys())[0] == 'circle':
                 x0, y0 = rd['circle']['center']
                 r = rd['circle']['radius']
 
-                if flag:
-                    bnd = bconds[i + 11]['bnd']
-                else:
-                    bnd = bconds[i]['bnd']
-
-                bop = bop_generation(x0, y0, r, c, q, bnd)
+                bop = bopCSG_generation(x0, y0, r, c, q)
                 boundaries.robin(rd, operator=bop, value=g)
 
     # Large circles
@@ -195,7 +151,7 @@ def heat_2d_experiment(grid_res, CACHE):
 
     # Small circles
     c_small_circ, g_small_circ, q_small_circ = 1, 1, 1
-    bounds_generation(removed_domains_lst[11:], c_small_circ, g_small_circ, q_small_circ, flag=True)
+    bounds_generation(removed_domains_lst[11:], c_small_circ, g_small_circ, q_small_circ)
 
     equation = Equation()
 
