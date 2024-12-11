@@ -34,7 +34,7 @@ def heat_2d_experiment(grid_res, CACHE):
     x_min, x_max = -8, 8
     y_min, y_max = -12, 12
     t_max = 3
-    grid_res = 160
+    grid_res = 50
 
     domain = Domain()
 
@@ -137,10 +137,11 @@ def heat_2d_experiment(grid_res, CACHE):
         return bop
 
     def bounds_generation(domains, c, g, q):
-        for i, rd in enumerate(domains):
-            if list(rd.keys())[0] == 'circle':
-                x0, y0 = rd['circle']['center']
-                r = rd['circle']['radius']
+        for rd in domains:
+            key = list(rd.keys())[0]
+            if key == 'circle':
+                x0, y0 = rd[key]['center']
+                r = rd[key]['radius']
 
                 bop = bopCSG_generation(x0, y0, r, c, q)
                 boundaries.robin(rd, operator=bop, value=g)
