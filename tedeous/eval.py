@@ -1,6 +1,6 @@
 """Module for operatoins with operator and boundaru con-ns."""
 
-from typing import Tuple, Union, List
+from typing import Tuple, Union, List, Callable
 import torch
 
 from tedeous.points_type import Points_type
@@ -374,9 +374,15 @@ class Bounds():
         derivative_term = 0
         for beta in betas:
             if self.mode == 'NN':
-                derivative_term += beta * self._apply_bconds_set(bop)
+                if isinstance(beta, (int, float)):
+                    derivative_term += beta * self._apply_bconds_set(bop)
+                elif isinstance(beta, Callable):
+                    derivative_term += beta(bnd) * self._apply_bconds_set(bop)
             else:
-                derivative_term += beta * self._apply_neumann(bnd, bop)
+                if isinstance(beta, (int, float)):
+                    derivative_term += beta * self._apply_neumann(bnd, bop)
+                elif isinstance(beta, Callable):
+                    derivative_term += beta(bnd) * self._apply_neumann(bnd, bop)
 
         b_op_val = value_term + derivative_term
         return b_op_val
