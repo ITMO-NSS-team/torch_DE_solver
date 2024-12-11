@@ -11,7 +11,7 @@ from tedeous.callbacks import adaptive_lambda, cache, early_stopping, plot
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 
-solver_device('cpu')
+solver_device('gpu')
 
 m1, m2, m3 = 1, 10, 5
 mu_1, mu_2 = 1, 1
@@ -23,7 +23,7 @@ y_min, y_max = 0, 1
 z_min, z_max = 0, 1
 z_border = 0.5
 
-grid_res = 20
+grid_res = 40
 
 domain = Domain()
 domain.variable('x', [x_min, x_max], grid_res)
@@ -31,6 +31,20 @@ domain.variable('y', [y_min, y_max], grid_res)
 domain.variable('z', [z_min, z_max], grid_res)
 
 boundaries = Conditions()
+
+
+def bop_generation(coeff, grid_i):
+    bop = {
+        'coeff * du/dx_i':
+            {
+                'coeff': coeff,
+                'term': [grid_i],
+                'pow': 1,
+                'var': 0
+            }
+    }
+    return bop
+
 
 # Circle type of removed domains #######################################################################################
 
@@ -45,67 +59,22 @@ removed_domains_lst = [
 
 # du/dn = 0
 
-bop_x_min = {
-    'du/dn':
-        {
-            'coeff': -1,
-            'term': [0],
-            'pow': 1,
-            'var': 0
-        }
-}
+bop_x_min = bop_generation(-1, 0)
 boundaries.operator({'x': x_min, 'y': [y_min, y_max], 'z': [z_min, z_max]}, operator=bop_x_min, value=0)
-bop_x_max = {
-    'du/dn':
-        {
-            'coeff': 1,
-            'term': [0],
-            'pow': 1,
-            'var': 0
-        }
-}
+
+bop_x_max = bop_generation(1, 0)
 boundaries.operator({'x': x_max, 'y': [y_min, y_max], 'z': [z_min, z_max]}, operator=bop_x_max, value=0)
 
-bop_y_min = {
-    'du/dn':
-        {
-            'coeff': -1,
-            'term': [1],
-            'pow': 1,
-            'var': 0
-        }
-}
+bop_y_min = bop_generation(-1, 1)
 boundaries.operator({'x': [x_min, x_max], 'y': y_min, 'z': [z_min, z_max]}, operator=bop_y_min, value=0)
-bop_y_max = {
-    'du/dn':
-        {
-            'coeff': 1,
-            'term': [1],
-            'pow': 1,
-            'var': 0
-        }
-}
+
+bop_y_max = bop_generation(1, 1)
 boundaries.operator({'x': [x_min, x_max], 'y': y_max, 'z': [z_min, z_max]}, operator=bop_y_max, value=0)
 
-bop_z_min = {
-    'du/dn':
-        {
-            'coeff': -1,
-            'term': [2],
-            'pow': 1,
-            'var': 0
-        }
-}
+bop_z_min = bop_generation(-1, 2)
 boundaries.operator({'x': [x_min, x_max], 'y': [y_min, y_max], 'z': z_min}, operator=bop_z_min, value=0)
-bop_z_max = {
-    'du/dn':
-        {
-            'coeff': 1,
-            'term': [2],
-            'pow': 1,
-            'var': 0
-        }
-}
+
+bop_z_max = bop_generation(1, 2)
 boundaries.operator({'x': [x_min, x_max], 'y': [y_min, y_max], 'z': z_max}, operator=bop_z_max, value=0)
 
 
@@ -113,129 +82,53 @@ boundaries.operator({'x': [x_min, x_max], 'y': [y_min, y_max], 'z': z_max}, oper
 
 # du/dn = 0
 
-bop_x_R1 = {
-    'du/dn':
-        {
-            'coeff': -1,
-            'term': [0],
-            'pow': 1,
-            'var': 0
-        }
-}
-boundaries.operator({'circle': {'center': (0.4, 0.3, 0.6), 'radius': 0.2}}, operator=bop_x_R1, value=0)
-bop_y_R1 = {
-    'du/dn':
-        {
-            'coeff': -1,
-            'term': [1],
-            'pow': 1,
-            'var': 0
-        }
-}
-boundaries.operator({'circle': {'center': (0.4, 0.3, 0.6), 'radius': 0.2}}, operator=bop_y_R1, value=0)
-bop_z_R1 = {
-    'du/dn':
-        {
-            'coeff': -1,
-            'term': [2],
-            'pow': 1,
-            'var': 0
-        }
-}
-boundaries.operator({'circle': {'center': (0.4, 0.3, 0.6), 'radius': 0.2}}, operator=bop_z_R1, value=0)
 
-bop_x_R2 = {
-    'du/dn':
-        {
-            'coeff': -1,
-            'term': [0],
-            'pow': 1,
-            'var': 0
-        }
-}
-boundaries.operator({'circle': {'center': (0.6, 0.7, 0.6), 'radius': 0.2}}, operator=bop_x_R2, value=0)
-bop_y_R2 = {
-    'du/dn':
-        {
-            'coeff': -1,
-            'term': [1],
-            'pow': 1,
-            'var': 0
-        }
-}
-boundaries.operator({'circle': {'center': (0.6, 0.7, 0.6), 'radius': 0.2}}, operator=bop_y_R2, value=0)
-bop_z_R2 = {
-    'du/dn':
-        {
-            'coeff': -1,
-            'term': [2],
-            'pow': 1,
-            'var': 0
-        }
-}
-boundaries.operator({'circle': {'center': (0.6, 0.7, 0.6), 'radius': 0.2}}, operator=bop_z_R2, value=0)
+def bopCSG_generation(x0, y0, z0, r, alpha):
+    coeff_x = lambda bnd: (bnd[:, 0] - x0) / r
+    coeff_y = lambda bnd: (bnd[:, 1] - y0) / r
+    coeff_z = lambda bnd: (bnd[:, 2] - z0) / r
 
-bop_x_R3 = {
-    'du/dn':
-        {
-            'coeff': -1,
-            'term': [0],
-            'pow': 1,
-            'var': 0
-        }
-}
-boundaries.operator({'circle': {'center': (0.2, 0.8, 0.7), 'radius': 0.1}}, operator=bop_x_R3, value=0)
-bop_y_R3 = {
-    'du/dn':
-        {
-            'coeff': -1,
-            'term': [1],
-            'pow': 1,
-            'var': 0
-        }
-}
-boundaries.operator({'circle': {'center': (0.2, 0.8, 0.7), 'radius': 0.1}}, operator=bop_y_R3, value=0)
-bop_z_R3 = {
-    'du/dn':
-        {
-            'coeff': -1,
-            'term': [2],
-            'pow': 1,
-            'var': 0
-        }
-}
-boundaries.operator({'circle': {'center': (0.2, 0.8, 0.7), 'radius': 0.1}}, operator=bop_z_R3, value=0)
+    bop = {
+        'alpha * u':
+            {
+                'coeff': alpha,
+                'term': [None],
+                'pow': 1
+            },
+        'beta * nx * du/dx':
+            {
+                'coeff': coeff_x,
+                'term': [0],
+                'pow': 1,
+                'var': 0
+            },
+        'beta * ny * du/dy':
+            {
+                'coeff': coeff_y,
+                'term': [1],
+                'pow': 1,
+                'var': 0
+            },
+        'beta * nz * du/dz':
+            {
+                'coeff': coeff_z,
+                'term': [2],
+                'pow': 1,
+                'var': 0
+            }
+    }
+    return bop
 
-bop_x_R4 = {
-    'du/dn':
-        {
-            'coeff': -1,
-            'term': [0],
-            'pow': 1,
-            'var': 0
-        }
-}
-boundaries.operator({'circle': {'center': (0.6, 0.2, 0.3), 'radius': 0.1}}, operator=bop_x_R4, value=0)
-bop_y_R4 = {
-    'du/dn':
-        {
-            'coeff': -1,
-            'term': [1],
-            'pow': 1,
-            'var': 0
-        }
-}
-boundaries.operator({'circle': {'center': (0.6, 0.2, 0.3), 'radius': 0.1}}, operator=bop_y_R4, value=0)
-bop_z_R4 = {
-    'du/dn':
-        {
-            'coeff': -1,
-            'term': [2],
-            'pow': 1,
-            'var': 0
-        }
-}
-boundaries.operator({'circle': {'center': (0.6, 0.2, 0.3), 'radius': 0.1}}, operator=bop_z_R4, value=0)
+
+for domain_i in removed_domains_lst:
+    key_i = list(domain_i.keys())[0]
+    if key_i == 'circle':
+        x0, y0, z0 = domain_i[key_i]['center']
+        radius = domain_i[key_i]['radius']
+
+        bop_circle_i = bopCSG_generation(x0, y0, z0, radius, 0)
+
+        boundaries.robin(domain_i, operator=bop_circle_i, value=0)
 
 
 def forcing_term(grid):
@@ -308,6 +201,8 @@ neurons = 100
 
 net = torch.nn.Sequential(
     torch.nn.Linear(3, neurons),
+    torch.nn.Tanh(),
+    torch.nn.Linear(neurons, neurons),
     torch.nn.Tanh(),
     torch.nn.Linear(neurons, neurons),
     torch.nn.Tanh(),
