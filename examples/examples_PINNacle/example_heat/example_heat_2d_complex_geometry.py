@@ -34,7 +34,7 @@ def heat_2d_experiment(grid_res, CACHE):
     x_min, x_max = -8, 8
     y_min, y_max = -12, 12
     t_max = 3
-    grid_res = 50
+    grid_res = 160
 
     domain = Domain()
 
