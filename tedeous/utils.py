@@ -7,6 +7,7 @@ import os
 import shutil
 import numpy as np
 import torch
+import scipy
 from tedeous.device import check_device
 
 
@@ -143,7 +144,7 @@ def model_mat(model: torch.Tensor,
     Args:
         model (torch.Tensor): model from *mat* method.
         grid (torch.Tensor): grid from *mat* method.
-        cache_model (torch.nn.Module, optional): neural network that will 
+        cache_model (torch.nn.Module, optional): neural network that will
                                                     approximate *mat* model. Defaults to None.
 
     Returns:
@@ -235,6 +236,7 @@ def save_model_mat(cache_dir: str,
 
     save_model_nn(cache_dir, net_autograd, name=name)
 
+
 def replace_none_by_zero(tuple_data: tuple | None) -> torch.Tensor:
     """ Make tensor from tuple (or None element) ad replace None elements to zero.
 
@@ -250,11 +252,12 @@ def replace_none_by_zero(tuple_data: tuple | None) -> torch.Tensor:
         return new_tuple
     return tuple_data
 
+
 class PadTransform(Module):
     """Pad tensor to a fixed length with given padding value.
-    
+
     src: https://pytorch.org/text/stable/transforms.html#torchtext.transforms.PadTransform
-    
+
     Done to avoid torchtext dependency (we need only this function).
     """
 
@@ -284,3 +287,35 @@ class PadTransform(Module):
             pad_amount = self.max_length - max_encoded_length
             x = torch.nn.functional.pad(x, (0, pad_amount), value=self.pad_value)
         return x
+
+
+def exact_solution_from_data(grid, datapath, n_dim_in, n_dim_out):
+    device_origin = grid.device
+    grid = grid.to('cpu').detach()
+
+    test_data = np.loadtxt(datapath, comments="%", encoding='utf-8').astype(np.float32)
+    test_data = torch.from_numpy(test_data)
+
+    if n_dim_out == 1:
+        function = test_data[:, n_dim_in:]
+        grid_data = torch.stack([coord for coord in test_data[:, :n_dim_in]])
+
+        grid_data = grid_data.cpu().numpy()
+        function = function.cpu().numpy()
+        grid = grid.cpu().numpy()
+
+        exact = scipy.interpolate.griddata(grid_data, function, grid, method='nearest').reshape(-1)
+
+    else:
+        functions = test_data[:, n_dim_in:]
+        grid_data = torch.stack([coord for coord in test_data[:, :n_dim_in]])
+
+        grid_data = grid_data.cpu().numpy()
+        functions = functions.cpu().numpy()
+        grid = grid.cpu().numpy()
+
+        exact = np.array([scipy.interpolate.griddata(grid_data, functions[:, i_dim], grid, method='nearest').reshape(-1)
+                         for i_dim in range(n_dim_out)])
+
+    exact = torch.from_numpy(exact).to(device_origin)
+    return exact
