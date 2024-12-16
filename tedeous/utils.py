@@ -20,6 +20,7 @@ def create_random_fn(eps: float) -> callable:
     Returns:
         callable: creating random params function.
     """
+
     def randomize_params(m):
         if (isinstance(m, torch.nn.Linear) or isinstance(m, torch.nn.Conv2d)) and m.bias is not None:
             m.weight.data = m.weight.data + \
@@ -72,9 +73,9 @@ def lambda_print(lam: torch.Tensor, keys: List) -> None:
 
 
 def bcs_reshape(
-    bval: torch.Tensor,
-    true_bval: torch.Tensor,
-    bval_length: List) -> Tuple[dict, dict, dict, dict]:
+        bval: torch.Tensor,
+        true_bval: torch.Tensor,
+        bval_length: List) -> Tuple[dict, dict, dict, dict]:
     """ Preprocessing for lambda evaluating.
 
     Args:
@@ -91,7 +92,7 @@ def bcs_reshape(
     bval_diff = bval - true_bval
 
     bcs = torch.cat([bval_diff[0:bval_length[i], i].reshape(-1)
-                                        for i in range(bval_diff.shape[-1])])
+                     for i in range(bval_diff.shape[-1])])
 
     return bcs
 
@@ -136,8 +137,8 @@ def mat_op_coeff(equation: Any) -> Any:
 
 
 def model_mat(model: torch.Tensor,
-                    domain: Any,
-                    cache_model: torch.nn.Module=None) -> Tuple[torch.Tensor, torch.nn.Module]:
+              domain: Any,
+              cache_model: torch.nn.Module = None) -> Tuple[torch.Tensor, torch.nn.Module]:
     """ Create model for *NN or autograd* modes from grid
         and model of *mat* mode.
 
@@ -169,9 +170,9 @@ def model_mat(model: torch.Tensor,
 
 
 def save_model_nn(
-    cache_dir: str,
-    model: torch.nn.Module,
-    name: Union[str, None] = None) -> None:
+        cache_dir: str,
+        model: torch.nn.Module,
+        name: Union[str, None] = None) -> None:
     """
     Saves model in a cache (uses for 'NN' and 'autograd' methods).
     Args:
@@ -187,24 +188,24 @@ def save_model_nn(
         os.mkdir(cache_dir)
 
     parameters_dict = {'model': model.to('cpu'),
-                        'model_state_dict': model.state_dict()}
+                       'model_state_dict': model.state_dict()}
 
     try:
         torch.save(parameters_dict, cache_dir + '\\' + name + '.tar')
         print(f'model is saved in cache dir: {cache_dir}')
     except RuntimeError:
         torch.save(parameters_dict, cache_dir + '\\' + name + '.tar',
-                    _use_new_zipfile_serialization=False)  # cyrillic in path
+                   _use_new_zipfile_serialization=False)  # cyrillic in path
         print(f'model is saved in cache: {cache_dir}')
     except:
         print(f'Cannot save model in cache: {cache_dir}')
 
 
 def save_model_mat(cache_dir: str,
-                    model: torch.Tensor,
-                    domain: Any,
-                    cache_model: Union[torch.nn.Module, None] = None,
-                    name: Union[str, None] = None) -> None:
+                   model: torch.Tensor,
+                   domain: Any,
+                   cache_model: Union[torch.nn.Module, None] = None,
+                   name: Union[str, None] = None) -> None:
     """ Saves model in a cache (uses for 'mat' method).
 
     Args:
@@ -232,7 +233,7 @@ def save_model_mat(cache_dir: str,
         loss = optimizer.step(closure)
         t += 1
         print('Interpolate from trained model t={}, loss={}'.format(
-                t, loss))
+            t, loss))
 
     save_model_nn(cache_dir, net_autograd, name=name)
 
@@ -296,26 +297,20 @@ def exact_solution_data(grid, datapath, n_dim_in, n_dim_out):
     test_data = np.loadtxt(datapath, comments="%", encoding='utf-8').astype(np.float32)
     test_data = torch.from_numpy(test_data)
 
+    exact_func = test_data[:, n_dim_in:]
+    grid_data = torch.stack([coord for coord in test_data[:, :n_dim_in]])
+
+    grid_data = grid_data.cpu().numpy()
+    exact_func = exact_func.cpu().numpy()
+    grid = grid.cpu().numpy()
+
     if n_dim_out == 1:
-        function = test_data[:, n_dim_in:]
-        grid_data = torch.stack([coord for coord in test_data[:, :n_dim_in]])
-
-        grid_data = grid_data.cpu().numpy()
-        function = function.cpu().numpy()
-        grid = grid.cpu().numpy()
-
-        exact = scipy.interpolate.griddata(grid_data, function, grid, method='nearest').reshape(-1)
-
+        exact = scipy.interpolate.griddata(grid_data, exact_func, grid, method='nearest').reshape(-1)
     else:
-        functions = test_data[:, n_dim_in:]
-        grid_data = torch.stack([coord for coord in test_data[:, :n_dim_in]])
-
-        grid_data = grid_data.cpu().numpy()
-        functions = functions.cpu().numpy()
-        grid = grid.cpu().numpy()
-
-        exact = np.array([scipy.interpolate.griddata(grid_data, functions[:, i_dim], grid, method='nearest').reshape(-1)
-                         for i_dim in range(n_dim_out)])
+        exact = np.array(
+            [scipy.interpolate.griddata(grid_data, exact_func[:, i_dim], grid, method='nearest').reshape(-1)
+             for i_dim in range(n_dim_out)]
+        )
 
     exact = torch.from_numpy(exact).to(device_origin)
     return exact
