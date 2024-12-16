@@ -18,7 +18,7 @@ from tedeous.model import Model
 from tedeous.callbacks import early_stopping, plot, cache
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
-from tedeous.utils import exact_solution_from_data
+from tedeous.utils import exact_solution_data
 
 solver_device('gpu')
 datapath = "grayscott.dat"
@@ -35,10 +35,10 @@ def DR2d_heterogeneous_experiment(grid_res):
     x_min, x_max = -1, 1
     y_min, y_max = -1, 1
     t_max = 200
-    grid_res = 20
+    # grid_res = 20
 
-    n_dim_in = 3
-    n_dim_out = 2
+    pde_dim_in = 3
+    pde_dim_out = 2
 
     domain = Domain()
     domain.variable('x', [x_min, x_max], grid_res)
@@ -153,7 +153,7 @@ def DR2d_heterogeneous_experiment(grid_res):
     neurons = 100
 
     net = torch.nn.Sequential(
-        torch.nn.Linear(n_dim_in, neurons),
+        torch.nn.Linear(pde_dim_in, neurons),
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
@@ -163,7 +163,7 @@ def DR2d_heterogeneous_experiment(grid_res):
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
-        torch.nn.Linear(neurons, n_dim_out)
+        torch.nn.Linear(neurons, pde_dim_out)
     )
 
     for m in net.modules():
@@ -203,7 +203,7 @@ def DR2d_heterogeneous_experiment(grid_res):
     net = net.to('cuda')
 
     predicted_u, predicted_v = net(grid)[:, 0], net(grid)[:, 1]
-    exact_u, exact_v = exact_solution_from_data(grid, datapath, n_dim_in, n_dim_out)
+    exact_u, exact_v = exact_solution_data(grid, datapath, pde_dim_in, pde_dim_out)
 
     error_rmse_u = torch.sqrt(torch.mean((exact_u - predicted_u) ** 2))
     error_rmse_v = torch.sqrt(torch.mean((exact_v - predicted_v) ** 2))
@@ -225,7 +225,7 @@ nruns = 10
 
 exp_dict_list = []
 
-for grid_res in range(10, 101, 10):
+for grid_res in range(20, 201, 20):
     for _ in range(nruns):
         exp_dict_list.append(DR2d_heterogeneous_experiment(grid_res))
 
@@ -233,15 +233,7 @@ import pandas as pd
 
 exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df = pd.DataFrame(exp_dict_list_flatten)
-# df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
-# df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
-df.to_csv('examples/benchmarking_data/wave_experiment_physical_10_100_cache={}.csv'.format(str(True)))
-
-
-
-
-
-
+df.to_csv('examples/benchmarking_data/wave_experiment_physical_20_200_cache={}.csv'.format(str(True)))
 
 
 
