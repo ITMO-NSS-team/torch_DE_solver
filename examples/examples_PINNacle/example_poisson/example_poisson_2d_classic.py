@@ -11,7 +11,7 @@ from tedeous.model import Model
 from tedeous.callbacks import adaptive_lambda, cache, early_stopping, plot
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
-from tedeous.utils import exact_solution_from_data
+from tedeous.utils import exact_solution_data
 
 solver_device('cuda')
 datapath = "poisson1_cg_data.dat"
@@ -131,7 +131,7 @@ def poisson_2d_classic_experiment(grid_res):
     grid = domain.build('NN').to('cuda')
     net = net.to('cuda')
 
-    exact = exact_solution_from_data(grid, datapath, pde_dim_in, pde_dim_out).reshape(-1, 1)
+    exact = exact_solution_data(grid, datapath, pde_dim_in, pde_dim_out).reshape(-1, 1)
     net_predicted = net(grid)
 
     error_rmse = torch.sqrt(torch.mean((exact - net_predicted) ** 2))
