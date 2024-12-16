@@ -289,7 +289,7 @@ class PadTransform(Module):
         return x
 
 
-def exact_solution_from_data(grid, datapath, n_dim_in, n_dim_out):
+def exact_solution_data(grid, datapath, n_dim_in, n_dim_out):
     device_origin = grid.device
     grid = grid.to('cpu').detach()
 
