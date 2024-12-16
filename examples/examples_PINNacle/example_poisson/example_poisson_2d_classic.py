@@ -22,7 +22,7 @@ def poisson_2d_classic_experiment(grid_res):
 
     x_min, x_max = -0.5, 0.5
     y_min, y_max = -0.5, 0.5
-    grid_res = 30
+    # grid_res = 30
 
     pde_dim_in = 2
     pde_dim_out = 1
@@ -149,7 +149,7 @@ nruns = 10
 
 exp_dict_list = []
 
-for grid_res in range(10, 101, 10):
+for grid_res in range(30, 301, 30):
     for _ in range(nruns):
         exp_dict_list.append(poisson_2d_classic_experiment(grid_res))
 
@@ -158,8 +158,6 @@ import pandas as pd
 
 exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df = pd.DataFrame(exp_dict_list_flatten)
-# df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
-# df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
-df.to_csv('examples/benchmarking_data/wave_experiment_physical_10_100_cache={}.csv'.format(str(True)))
+df.to_csv('examples/benchmarking_data/wave_experiment_physical_30_300_cache={}.csv'.format(str(True)))
 
 
