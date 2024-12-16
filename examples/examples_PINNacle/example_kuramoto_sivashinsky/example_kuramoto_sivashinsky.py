@@ -36,7 +36,7 @@ def KS_heterogeneous_experiment(grid_res):
 
     x_min, x_max = 0, 2 * np.pi
     t_max = 1
-    grid_res = 20
+    # grid_res = 20
 
     pde_dim_in = 2
     pde_dim_out = 1
@@ -165,7 +165,5 @@ import pandas as pd
 
 exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df = pd.DataFrame(exp_dict_list_flatten)
-# df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
-# df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
 df.to_csv('examples/benchmarking_data/wave_experiment_physical_10_100_cache={}.csv'.format(str(True)))
 
