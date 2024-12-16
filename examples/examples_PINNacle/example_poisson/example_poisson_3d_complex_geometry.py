@@ -193,7 +193,7 @@ def poisson_3d_complex_geometry_experiment(grid_res):
             {
                 'coeff': forcing_term,
                 'term': [None],
-                'pow': 1
+                'pow': 0
             }
     }
 
