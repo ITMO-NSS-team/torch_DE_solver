@@ -301,10 +301,11 @@ def exact_solution_data(grid, datapath, pde_dim_in, pde_dim_out, t_dim_flag=Fals
     exact_func = test_data[:, pde_dim_in - t_dim_flag:]
 
     if t_dim_flag:
-        N_t = exact_func.shape[1]
+        N_t = int(exact_func.shape[1] / pde_dim_out)
         exact_func = exact_func.reshape(-1, pde_dim_out)
-        t = torch.linspace(min(grid[:, pde_dim_in - 1]), max(grid[:, pde_dim_in - 1]), N_t).to('cpu').detach()
-        grid_data = torch.vstack([torch.cartesian_prod(coord, t) for coord in grid_data])
+        t = torch.linspace(min(grid[:, pde_dim_in - 1]), max(grid[:, pde_dim_in - 1]), N_t)\
+            .reshape(-1, 1).to('cpu').detach()
+        grid_data = torch.vstack([torch.cat((coord.expand(len(t), len(coord)), t), dim=1) for coord in grid_data])
 
     grid_data = grid_data.cpu().numpy()
     exact_func = exact_func.cpu().numpy()
@@ -320,3 +321,23 @@ def exact_solution_data(grid, datapath, pde_dim_in, pde_dim_out, t_dim_flag=Fals
 
     exact_func = torch.from_numpy(exact_func).to(device_origin)
     return exact_func
+
+
+def init_data(grid, datapath):
+    device_origin = grid.device
+    grid = grid.to('cpu').detach()
+
+    test_data = np.loadtxt(datapath, comments="%", encoding='utf-8').astype(np.float32)
+    test_data = torch.from_numpy(test_data)
+    grid_data = torch.stack([coord for coord in test_data[:, :-1]])
+
+    init_value = test_data[:, -1:]
+
+    grid_data = grid_data.cpu().numpy()
+    init_value = init_value.cpu().numpy()
+    grid = grid.cpu().numpy()
+
+    init_value = scipy.interpolate.griddata(grid_data, init_value, grid, method='nearest').reshape(-1)
+    init_value = torch.from_numpy(init_value).to(device_origin)
+
+    return init_value
