@@ -29,7 +29,7 @@ epsilon_1 = 1e-5
 epsilon_2 = 5e-6
 
 
-def DR2d_heterogeneous_experiment(grid_res):
+def DR_2d_gray_scott_experiment(grid_res):
     exp_dict_list_u, exp_dict_list_v = [], []
 
     x_min, x_max = -1, 1
@@ -212,14 +212,14 @@ def DR2d_heterogeneous_experiment(grid_res):
         'grid_res': grid_res,
         'time': end - start,
         'RMSE_u_func': error_rmse_u.detach().cpu().numpy(),
-        'type': 'wave_eqn_physical',
+        'type': 'diffusion_reaction_2d_gray_scott',
         'cache': True
     })
     exp_dict_list_v.append({
         'grid_res': grid_res,
         'time': end - start,
         'RMSE_v_func': error_rmse_v.detach().cpu().numpy(),
-        'type': 'wave_eqn_physical',
+        'type': 'diffusion_reaction_2d_gray_scott',
         'cache': True
     })
 
@@ -231,13 +231,13 @@ def DR2d_heterogeneous_experiment(grid_res):
     return exp_dict_list_u, exp_dict_list_v
 
 
-nruns = 10
+nruns = 1
 
 exp_dict_list_u, exp_dict_list_v = [], []
 
-for grid_res in range(20, 201, 20):
+for grid_res in range(20, 21, 20):
     for _ in range(nruns):
-        list_u, list_v = DR2d_heterogeneous_experiment(grid_res)
+        list_u, list_v = DR_2d_gray_scott_experiment(grid_res)
         exp_dict_list_u.append(list_u)
         exp_dict_list_v.append(list_v)
 
@@ -249,5 +249,5 @@ exp_dict_list_v_flatten = [item for sublist in exp_dict_list_v for item in subli
 df_u = pd.DataFrame(exp_dict_list_u_flatten)
 df_v = pd.DataFrame(exp_dict_list_v_flatten)
 
-df_u.to_csv('examples/benchmarking_data/DR_2d_heterogeneous_experiment_20_200_cache_u_func={}.csv'.format(str(True)))
-df_v.to_csv('examples/benchmarking_data/DR_2d_heterogeneous_experiment_20_200_cache_v_func={}.csv'.format(str(True)))
+df_u.to_csv('examples/benchmarking_data/DR_2d_gray_scott_experiment_20_200_cache_u_func={}.csv'.format(str(True)))
+df_v.to_csv('examples/benchmarking_data/DR_2d_gray_scott_experiment_20_200_cache_v_func={}.csv'.format(str(True)))
