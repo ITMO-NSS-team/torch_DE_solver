@@ -59,7 +59,7 @@ def init_v(grid):
     return 2 * init_w(x, y, size, L) + c_v
 
 
-def burgers_2d_experiment(grid_res):
+def burgers_2d_coupled_experiment(grid_res):
     exp_dict_list_u, exp_dict_list_v = [], []
 
     x_min, L = 0, 4
@@ -224,7 +224,7 @@ def burgers_2d_experiment(grid_res):
                                          randomize_parameter=1e-5,
                                          info_string_every=10)
 
-    img_dir = os.path.join(os.path.dirname(__file__), 'burgers_2d_img')
+    img_dir = os.path.join(os.path.dirname(__file__), 'burgers_2d_coupled_img')
 
     cb_plots = plot.Plots(save_every=100,
                           print_every=None,
@@ -250,14 +250,14 @@ def burgers_2d_experiment(grid_res):
         'grid_res': grid_res,
         'time': end - start,
         'RMSE_u_func': error_rmse_u.detach().cpu().numpy(),
-        'type': 'wave_eqn_physical',
+        'type': 'burgers_2d_coupled',
         'cache': True
     })
     exp_dict_list_v.append({
         'grid_res': grid_res,
         'time': end - start,
         'RMSE_v_func': error_rmse_v.detach().cpu().numpy(),
-        'type': 'wave_eqn_physical',
+        'type': 'burgers_2d_coupled',
         'cache': True
     })
 
@@ -275,7 +275,7 @@ exp_dict_list_u, exp_dict_list_v = [], []
 
 for grid_res in range(20, 201, 20):
     for _ in range(nruns):
-        list_u, list_v = burgers_2d_experiment(grid_res)
+        list_u, list_v = burgers_2d_coupled_experiment(grid_res)
         exp_dict_list_u.append(list_u)
         exp_dict_list_v.append(list_v)
 
@@ -287,5 +287,5 @@ exp_dict_list_v_flatten = [item for sublist in exp_dict_list_v for item in subli
 df_u = pd.DataFrame(exp_dict_list_u_flatten)
 df_v = pd.DataFrame(exp_dict_list_v_flatten)
 
-df_u.to_csv('examples/benchmarking_data/burgers_2d_experiment_20_200_cache_u_func={}.csv'.format(str(True)))
-df_v.to_csv('examples/benchmarking_data/burgers_2d_experiment_20_200_cache_v_func={}.csv'.format(str(True)))
+df_u.to_csv('examples/benchmarking_data/burgers_2d_coupled_experiment_20_200_cache_u_func={}.csv'.format(str(True)))
+df_v.to_csv('examples/benchmarking_data/burgers_2d_coupled_experiment_20_200_cache_v_func={}.csv'.format(str(True)))
