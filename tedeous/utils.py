@@ -327,9 +327,9 @@ def init_data(grid, datapath):
     device_origin = grid.device
     grid = grid.to('cpu').detach()
 
-    test_data = np.loadtxt(datapath, comments="%", encoding='utf-8').astype(np.float32)
-    test_data = torch.from_numpy(test_data)
-    grid_data = torch.stack([coord for coord in test_data[:, :-1]])
+    init_data = np.loadtxt(datapath, comments="%", encoding='utf-8').astype(np.float32)
+    init_data = torch.from_numpy(init_data)
+    grid_data = torch.stack([coord for coord in init_data[:, :-1]])
 
     init_value = test_data[:, -1:]
 
