@@ -20,86 +20,24 @@ from tedeous.model import Model
 from tedeous.callbacks import early_stopping, plot, cache
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
+from tedeous.utils import exact_solution_data
 
 solver_device('gpu')
 
-wave_datapath = "wave_darcy.dat"
+datapath = "wave_darcy.dat"
 darcy_2d_coef_data = np.loadtxt("darcy_2d_coef_256.dat")
 
-
-def func_data(datapath):
-
-    t_transpose = True
-
-    input_dim = 3
-    output_dim = 2
-
-    def trans_time_data_to_dataset(datapath, ref_data):
-        data = ref_data
-        slice = (data.shape[1] - input_dim + 1) // output_dim
-        assert slice * output_dim == data.shape[
-            1] - input_dim + 1, "Data shape is not multiple of pde.output_dim"
-
-        with open(datapath, "r", encoding='utf-8') as f:
-            def extract_time(string):
-                index = string.find("t=")
-                if index == -1:
-                    return None
-                return float(string[index + 2:].split(' ')[0])
-
-            t = None
-            for line in f.readlines():
-                if line.startswith('%') and line.count('@') == slice * output_dim:
-                    t = line.split('@')[1:]
-                    t = list(map(extract_time, t))
-            if t is None or None in t:
-                raise ValueError("Reference Data not in Comsol format or does not contain time info")
-            t = np.array(t[::output_dim])
-
-        t, x0 = np.meshgrid(t, data[:, 0])
-        list_x = [x0.reshape(-1)]
-        for i in range(1, input_dim - 1):
-            list_x.append(np.stack([data[:, i] for _ in range(slice)]).T.reshape(-1))
-        list_x.append(t.reshape(-1))
-        for i in range(output_dim):
-            list_x.append(data[:, input_dim - 1 + i::output_dim].reshape(-1))
-        return np.stack(list_x).T
-
-    scale = 1
-
-    def transform_fn(data):
-        data[:, :input_dim] *= scale
-        return data
-
-    def load_ref_data(datapath, transform_fn=None, t_transpose=False):
-        ref_data = np.loadtxt(datapath, comments="%", encoding='utf-8').astype(np.float32)
-        if t_transpose:
-            ref_data = trans_time_data_to_dataset(datapath, ref_data)
-        if transform_fn is not None:
-            ref_data = transform_fn(ref_data)
-            return ref_data
-
-    load_ref_data(datapath)
-    load_ref_data(datapath, transform_fn, t_transpose)
-
-    return load_ref_data
-
-
-def func(grid):
-    wave_data = func_data(wave_datapath)
-    sln = torch.Tensor(
-        interpolate.griddata(wave_data[:, 0:2], wave_data[:, 2],
-                             (grid.detach().cpu().numpy()[:, 0:2] + 1) / 2)
-    ).unsqueeze(dim=-1)
-    return sln
+mu_1, mu_2 = -0.5, 0
+sigma = 0.3
 
 
 def coef(grid):
-    c = torch.Tensor(
+    device_origin = grid.device
+    grid = grid.detach().cpu()
+    return torch.Tensor(
         interpolate.griddata(darcy_2d_coef_data[:, 0:2], darcy_2d_coef_data[:, 2],
                              (grid.detach().cpu().numpy()[:, 0:2] + 1) / 2)
-    ).unsqueeze(dim=-1)
-    return c
+    ).unsqueeze(dim=-1).to(device_origin)
 
 
 def wave2d_heterogeneous_experiment(grid_res):
@@ -108,10 +46,10 @@ def wave2d_heterogeneous_experiment(grid_res):
     x_min, x_max = -1, 1
     y_min, y_max = -1, 1
     t_max = 5
-    # grid_res *= 4
+    # grid_res = 20
 
-    mu_1, mu_2 = -0.5, 0
-    sigma = 0.3
+    pde_dim_in = 3
+    pde_dim_out = 1
 
     domain = Domain()
     domain.variable('x', [x_min, x_max], grid_res)
@@ -120,39 +58,34 @@ def wave2d_heterogeneous_experiment(grid_res):
 
     boundaries = Conditions()
 
-    # Initial conditions ###############################################################################################
-
-    def init_func(grid):
-        x, y = grid[:, 0], grid[:, 1]
-        return np.exp(-((x - mu_1) ** 2 + (y - mu_2) ** 2) / (2 * sigma ** 2))
-
-    # u(x, 0) = f_init(x, 0)
-    boundaries.dirichlet({'x': [x_min, x_max], 'y': [y_min, y_max], 't': 0}, value=init_func)
-
-    # u_t(x, 0) = 0
-    bop = {
-        'du/dt':
-            {
-                'coeff': 1,
-                'du/dx': [2],
-                'pow': 1,
-                'var': 0
-            }
-    }
-    boundaries.operator({'x': [x_min, x_max], 'y': [y_min, y_max], 't': 0}, operator=bop, value=0)
-
-    # Boundary conditions ##############################################################################################
-
     def bop_generation(coeff, grid_i):
         bop = {
             'coeff * du/dx_i':
                 {
                     'coeff': coeff,
                     'term': [grid_i],
-                    'pow': 1
+                    'pow': 1,
+                    'var': 0
                 }
         }
         return bop
+
+    # Initial conditions ###############################################################################################
+
+    def init_func(grid):
+        device_origin = grid.device
+        grid = grid.detach().cpu()
+        x, y = grid[:, 0], grid[:, 1]
+        return torch.tensor(np.exp(-((x - mu_1) ** 2 + (y - mu_2) ** 2) / (2 * sigma ** 2))).to(device_origin)
+
+    # u(x, 0) = f_init(x, 0)
+    boundaries.dirichlet({'x': [x_min, x_max], 'y': [y_min, y_max], 't': 0}, value=init_func)
+
+    # u_t(x, 0) = 0
+    bop = bop_generation(1, 2)
+    boundaries.operator({'x': [x_min, x_max], 'y': [y_min, y_max], 't': 0}, operator=bop, value=0)
+
+    # Boundary conditions ##############################################################################################
 
     # u_x_min(x_min, y, t) = 0
     bop = bop_generation(-1, 0)
@@ -200,7 +133,7 @@ def wave2d_heterogeneous_experiment(grid_res):
     neurons = 100
 
     net = torch.nn.Sequential(
-        torch.nn.Linear(3, neurons),
+        torch.nn.Linear(pde_dim_in, neurons),
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
@@ -210,7 +143,7 @@ def wave2d_heterogeneous_experiment(grid_res):
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
-        torch.nn.Linear(neurons, 1)
+        torch.nn.Linear(neurons, pde_dim_out)
     )
 
     for m in net.modules():
@@ -242,17 +175,24 @@ def wave2d_heterogeneous_experiment(grid_res):
 
     optimizer = Optimizer('Adam', {'lr': 1e-4})
 
-    model.train(optimizer, 5e6, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
+    model.train(optimizer, 1e1, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
 
     end = time.time()
 
     grid = domain.build('NN').to('cuda')
     net = net.to('cuda')
 
-    error_rmse = torch.sqrt(torch.mean((func(grid).reshape(-1, 1) - net(grid)) ** 2))
+    exact = exact_solution_data(grid, datapath, pde_dim_in, pde_dim_out, t_dim_flag=True).reshape(-1, 1)
+    net_predicted = net(grid)
 
-    exp_dict_list.append({'grid_res': grid_res, 'time': end - start, 'RMSE': error_rmse.detach().cpu().numpy(),
-                          'type': 'wave_eqn_physical', 'cache': True})
+    error_rmse = torch.sqrt(torch.mean((exact - net_predicted) ** 2))
+
+    exp_dict_list.append({
+        'grid_res': grid_res,
+        'time': end - start,
+        'RMSE': error_rmse.detach().cpu().numpy(),
+        'type': 'wave2d_heterogeneous',
+        'cache': True})
 
     print('Time taken {}= {}'.format(grid_res, end - start))
     print('RMSE {}= {}'.format(grid_res, error_rmse))
@@ -272,9 +212,7 @@ import pandas as pd
 
 exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df = pd.DataFrame(exp_dict_list_flatten)
-# df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
-# df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
-df.to_csv('examples/benchmarking_data/wave_experiment_physical_10_100_cache={}.csv'.format(str(True)))
+df.to_csv('examples/benchmarking_data/wave2d_heterogeneous_experiment_physical_10_100_cache={}.csv'.format(str(True)))
 
 
 
