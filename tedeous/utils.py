@@ -331,7 +331,7 @@ def init_data(grid, datapath):
     init_data = torch.from_numpy(init_data)
     grid_data = torch.stack([coord for coord in init_data[:, :-1]])
 
-    init_value = test_data[:, -1:]
+    init_value = init_data[:, -1:]
 
     grid_data = grid_data.cpu().numpy()
     init_value = init_value.cpu().numpy()
