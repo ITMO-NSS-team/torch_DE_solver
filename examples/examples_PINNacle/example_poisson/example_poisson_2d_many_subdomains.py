@@ -181,7 +181,7 @@ def poisson_2d_many_subdomains_experiment(grid_res):
 
     optimizer = Optimizer('Adam', {'lr': 1e-3})
 
-    model.train(optimizer, 5e6, save_model=True, callbacks=[cb_cache, cb_es, cb_plots])
+    model.train(optimizer, 5e5, save_model=True, callbacks=[cb_cache, cb_es, cb_plots])
 
     end = time.time()
 
@@ -193,8 +193,13 @@ def poisson_2d_many_subdomains_experiment(grid_res):
 
     error_rmse = torch.sqrt(torch.mean((exact - net_predicted) ** 2))
 
-    exp_dict_list.append({'grid_res': grid_res, 'time': end - start, 'RMSE': error_rmse.detach().cpu().numpy(),
-                          'type': 'wave_eqn_physical', 'cache': True})
+    exp_dict_list.append({
+        'grid_res': grid_res,
+        'time': end - start,
+        'RMSE': error_rmse.detach().cpu().numpy(),
+        'type': 'poisson_2d_many_subdomains',
+        'cache': True
+    })
 
     print('Time taken {}= {}'.format(grid_res, end - start))
     print('RMSE {}= {}'.format(grid_res, error_rmse))
@@ -214,4 +219,5 @@ import pandas as pd
 
 exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df = pd.DataFrame(exp_dict_list_flatten)
-df.to_csv('examples/benchmarking_data/wave_experiment_physical_50_500_cache={}.csv'.format(str(True)))
+df.to_csv('examples/benchmarking_data/poisson_2d_many_subdomains_experiment_physical_50_500_cache={}.csv'
+          .format(str(True)))
