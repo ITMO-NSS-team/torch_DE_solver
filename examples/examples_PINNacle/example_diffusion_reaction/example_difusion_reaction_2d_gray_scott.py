@@ -231,11 +231,11 @@ def DR_2d_gray_scott_experiment(grid_res):
     return exp_dict_list_u, exp_dict_list_v
 
 
-nruns = 1
+nruns = 10
 
 exp_dict_list_u, exp_dict_list_v = [], []
 
-for grid_res in range(20, 21, 20):
+for grid_res in range(20, 201, 20):
     for _ in range(nruns):
         list_u, list_v = DR_2d_gray_scott_experiment(grid_res)
         exp_dict_list_u.append(list_u)
