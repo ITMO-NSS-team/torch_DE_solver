@@ -30,7 +30,7 @@ epsilon_2 = 5e-6
 
 
 def DR2d_heterogeneous_experiment(grid_res):
-    exp_dict_list = []
+    exp_dict_list_u, exp_dict_list_v = [], []
 
     x_min, x_max = -1, 1
     y_min, y_max = -1, 1
@@ -195,7 +195,7 @@ def DR2d_heterogeneous_experiment(grid_res):
 
     optimizer = Optimizer('Adam', {'lr': 1e-4})
 
-    model.train(optimizer, 5e6, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
+    model.train(optimizer, 5e5, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
 
     end = time.time()
 
@@ -208,32 +208,46 @@ def DR2d_heterogeneous_experiment(grid_res):
     error_rmse_u = torch.sqrt(torch.mean((exact_u - predicted_u) ** 2))
     error_rmse_v = torch.sqrt(torch.mean((exact_v - predicted_v) ** 2))
 
-    exp_dict_list.append({'grid_res': grid_res, 'time': end - start, 'RMSE_u_func': error_rmse_u.detach().cpu().numpy(),
-                          'type': 'wave_eqn_physical', 'cache': True})
-    exp_dict_list.append({'grid_res': grid_res, 'time': end - start, 'RMSE_v_func': error_rmse_v.detach().cpu().numpy(),
-                          'type': 'wave_eqn_physical', 'cache': True})
+    exp_dict_list_u.append({
+        'grid_res': grid_res,
+        'time': end - start,
+        'RMSE_u_func': error_rmse_u.detach().cpu().numpy(),
+        'type': 'wave_eqn_physical',
+        'cache': True
+    })
+    exp_dict_list_v.append({
+        'grid_res': grid_res,
+        'time': end - start,
+        'RMSE_v_func': error_rmse_v.detach().cpu().numpy(),
+        'type': 'wave_eqn_physical',
+        'cache': True
+    })
 
     print('Time taken {}= {}'.format(grid_res, end - start))
 
     print('RMSE_u_func {}= {}'.format(grid_res, error_rmse_u))
     print('RMSE_v_func {}= {}'.format(grid_res, error_rmse_v))
 
-    return exp_dict_list
+    return exp_dict_list_u, exp_dict_list_v
 
 
 nruns = 10
 
-exp_dict_list = []
+exp_dict_list_u, exp_dict_list_v = [], []
 
 for grid_res in range(20, 201, 20):
     for _ in range(nruns):
-        exp_dict_list.append(DR2d_heterogeneous_experiment(grid_res))
+        list_u, list_v = DR2d_heterogeneous_experiment(grid_res)
+        exp_dict_list_u.append(list_u)
+        exp_dict_list_v.append(list_v)
 
 import pandas as pd
 
-exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-df = pd.DataFrame(exp_dict_list_flatten)
-df.to_csv('examples/benchmarking_data/wave_experiment_physical_20_200_cache={}.csv'.format(str(True)))
+exp_dict_list_u_flatten = [item for sublist in exp_dict_list_u for item in sublist]
+exp_dict_list_v_flatten = [item for sublist in exp_dict_list_v for item in sublist]
 
+df_u = pd.DataFrame(exp_dict_list_u_flatten)
+df_v = pd.DataFrame(exp_dict_list_v_flatten)
 
-
+df_u.to_csv('examples/benchmarking_data/DR_2d_heterogeneous_experiment_20_200_cache_u_func={}.csv'.format(str(True)))
+df_v.to_csv('examples/benchmarking_data/DR_2d_heterogeneous_experiment_20_200_cache_v_func={}.csv'.format(str(True)))
