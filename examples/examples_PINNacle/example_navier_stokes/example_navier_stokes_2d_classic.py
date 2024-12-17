@@ -48,7 +48,9 @@ def navier_stokes_2d_classic_experiment(grid_res):
                          value=0,
                          var=1)
 
-    # Boundary conditions for u-function ###############################################################################
+    # Boundary conditions ##############################################################################################
+
+    # u-function
 
     # u(x_min, y, t) = u(x_max, y, t)
     boundaries.periodic([{'x': x_min, 'y': [y_min, y_max], 't': [0, t_max]},
@@ -59,7 +61,7 @@ def navier_stokes_2d_classic_experiment(grid_res):
                          {'x': [x_min, x_max], 'y': y_max, 't': [0, t_max]}],
                         var=0)
 
-    # Boundary conditions for v-function ###############################################################################
+    # v-function
 
     # v(x_min, y, t) = v(x_max, y, t)
     boundaries.periodic([{'x': x_min, 'y': [y_min, y_max], 't': [0, t_max]},
@@ -238,21 +240,21 @@ def navier_stokes_2d_classic_experiment(grid_res):
         'grid_res': grid_res,
         'time': end - start,
         'RMSE_u_func': error_rmse_u.detach().cpu().numpy(),
-        'type': 'burgers_2d_coupled',
+        'type': 'navier_stokes_2d_classic',
         'cache': True
     })
     exp_dict_list_v.append({
         'grid_res': grid_res,
         'time': end - start,
         'RMSE_v_func': error_rmse_v.detach().cpu().numpy(),
-        'type': 'burgers_2d_coupled',
+        'type': 'navier_stokes_2d_classic',
         'cache': True
     })
     exp_dict_list_p.append({
         'grid_res': grid_res,
         'time': end - start,
         'RMSE_p_func': error_rmse_p.detach().cpu().numpy(),
-        'type': 'burgers_2d_coupled',
+        'type': 'navier_stokes_2d_classic',
         'cache': True
     })
 
