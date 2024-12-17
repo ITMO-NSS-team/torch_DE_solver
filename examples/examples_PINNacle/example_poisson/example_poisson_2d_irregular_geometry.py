@@ -22,7 +22,7 @@ k = 8
 A = 10
 
 
-def poisson_2d_irregular_geometry_example(grid_res):
+def poisson_2d_irregular_geometry_experiment(grid_res):
     exp_dict_list = []
 
     x_min, x_max = -1, 1
@@ -155,8 +155,13 @@ def poisson_2d_irregular_geometry_example(grid_res):
 
     error_rmse = torch.sqrt(torch.mean((exact - net_predicted) ** 2))
 
-    exp_dict_list.append({'grid_res': grid_res, 'time': end - start, 'RMSE': error_rmse.detach().cpu().numpy(),
-                          'type': 'wave_eqn_physical', 'cache': True})
+    exp_dict_list.append({
+        'grid_res': grid_res,
+        'time': end - start,
+        'RMSE': error_rmse.detach().cpu().numpy(),
+        'type': 'poisson_2d_irregular_geometry',
+        'cache': True
+    })
 
     print('Time taken {}= {}'.format(grid_res, end - start))
     print('RMSE {}= {}'.format(grid_res, error_rmse))
@@ -170,13 +175,13 @@ exp_dict_list = []
 
 for grid_res in range(100, 1001, 100):
     for _ in range(nruns):
-        exp_dict_list.append(poisson_2d_irregular_geometry_example(grid_res))
+        exp_dict_list.append(poisson_2d_irregular_geometry_experiment(grid_res))
 
 import pandas as pd
 
 exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df = pd.DataFrame(exp_dict_list_flatten)
-df.to_csv('examples/benchmarking_data/wave_experiment_physical_100_1000_cache={}.csv'.format(str(True)))
+df.to_csv('examples/benchmarking_data/poisson_2d_irregular_geometry_100_1000_cache={}.csv'.format(str(True)))
 
 
 
