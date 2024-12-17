@@ -282,7 +282,7 @@ import pandas as pd
 
 exp_dict_list_u_flatten = [item for sublist in exp_dict_list_u for item in sublist]
 exp_dict_list_v_flatten = [item for sublist in exp_dict_list_v for item in sublist]
-exp_dict_list_p_flatten = [item for sublist in exp_dict_list_v for item in sublist]
+exp_dict_list_p_flatten = [item for sublist in exp_dict_list_p for item in sublist]
 
 df_u = pd.DataFrame(exp_dict_list_u_flatten)
 df_v = pd.DataFrame(exp_dict_list_v_flatten)
