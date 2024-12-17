@@ -29,7 +29,7 @@ def func(grid, a=4):
     return sln
 
 
-def wave1d_basic_experiment(grid_res):
+def wave_1d_basic_experiment(grid_res):
     exp_dict_list = []
 
     x_min, x_max = 0, 1
@@ -134,14 +134,14 @@ def wave1d_basic_experiment(grid_res):
                                          randomize_parameter=1e-6,
                                          info_string_every=10)
 
-    cb_plots = plot.Plots(save_every=500,
+    cb_plots = plot.Plots(save_every=50,
                           print_every=None,
                           img_dir=img_dir,
-                          img_dim='2d')  # 3 image dimension options: 3d, 2d, 2d_scatter
+                          img_dim='2d_scatter')  # 3 image dimension options: 3d, 2d, 2d_scatter
 
     optimizer = Optimizer('Adam', {'lr': 1e-4})
 
-    model.train(optimizer, 5e6, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
+    model.train(optimizer, 5e5, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
 
     end = time.time()
 
@@ -150,8 +150,13 @@ def wave1d_basic_experiment(grid_res):
 
     error_rmse = torch.sqrt(torch.mean((func(grid).reshape(-1, 1) - net(grid)) ** 2))
 
-    exp_dict_list.append({'grid_res': grid_res, 'time': end - start, 'RMSE': error_rmse.detach().cpu().numpy(),
-                          'type': 'wave_eqn_physical', 'cache': True})
+    exp_dict_list.append({
+        'grid_res': grid_res,
+        'time': end - start,
+        'RMSE': error_rmse.detach().cpu().numpy(),
+        'type': 'wave_1d_basic',
+        'cache': True
+    })
 
     print('Time taken {}= {}'.format(grid_res, end - start))
     print('RMSE {}= {}'.format(grid_res, error_rmse))
@@ -165,15 +170,13 @@ exp_dict_list = []
 
 for grid_res in range(10, 101, 10):
     for _ in range(nruns):
-        exp_dict_list.append(wave1d_basic_experiment(grid_res))
+        exp_dict_list.append(wave_1d_basic_experiment(grid_res))
 
 import pandas as pd
 
 exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df = pd.DataFrame(exp_dict_list_flatten)
-# df.boxplot(by='grid_res',column='time',fontsize=42,figsize=(20,10))
-# df.boxplot(by='grid_res',column='RMSE',fontsize=42,figsize=(20,10),showfliers=False)
-df.to_csv('examples/benchmarking_data/wave_experiment_physical_10_100_cache={}.csv'.format(str(True)))
+df.to_csv('examples/benchmarking_data/wave_1d_basic_experiment_physical_10_100_cache={}.csv'.format(str(True)))
 
 
 
