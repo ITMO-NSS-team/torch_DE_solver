@@ -69,7 +69,7 @@ for i in range(n_dim):
 poisson['f(x_1, ..., x_n)'] = {
     'coeff': forcing_term,
     'term': [None],
-    'pow': 1
+    'pow': 0
 }
 
 equation.add(poisson)
