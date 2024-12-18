@@ -21,7 +21,7 @@ from tedeous.device import solver_device
 from tedeous.utils import exact_solution_data
 
 solver_device('gpu')
-datapath = "grayscott.dat"
+datapath = "../../PINNacle_data/grayscott.dat"
 
 b = 0.04
 d = 0.1
