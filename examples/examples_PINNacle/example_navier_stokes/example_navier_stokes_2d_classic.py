@@ -15,7 +15,7 @@ from tedeous.utils import exact_solution_data
 
 solver_device('gpu')
 
-datapath = "ns2d.dat"
+datapath = "../../PINNacle_data/ns2d.dat"
 
 k = 1
 ro = 1
