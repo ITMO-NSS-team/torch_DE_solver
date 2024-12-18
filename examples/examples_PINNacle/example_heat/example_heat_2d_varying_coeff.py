@@ -23,8 +23,8 @@ from tedeous.utils import exact_solution_data
 
 solver_device('gpu')
 
-datapath = "heat_darcy.dat"
-heat_2d_coef = np.loadtxt("heat_2d_coef_256.dat")
+datapath = "../../PINNacle_data/heat_darcy.dat"
+heat_2d_coef = np.loadtxt("../../PINNacle_data/heat_2d_coef_256.dat")
 
 A = 200
 m1, m2, m3 = 1, 5, 1
