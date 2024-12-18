@@ -163,7 +163,7 @@ def heat_2d_varying_coeff_experiment(grid_res):
 
     callbacks = [cb_cache, cb_es, cb_plots]
 
-    model.train(optimizer, 5e1, save_model=True, callbacks=callbacks)
+    model.train(optimizer, 5e5, save_model=True, callbacks=callbacks)
 
     end = time.time()
 
