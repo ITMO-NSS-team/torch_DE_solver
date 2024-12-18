@@ -112,7 +112,7 @@ for i in range(n_dim):
 heat_N_dim['f(x_1, ..., x_n)'] = {
     'coeff': forcing_term,
     'term': [None],
-    'pow': 1
+    'pow': 0
 }
 
 equation.add(heat_N_dim)
