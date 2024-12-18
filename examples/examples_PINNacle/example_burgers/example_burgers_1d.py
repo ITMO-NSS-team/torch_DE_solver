@@ -22,7 +22,7 @@ from tedeous.device import solver_device
 from tedeous.utils import exact_solution_data
 
 solver_device('gpu')
-datapath = "burgers1d.dat"
+datapath = "../../PINNacle_data/burgers1d.dat"
 
 mu = 0.01 / np.pi
 
@@ -43,15 +43,23 @@ def burgers_1d_experiment(grid_res):
 
     boundaries = Conditions()
 
+    # Initial conditions ###############################################################################################
+
+    # u(x, 0) = -sin(pi * x)
     boundaries.dirichlet({'x': [x_min, x_max], 't': 0}, value=lambda grid: -torch.sin(np.pi * grid[:, 0]))
 
+    # Boundary conditions ##############################################################################################
+
+    # u(x_min, t) = 0
     boundaries.dirichlet({'x': x_min, 't': [0, t_max]}, value=0)
 
+    # u(x_max, t) = 0
     boundaries.dirichlet({'x': x_max, 't': [0, t_max]}, value=0)
 
     equation = Equation()
 
-    # operator: u_t + u * u_x - mu * u_xx = 0
+    # Operator: u_t + u * u_x - mu * u_xx = 0
+
     burgers_eq = {
         'du/dt**1':
             {
