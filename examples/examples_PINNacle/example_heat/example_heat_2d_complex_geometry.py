@@ -8,6 +8,7 @@ import torch
 import numpy as np
 import os
 import sys
+import time
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -17,24 +18,23 @@ from tedeous.model import Model
 from tedeous.callbacks import cache, early_stopping, plot
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
-import time
+from tedeous.utils import exact_solution_data
 
 solver_device('gpu')
 
-
-def func(grid):
-    x, y, t = grid[:, 0], grid[:, 1], grid[:, 2]
-    sln = torch.sin(np.pi * x) * torch.sin(np.pi * y) * torch.exp(np.pi * t)
-    return sln
+datapath = "../../PINNacle_data/heat_complex.dat"
 
 
-def heat_2d_experiment(grid_res, CACHE):
+def heat_2d_complex_geometry_experiment(grid_res):
     exp_dict_list = []
 
     x_min, x_max = -8, 8
     y_min, y_max = -12, 12
     t_max = 3
-    grid_res = 160
+    # grid_res = 160
+
+    pde_dim_in = 3
+    pde_dim_out = 1
 
     domain = Domain()
 
@@ -184,7 +184,7 @@ def heat_2d_experiment(grid_res, CACHE):
     neurons = 100
 
     net = torch.nn.Sequential(
-        torch.nn.Linear(3, neurons),
+        torch.nn.Linear(pde_dim_in, neurons),
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
@@ -194,7 +194,7 @@ def heat_2d_experiment(grid_res, CACHE):
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
-        torch.nn.Linear(neurons, 1)
+        torch.nn.Linear(neurons, pde_dim_out)
     )
 
     for m in net.modules():
@@ -202,8 +202,7 @@ def heat_2d_experiment(grid_res, CACHE):
             torch.nn.init.xavier_normal_(m.weight)
             torch.nn.init.zeros_(m.bias)
 
-    # t = domain.variable_dict['t']
-    # h = abs((t[1] - t[0]).item())
+    start = time.time()
 
     model = Model(net, domain, equation, boundaries)
 
@@ -220,34 +219,38 @@ def heat_2d_experiment(grid_res, CACHE):
                                          randomize_parameter=1e-6,
                                          info_string_every=5)
 
-    cb_plots = plot.Plots(save_every=5,
+    cb_plots = plot.Plots(save_every=50,
                           print_every=None,
                           img_dir=img_dir,
                           img_dim='2d_scatter')  # 3 image dimension options: 3d, 2d, 2d_scatter
 
     optimizer = Optimizer('Adam', {'lr': 1e-3})
 
-    if CACHE:
-        callbacks = [cb_cache, cb_es, cb_plots]
-    else:
-        callbacks = [cb_es, cb_plots]
+    callbacks = [cb_cache, cb_es, cb_plots]
 
-    start = time.time()
-
-    model.train(optimizer, 1e6, save_model=CACHE, callbacks=callbacks)
+    model.train(optimizer, 1e6, save_model=True, callbacks=callbacks)
 
     end = time.time()
 
     grid = domain.build('NN').to('cuda')
+    net = net.to('cuda')
 
-    error_rmse = torch.sqrt(torch.mean((func(grid).reshape(-1, 1) - net(grid)) ** 2))
+    exact = exact_solution_data(grid, datapath, pde_dim_in, pde_dim_out, t_dim_flag=True).reshape(-1, 1)
+    net_predicted = net(grid)
 
-    exp_dict_list.append(
-        {'grid_res': grid_res, 'time': end - start, 'RMSE': error_rmse.detach().numpy(), 'type': 'wave_eqn',
-         'cache': CACHE})
+    error_rmse = torch.sqrt(torch.mean((exact - net_predicted) ** 2))
+
+    exp_dict_list.append({
+        'grid_res': grid_res,
+        'time': end - start,
+        'RMSE': error_rmse.detach().cpu().numpy(),
+        'type': 'heat_2d_complex_geometry',
+        'cache': True
+    })
 
     print('Time taken {}= {}'.format(grid_res, end - start))
     print('RMSE {}= {}'.format(grid_res, error_rmse))
+
     return exp_dict_list
 
 
@@ -255,16 +258,12 @@ nruns = 10
 
 exp_dict_list = []
 
-CACHE = True
-
-for grid_res in range(10, 101, 10):
+for grid_res in range(120, 1201, 120):
     for _ in range(nruns):
-        exp_dict_list.append(heat_2d_experiment(grid_res, CACHE))
+        exp_dict_list.append(heat_2d_complex_geometry_experiment(grid_res))
 
 import pandas as pd
 
 exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df = pd.DataFrame(exp_dict_list_flatten)
-df.boxplot(by='grid_res', column='time', fontsize=42, figsize=(20, 10))
-df.boxplot(by='grid_res', column='RMSE', fontsize=42, figsize=(20, 10), showfliers=False)
-df.to_csv('benchmarking_data/heat_experiment_10_100_cache={}.csv'.format(str(CACHE)))
+df.to_csv('examples/benchmarking_data/heat_2d_complex_geometry_experiment_120_1200_cache={}.csv'.format(str(True)))
