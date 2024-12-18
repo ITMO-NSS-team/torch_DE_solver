@@ -1,6 +1,6 @@
 """Module for operatoins with operator and boundaru con-ns."""
 
-from typing import Tuple, Union, List
+from typing import Tuple, Union, List, Callable
 import torch
 
 from tedeous.points_type import Points_type
@@ -132,7 +132,7 @@ class Operator():
             self.current_batch_i = 0
         self.derivative = Derivative(self.model,
                                 self.derivative_points).set_strategy(self.mode).take_derivative
-    
+
     def init_mini_batches(self):
         """ Initialization of batch iterator.
 
@@ -191,7 +191,6 @@ class Operator():
                     self.prepared_operator[i], sorted_grid).reshape(-1,1))
             op = torch.cat(op_list, 1)
         return op
-
 
     def _weak_pde_compute(self) -> torch.Tensor:
         """ Computes PDE residual in weak form.
@@ -355,6 +354,39 @@ class Bounds():
                     b_op_val -= self._apply_neumann(bnd[i], bop).reshape(-1, 1)
         return b_op_val
 
+    def _apply_robin(self, bnd: torch.Tensor, bop: Union[list, dict], var: int) -> torch.Tensor:
+        """ Applies Robin boundary conditions.
+
+        Args:
+            bnd (torch.Tensor): boundary points of prepared boundary conditions.
+            bop (list): prepared boundary derivative operator.
+            alpha (float): coefficient for the boundary function value.
+            beta (float): coefficient for the derivative term.
+
+        Returns:
+            torch.Tensor: calculated Robin boundary condition.
+        """
+
+        alpha, *betas = [bop[list(bop.keys())[i]]['coeff'] for i in range(len(bop))]
+
+        value_term = alpha * self._apply_dirichlet(bnd, var)
+
+        derivative_term = 0
+        for beta in betas:
+            if self.mode == 'NN':
+                if isinstance(beta, (int, float)):
+                    derivative_term += beta * self._apply_bconds_set(bop)
+                elif isinstance(beta, Callable):
+                    derivative_term += beta(bnd) * self._apply_bconds_set(bop)
+            else:
+                if isinstance(beta, (int, float)):
+                    derivative_term += beta * self._apply_neumann(bnd, bop)
+                elif isinstance(beta, Callable):
+                    derivative_term += beta(bnd) * self._apply_neumann(bnd, bop)
+
+        b_op_val = value_term + derivative_term
+        return b_op_val
+
     def _apply_data(self, bnd: torch.Tensor, bop: list, var: int) -> torch.Tensor:
         """ Method for applying known data about solution.
 
@@ -384,16 +416,18 @@ class Bounds():
             torch.Tensor: calculated operator on the boundary.
         """
 
+        b_op_val = None
+
         if bcond['type'] == 'dirichlet':
             b_op_val = self._apply_dirichlet(bcond['bnd'], bcond['var'])
         elif bcond['type'] == 'operator':
             b_op_val = self._apply_neumann(bcond['bnd'], bcond['bop'])
         elif bcond['type'] == 'periodic':
-            b_op_val = self._apply_periodic(bcond['bnd'], bcond['bop'],
-                                           bcond['var'])
+            b_op_val = self._apply_periodic(bcond['bnd'], bcond['bop'], bcond['var'])
+        elif bcond['type'] == 'robin':
+            b_op_val = self._apply_robin(bcond['bnd'], bcond['bop'], bcond['var'])
         elif bcond['type'] == 'data':
-            b_op_val = self._apply_data(bcond['bnd'], bcond['bop'],
-                                           bcond['var'])
+            b_op_val = self._apply_data(bcond['bnd'], bcond['bop'], bcond['var'])
         return b_op_val
 
     def apply_bcs(self) -> Tuple[torch.Tensor, torch.Tensor, list, list]:

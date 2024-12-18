@@ -1,7 +1,7 @@
 """Module of derivative calculations.
 """
 
-from typing import Any, Union, List, Tuple
+from typing import Any, Union, List, Tuple, Callable
 import numpy as np
 from scipy import linalg
 import torch
@@ -49,7 +49,10 @@ class Derivative_NN(DerivativeInt):
             for k, grid in enumerate(scheme):
                 grid_sum += self.model(grid)[:, term['var'][j]].reshape(-1, 1)\
                     * term[dif_dir][1][j][k]
-            der_term = der_term * grid_sum ** term['pow'][j]
+            if isinstance(term['pow'][j], (int, float)):
+                der_term = der_term * grid_sum ** term['pow'][j]
+            elif isinstance(term['pow'][j], Callable):
+                der_term = term['pow'][j](der_term * grid_sum)
         der_term = coeff * der_term
 
         return der_term
@@ -120,7 +123,10 @@ class Derivative_autograd(DerivativeInt):
             else:
                 der = self._nn_autograd(
                     self.model, grid_points, term['var'][j], axis=derivative)
-            der_term = der_term * der ** term['pow'][j]
+            if isinstance(term['pow'][j], (int, float)):
+                der_term = der_term * der ** term['pow'][j]
+            elif isinstance(term['pow'][j], Callable):
+                der_term = term['pow'][j](der_term * der)
         der_term = coeff * der_term
 
         return der_term
@@ -216,11 +222,9 @@ class Derivative_mat(DerivativeInt):
         du[self.back] = du_back[self.back] / h
         du[self.farw] = du_farw[self.farw] / h
 
-
         du = du.reshape(shape)
 
         return du
-
 
     def _step_h(self, h_tensor: torch.Tensor) -> list[torch.Tensor]:
         """ Calculate increment along each axis of the grid.
@@ -308,7 +312,10 @@ class Derivative_mat(DerivativeInt):
                         continue
                     h = self._step_h(grid_points)[axis]
                     prod = self._derivative(prod, h, axis)
-            der_term = der_term * prod ** term['pow'][j]
+            if isinstance(term['pow'][j], (int, float)):
+                der_term = der_term * prod ** term['pow'][j]
+            elif isinstance(term['pow'][j], Callable):
+                der_term = term['pow'][j](der_term * prod)
         if callable(term['coeff']) is True:
             der_term = term['coeff'](grid_points) * der_term
         else:
@@ -321,7 +328,7 @@ class Derivative():
    Interface for taking numerical derivative due to chosen calculation mode.
 
    """
-    def __init__(self, 
+    def __init__(self,
                  model: Union[torch.nn.Module, torch.Tensor],
                  derivative_points: int):
         """_summary_
@@ -350,7 +357,18 @@ class Derivative():
             return Derivative_NN(self.model)
 
         elif strategy == 'autograd':
-            return  Derivative_autograd(self.model)
+            return Derivative_autograd(self.model)
 
         elif strategy == 'mat':
             return Derivative_mat(self.model, self.derivative_points)
+
+
+
+
+
+
+
+
+
+
+
