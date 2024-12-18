@@ -8,7 +8,6 @@ import torch
 import numpy as np
 import os
 import sys
-import scipy
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -132,7 +131,7 @@ heat_inverse = {
         {
             'coeff': f_right_hand,
             'term': [None],
-            'pow': 1
+            'pow': 0
         }
 }
 
