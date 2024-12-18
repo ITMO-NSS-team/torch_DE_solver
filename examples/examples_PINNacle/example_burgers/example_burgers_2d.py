@@ -22,9 +22,9 @@ from tedeous.utils import exact_solution_data
 from tedeous.utils import init_data
 
 solver_device('gpu')
-datapath = "burgers2d_0.dat"
-data_init_u = "burgers2d_init_u_0.dat"
-data_init_v = "burgers2d_init_v_0.dat"
+datapath = "../../PINNacle_data/burgers2d_0.dat"
+data_init_u = "../../PINNacle_data/burgers2d_init_u_0.dat"
+data_init_v = "../../PINNacle_data/burgers2d_init_v_0.dat"
 
 mu = 0.001
 
