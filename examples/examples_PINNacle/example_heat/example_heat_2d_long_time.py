@@ -22,7 +22,7 @@ from tedeous.utils import exact_solution_data
 
 solver_device('gpu')
 
-datapath = "heat_longtime.dat"
+datapath = "../../PINNacle_data/heat_longtime.dat"
 
 m1, m2, k = 4, 2, 1
 
@@ -154,7 +154,7 @@ def heat_2d_long_time_experiment(grid_res):
 
     callbacks = [cb_cache, cb_es, cb_plots]
 
-    model.train(optimizer, 1e6, save_model=True, callbacks=callbacks)
+    model.train(optimizer, 5e5, save_model=True, callbacks=callbacks)
 
     end = time.time()
 
