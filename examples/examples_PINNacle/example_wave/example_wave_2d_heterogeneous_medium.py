@@ -24,8 +24,8 @@ from tedeous.utils import exact_solution_data
 
 solver_device('gpu')
 
-datapath = "wave_darcy.dat"
-darcy_2d_coef_data = np.loadtxt("darcy_2d_coef_256.dat")
+datapath = "../../PINNacle_data/wave_darcy.dat"
+darcy_2d_coef_data = np.loadtxt("../../PINNacle_data/darcy_2d_coef_256.dat")
 
 mu_1, mu_2 = -0.5, 0
 sigma = 0.3
@@ -175,7 +175,7 @@ def wave2d_heterogeneous_experiment(grid_res):
 
     optimizer = Optimizer('Adam', {'lr': 1e-4})
 
-    model.train(optimizer, 1e1, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
+    model.train(optimizer, 5e5, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
 
     end = time.time()
 
