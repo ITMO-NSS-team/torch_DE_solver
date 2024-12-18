@@ -70,9 +70,9 @@ boundaries.dirichlet({'x': [x_min, x_max], 'y': y_max}, value=a_ref, var=1)
 
 equation = Equation()
 
-# Operator: −∇(a∇u) = f
+# Operator: −∇(a∇u) = f(x, y)
 
-poisson = {
+poisson_inverse = {
     'da/dx * du/dx':
         {
             'coeff': 1,
@@ -101,16 +101,15 @@ poisson = {
             'pow': [1, 1],
             'var': [1, 0]
         },
-    'forcing_term':
+    'f(x, y)':
         {
             'coeff': forcing_term,
             'term': [None],
-            'pow': 1,
-            'var': 0
+            'pow': 0
         }
 }
 
-equation.add(poisson)
+equation.add(poisson_inverse)
 
 neurons = 100
 
