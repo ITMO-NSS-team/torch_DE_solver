@@ -14,7 +14,7 @@ from tedeous.device import solver_device
 from tedeous.utils import exact_solution_data
 
 solver_device('cuda')
-datapath = "poisson1_cg_data.dat"
+datapath = "../../PINNacle_data/poisson1_cg_data.dat"
 
 
 def poisson_2d_classic_experiment(grid_res):
@@ -42,14 +42,16 @@ def poisson_2d_classic_experiment(grid_res):
         {'circle': {'center': (-0.3, -0.3), 'radius': 0.1}}
     ]
 
-    # CSG boundaries ###################################################################################################
+    # Boundary conditions ##############################################################################################
+
+    # CSG boundaries
 
     boundaries.dirichlet({'circle': {'center': (0.3, 0.3), 'radius': 0.1}}, value=0)
     boundaries.dirichlet({'circle': {'center': (-0.3, 0.3), 'radius': 0.1}}, value=0)
     boundaries.dirichlet({'circle': {'center': (0.3, -0.3), 'radius': 0.1}}, value=0)
     boundaries.dirichlet({'circle': {'center': (-0.3, -0.3), 'radius': 0.1}}, value=0)
 
-    # Non CSG boundaries ###############################################################################################
+    # Non CSG boundaries
 
     boundaries.dirichlet({'x': x_min, 'y': [y_min, y_max]}, value=1)
     boundaries.dirichlet({'x': x_max, 'y': [y_min, y_max]}, value=1)
