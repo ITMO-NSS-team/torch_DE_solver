@@ -14,7 +14,7 @@ from tedeous.device import solver_device
 from tedeous.utils import exact_solution_data
 
 solver_device('gpu')
-datapath = "poisson_3d.dat"
+datapath = "../../PINNacle_data/poisson_3d.dat"
 
 m1, m2, m3 = 1, 10, 5
 mu_1, mu_2 = 1, 1
@@ -62,9 +62,9 @@ def poisson_3d_complex_geometry_experiment(grid_res):
         {'circle': {'center': (0.6, 0.2, 0.3), 'radius': 0.1}}
     ]
 
-    # # Non CSG boundaries #############################################################################################
+    # Boundary conditions ##############################################################################################
 
-    # du/dn = 0
+    # Non CSG boundaries: du/dn = 0
 
     bop_x_min = bop_generation(-1, 0)
     boundaries.operator({'x': x_min, 'y': [y_min, y_max], 'z': [z_min, z_max]}, operator=bop_x_min, value=0)
@@ -84,11 +84,7 @@ def poisson_3d_complex_geometry_experiment(grid_res):
     bop_z_max = bop_generation(1, 2)
     boundaries.operator({'x': [x_min, x_max], 'y': [y_min, y_max], 'z': z_max}, operator=bop_z_max, value=0)
 
-    # CSG boundaries ###################################################################################################
-
-    # du/dn = 0
-
-    # bconds = boundaries.build(domain.variable_dict)
+    # CSG boundaries: du/dn = 0
 
     def bopCSG_generation(x0, y0, z0, r, alpha):
         coeff_x = lambda bnd: (bnd[:, 0] - x0) / r
