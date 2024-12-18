@@ -24,7 +24,7 @@ from tedeous.utils import exact_solution_data
 
 solver_device('gpu')
 
-datapath = "Kuramoto_Sivashinsky.dat"
+datapath = "../../PINNacle_data/Kuramoto_Sivashinsky.dat"
 
 alpha = 100 / 16
 beta = 100 / 16**2
@@ -170,5 +170,5 @@ import pandas as pd
 
 exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df = pd.DataFrame(exp_dict_list_flatten)
-df.to_csv('examples/benchmarking_data/kuramoto_sivashinsky_experiment_physical_20_200_cache={}.csv'.format(str(True)))
+df.to_csv('examples/benchmarking_data/kuramoto_sivashinsky_experiment_20_200_cache={}.csv'.format(str(True)))
 
