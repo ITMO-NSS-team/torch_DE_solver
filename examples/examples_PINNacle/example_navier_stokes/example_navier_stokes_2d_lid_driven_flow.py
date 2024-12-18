@@ -15,7 +15,7 @@ from tedeous.utils import exact_solution_data
 
 solver_device('gpu')
 
-datapath = "lid_driven_a4.dat"
+datapath = "../../PINNacle_data/lid_driven_a4.dat"
 
 k = 1
 ro = 1
