@@ -9,6 +9,7 @@ import numpy as np
 import os
 import sys
 from scipy import interpolate
+import time
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -18,37 +19,43 @@ from tedeous.model import Model
 from tedeous.callbacks import cache, early_stopping, plot
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
-import time
+from tedeous.utils import exact_solution_data
 
-solver_device('cpu')
+solver_device('gpu')
 
+datapath = "heat_darcy.dat"
 heat_2d_coef = np.loadtxt("heat_2d_coef_256.dat")
 
+A = 200
+m1, m2, m3 = 1, 5, 1
 
-def func(grid, A=200, m1=1, m2=5, m3=1):
+
+def func(grid):
     x, y, t = grid[:, 0], grid[:, 1], grid[:, 2]
     sln = A * torch.sin(np.pi * m1 * x) * torch.sin(np.pi * m2 * y) * torch.exp(np.pi * m3 * t)
     return sln
 
 
 def a_coeff(grid):
-    a = -torch.tensor(
-        interpolate.griddata(heat_2d_coef[:, 0:2],
+    return -torch.tensor(
+        interpolate.griddata(heat_2d_coef[:, :2],
                              heat_2d_coef[:, 2],
-                             grid.detach().cpu().numpy()[:, 0:2],
+                             grid.detach().cpu().numpy()[:, :2],
                              method='nearest'),
         dtype=torch.float32
     ).unsqueeze(dim=1)
-    return a
 
 
-def heat_2d_experiment(grid_res, CACHE):
+def heat_2d_varying_coeff_experiment(grid_res):
     exp_dict_list = []
 
     x_min, x_max = 0, 1
     y_min, y_max = 0, 1
     t_max = 5
-    grid_res *= 1
+    # grid_res = 10
+
+    pde_dim_in = 3
+    pde_dim_out = 1
 
     domain = Domain()
 
@@ -65,13 +72,13 @@ def heat_2d_experiment(grid_res, CACHE):
 
     # Boundary conditions: #############################################################################################
 
-    # u(0, y, t)
+    # u(x_min, y, t)
     boundaries.dirichlet({'x': x_min, 'y': [y_min, y_max], 't': [0, t_max]}, value=0)
-    # u(x, 0, t)
+    # u(x, y_min, t)
     boundaries.dirichlet({'x': [x_min, x_max], 'y': y_min, 't': [0, t_max]}, value=0)
-    # u(1, y, t)
+    # u(x_max, y, t)
     boundaries.dirichlet({'x': x_max, 'y': [y_min, y_max], 't': [0, t_max]}, value=0)
-    # u(x, 1, t)
+    # u(x, x_min, t)
     boundaries.dirichlet({'x': [x_min, x_max], 'y': y_max, 't': [0, t_max]}, value=0)
 
     equation = Equation()
@@ -103,7 +110,7 @@ def heat_2d_experiment(grid_res, CACHE):
             {
                 'coeff': forcing_term,
                 'term': [None],
-                'pow': 1,
+                'pow': 0,
             }
     }
 
@@ -112,7 +119,7 @@ def heat_2d_experiment(grid_res, CACHE):
     neurons = 100
 
     net = torch.nn.Sequential(
-        torch.nn.Linear(3, neurons),
+        torch.nn.Linear(pde_dim_in, neurons),
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
@@ -122,7 +129,7 @@ def heat_2d_experiment(grid_res, CACHE):
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
-        torch.nn.Linear(neurons, 1)
+        torch.nn.Linear(neurons, pde_dim_out)
     )
 
     for m in net.modules():
@@ -130,8 +137,7 @@ def heat_2d_experiment(grid_res, CACHE):
             torch.nn.init.xavier_normal_(m.weight)
             torch.nn.init.zeros_(m.bias)
 
-    # t = domain.variable_dict['t']
-    # h = abs((t[1] - t[0]).item())
+    start = time.time()
 
     model = Model(net, domain, equation, boundaries)
 
@@ -148,34 +154,38 @@ def heat_2d_experiment(grid_res, CACHE):
                                          randomize_parameter=1e-6,
                                          info_string_every=10)
 
-    cb_plots = plot.Plots(save_every=500,
+    cb_plots = plot.Plots(save_every=100,
                           print_every=None,
                           img_dir=img_dir,
                           img_dim='2d')  # 3 image dimension options: 3d, 2d, 2d_scatter
 
-    optimizer = Optimizer('Adam', {'lr': 5e-3})
+    optimizer = Optimizer('Adam', {'lr': 1e-3})
 
-    if CACHE:
-        callbacks = [cb_cache, cb_es, cb_plots]
-    else:
-        callbacks = [cb_es, cb_plots]
+    callbacks = [cb_cache, cb_es, cb_plots]
 
-    start = time.time()
-
-    model.train(optimizer, 1e6, save_model=CACHE, callbacks=callbacks)
+    model.train(optimizer, 5e1, save_model=True, callbacks=callbacks)
 
     end = time.time()
 
     grid = domain.build('NN').to('cuda')
+    net = net.to('cuda')
 
-    error_rmse = torch.sqrt(torch.mean((func(grid).reshape(-1, 1) - net(grid)) ** 2))
+    exact = exact_solution_data(grid, datapath, pde_dim_in, pde_dim_out, t_dim_flag=True).reshape(-1, 1)
+    net_predicted = net(grid)
 
-    exp_dict_list.append(
-        {'grid_res': grid_res, 'time': end - start, 'RMSE': error_rmse.detach().numpy(), 'type': 'wave_eqn',
-         'cache': CACHE})
+    error_rmse = torch.sqrt(torch.mean((exact - net_predicted) ** 2))
+
+    exp_dict_list.append({
+        'grid_res': grid_res,
+        'time': end - start,
+        'RMSE': error_rmse.detach().cpu().numpy(),
+        'type': 'heat_2d_varying_coeff',
+        'cache': True
+    })
 
     print('Time taken {}= {}'.format(grid_res, end - start))
     print('RMSE {}= {}'.format(grid_res, error_rmse))
+
     return exp_dict_list
 
 
@@ -183,16 +193,12 @@ nruns = 10
 
 exp_dict_list = []
 
-CACHE = True
-
-for grid_res in range(10, 101, 10):
+for grid_res in range(20, 201, 20):
     for _ in range(nruns):
-        exp_dict_list.append(heat_2d_experiment(grid_res, CACHE))
+        exp_dict_list.append(heat_2d_varying_coeff_experiment(grid_res))
 
 import pandas as pd
 
 exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df = pd.DataFrame(exp_dict_list_flatten)
-df.boxplot(by='grid_res', column='time', fontsize=42, figsize=(20, 10))
-df.boxplot(by='grid_res', column='RMSE', fontsize=42, figsize=(20, 10), showfliers=False)
-df.to_csv('benchmarking_data/heat_experiment_10_100_cache={}.csv'.format(str(CACHE)))
+df.to_csv('examples/benchmarking_data/heat_2d_varying_coeff_experiment_20_200_cache={}.csv'.format(str(True)))
