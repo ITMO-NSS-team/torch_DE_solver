@@ -212,10 +212,11 @@ def navier_stokes_2d_back_step_flow_experiment(grid_res):
 
     img_dir = os.path.join(os.path.dirname(__file__), 'navier_stokes_2d_back_step_flow_img')
 
-    cb_plots = plot.Plots(save_every=100,
+    cb_plots = plot.Plots(save_every=500,
                           print_every=None,
                           img_dir=img_dir,
-                          img_dim='2d_scatter')  # 3 image dimension options: 3d, 2d, 2d_scatter
+                          img_dim='2d_scatter',
+                          figsize=(18, 6))  # 3 image dimension options: 3d, 2d, 2d_scatter
 
     optimizer = Optimizer('Adam', {'lr': 1e-4})
 
