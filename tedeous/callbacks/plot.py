@@ -5,6 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import torch
+from tedeous.callbacks.callback import Callback
+from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.tri import Triangulation
 from scipy.interpolate import griddata
 from tedeous.callbacks.callback import Callback
@@ -20,7 +22,7 @@ class Plots(Callback):
                  img_dir: str = None,
                  img_dim: str = '3d',
                  t_values: list = None,
-                 removed_domains: Union[List, torch.Tensor] = None):
+                 figsize: tuple=(15, 8)):
         """
         Args:
             print_every (Union[int, None], optional): print plots after every *print_every* steps. Defaults to 500.
@@ -35,18 +37,12 @@ class Plots(Callback):
         self.img_dir = img_dir
         self.img_dim = img_dim
         self.t_values = t_values
-        self.mask = removed_domains
+        self.figsize = figsize
 
         self.attributes = {'model': ['out_features', 'output_dim', 'width_out'],
                            'layers': ['out_features', 'output_dim', 'width_out']}
 
     def _init_nvars_model(self):
-        """
-        Initialization nvars_model object that describes the number of outputs.
-
-        Returns:
-            int: number of outputs
-        """
         nvars_model = None
 
         for key, values in self.attributes.items():
@@ -72,7 +68,7 @@ class Plots(Callback):
         self.nvars_model = self._init_nvars_model()
 
         nparams = self.grid.shape[1]
-        fig = plt.figure(figsize=(15, 8))
+        fig = plt.figure(figsize=self.figsize)
 
         for i in range(self.nvars_model):
             if self.img_dim == '3d':
@@ -96,8 +92,7 @@ class Plots(Callback):
                     mask = (grid_x < 2) & (grid_y > 1)
                     triang.set_mask(mask[triang.triangles].any(axis=1))
 
-                    ax1.plot_trisurf(triang, z_values,
-                                     cmap=cm.jet, linewidth=0.2, alpha=1)
+                    ax1.plot_trisurf(triang, z_values, cmap=cm.jet, linewidth=0.2, alpha=1)
                     ax1.set_xlabel("x1")
                     ax1.set_ylabel("x2")
 
@@ -177,8 +172,8 @@ class Plots(Callback):
             for coord_3 in coord_3_values:
                 coord_3_mask = self.grid[:, 2] == coord_3
                 fig, axes = plt.subplots(1, self.nvars_model,
-                                         figsize=(8 * self.nvars_model, 5 * self.nvars_model),
-                                         subplot_kw={'projection': '3d'})
+                                         subplot_kw={'projection': '3d'},
+                                         figsize=self.figsize)
 
                 if self.nvars_model == 1:
                     axes = [axes]
@@ -188,9 +183,7 @@ class Plots(Callback):
                     axes[i].plot_trisurf(grid_x[coord_3_mask].detach().cpu().numpy(),
                                          grid_y[coord_3_mask].detach().cpu().numpy(),
                                          z_values.detach().cpu().numpy().flatten(),
-                                         cmap=cm.jet,
-                                         linewidth=0.2,
-                                         alpha=1)
+                                         cmap=cm.jet, linewidth=0.2, alpha=1)
                     axes[i].set_title(f'Function {i + 1} at t = {round(coord_3, 4)}')
                     axes[i].set_xlabel("x")
                     axes[i].set_ylabel("y")
@@ -207,7 +200,7 @@ class Plots(Callback):
             for coord_3 in coord_3_values:
                 coord_3_mask = self.grid[:, 2] == coord_3
                 fig, axes = plt.subplots(1, self.nvars_model,
-                                         figsize=(6 * self.nvars_model, 5))
+                                         figsize=self.figsize)
 
                 if self.nvars_model == 1:
                     axes = [axes]
@@ -250,7 +243,8 @@ class Plots(Callback):
         elif self.img_dim == '2d_scatter':
             for coord_3 in coord_3_values:
                 coord_3_mask = self.grid[:, 2] == coord_3
-                fig, axes = plt.subplots(1, self.nvars_model, figsize=(10 * self.nvars_model, 20))
+                fig, axes = plt.subplots(1, self.nvars_model,
+                                         figsize=self.figsize)
 
                 if self.nvars_model == 1:
                     axes = [axes]
@@ -265,8 +259,6 @@ class Plots(Callback):
                         y_values,
                         c=z_values,
                         cmap=cm.jet,
-                        s=5,
-                        alpha=0.7
                     )
 
                     axes[i].set_title(f'Function {i + 1} at t = {round(coord_3, 4)}')
@@ -296,7 +288,7 @@ class Plots(Callback):
             coord_4_mask = self.grid[:, 3] == coord_4
             u_values = self.net(self.grid[coord_4_mask]).detach().cpu().numpy().flatten()
 
-            fig = plt.figure(figsize=(15, 8))
+            fig = plt.figure(figsize=self.figsize)
             ax = fig.add_subplot(111, projection='3d')
 
             scatter = ax.scatter(grid_x[coord_4_mask], grid_y[coord_4_mask], grid_z[coord_4_mask],
