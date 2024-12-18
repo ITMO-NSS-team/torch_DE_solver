@@ -14,7 +14,7 @@ from tedeous.device import solver_device
 from tedeous.utils import exact_solution_data
 
 solver_device('gpu')
-datapath = "poisson_boltzmann2d.dat"
+datapath = "../../PINNacle_data/poisson_boltzmann2d.dat"
 
 mu_1 = 1
 mu_2 = 4
@@ -47,14 +47,16 @@ def poisson_2d_irregular_geometry_experiment(grid_res):
         {'circle': {'center': (-0.6, 0.5), 'radius': 0.3}}
     ]
 
-    # CSG boundaries ###################################################################################################
+    # Boundary conditions ##############################################################################################
+
+    # CSG boundaries
 
     boundaries.dirichlet({'circle': {'center': (0.5, 0.5), 'radius': 0.2}}, value=1)
     boundaries.dirichlet({'circle': {'center': (0.4, -0.4), 'radius': 0.4}}, value=1)
     boundaries.dirichlet({'circle': {'center': (-0.2, -0.7), 'radius': 0.1}}, value=1)
     boundaries.dirichlet({'circle': {'center': (-0.6, 0.5), 'radius': 0.3}}, value=1)
 
-    # Non CSG boundaries ###############################################################################################
+    # Non CSG boundaries
 
     boundaries.dirichlet({'x': x_min, 'y': [y_min, y_max]}, value=0.2)
     boundaries.dirichlet({'x': x_max, 'y': [y_min, y_max]}, value=0.2)
@@ -143,7 +145,7 @@ def poisson_2d_irregular_geometry_experiment(grid_res):
 
     optimizer = Optimizer('Adam', {'lr': 1e-4})
 
-    model.train(optimizer, 5e6, save_model=True, callbacks=[cb_cache, cb_es, cb_plots])
+    model.train(optimizer, 5e5, save_model=True, callbacks=[cb_cache, cb_es, cb_plots])
 
     end = time.time()
 
