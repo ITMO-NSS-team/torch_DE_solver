@@ -15,7 +15,7 @@ from tedeous.device import solver_device
 from tedeous.utils import exact_solution_data
 
 solver_device('gpu')
-datapath = "poisson_manyarea.dat"
+datapath = "../../PINNacle_data/poisson_manyarea.dat"
 
 
 def poisson_2d_many_subdomains_experiment(grid_res):
@@ -36,8 +36,8 @@ def poisson_2d_many_subdomains_experiment(grid_res):
     freq = 2
     block_size = np.array([(x_max - x_min + 2e-5) / split[0], (y_max - y_min + 2e-5) / split[1]])
 
-    a_cof = np.loadtxt("poisson_a_coef.dat")
-    f_cof = np.loadtxt("poisson_f_coef.dat").reshape(split[0], split[1], freq, freq)
+    a_cof = np.loadtxt("../../PINNacle_data/poisson_a_coef.dat")
+    f_cof = np.loadtxt("../../PINNacle_data/poisson_f_coef.dat").reshape(split[0], split[1], freq, freq)
 
     boundaries = Conditions()
 
@@ -99,15 +99,15 @@ def poisson_2d_many_subdomains_experiment(grid_res):
 
     forcing_term = np.vectorize(compute_forcing_term, signature="(2)->()")
 
-    def get_a_coeff(x):
-        device_origin = x.device
-        x = x.detach().cpu()
-        return torch.Tensor(a_coeff(x)).unsqueeze(dim=-1).to(device_origin)
+    def get_a_coeff(grid):
+        device_origin = grid.device
+        grid = grid.detach().cpu()
+        return torch.Tensor(a_coeff(grid)).unsqueeze(dim=-1).to(device_origin)
 
-    def get_forcing_term(x):
-        device_origin = x.device
-        x = x.detach().cpu()
-        return torch.Tensor(forcing_term(x)).unsqueeze(dim=-1).to(device_origin)
+    def get_forcing_term(grid):
+        device_origin = grid.device
+        grid = grid.detach().cpu()
+        return torch.Tensor(forcing_term(grid)).unsqueeze(dim=-1).to(device_origin)
 
     equation = Equation()
 
