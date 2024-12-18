@@ -13,7 +13,7 @@ from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 from tedeous.utils import exact_solution_data
 
-solver_device('cuda')
+solver_device('gpu')
 
 datapath = "lid_driven_a4.dat"
 
@@ -221,7 +221,8 @@ def navier_stokes_2d_lid_driven_flow_experiment(grid_res):
     cb_plots = plot.Plots(save_every=500,
                           print_every=None,
                           img_dir=img_dir,
-                          img_dim='2d')  # 3 image dimension options: 3d, 2d, 2d_scatter
+                          img_dim='2d',
+                          figsize=(18, 6))  # 3 image dimension options: 3d, 2d, 2d_scatter
 
     optimizer = Optimizer('Adam', {'lr': 1e-5})
 
