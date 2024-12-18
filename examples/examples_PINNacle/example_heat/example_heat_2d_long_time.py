@@ -8,6 +8,7 @@ import torch
 import numpy as np
 import os
 import sys
+import time
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -17,130 +18,178 @@ from tedeous.model import Model
 from tedeous.callbacks import cache, early_stopping, plot
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
-import time
+from tedeous.utils import exact_solution_data
 
-solver_device('cpu')
+solver_device('gpu')
 
-x_min, x_max = 0, 1
-y_min, y_max = 0, 1
-t_max = 100
-grid_res = 40
+datapath = "heat_longtime.dat"
 
 m1, m2, k = 4, 2, 1
 
-domain = Domain()
 
-domain.variable('x', [x_min, x_max], grid_res)
-domain.variable('y', [y_min, y_max], grid_res)
-domain.variable('t', [0, t_max], grid_res)
+def heat_2d_long_time_experiment(grid_res):
+    exp_dict_list = []
 
-x = domain.variable_dict['x']
-y = domain.variable_dict['y']
+    x_min, x_max = 0, 1
+    y_min, y_max = 0, 1
+    t_max = 100
+    # grid_res = 20
 
-boundaries = Conditions()
+    pde_dim_in = 3
+    pde_dim_out = 1
 
-# Initial condition: ###############################################################################################
+    domain = Domain()
 
-# u(x, y, 0)
-boundaries.dirichlet({'x': [x_min, x_max], 'y': [y_min, y_max], 't': 0},
-                     value=torch.sin(4 * np.pi * x) * torch.sin(3 * np.pi * y))
+    domain.variable('x', [x_min, x_max], grid_res)
+    domain.variable('y', [y_min, y_max], grid_res)
+    domain.variable('t', [0, t_max], grid_res)
 
-# Boundary conditions: #############################################################################################
+    boundaries = Conditions()
 
-# u(0, y, t)
-boundaries.dirichlet({'x': x_min, 'y': [y_min, y_max], 't': [0, t_max]}, value=0)
-# u(x, 0, t)
-boundaries.dirichlet({'x': [x_min, x_max], 'y': y_min, 't': [0, t_max]}, value=0)
-# u(1, y, t)
-boundaries.dirichlet({'x': x_max, 'y': [y_min, y_max], 't': [0, t_max]}, value=0)
-# u(x, 1, t)
-boundaries.dirichlet({'x': [x_min, x_max], 'y': y_max, 't': [0, t_max]}, value=0)
+    # Initial condition: ###############################################################################################
 
-equation = Equation()
+    # u(x, y, 0)
+    boundaries.dirichlet({'x': [x_min, x_max], 'y': [y_min, y_max], 't': 0},
+                         value=lambda grid: torch.sin(4 * np.pi * grid[:, 0]) * torch.sin(3 * np.pi * grid[:, 1]))
 
-def coeff_u(grid):
-    x, y, t = grid[:, 0], grid[:, 1], grid[:, 2]
-    return -5 * (1 + 2 * torch.sin(torch.pi * t / 4)) * \
-           torch.sin(m1 * torch.pi * x) * torch.sin(m2 * torch.pi * y)
+    # Boundary conditions: #############################################################################################
 
-# Operator: du/dt -  0.001 * ∆u + 5sin(k * u**2) * (1 + 2sin(pi * t / 4)) * sin(m1 * pi * x) * sin(m2 * pi * y)
+    # u(0, y, t)
+    boundaries.dirichlet({'x': x_min, 'y': [y_min, y_max], 't': [0, t_max]}, value=0)
+    # u(x, 0, t)
+    boundaries.dirichlet({'x': [x_min, x_max], 'y': y_min, 't': [0, t_max]}, value=0)
+    # u(1, y, t)
+    boundaries.dirichlet({'x': x_max, 'y': [y_min, y_max], 't': [0, t_max]}, value=0)
+    # u(x, 1, t)
+    boundaries.dirichlet({'x': [x_min, x_max], 'y': y_max, 't': [0, t_max]}, value=0)
 
-heat_LT = {
-    'du/dt**1':
-        {
-            'coeff': 1,
-            'term': [2],
-            'pow': 1,
-            'var': 0
-        },
-    '-0.001 * d2u/dx2**1':
-        {
-            'coeff': -0.001,
-            'term': [0, 0],
-            'pow': 1,
-            'var': 0
-        },
-    '-0.001 * d2u/dy2**1':
-        {
-            'coeff': -0.001,
-            'term': [1, 1],
-            'pow': 1,
-            'var': 0
-        },
-    'coeff_u * sin(k * u ** 2)':
-        {
-            'coeff': coeff_u,
-            'term': [None],
-            'pow': lambda u: torch.sin(k * u ** 2),
-            'var': 0
-        }
-}
+    equation = Equation()
 
-equation.add(heat_LT)
+    def coeff_u(grid):
+        x, y, t = grid[:, 0], grid[:, 1], grid[:, 2]
+        return -5 * (1 + 2 * torch.sin(torch.pi * t / 4)) * \
+               torch.sin(m1 * torch.pi * x) * torch.sin(m2 * torch.pi * y)
 
-neurons = 100
+    # Operator: du/dt -  0.001 * ∆u + 5sin(k * u**2) * (1 + 2sin(pi * t / 4)) * sin(m1 * pi * x) * sin(m2 * pi * y)
 
-net = torch.nn.Sequential(
-    torch.nn.Linear(3, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, 1)
-)
+    heat_LT = {
+        'du/dt**1':
+            {
+                'coeff': 1,
+                'term': [2],
+                'pow': 1,
+                'var': 0
+            },
+        '-0.001 * d2u/dx2**1':
+            {
+                'coeff': -0.001,
+                'term': [0, 0],
+                'pow': 1,
+                'var': 0
+            },
+        '-0.001 * d2u/dy2**1':
+            {
+                'coeff': -0.001,
+                'term': [1, 1],
+                'pow': 1,
+                'var': 0
+            },
+        'coeff_u * sin(k * u ** 2)':
+            {
+                'coeff': coeff_u,
+                'term': [None],
+                'pow': lambda u: torch.sin(k * u ** 2),
+                'var': 0
+            }
+    }
 
-for m in net.modules():
-    if isinstance(m, torch.nn.Linear):
-        torch.nn.init.xavier_normal_(m.weight)
-        torch.nn.init.zeros_(m.bias)
+    equation.add(heat_LT)
 
-model = Model(net, domain, equation, boundaries)
+    neurons = 100
 
-model.compile('autograd', lambda_operator=1, lambda_bound=100)
+    net = torch.nn.Sequential(
+        torch.nn.Linear(pde_dim_in, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, pde_dim_out)
+    )
 
-img_dir = os.path.join(os.path.dirname(__file__), 'heat_2d_long_time_img')
+    for m in net.modules():
+        if isinstance(m, torch.nn.Linear):
+            torch.nn.init.xavier_normal_(m.weight)
+            torch.nn.init.zeros_(m.bias)
 
-cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-6)
+    start = time.time()
 
-cb_es = early_stopping.EarlyStopping(eps=1e-6,
-                                     loss_window=100,
-                                     no_improvement_patience=1000,
-                                     patience=5,
-                                     randomize_parameter=1e-6,
-                                     info_string_every=10)
+    model = Model(net, domain, equation, boundaries)
 
-cb_plots = plot.Plots(save_every=50,
-                      print_every=None,
-                      img_dir=img_dir,
-                      img_dim='2d')  # 3 image dimension options: 3d, 2d, 2d_scatter
+    model.compile('autograd', lambda_operator=1, lambda_bound=100)
 
-optimizer = Optimizer('Adam', {'lr': 1e-3})
+    img_dir = os.path.join(os.path.dirname(__file__), 'heat_2d_long_time_img')
 
-callbacks = [cb_cache, cb_es, cb_plots]
+    cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-6)
 
-model.train(optimizer, 1e6, save_model=True, callbacks=callbacks)
+    cb_es = early_stopping.EarlyStopping(eps=1e-6,
+                                         loss_window=100,
+                                         no_improvement_patience=1000,
+                                         patience=5,
+                                         randomize_parameter=1e-6,
+                                         info_string_every=10)
+
+    cb_plots = plot.Plots(save_every=50,
+                          print_every=None,
+                          img_dir=img_dir,
+                          img_dim='2d')  # 3 image dimension options: 3d, 2d, 2d_scatter
+
+    optimizer = Optimizer('Adam', {'lr': 1e-3})
+
+    callbacks = [cb_cache, cb_es, cb_plots]
+
+    model.train(optimizer, 1e6, save_model=True, callbacks=callbacks)
+
+    end = time.time()
+
+    grid = domain.build('NN').to('cuda')
+    net = net.to('cuda')
+
+    exact = exact_solution_data(grid, datapath, pde_dim_in, pde_dim_out, t_dim_flag=True).reshape(-1, 1)
+    net_predicted = net(grid)
+
+    error_rmse = torch.sqrt(torch.mean((exact - net_predicted) ** 2))
+
+    exp_dict_list.append({
+        'grid_res': grid_res,
+        'time': end - start,
+        'RMSE': error_rmse.detach().cpu().numpy(),
+        'type': 'heat_2d_long_time',
+        'cache': True
+    })
+
+    print('Time taken {}= {}'.format(grid_res, end - start))
+    print('RMSE {}= {}'.format(grid_res, error_rmse))
+
+    return exp_dict_list
+
+
+nruns = 10
+
+exp_dict_list = []
+
+for grid_res in range(20, 201, 20):
+    for _ in range(nruns):
+        exp_dict_list.append(heat_2d_long_time_experiment(grid_res))
+
+import pandas as pd
+
+exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+df = pd.DataFrame(exp_dict_list_flatten)
+df.to_csv('examples/benchmarking_data/heat_2d_long_time_experiment_20_200_cache={}.csv'.format(str(True)))
