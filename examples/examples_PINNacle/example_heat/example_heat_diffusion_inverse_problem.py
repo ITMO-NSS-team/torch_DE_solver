@@ -65,7 +65,7 @@ x = domain.variable_dict['x']
 y = domain.variable_dict['y']
 t = domain.variable_dict['t']
 
-data = np.loadtxt(os.path.abspath(os.path.join(os.path.dirname(__file__), 'heatinv_points.dat')))
+data = np.loadtxt(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../PINNacle_data/heatinv_points.dat')))
 
 x_data = torch.tensor(data[:, 0]).reshape(-1)
 y_data = torch.tensor(data[:, 1]).reshape(-1)
