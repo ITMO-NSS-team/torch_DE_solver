@@ -291,6 +291,22 @@ class PadTransform(Module):
 
 
 def exact_solution_data(grid, datapath, pde_dim_in, pde_dim_out, t_dim_flag=False):
+    """
+    Loads exact solution data and interpolates it onto a grid.
+
+    Args:
+        grid (torch.Tensor): the coordinate grid on which the solution will be interpolated.
+        datapath (str): path to the file containing exact solution data.
+        pde_dim_in (int): number of input variables for the differential equation.
+        pde_dim_out (int): number of output variables (solution dimensionality).
+        t_dim_flag (bool): flag indicating whether there is a time component in the data.
+                                     Set to True if time is included. Defaults to False.
+
+    Returns:
+        torch.Tensor: the interpolated exact solution, with shape (N, pde_dim_out) for multidimensional
+                      solutions, or (N,) for single-dimensional solutions.
+    """
+
     device_origin = grid.device
     grid = grid.to('cpu').detach()
 
@@ -303,7 +319,7 @@ def exact_solution_data(grid, datapath, pde_dim_in, pde_dim_out, t_dim_flag=Fals
     if t_dim_flag:
         N_t = int(exact_func.shape[1] / pde_dim_out)
         exact_func = exact_func.reshape(-1, pde_dim_out)
-        t = torch.linspace(min(grid[:, pde_dim_in - 1]), max(grid[:, pde_dim_in - 1]), N_t)\
+        t = torch.linspace(min(grid[:, pde_dim_in - 1]), max(grid[:, pde_dim_in - 1]), N_t) \
             .reshape(-1, 1).to('cpu').detach()
         grid_data = torch.vstack([torch.cat((coord.expand(len(t), len(coord)), t), dim=1) for coord in grid_data])
 
@@ -324,6 +340,17 @@ def exact_solution_data(grid, datapath, pde_dim_in, pde_dim_out, t_dim_flag=Fals
 
 
 def init_data(grid, datapath):
+    """
+    Loads initial condition data and interpolates it onto the specified grid.
+
+    Args:
+        grid (torch.Tensor): coordinate grid where the initial values will be interpolated.
+        datapath (str): path to the file containing initial condition data.
+
+    Returns:
+        torch.Tensor: interpolated initial condition values on the grid, shape (N,).
+    """
+
     device_origin = grid.device
     grid = grid.to('cpu').detach()
 
