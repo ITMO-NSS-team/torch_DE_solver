@@ -2,7 +2,7 @@ import torch
 from abc import ABC
 from typing import Union, Any
 from tedeous.optimizers.pso import PSO
-from torch.optim.lr_scheduler import ExponentialLR
+from torch.optim.lr_scheduler import ExponentialLR, CosineAnnealingWarmRestarts
 
 
 class Optimizer():
@@ -11,11 +11,13 @@ class Optimizer():
             optimizer: str,
             params: dict,
             gamma: Union[float, None]=None,
+            cosine_scheduler_patience: Union[float, None]=None,
             decay_every: Union[int, None]=None):
         self.optimizer = optimizer
         self.params = params
         self.gamma = gamma
         self.decay_every = decay_every
+        self.cosine_scheduler_patience = cosine_scheduler_patience
 
     def optimizer_choice(
         self,
@@ -40,6 +42,10 @@ class Optimizer():
             torch_optim = torch.optim.SGD
         elif self.optimizer == 'LBFGS':
             torch_optim = torch.optim.LBFGS
+        elif self.optimizer == 'RMSprop':
+            torch_optim = torch.optim.RMSprop
+        elif self.optimizer == 'NNCG':
+            torch_optim = NysNewtonCG
         elif self.optimizer == 'PSO':
             torch_optim = PSO
 
@@ -50,5 +56,8 @@ class Optimizer():
         
         if self.gamma is not None:
             self.scheduler = ExponentialLR(optimizer, gamma=self.gamma)
+
+        if self.cosine_scheduler_patience is not None:
+            self.scheduler = CosineAnnealingWarmRestarts(optimizer, self.cosine_scheduler_patience)
 
         return optimizer
