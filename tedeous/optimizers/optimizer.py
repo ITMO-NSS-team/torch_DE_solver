@@ -44,8 +44,6 @@ class Optimizer():
             torch_optim = torch.optim.LBFGS
         elif self.optimizer == 'RMSprop':
             torch_optim = torch.optim.RMSprop
-        elif self.optimizer == 'NNCG':
-            torch_optim = NysNewtonCG
         elif self.optimizer == 'PSO':
             torch_optim = PSO
 
