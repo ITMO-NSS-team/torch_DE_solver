@@ -1,0 +1,20 @@
+{
+    "mode": "NN",
+    "num_of_layers": 3,
+    "layers_AE": [
+        991,
+        125,
+        15
+    ],
+    "path_to_plot_model": "landscape_visualization/saved_models/PINN_burgers_adam_5_starts/model.pt",
+    "latent_dim": 2,
+    "path_to_trajectories": "landscape_visualization/trajectories/burgers/adam_5_starts",
+    "num_models": null,
+    "from_last": false,
+    "prefix": "model-",
+    "every_nth": 1,
+    "grid_step": 0.1,
+    "d_max_latent": 2,
+    "anchor_mode": "circle",
+    "path_to_plot_model_directory": "landscape_visualization/saved_models/PINN_burgers_adam_5_starts"
+}

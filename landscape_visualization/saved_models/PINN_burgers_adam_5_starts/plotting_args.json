@@ -1,0 +1,46 @@
+{
+    "path_to_plot_model": "landscape_visualization/saved_models/PINN_burgers_adam_5_starts/model.pt",
+    "path_to_trajectories": "landscape_visualization/trajectories/burgers/adam_5_starts",
+    "key_models": [
+        "0",
+        "73",
+        "146",
+        "258",
+        "305"
+    ],
+    "key_modelnames": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+    ],
+    "prefix": "model-",
+    "num_models": null,
+    "from_last": false,
+    "vlevel": 30.0,
+    "vmin": -1.0,
+    "vmax": -1.0,
+    "x_range": [
+        -1.25,
+        1.25,
+        25
+    ],
+    "loss_type": "loss_bnd",
+    "loss_name": "train_loss",
+    "layers_AE": [
+        991,
+        125,
+        15
+    ],
+    "num_of_layers": 3,
+    "batch_size": 32,
+    "every_nth": 1,
+    "density_type": "CKA",
+    "density_p": 2,
+    "density_vmax": -1,
+    "density_vmin": -1,
+    "colorFromGridOnly": true,
+    "latent_dim": 2,
+    "path_to_plot_model_directory": "landscape_visualization/saved_models/PINN_burgers_adam_5_starts"
+}
