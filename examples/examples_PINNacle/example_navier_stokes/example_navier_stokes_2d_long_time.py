@@ -249,7 +249,7 @@ def navier_stokes_2d_long_time_experiment(grid_res):
                           n_samples=4,
                           img_rows=3,
                           img_cols=4
-                          )  # 5 image dimension options: 2d, 2d_scatter, 3d, 3d_scatter, 4d_scatter
+                          )  # 5 image dimension options: 2d, 2d (scatter), 3d, 3d (scatter), 4d (scatter)
 
     optimizer = Optimizer('Adam', {'lr': 1e-3})
 
