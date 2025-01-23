@@ -1,3 +1,4 @@
+import itertools
 import os
 import datetime
 from typing import Union, List
@@ -5,9 +6,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import torch
-from tedeous.callbacks.callback import Callback
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.tri import Triangulation
 from scipy.interpolate import griddata
 from tedeous.callbacks.callback import Callback
 
@@ -20,9 +18,14 @@ class Plots(Callback):
                  save_every: Union[int, None] = 500,
                  title: str = None,
                  img_dir: str = None,
-                 img_dim: str = '3d',
-                 t_values: list = None,
-                 figsize: tuple=(15, 8)):
+                 img_dim: str = None,
+                 scatter_flag: bool = False,
+                 plot_axes: List[int] = None,
+                 fixed_axes: List[int] = None,
+                 n_samples: int = 1,
+                 img_rows: int = None,
+                 img_cols: int = None,
+                 figsize: tuple = (15, 8)):
         """
         Args:
             print_every (Union[int, None], optional): print plots after every *print_every* steps. Defaults to 500.
@@ -33,12 +36,17 @@ class Plots(Callback):
         super().__init__()
         self.print_every = print_every if print_every is not None else 0.1
         self.save_every = save_every if save_every is not None else 0.1
+        self.nvars_model = None
         self.title = title
         self.img_dir = img_dir
         self.img_dim = img_dim
-        self.t_values = t_values
+        self.plot_axes = plot_axes
+        self.fixed_axes = fixed_axes
+        self.n_samples = n_samples
+        self.img_rows = img_rows
+        self.img_cols = img_cols
+        self.scatter_flag = scatter_flag
         self.figsize = figsize
-
         self.attributes = {'model': ['out_features', 'output_dim', 'width_out'],
                            'layers': ['out_features', 'output_dim', 'width_out']}
 
@@ -59,252 +67,145 @@ class Plots(Callback):
             except:
                 return self.net.width_out[-1]
 
-    def _print_nn(self):
+    def _plot_img_2d(self, i_ax, j_ax, axes, nparams, fixed_values=None):
         """
-        Solution plot for *NN, autograd* mode.
-
+        Solution plot in 2-nd dimension.
         """
+        if nparams == 1:
+            ax = axes[i_ax][j_ax]
+            if self.title is not None:
+                ax.set_title(f'{self.title} variable {i_ax}')
+            result_img = ax.scatter(self.grid.detach().cpu().numpy().reshape(-1),
+                                    self.net(self.grid)[:, j_ax].detach().cpu().numpy())
+        else:
+            if self.fixed_axes is not None:
+                for axis, value in zip(self.fixed_axes, fixed_values):
+                    mask = self.grid[:, axis] == value
+                subgrid = self.grid[mask]
+            else:
+                subgrid = self.grid
 
-        self.nvars_model = self._init_nvars_model()
+            ax = axes[i_ax][j_ax]
 
-        nparams = self.grid.shape[1]
-        fig = plt.figure(figsize=self.figsize)
-
-        for i in range(self.nvars_model):
-            if self.img_dim == '3d':
-                if nparams == 1:
-                    ax1 = fig.add_subplot(1, self.nvars_model, i + 1)
-                    if self.title is not None:
-                        ax1.set_title(self.title + ' variable {}'.format(i))
-                    ax1.scatter(self.grid.detach().cpu().numpy().reshape(-1),
-                                self.net(self.grid)[:, i].detach().cpu().numpy())
+            grid_x = subgrid[:, self.plot_axes[0]].detach().cpu().numpy()
+            grid_y = subgrid[:, self.plot_axes[1]].detach().cpu().numpy()
+            if self.nvars_model == 1:
+                u_values = self.net(subgrid)[:, 0].detach().cpu().numpy()
+            else:
+                if nparams == 2:
+                    u_values = self.net(subgrid)[:, j_ax].detach().cpu().numpy()
                 else:
-                    ax1 = fig.add_subplot(1, self.nvars_model, i + 1, projection='3d')
-                    if self.title is not None:
-                        ax1.set_title(self.title + ' variable {}'.format(i))
+                    u_values = self.net(subgrid)[:, i_ax].detach().cpu().numpy()
 
-                    grid_x = self.grid[:, 0].detach().cpu().numpy()
-                    grid_y = self.grid[:, 1].detach().cpu().numpy()
-                    z_values = self.net(self.grid)[:, i].detach().cpu().numpy()
+            if self.scatter_flag:
+                result_img = ax.scatter(grid_x, grid_y, c=u_values, cmap=cm.jet, s=5, alpha=0.7)
+            else:
+                axes_size = int(self.grid.shape[0] ** 0.5)
 
-                    triang = Triangulation(grid_x, grid_y)
+                xi = np.linspace(grid_x.min(), grid_x.max(), axes_size)
+                yi = np.linspace(grid_y.min(), grid_y.max(), axes_size)
+                xi, yi = np.meshgrid(xi, yi)
+                ui = griddata((grid_x, grid_y), u_values, (xi, yi), method='cubic')
 
-                    mask = (grid_x < 2) & (grid_y > 1)
-                    triang.set_mask(mask[triang.triangles].any(axis=1))
+                result_img = ax.imshow(ui, extent=(grid_x.min(), grid_x.max(), grid_y.min(), grid_y.max()),
+                                       origin='lower', cmap=cm.jet, aspect='auto')
 
-                    ax1.plot_trisurf(triang, z_values, cmap=cm.jet, linewidth=0.2, alpha=1)
-                    ax1.set_xlabel("x1")
-                    ax1.set_ylabel("x2")
-
-            elif self.img_dim == '2d':
-                if nparams == 1:
-                    ax1 = fig.add_subplot(1, self.nvars_model, i + 1)
-                    if self.title is not None:
-                        ax1.set_title(self.title + ' variable {}'.format(i))
-                    ax1.scatter(self.grid.detach().cpu().numpy().reshape(-1),
-                                self.net(self.grid)[:, i].detach().cpu().numpy())
+            if nparams > 2:
+                if self.nvars_model > 1:
+                    ax.set_title(
+                        f"variable_{i_ax + 1}(x{self.plot_axes[0] + 1}, x{self.plot_axes[1] + 1}) fixed at "
+                        f"{'; '.join([f'x{key + 1} = {value} ' for key, value in dict(zip(self.fixed_axes, fixed_values)).items()])}")
                 else:
-                    ax1 = fig.add_subplot(1, self.nvars_model, i + 1)
-                    if self.title is not None:
-                        ax1.set_title(self.title + f' variable {i}')
+                    ax.set_title(
+                        f"fixed at "
+                        f"{'; '.join([f'x{key + 1} = {value} ' for key, value in dict(zip(self.fixed_axes, fixed_values)).items()])}")
+            else:
+                if self.title is not None:
+                    ax.set_title(f'{self.title} variable_{i_ax}')
 
-                    grid_x = self.grid[:, 0].detach().cpu().numpy()
-                    grid_y = self.grid[:, 1].detach().cpu().numpy()
-                    z_values = self.net(self.grid)[:, i].detach().cpu().numpy()
+            ax.set_xlabel(f"x{self.plot_axes[0] + 1}")
+            ax.set_ylabel(f"x{self.plot_axes[1] + 1}")
 
-                    axes_size = int(self.grid.shape[0] ** 0.5)
+        return result_img, ax
 
-                    xi = np.linspace(grid_x.min(), grid_x.max(), axes_size)
-                    yi = np.linspace(grid_y.min(), grid_y.max(), axes_size)
-                    xi, yi = np.meshgrid(xi, yi)
-                    zi = griddata((grid_x, grid_y), z_values, (xi, yi), method='cubic')
-
-                    im = ax1.imshow(zi, extent=(grid_x.min(), grid_x.max(), grid_y.min(), grid_y.max()),
-                                    origin='lower', cmap=cm.jet, aspect='auto')
-
-                    ax1.set_xlabel("x1")
-                    ax1.set_ylabel("x2")
-                    fig.colorbar(im, ax=ax1)
-
-            elif self.img_dim == '2d_scatter':
-                if nparams == 1:
-                    ax1 = fig.add_subplot(1, self.nvars_model, i + 1)
-                    if self.title is not None:
-                        ax1.set_title(self.title + ' variable {}'.format(i))
-                    ax1.scatter(self.grid.detach().cpu().numpy().reshape(-1),
-                                self.net(self.grid)[:, i].detach().cpu().numpy(),
-                                marker='o', s=5, alpha=0.7)
-                else:
-                    ax1 = fig.add_subplot(1, self.nvars_model, i + 1)
-                    if self.title is not None:
-                        ax1.set_title(self.title + f' variable {i}')
-
-                    grid_x = self.grid[:, 0].detach().cpu().numpy()
-                    grid_y = self.grid[:, 1].detach().cpu().numpy()
-                    z_values = self.net(self.grid)[:, i].detach().cpu().numpy()
-
-                    scatter = ax1.scatter(
-                        grid_x, grid_y,
-                        c=z_values,
-                        cmap=cm.jet,
-                        s=5,
-                        alpha=0.7
-                    )
-
-                    ax1.set_xlabel("x1")
-                    ax1.set_ylabel("x2")
-                    fig.colorbar(scatter, ax=ax1)
-
-    def _plot_solution_2d(self, coord_3_values: List[float]):
+    def _plot_img_3d(self, i_ax, j_ax, axes, nparams, fixed_values=None):
         """
-        Solution plot for 2D PDE u(x, y, t) at multiple time points.
-
-        Args:
-            t_values (List[float]): List of time points to plot the solution for.
+        Solution plot in 3-rd dimension.
         """
+        if self.fixed_axes is not None:
+            for axis, value in zip(self.fixed_axes, fixed_values):
+                mask = self.grid[:, axis] == value
+            subgrid = self.grid[mask]
+        else:
+            subgrid = self.grid
 
-        grid_x = self.grid[:, 0]
-        grid_y = self.grid[:, 1]
+        ax = axes[i_ax][j_ax]
 
-        self.nvars_model = self._init_nvars_model()
+        grid_x = subgrid[:, self.plot_axes[0]].detach().cpu().numpy()
+        grid_y = subgrid[:, self.plot_axes[1]].detach().cpu().numpy()
+        if self.nvars_model == 1:
+            u_values = self.net(subgrid)[:, 0].detach().cpu().numpy()
+        else:
+            if nparams == 2:
+                u_values = self.net(subgrid)[:, j_ax].detach().cpu().numpy()
+            else:
+                u_values = self.net(subgrid)[:, i_ax].detach().cpu().numpy()
 
-        if self.img_dim == '3d':
-            for coord_3 in coord_3_values:
-                coord_3_mask = self.grid[:, 2] == coord_3
-                fig, axes = plt.subplots(1, self.nvars_model,
-                                         subplot_kw={'projection': '3d'},
-                                         figsize=self.figsize)
+        if self.scatter_flag:
+            ax.scatter(grid_x, grid_y, u_values, c=u_values, cmap=cm.jet, s=5, alpha=0.8)
+        else:
+            ax.plot_trisurf(grid_x, grid_y, u_values, cmap=cm.jet, linewidth=0.2, alpha=1)
 
-                if self.nvars_model == 1:
-                    axes = [axes]
+        if nparams > 2:
+            if self.nvars_model > 1:
+                ax.set_title(
+                    f"variable_{i_ax + 1}(x{self.plot_axes[0] + 1}, x{self.plot_axes[1] + 1}) fixed at "
+                    f"{'; '.join([f'x{key + 1} = {value} ' for key, value in dict(zip(self.fixed_axes, fixed_values)).items()])}")
+            else:
+                ax.set_title(
+                    f"fixed at "
+                    f"{'; '.join([f'x{key + 1} = {value} ' for key, value in dict(zip(self.fixed_axes, fixed_values)).items()])}")
+        else:
+            if self.title is not None:
+                ax.set_title(f'{self.title} variable_{i_ax}')
 
-                for i in range(self.nvars_model):
-                    z_values = self.net(self.grid[coord_3_mask])[:, i]
-                    axes[i].plot_trisurf(grid_x[coord_3_mask].detach().cpu().numpy(),
-                                         grid_y[coord_3_mask].detach().cpu().numpy(),
-                                         z_values.detach().cpu().numpy().flatten(),
-                                         cmap=cm.jet, linewidth=0.2, alpha=1)
-                    axes[i].set_title(f'Function {i + 1} at t = {round(coord_3, 4)}')
-                    axes[i].set_xlabel("x")
-                    axes[i].set_ylabel("y")
-                    axes[i].set_zlabel(f"func_{i + 1}(x, y)")
+        ax.set_xlabel(f"x{self.plot_axes[0] + 1}")
+        ax.set_ylabel(f"x{self.plot_axes[1] + 1}")
 
-                plt.tight_layout()
-
-                if self.img_dir:
-                    directory = self._dir_path(self.img_dir, suffix=f"_2D_t{round(coord_3, 4)}")
-                    plt.savefig(directory)
-                plt.close(fig)
-
-        elif self.img_dim == '2d':
-            for coord_3 in coord_3_values:
-                coord_3_mask = self.grid[:, 2] == coord_3
-                fig, axes = plt.subplots(1, self.nvars_model,
-                                         figsize=self.figsize)
-
-                if self.nvars_model == 1:
-                    axes = [axes]
-
-                for i in range(self.nvars_model):
-                    z_values = self.net(self.grid[coord_3_mask])[:, i].detach().cpu().numpy().reshape(-1)
-
-                    axes_size = int(self.grid.shape[0] ** 0.5)
-
-                    xi = np.linspace(grid_x.detach().cpu().numpy().min(),
-                                     grid_x.detach().cpu().numpy().max(),
-                                     axes_size)
-                    yi = np.linspace(grid_y.detach().cpu().numpy().min(),
-                                     grid_y.detach().cpu().numpy().max(),
-                                     axes_size)
-                    zi = griddata((grid_x[coord_3_mask].detach().cpu().numpy(),
-                                   grid_y[coord_3_mask].detach().cpu().numpy()),
-                                  z_values,
-                                  (xi[None, :], yi[:, None]),
-                                  method='cubic')
-
-                    im = axes[i].imshow(zi, extent=(grid_x.detach().cpu().numpy().min(),
-                                                    grid_x.detach().cpu().numpy().max(),
-                                                    grid_y.detach().cpu().numpy().min(),
-                                                    grid_y.detach().cpu().numpy().max()),
-                                        origin='lower', cmap=cm.jet, aspect='auto')
-
-                    axes[i].set_title(f'Function {i + 1} at t = {coord_3}')
-                    axes[i].set_xlabel("x")
-                    axes[i].set_ylabel("y")
-                    fig.colorbar(im, ax=axes[i])
-
-                plt.tight_layout()
-
-                if self.img_dir:
-                    directory = self._dir_path(self.img_dir, suffix=f"_2D_t{coord_3}")
-                    plt.savefig(directory)
-                plt.close(fig)
-
-        elif self.img_dim == '2d_scatter':
-            for coord_3 in coord_3_values:
-                coord_3_mask = self.grid[:, 2] == coord_3
-                fig, axes = plt.subplots(1, self.nvars_model,
-                                         figsize=self.figsize)
-
-                if self.nvars_model == 1:
-                    axes = [axes]
-
-                for i in range(self.nvars_model):
-                    z_values = self.net(self.grid[coord_3_mask])[:, i].detach().cpu().numpy().flatten()
-                    x_values = grid_x[coord_3_mask].detach().cpu().numpy()
-                    y_values = grid_y[coord_3_mask].detach().cpu().numpy()
-
-                    scatter = axes[i].scatter(
-                        x_values,
-                        y_values,
-                        c=z_values,
-                        cmap=cm.jet,
-                    )
-
-                    axes[i].set_title(f'Function {i + 1} at t = {round(coord_3, 4)}')
-                    axes[i].set_xlabel("x")
-                    axes[i].set_ylabel("y")
-                    fig.colorbar(scatter, ax=axes[i])
-
-                plt.tight_layout()
-
-                if self.img_dir:
-                    directory = self._dir_path(self.img_dir, suffix=f"_2D_t{round(coord_3, 4)}")
-                    plt.savefig(directory)
-                plt.close(fig)
-
-    def _plot_solution_3d(self, coord_4_values: List[float]):
+    def _plot_img_4d(self, i_ax, j_ax, axes, nparams, fixed_values=None):
         """
-        Solution plot for 3D PDE u(x, y, z, t) at multiple time points.
-
-        Args:
-            t_values (List[float]): List of time points to plot the solution for.
+        Solution plot in 4-th dimension.
         """
-        grid_x = self.grid[:, 0].detach().cpu().numpy()
-        grid_y = self.grid[:, 1].detach().cpu().numpy()
-        grid_z = self.grid[:, 2].detach().cpu().numpy()
+        if self.fixed_axes is not None:
+            for axis, value in zip(self.fixed_axes, fixed_values):
+                mask = self.grid[:, axis] == value
+            subgrid = self.grid[mask]
+        else:
+            subgrid = self.grid
 
-        for coord_4 in coord_4_values:
-            coord_4_mask = self.grid[:, 3] == coord_4
-            u_values = self.net(self.grid[coord_4_mask]).detach().cpu().numpy().flatten()
+        ax = axes[i_ax][j_ax]
 
-            fig = plt.figure(figsize=self.figsize)
-            ax = fig.add_subplot(111, projection='3d')
+        grid_x = subgrid[:, self.plot_axes[0]].detach().cpu().numpy()
+        grid_y = subgrid[:, self.plot_axes[1]].detach().cpu().numpy()
+        grid_z = subgrid[:, self.plot_axes[2]].detach().cpu().numpy()
+        u_values = self.net(subgrid)[:, i_ax].detach().cpu().numpy()
 
-            scatter = ax.scatter(grid_x[coord_4_mask], grid_y[coord_4_mask], grid_z[coord_4_mask],
-                                 c=u_values, cmap=cm.jet)
+        ax.scatter(grid_x, grid_y, grid_z, c=u_values.flatten(), cmap=cm.jet, s=10, alpha=0.8)
 
-            fig.colorbar(scatter, ax=ax, label="u(x, y, z)")
+        if nparams > 2:
+            ax.set_title(
+                f"function_{i_ax + 1}(x{self.plot_axes[0] + 1}, x{self.plot_axes[1] + 1}), "
+                f"{[f'Axis {key}: {value} ' for key, value in dict(zip(self.fixed_axes, fixed_values)).items()]}")
+        else:
+            if self.title is not None:
+                ax.set_title(f'{self.title} variable {i_ax}')
 
-            ax.set_title(f'Solution of 3d equation u(x, y, z) at t = {round(coord_4, 4)}')
-            ax.set_xlabel("x")
-            ax.set_ylabel("y")
-            ax.set_zlabel("z")
+        if self.plot_axes is None:
+            self.plot_axes = [0, 1, 2]
 
-            if self.img_dim:
-                directory = self._dir_path(self.img_dir, suffix=f"_3D_t{round(coord_4, 4)}")
-                plt.savefig(directory)
-            plt.close(fig)
+        ax.set_xlabel(f"x{self.plot_axes[0] + 1}")
+        ax.set_ylabel(f"x{self.plot_axes[1] + 1}")
+        ax.set_zlabel(f"x{self.plot_axes[2] + 1}")
 
     def _print_mat(self):
         """
@@ -314,6 +215,7 @@ class Plots(Callback):
         nparams = self.grid.shape[0]
         nvars_model = self.net.shape[0]
         fig = plt.figure(figsize=(15, 8))
+
         for i in range(nvars_model):
             if nparams == 1:
                 ax1 = fig.add_subplot(1, nvars_model, i + 1)
@@ -375,36 +277,85 @@ class Plots(Callback):
             if self.model.mode == 'mat':
                 self._print_mat()
             else:
-                if self.grid.shape[1] == 2:
-                    self._print_nn()
+                self.nvars_model = self._init_nvars_model()
+                nparams = self.grid.shape[1]
 
-                    if save_flag:
-                        directory = self._dir_path(self.img_dir)
-                        plt.savefig(directory)
-                    if print_flag:
-                        plt.show()
-                    plt.close()
-                elif self.grid.shape[-1] == 3:
-                    if self.t_values is None:
-                        self.t_values = torch.unique(self.grid[:, 2]).detach().cpu().numpy()
+                if self.img_dim is None:
+                    if nparams + 1 <= 4:
+                        self.img_dim = f"{nparams + 1}d"
+                    else:
+                        self.img_dim = '2d'
 
-                    selected_t_values = [self.t_values[0],
-                                         self.t_values[len(self.t_values) // 4],
-                                         self.t_values[len(self.t_values) // 2],
-                                         self.t_values[len(self.t_values) // 4 * 3],
-                                         self.t_values[-1]]
-                    self._plot_solution_2d(selected_t_values)
-                elif self.grid.shape[-1] == 4:
-                    if self.t_values is None:
-                        self.t_values = torch.unique(self.grid[:, 3]).detach().cpu().numpy()
+                if self.img_rows is None:
+                    if nparams > 2:
+                        self.img_rows = self.nvars_model
+                    else:
+                        self.img_rows = 1
 
-                    selected_t_values = [self.t_values[0],
-                                         self.t_values[len(self.t_values) // 4],
-                                         self.t_values[len(self.t_values) // 2],
-                                         self.t_values[len(self.t_values) // 4 * 3],
-                                         self.t_values[-1]]
-                    self._plot_solution_3d(selected_t_values)
-                    self._plot_solution_2d(selected_t_values)
+                if self.img_cols is None:
+                    if nparams > 2:
+                        self.img_cols = self.n_samples
+                    else:
+                        self.img_cols = self.nvars_model
+
+                if self.plot_axes is None:
+                    self.plot_axes = [0, 1]
+
+                if self.fixed_axes is None:
+                    fixed_points_combinations = range(self.img_cols)
+                else:
+                    fixed_points = []
+                    for axis in self.fixed_axes:
+                        unique_values = torch.unique(self.grid[:, axis]).detach().cpu().numpy()
+                        selected_idx = torch.linspace(0, len(unique_values) - 1,
+                                                      self.n_samples).long().detach().cpu().numpy()
+                        selected_values = unique_values[selected_idx] if len(
+                            unique_values) >= self.n_samples else unique_values
+                        fixed_points.append(selected_values)
+
+                    fixed_points_combinations = list(itertools.product(*fixed_points))
+
+                if self.img_dim == '2d':
+                    fig, axes = plt.subplots(self.img_rows,
+                                             self.img_cols,
+                                             figsize=(self.figsize[0] * self.img_cols, self.figsize[1] * self.img_rows),
+                                             squeeze=False)
+                elif self.img_dim == '3d' or self.img_dim == '4d':
+                    fig, axes = plt.subplots(self.img_rows,
+                                             self.img_cols,
+                                             figsize=(self.figsize[0] * self.img_cols, self.figsize[1] * self.img_rows),
+                                             subplot_kw={'projection': '3d'},
+                                             squeeze=False)
+
+                if nparams > 1:
+                    i_fix_value = 0
+
+                for i_ax in range(self.img_rows):
+                    if self.nvars_model > 1:
+                        i_fix_value = 0
+                    for j_ax in range(self.img_cols):
+                        if nparams > 1:
+                            fixed_values = fixed_points_combinations[i_fix_value]
+                            i_fix_value += 1
+                        else:
+                            fixed_values = None
+                        if self.img_dim == '2d':
+                            result_img, ax = self._plot_img_2d(i_ax, j_ax, axes, nparams, fixed_values=fixed_values)
+                            if nparams > 1:
+                                fig.colorbar(result_img, ax=ax)
+                        elif self.img_dim == '3d':
+                            self._plot_img_3d(i_ax, j_ax, axes, nparams, fixed_values=fixed_values)
+                        elif self.img_dim == '4d':
+                            self._plot_img_4d(i_ax, j_ax, axes, nparams, fixed_values=fixed_values)
+
+                if save_flag:
+                    directory = self._dir_path(self.img_dir)
+                    plt.savefig(directory)
+                if print_flag:
+                    plt.show()
+
+                plt.close()
 
     def on_epoch_end(self, logs=None):
         self.solution_print()
+
