@@ -28,7 +28,7 @@ def navier_stokes_2d_long_time_experiment(grid_res):
     x_min, x_max = 0, 2
     y_min, y_max = 0, 1
     t_max = 5
-    # grid_res = 10
+    # grid_res = 20
 
     pde_dim_in = 3
     pde_dim_out = 3
@@ -243,7 +243,13 @@ def navier_stokes_2d_long_time_experiment(grid_res):
                           print_every=None,
                           img_dir=img_dir,
                           img_dim='2d',
-                          figsize=(18, 6))  # 3 image dimension options: 3d, 2d, 2d_scatter
+                          scatter_flag=False,
+                          plot_axes=[0, 1],
+                          fixed_axes=[2],
+                          n_samples=4,
+                          img_rows=3,
+                          img_cols=4
+                          )  # 5 image dimension options: 2d, 2d_scatter, 3d, 3d_scatter, 4d_scatter
 
     optimizer = Optimizer('Adam', {'lr': 1e-3})
 
