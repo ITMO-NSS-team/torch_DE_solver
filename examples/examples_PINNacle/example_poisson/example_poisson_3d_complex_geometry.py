@@ -29,7 +29,7 @@ def poisson_3d_complex_geometry_experiment(grid_res):
     y_min, y_max = 0, 1
     z_min, z_max = 0, 1
     z_border = 0.5
-    # grid_res = 20
+    # grid_res = 10
 
     pde_dim_in = 3
     pde_dim_out = 1
@@ -236,7 +236,14 @@ def poisson_3d_complex_geometry_experiment(grid_res):
     cb_plots = plot.Plots(save_every=50,
                           print_every=None,
                           img_dir=img_dir,
-                          img_dim='2d_scatter')  # 3 image dimension options: 3d, 2d, 2d_scatter
+                          img_dim='2d',
+                          plot_axes=[0, 1],
+                          fixed_axes=[2],
+                          n_samples=4,
+                          img_rows=2,
+                          img_cols=2,
+                          scatter_flag=False
+                          )  # 5 image dimension options: 2d, 2d (scatter), 3d, 3d (scatter), 4d (scatter)
 
     optimizer = Optimizer('Adam', {'lr': 1e-3})
 
