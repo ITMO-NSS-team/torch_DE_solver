@@ -565,7 +565,7 @@ class Equation_mat(EquationMixin):
                     axis_intersect = torch.isclose(
                         pt[axis].float(), self.grid[axis].float())
                     prod *= axis_intersect
-                    point_pos = torch.where(prod is True)
+                    point_pos = torch.where(prod)
             bpos.append(point_pos)
         return bpos
 
@@ -637,4 +637,13 @@ class Operator_bcond_preproc():
             return Equation_mat(self.grid, self.operator, self.bconds)
         if strategy == 'autograd':
             return Equation_autograd(self.grid, self.operator, self.bconds)
+
+
+
+
+
+
+
+
+
 
