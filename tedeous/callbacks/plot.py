@@ -246,35 +246,22 @@ class Plots(Callback):
             self.nvars_model = self._init_nvars_model()
             nparams = self.grid.shape[0] if self.model.mode == 'mat' else self.grid.shape[1]
 
-            if self.img_dim is None:
-                self.img_dim = f"{nparams + 1}d" if nparams + 1 < 5 else '2d'
+            self.img_dim = self.img_dim or (f"{nparams + 1}d" if nparams + 1 < 5 else '2d')
+            self.img_rows = self.img_rows or (self.nvars_model if nparams > 2 else 1)
+            self.img_cols = self.img_cols or (self.n_samples if nparams > 2 else self.nvars_model)
+            self.plot_axes = self.plot_axes or ([i for i in range(nparams)] if int(self.img_dim[0]) < 5 else [0, 1])
 
-            if self.img_rows is None:
-                self.img_rows = self.nvars_model if nparams > 2 else 1
+            fixed_points_combinations = (
+                range(self.img_cols) if self.fixed_axes is None else
+                list(itertools.product(*[
+                    torch.unique(self.grid[:, axis]).detach().cpu().numpy()[
+                        torch.linspace(0, len(torch.unique(self.grid[:, axis])) - 1,
+                                       self.n_samples).long().detach().cpu().numpy()
+                    ] for axis in self.fixed_axes
+                ]))
+            )
 
-            if self.img_cols is None:
-                self.img_cols = self.n_samples if nparams > 2 else self.nvars_model
-
-            if self.plot_axes is None:
-                self.plot_axes = [i for i in range(nparams)] if int(self.img_dim[0]) < 5 else [0, 1]
-
-            if self.fixed_axes is None:
-                fixed_points_combinations = range(self.img_cols)
-            else:
-                fixed_points = []
-                for axis in self.fixed_axes:
-                    unique_values = torch.unique(self.grid[:, axis]).detach().cpu().numpy()
-                    selected_idx = torch.linspace(0, len(unique_values) - 1,
-                                                  self.n_samples).long().detach().cpu().numpy()
-                    selected_values = unique_values[selected_idx] if len(
-                        unique_values) >= self.n_samples else unique_values
-                    fixed_points.append(selected_values)
-
-                fixed_points_combinations = list(itertools.product(*fixed_points))
-
-            n_rows = self.img_cols if self.var_transpose else self.img_rows
-            n_cols = self.img_rows if self.var_transpose else self.img_cols
-
+            n_rows, n_cols = (self.img_cols, self.img_rows) if self.var_transpose else (self.img_rows, self.img_cols)
             subplot_kwargs = {'subplot_kw': {'projection': '3d'}} if self.img_dim in ('3d', '4d') else {}
 
             fig, axes = plt.subplots(
@@ -285,8 +272,7 @@ class Plots(Callback):
                 **subplot_kwargs
             )
 
-            if nparams > 2:
-                i_fix_value = 0
+            i_fix_value = 0 if nparams > 2 else None
 
             for i_ax in range(n_rows):
                 if nparams > 2 and self.nvars_model > 1 and not self.var_transpose:
@@ -305,8 +291,7 @@ class Plots(Callback):
                     i_fix_value += 1
 
             if save_flag:
-                directory = self._dir_path(self.img_dir)
-                plt.savefig(directory)
+                plt.savefig(self._dir_path(self.img_dir))
             if print_flag:
                 plt.show()
 
