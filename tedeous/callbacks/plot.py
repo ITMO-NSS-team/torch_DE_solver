@@ -1,8 +1,9 @@
 import itertools
 import os
 import datetime
-from typing import Union, List
+from typing import Union, List, Tuple
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import torch
@@ -11,7 +12,7 @@ from tedeous.callbacks.callback import Callback
 
 
 class Plots(Callback):
-    """Class for ploting solutions."""
+    """Class for plotting solutions."""
 
     def __init__(self,
                  print_every: Union[int, None] = 500,
@@ -33,11 +34,19 @@ class Plots(Callback):
             save_every (Union[int, None], optional): save plots after every *print_every* steps. Defaults to 500.
             title (str, optional): plots title. Defaults to None.
             img_dir (str, optional): directory title where plots are being saved. Defaults to None.
+            img_dim (str, optional): image dimensionality ('2d', '3d', '4d'). Defaults to None.
+            scatter_flag (bool): whether to use scatter plot for plots. Defaults to False.
+            plot_axes (List[int], optional): the axes used to plot the graph. Defaults to None.
+            fixed_axes (List[int], optional): axes with fixed values. Defaults to None.
+            n_samples (int): number of fixed value samples. Defaults to 1.
+            img_rows (int, optional): the number of rows in the displays with plots. Defaults to None.
+            img_cols (int, optional): the number of rows in the displays with plots. Defaults to None.
+            var_transpose (bool): whether to transpose the axes of the variables. Defaults to False.
+            figsize (tuple): figure size. Defaults to (15, 8).
         """
         super().__init__()
         self.print_every = print_every if print_every is not None else 0.1
         self.save_every = save_every if save_every is not None else 0.1
-        self.nvars_model = None
         self.title = title
         self.img_dir = img_dir
         self.img_dim = img_dim
@@ -49,10 +58,16 @@ class Plots(Callback):
         self.var_transpose = var_transpose
         self.scatter_flag = scatter_flag
         self.figsize = figsize
+        self.nvars_model = None
         self.attributes = {'model': ['out_features', 'output_dim', 'width_out'],
                            'layers': ['out_features', 'output_dim', 'width_out']}
 
-    def _init_nvars_model(self):
+    def _init_nvars_model(self) -> int:
+        """ Defines the number of model variables (neural network outputs).
+
+        Returns:
+            int: Number of output variables of the model.
+        """
         nvars_model = None
 
         if self.model.mode == 'mat':
@@ -72,7 +87,15 @@ class Plots(Callback):
             except:
                 return self.net.width_out[-1]
 
-    def filter_grid(self, fixed_values):
+    def filter_grid(self, fixed_values: List[float]) -> np.ndarray:
+        """ Filters a grid of points on fixed axes.
+
+        Args:
+            fixed_values (List[float]): Values of the fixed axes.
+
+        Returns:
+            np.ndarray: Filtered grid.
+        """
         if self.fixed_axes is not None:
             for axis, value in zip(self.fixed_axes, fixed_values):
                 mask = self.grid[:, axis] == value
@@ -80,7 +103,19 @@ class Plots(Callback):
         else:
             return self.grid
 
-    def generate_plot_data(self, subgrid, nparams, i_ax, j_ax):
+    def generate_plot_data(self, subgrid: np.ndarray, nparams: int, i_ax: int, j_ax: int
+                           ) -> Tuple[np.ndarray, List[np.ndarray]]:
+        """ Generates data for plotting the graph.
+
+        Args:
+            subgrid (np.ndarray): a subset of the point grid.
+            nparams (int): the number of parameters in the model.
+            i_ax (int): index of the first axis.
+            j_ax (int): index of the second axis.
+
+        Returns:
+            Tuple[np.ndarray, List[np.ndarray]]: function values and list of grid coordinates.
+        """
         lst_grid_axes = []
         n_plot_axes = nparams if len(self.plot_axes) is None else len(self.plot_axes)
 
@@ -102,7 +137,16 @@ class Plots(Callback):
 
         return u_values, lst_grid_axes
 
-    def set_labels(self, i_ax, j_ax, ax, nparams, fixed_values=None):
+    def set_labels(self, i_ax: int, j_ax: int, ax: matplotlib.axes.Axes, nparams: int, fixed_values: list = None):
+        """ Sets the axis captions and chart header.
+
+        Args:
+            i_ax (int): the row index of the subgraph.
+            j_ax (int): the column index of the subgraph.
+            ax (matplotlib.axes.Axes): the axis on which the graph is plotted.
+            nparams (int): the number of grid parameters (dimensionality of the problem).
+            fixed_values (list, optional): values of fixed parameters, if any. Defaults to None.
+        """
         if nparams > 2 and fixed_values is not None:
             title = f"fixed at {'; '.join([f'x{key + 1} = {value} ' for key, value in dict(zip(self.fixed_axes, fixed_values)).items()])}"
             if self.nvars_model > 1:
@@ -119,65 +163,44 @@ class Plots(Callback):
             func = getattr(ax, axis_functions[i])
             func(f"x{self.plot_axes[i] + 1}")
 
-    def _plot_img_2d(self, i_ax, j_ax, ax, nparams, fixed_values=None):
-        """
-        Solution plot in 2-nd dimension.
+    def _plot_img(self, i_ax: int, j_ax: int, fig: matplotlib.figure.Figure, ax: matplotlib.axes.Axes, nparams: int,
+                  fixed_values: list = None):
+        """ Solution plot.
+
+        Args:
+            i_ax (int): the row index in the subgraph grid.
+            j_ax (int): the index of the column in the subgraph grid.
+            fig (matplotlib.figure.Figure): the matplotlib figure.
+            ax (matplotlib.axes.Axes): the axis on which the graph is plotted.
+            nparams (int): the number of input grid parameters.
+            fixed_values (list, optional): fixed values for axes, if any. Defaults to None.
         """
         subgrid = self.filter_grid(fixed_values)
+        u_values, grid = self.generate_plot_data(subgrid, nparams, i_ax, j_ax)
 
-        if nparams == 1:
-            u_values, grid = self.generate_plot_data(subgrid, nparams, i_ax, j_ax)
-            grid_x = grid[0]
-
-            if self.model.mode == 'mat':
-                result_img = ax.scatter(grid_x, u_values)
+        if self.img_dim == '2d':
+            if nparams == 1:
+                ax.scatter(grid[0].reshape(-1), u_values) if self.model.mode == 'mat' else \
+                    ax.scatter(grid[0], u_values)
             else:
-                result_img = ax.scatter(grid_x.reshape(-1), u_values)
-        else:
-            u_values, grid = self.generate_plot_data(subgrid, nparams, i_ax, j_ax)
-            grid_x, grid_y = grid
-
+                if self.scatter_flag:
+                    result_img = ax.scatter(*grid, c=u_values, cmap=cm.jet)
+                else:
+                    axes_size = int(self.grid.shape[0] ** 0.5)
+                    xi, yi = np.meshgrid(*[np.linspace(grid_i.min(), grid_i.max(), axes_size) for grid_i in grid])
+                    ui = griddata((grid[0], grid[1]), u_values, (xi, yi), method='cubic')
+                    result_img = ax.imshow(ui, extent=(grid[0].min(), grid[0].max(), grid[1].min(), grid[1].max()),
+                                           origin='lower', cmap=cm.jet, aspect='auto')
+                if nparams > 1:
+                    fig.colorbar(result_img, ax=ax)
+        elif self.img_dim == '3d':
             if self.scatter_flag:
-                result_img = ax.scatter(grid_x, grid_y, c=u_values, cmap=cm.jet, s=5, alpha=0.7)
+                ax.scatter(*grid, u_values, c=u_values, cmap=cm.jet)
             else:
-                axes_size = int(self.grid.shape[0] ** 0.5)
-
-                xi = np.linspace(grid_x.min(), grid_x.max(), axes_size)
-                yi = np.linspace(grid_y.min(), grid_y.max(), axes_size)
-                xi, yi = np.meshgrid(xi, yi)
-                ui = griddata((grid_x, grid_y), u_values, (xi, yi), method='cubic')
-
-                result_img = ax.imshow(ui, extent=(grid_x.min(), grid_x.max(), grid_y.min(), grid_y.max()),
-                                       origin='lower', cmap=cm.jet, aspect='auto')
-
-        self.set_labels(i_ax, j_ax, ax, nparams, fixed_values)
-
-        return result_img, ax
-
-    def _plot_img_3d(self, i_ax, j_ax, ax, nparams, fixed_values=None):
-        """
-        Solution plot in 3-rd dimension.
-        """
-        subgrid = self.filter_grid(fixed_values)
-        u_values, grid = self.generate_plot_data(subgrid, nparams, i_ax, j_ax)
-        grid_x, grid_y = grid
-
-        if self.scatter_flag:
-            ax.scatter(grid_x, grid_y, u_values, c=u_values, cmap=cm.jet, s=5, alpha=0.8)
-        else:
-            ax.plot_trisurf(grid_x, grid_y, u_values, cmap=cm.jet, linewidth=0.2, alpha=1)
-
-        self.set_labels(i_ax, j_ax, ax, nparams, fixed_values)
-
-    def _plot_img_4d(self, i_ax, j_ax, ax, nparams, fixed_values=None):
-        """
-        Solution plot on 4d image.
-        """
-        subgrid = self.filter_grid(fixed_values)
-        u_values, grid = self.generate_plot_data(subgrid, nparams, i_ax, j_ax)
-        grid_x, grid_y, grid_z = grid
-
-        ax.scatter(grid_x, grid_y, grid_z, c=u_values.flatten(), cmap=cm.jet, s=10, alpha=0.8)
+                ax.plot_trisurf(*grid, u_values, cmap=cm.jet, linewidth=0.2, alpha=1)
+        elif self.img_dim == '4d':
+            result_img = ax.scatter(*grid, c=u_values.flatten(), cmap=cm.jet)
+            fig.colorbar(result_img, ax=ax)
 
         self.set_labels(i_ax, j_ax, ax, nparams, fixed_values)
 
@@ -210,7 +233,7 @@ class Plots(Callback):
         return directory
 
     def solution_print(self):
-        """ printing or saving figures.
+        """ Printing or saving figures.
         """
 
         print_flag = self.model.t % self.print_every == 0
@@ -252,17 +275,16 @@ class Plots(Callback):
             n_rows = self.img_cols if self.var_transpose else self.img_rows
             n_cols = self.img_rows if self.var_transpose else self.img_cols
 
-            if self.img_dim == '2d':
-                fig, axes = plt.subplots(n_rows,
-                                         n_cols,
-                                         figsize=(self.figsize[0] * n_cols, self.figsize[1] * n_rows),
-                                         squeeze=False)
-            elif self.img_dim == '3d' or self.img_dim == '4d':
-                fig, axes = plt.subplots(n_rows,
-                                         n_cols,
-                                         figsize=(self.figsize[0] * n_cols, self.figsize[1] * n_rows),
-                                         subplot_kw={'projection': '3d'},
-                                         squeeze=False)
+            subplot_kwargs = {'subplot_kw': {'projection': '3d'}} if self.img_dim in ('3d', '4d') else {}
+
+            fig, axes = plt.subplots(
+                n_rows,
+                n_cols,
+                figsize=(self.figsize[0] * n_cols, self.figsize[1] * n_rows),
+                squeeze=False,
+                **subplot_kwargs
+            )
+
             if nparams > 2:
                 i_fix_value = 0
 
@@ -277,14 +299,7 @@ class Plots(Callback):
                             i_fix_value += 1
                     else:
                         fixed_values = None
-                    if self.img_dim == '2d':
-                        result_img, ax = self._plot_img_2d(i_ax, j_ax, ax, nparams, fixed_values=fixed_values)
-                        if nparams > 1:
-                            fig.colorbar(result_img, ax=ax)
-                    elif self.img_dim == '3d':
-                        self._plot_img_3d(i_ax, j_ax, ax, nparams, fixed_values=fixed_values)
-                    elif self.img_dim == '4d':
-                        self._plot_img_4d(i_ax, j_ax, ax, nparams, fixed_values=fixed_values)
+                    self._plot_img(i_ax, j_ax, fig, ax, nparams, fixed_values)
 
                 if nparams > 2 and self.nvars_model > 1 and self.var_transpose:
                     i_fix_value += 1
