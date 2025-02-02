@@ -160,15 +160,15 @@ def wave2d_heterogeneous_experiment(grid_res):
 
     cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-6)
 
-    cb_es = early_stopping.EarlyStopping(eps=1e-1,
+    cb_es = early_stopping.EarlyStopping(eps=1e-6,
                                          loss_window=100,
                                          no_improvement_patience=1000,
                                          patience=5,
                                          randomize_parameter=1e-6,
                                          info_string_every=10)
 
-    cb_plots = plot.Plots(save_every=10,
-                          print_every=10,
+    cb_plots = plot.Plots(save_every=50,
+                          print_every=None,
                           img_dir=img_dir,
                           img_dim='3d',
                           img_rows=2,
@@ -176,8 +176,7 @@ def wave2d_heterogeneous_experiment(grid_res):
                           scatter_flag=False,
                           n_samples=4,
                           plot_axes=[0, 1],
-                          fixed_axes=[2]
-                          )
+                          fixed_axes=[2])
 
     optimizer = Optimizer('Adam', {'lr': 1e-4})
 
