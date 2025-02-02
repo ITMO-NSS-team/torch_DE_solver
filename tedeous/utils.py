@@ -7,6 +7,7 @@ import os
 import shutil
 import numpy as np
 import torch
+import scipy
 from tedeous.device import check_device
 
 
@@ -19,6 +20,7 @@ def create_random_fn(eps: float) -> callable:
     Returns:
         callable: creating random params function.
     """
+
     def randomize_params(m):
         if (isinstance(m, torch.nn.Linear) or isinstance(m, torch.nn.Conv2d)) and m.bias is not None:
             m.weight.data = m.weight.data + \
@@ -71,9 +73,9 @@ def lambda_print(lam: torch.Tensor, keys: List) -> None:
 
 
 def bcs_reshape(
-    bval: torch.Tensor,
-    true_bval: torch.Tensor,
-    bval_length: List) -> Tuple[dict, dict, dict, dict]:
+        bval: torch.Tensor,
+        true_bval: torch.Tensor,
+        bval_length: List) -> Tuple[dict, dict, dict, dict]:
     """ Preprocessing for lambda evaluating.
 
     Args:
@@ -90,7 +92,7 @@ def bcs_reshape(
     bval_diff = bval - true_bval
 
     bcs = torch.cat([bval_diff[0:bval_length[i], i].reshape(-1)
-                                        for i in range(bval_diff.shape[-1])])
+                     for i in range(bval_diff.shape[-1])])
 
     return bcs
 
@@ -135,15 +137,15 @@ def mat_op_coeff(equation: Any) -> Any:
 
 
 def model_mat(model: torch.Tensor,
-                    domain: Any,
-                    cache_model: torch.nn.Module=None) -> Tuple[torch.Tensor, torch.nn.Module]:
+              domain: Any,
+              cache_model: torch.nn.Module = None) -> Tuple[torch.Tensor, torch.nn.Module]:
     """ Create model for *NN or autograd* modes from grid
         and model of *mat* mode.
 
     Args:
         model (torch.Tensor): model from *mat* method.
         grid (torch.Tensor): grid from *mat* method.
-        cache_model (torch.nn.Module, optional): neural network that will 
+        cache_model (torch.nn.Module, optional): neural network that will
                                                     approximate *mat* model. Defaults to None.
 
     Returns:
@@ -168,9 +170,9 @@ def model_mat(model: torch.Tensor,
 
 
 def save_model_nn(
-    cache_dir: str,
-    model: torch.nn.Module,
-    name: Union[str, None] = None) -> None:
+        cache_dir: str,
+        model: torch.nn.Module,
+        name: Union[str, None] = None) -> None:
     """
     Saves model in a cache (uses for 'NN' and 'autograd' methods).
     Args:
@@ -186,24 +188,24 @@ def save_model_nn(
         os.mkdir(cache_dir)
 
     parameters_dict = {'model': model.to('cpu'),
-                        'model_state_dict': model.state_dict()}
+                       'model_state_dict': model.state_dict()}
 
     try:
         torch.save(parameters_dict, cache_dir + '\\' + name + '.tar')
         print(f'model is saved in cache dir: {cache_dir}')
     except RuntimeError:
         torch.save(parameters_dict, cache_dir + '\\' + name + '.tar',
-                    _use_new_zipfile_serialization=False)  # cyrillic in path
+                   _use_new_zipfile_serialization=False)  # cyrillic in path
         print(f'model is saved in cache: {cache_dir}')
     except:
         print(f'Cannot save model in cache: {cache_dir}')
 
 
 def save_model_mat(cache_dir: str,
-                    model: torch.Tensor,
-                    domain: Any,
-                    cache_model: Union[torch.nn.Module, None] = None,
-                    name: Union[str, None] = None) -> None:
+                   model: torch.Tensor,
+                   domain: Any,
+                   cache_model: Union[torch.nn.Module, None] = None,
+                   name: Union[str, None] = None) -> None:
     """ Saves model in a cache (uses for 'mat' method).
 
     Args:
@@ -231,9 +233,10 @@ def save_model_mat(cache_dir: str,
         loss = optimizer.step(closure)
         t += 1
         print('Interpolate from trained model t={}, loss={}'.format(
-                t, loss))
+            t, loss))
 
     save_model_nn(cache_dir, net_autograd, name=name)
+
 
 def replace_none_by_zero(tuple_data: tuple | None) -> torch.Tensor:
     """ Make tensor from tuple (or None element) ad replace None elements to zero.
@@ -250,11 +253,12 @@ def replace_none_by_zero(tuple_data: tuple | None) -> torch.Tensor:
         return new_tuple
     return tuple_data
 
+
 class PadTransform(Module):
     """Pad tensor to a fixed length with given padding value.
-    
+
     src: https://pytorch.org/text/stable/transforms.html#torchtext.transforms.PadTransform
-    
+
     Done to avoid torchtext dependency (we need only this function).
     """
 
@@ -284,3 +288,107 @@ class PadTransform(Module):
             pad_amount = self.max_length - max_encoded_length
             x = torch.nn.functional.pad(x, (0, pad_amount), value=self.pad_value)
         return x
+
+
+def load_data(datapath: str) -> torch.Tensor:
+    """
+    Loads data from a given file and returns it as a PyTorch tensor.
+    This function supports loading data from .dat and .npy files.
+    If the file format is unsupported, an error is raised.
+
+    Args:
+        datapath (str): Path to the data file. Supports .dat (text format) and .npy (NumPy binary format).
+
+    Returns:
+        torch.Tensor: The loaded data as a PyTorch tensor.
+
+    Raises:
+        ValueError: If the file format is not .dat or .npy.
+    """
+    file_format = os.path.splitext(datapath)[-1]
+
+    if file_format == '.dat':
+        data = np.loadtxt(datapath, comments="%", encoding='utf-8').astype(np.float32)
+    elif file_format == '.npy':
+        data = np.load(datapath).astype(np.float32)
+    else:
+        raise ValueError("Unsupported file format. Please provide a .dat or .npy file.")
+
+    return torch.from_numpy(data)
+
+
+def exact_solution_data(grid, datapath, pde_dim_in, pde_dim_out, t_dim_flag=False):
+    """
+    Loads exact solution data and interpolates it onto a grid.
+
+    Args:
+        grid (torch.Tensor): the coordinate grid on which the solution will be interpolated.
+        datapath (str): path to the file containing exact solution data.
+        pde_dim_in (int): number of input variables for the differential equation.
+        pde_dim_out (int): number of output variables (solution dimensionality).
+        t_dim_flag (bool): flag indicating whether there is a time component in the data.
+                                     Set to True if time is included. Defaults to False.
+
+    Returns:
+        torch.Tensor: the interpolated exact solution, with shape (N, pde_dim_out) for multidimensional
+                      solutions, or (N,) for single-dimensional solutions.
+    """
+
+    device_origin = grid.device
+    grid = grid.to('cpu').detach()
+
+    test_data = load_data(datapath)
+    grid_data = torch.stack([coord for coord in test_data[:, :pde_dim_in - t_dim_flag]])
+    exact_func = test_data[:, pde_dim_in - t_dim_flag:]
+
+    if t_dim_flag:
+        N_t = int(exact_func.shape[1] / pde_dim_out)
+        exact_func = exact_func.reshape(-1, pde_dim_out)
+        t = torch.linspace(min(grid[:, pde_dim_in - 1]), max(grid[:, pde_dim_in - 1]), N_t) \
+            .reshape(-1, 1).to('cpu').detach()
+        grid_data = torch.vstack([torch.cat((coord.expand(len(t), len(coord)), t), dim=1) for coord in grid_data])
+
+    grid_data = grid_data.cpu().numpy()
+    exact_func = exact_func.cpu().numpy()
+    grid = grid.cpu().numpy()
+
+    if pde_dim_out == 1:
+        exact_func = scipy.interpolate.griddata(grid_data, exact_func, grid, method='nearest').reshape(-1)
+    else:
+        exact_func = np.array(
+            [scipy.interpolate.griddata(grid_data, exact_func[:, i_dim], grid, method='nearest').reshape(-1)
+             for i_dim in range(pde_dim_out)]
+        )
+
+    exact_func = torch.from_numpy(exact_func).to(device_origin)
+    return exact_func
+
+
+def init_data(grid, datapath):
+    """
+    Loads initial condition data and interpolates it onto the specified grid.
+
+    Args:
+        grid (torch.Tensor): coordinate grid where the initial values will be interpolated.
+        datapath (str): path to the file containing initial condition data.
+
+    Returns:
+        torch.Tensor: interpolated initial condition values on the grid, shape (N,).
+    """
+
+    device_origin = grid.device
+    grid = grid.to('cpu').detach()
+
+    init_data = load_data(datapath)
+    grid_data = torch.stack([coord for coord in init_data[:, :-1]])
+
+    init_value = init_data[:, -1:]
+
+    grid_data = grid_data.cpu().numpy()
+    init_value = init_value.cpu().numpy()
+    grid = grid.cpu().numpy()
+
+    init_value = scipy.interpolate.griddata(grid_data, init_value, grid, method='nearest').reshape(-1)
+    init_value = torch.from_numpy(init_value).to(device_origin)
+
+    return init_value
