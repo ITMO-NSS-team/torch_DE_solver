@@ -59,7 +59,7 @@ class Model():
             derivative_points: int = 2,
             weak_form: List[callable] = None,
             tol: float = 0,
-            removed_domains: List[str] = None):
+            removed_domains: list = None):
         """ Compile model for training process.
 
         Args:
@@ -78,7 +78,7 @@ class Model():
             if derivative_points=2 the central scheme are used. Defaults to 2.
             weak_form (List[callable], optional): basis function for weak loss. Defaults to None.
             tol (float, optional): tolerance for causual loss. Defaults to 0.
-            removed_domains (List[str]): domains to be removed from the grid. Defaults to None.
+            removed_domains (list): domains to be removed from the grid. Defaults to None.
         """
         self.mode = mode
         self.lambda_bound = lambda_bound
