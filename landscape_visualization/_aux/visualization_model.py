@@ -122,6 +122,7 @@ class VisualizationModel:
         dataset = rec_data_loader.dataset
         input_dim = dataset[0].shape[0]
         print('number of models considered: ', len(dataset))
+        print("input_dim: ", input_dim)
 
 
         if self.isEnabled('anchor'):

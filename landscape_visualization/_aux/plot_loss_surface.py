@@ -9,10 +9,10 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from matplotlib.colors import LogNorm, NoNorm
 
-from _aux.AEmodel import UniformAutoencoder
-from _aux.trajectories_data import get_trajectory_dataloader
-from _aux.utils import get_density, get_files, repopulate_model
-from _aux.PINN_loss_data import PINNLossData, get_PINN
+from landscape_visualization._aux.AEmodel import UniformAutoencoder
+from landscape_visualization._aux.trajectories_data import get_trajectory_dataloader
+from landscape_visualization._aux.utils import get_density, get_files, repopulate_model
+from landscape_visualization._aux.PINN_loss_data import PINNLossData, get_PINN
 
 from tedeous.model import Model
 from tedeous.data import Domain, Conditions, Equation
@@ -181,8 +181,8 @@ class PlotLossSurface:
         trajectory_dataset_samples = []
         trajectory_coordinates_rec = []
         with torch.no_grad():
-            for batch_idx, data in enumerate(self.trajectory_dataset ):
-                data = data.to(self.device).view(1, -1)
+            for batch_idx, data in enumerate(self.trajectory_dataset):
+                data = data.to(self.device).view(1, -1).float()
 
                 x_recon, z = self.best_model(data)
 
@@ -323,7 +323,7 @@ class PlotLossSurface:
         abs_errors = (torch.abs(trajectory_losses-original_trajectory_losses))
         ds = []
         for batch_idx, data in enumerate(self.trajectory_dataset):   
-            data = data.to(self.device)
+            data = data.to(self.device).float()
 
             x_recon, z = self.best_model(data.view(1, -1))
             z = z.view(-1)
@@ -492,5 +492,39 @@ class PlotLossSurface:
 
         self.plotting(trajectory_losses, original_trajectory_losses, trajectory_coordinates,
                  grid_losses, grid_xx, grid_yy, rec_grid_models)
+    
 
+    def save_equation_loss_surface(self, u_exact_test: torch.Tensor, grid_test: torch.Tensor, grid: torch.Tensor, domain: Domain, equation: Equation, boundaries: Conditions, PINN_layers: list):
+        """save_low_dimensional_loss_surface.
+
+        Args:
+            u_exact_test (torch.Tensor): The exact solution of the equation used for computing test errors.
+            grid_test (torch.Tensor): The test grid on which the exact solution and predictions are compared.
+            grid (torch.Tensor): discretization of comp-l domain.
+            domain (Domain): object of class Domain.
+            equation (Equation): object of class Equation
+            conditions (Conditions): object of class Conditions
+            PINN_layers (list): list of layers used for repopulating models.
+        """
+
+        self.grid_test = grid_test
+        self.u_exact_test = u_exact_test
+
+        trajectory_losses, original_trajectory_losses, trajectory_coordinates = self.get_coordinates_and_losses_of_trajectories(grid, domain, equation, boundaries, PINN_layers)
+        grid_losses, grid_xx, grid_yy, rec_grid_models = self.get_coordinates_and_losses_of_surface(grid, domain, equation, boundaries, PINN_layers)
+
+        raw_state = {
+            'grid_losses': grid_losses,
+            'grid_xx': grid_xx,
+            'grid_yy': grid_yy,
+            'trajectory_losses': trajectory_losses,
+            'original_trajectory_losses': original_trajectory_losses,
+            'trajectory_coordinates': trajectory_coordinates
+        }
+
+        torch.save(raw_state, self.path_to_plot_model_directory + '/loss_surface_data.pt')
+
+        return raw_state
+
+    
 

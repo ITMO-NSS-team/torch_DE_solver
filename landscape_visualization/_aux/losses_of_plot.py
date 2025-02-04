@@ -2,7 +2,7 @@
 import torch
 import torch.nn as nn
 
-from _aux.utils import get_closest_point_and_distance
+from landscape_visualization._aux.utils import get_closest_point_and_distance
 
 ####### LOSSES ###########
 
