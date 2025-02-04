@@ -193,7 +193,7 @@ def experiment_state_burgers_1d_adam_lbfgs(grid_res, exp_name='burgers1d_adam_lb
     path_to_plot_model = r"test\landscape_visualization\saved_models\PINN_burgers_adam_state_test\model.py"
     path_to_trajectories =  path_to_parent_folder
     raw_states = make_loss_surface(path_to_plot_model, path_to_trajectories, grid_res)
-    print(raw_states)
+    # print(raw_states)
 
     ########
     # Choosing some action based on raw_states. For example, training with LBFGS
@@ -237,7 +237,7 @@ def experiment_state_burgers_1d_adam_lbfgs(grid_res, exp_name='burgers1d_adam_lb
     path_to_plot_model = r"test\landscape_visualization\saved_models\PINN_burgers_adam_state_test\model.py"
     path_to_trajectories =  path_to_parent_folder
     raw_states = make_loss_surface(path_to_plot_model, path_to_trajectories, grid_res, resume=True)
-    print(raw_states)
+    # print(raw_states)
 
 
 
