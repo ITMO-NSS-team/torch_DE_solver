@@ -74,7 +74,7 @@ class Closure():
 
             if self.optimizer.use_grad:
                 grads = self.optimizer.gradient(loss)
-                grads = torch.where(grads == float('nan'), torch.zeros_like(grads), grads)
+                grads = torch.where(grads != grads, torch.zeros_like(grads), grads)
             else:
                 grads = torch.tensor([0.])
 
@@ -89,14 +89,66 @@ class Closure():
             grads_swarm.append(grads.reshape(1, -1))
 
         losses = torch.stack(loss_swarm).reshape(-1)
+        
         gradients = torch.vstack(grads_swarm)
 
         self.model.cur_loss = min(loss_swarm)
 
         return losses, gradients
+    
+    def _closure_ngd(self):
+        self.optimizer.zero_grad()
+        with torch.autocast(device_type=self.device,
+                            dtype=self.dtype,
+                            enabled=self.mixed_precision):
+            loss, loss_normalized = self.model.solution_cls.evaluate()
+        if self.cuda_flag:
+            self.scaler.scale(loss).backward(retain_graph=True)
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
+        else:
+            loss.backward(retain_graph=True)
+
+        self.model.cur_loss = loss_normalized if self.normalized_loss_stop else loss
+
+        int_res = self.model.solution_cls.operator._pde_compute()
+        bval, true_bval, _, _ = self.model.solution_cls.boundary.apply_bcs()
+
+        return int_res, bval, true_bval, loss, self.model.solution_cls.evaluate
+
+    def _closure_nncg(self):
+        self.optimizer.zero_grad()
+        with torch.autocast(device_type=self.device,
+                            dtype=self.dtype,
+                            enabled=self.mixed_precision):
+            loss, loss_normalized = self.model.solution_cls.evaluate()
+
+        
+
+
+
+        # if self.optimizer.use_grad:
+        grads = self.optimizer.gradient(loss)
+        grads = torch.where(grads != grads, torch.zeros_like(grads), grads)
+
+        #this fellow moved to model.py since it called several times a row
+        #if (self.model.t-1) % self.optimizer.precond_update_frequency == 0: 
+        #        print('here t={} and freq={}'.format(self.model.t-1,self.optimizer.precond_update_frequency))
+        #        self.optimizer.update_preconditioner(grads)
+
+
+        self.model.cur_loss = loss_normalized if self.normalized_loss_stop else loss
+
+        return loss, grads
+
+
 
     def get_closure(self, _type: str):
-        if _type == 'PSO':
+        if _type in ('PSO', 'CSO'):
             return self._closure_pso
+        elif _type == 'NGD':
+            return self._closure_ngd
+        elif _type == 'NNCG':
+            return self._closure_nncg 
         else:
             return self._closure

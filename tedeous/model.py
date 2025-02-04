@@ -21,13 +21,15 @@ class Model():
             net: Union[torch.nn.Module, torch.Tensor],
             domain: Domain,
             equation: Equation,
-            conditions: Conditions):
+            conditions: Conditions,
+            batch_size: int = None):
         """
         Args:
             net (Union[torch.nn.Module, torch.Tensor]): neural network or torch.Tensor for mode *mat*
             grid (Domain): object of class Domain
             equation (Equation): object of class Equation
             conditions (Conditions): object of class Conditions
+            batch_size (int): size of batch
         """
         self.net = net
         self.domain = domain
@@ -42,6 +44,7 @@ class Model():
         else:
             os.makedirs(folder_path)
         self._save_dir = folder_path
+        self.batch_size = batch_size
 
     def compile(
             self,
@@ -90,8 +93,15 @@ class Model():
         self.equation_cls = Operator_bcond_preproc(grid, operator, bconds, h=h, inner_order=inner_order,
                                                    boundary_order=boundary_order).set_strategy(mode)
 
+        if self.batch_size != None:
+            if len(grid)<self.batch_size:
+                self.batch_size=None
+
+
         self.solution_cls = Solution(grid, self.equation_cls, self.net, mode, weak_form,
-                                         lambda_operator, lambda_bound, tol, derivative_points)
+                                     lambda_operator, lambda_bound, tol, derivative_points,
+                                     batch_size=self.batch_size)
+
 
     def _model_save(
         self,
@@ -154,23 +164,30 @@ class Model():
 
         while self.t < epochs and self.stop_training is False:
             callbacks.on_epoch_begin()
-
             self.optimizer.zero_grad()
-            
-            if device_type() == 'cuda' and mixed_precision:
-                closure()
-            else:
-                self.optimizer.step(closure)
-            if optimizer.gamma is not None and self.t % optimizer.decay_every == 0:
-                optimizer.scheduler.step()
 
+            #this fellow should be in NNCG closure, but since it calls closure many times, it updates several time, which casuses instability
+            if optimizer.optimizer == 'NNCG' and ((self.t-1) % optimizer.params['precond_update_frequency'] == 0): 
+                grads = self.optimizer.gradient(self.cur_loss)
+                grads = torch.where(grads != grads, torch.zeros_like(grads), grads)
+                self.optimizer.update_preconditioner(grads)
+
+
+            iter_count = 1 if self.batch_size is None else self.solution_cls.operator.n_batches
+            for _ in range(iter_count): # if batch mod then iter until end of batches else only once
+                if device_type() == 'cuda' and mixed_precision:
+                    closure()
+                else:
+                    self.optimizer.step(closure)
+                if optimizer.gamma is not None and self.t % optimizer.decay_every == 0:
+                    optimizer.scheduler.step()
             callbacks.on_epoch_end()
 
             self.t += 1
             if info_string_every is not None:
                 if self.t % info_string_every == 0:
                     loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
-                    info = 'Step = {} loss = {:.6f}.'.format(self.t, loss)
+                    info = '[{}] Step = {} loss = {:.6f}.'.format(datetime.datetime.now(),self.t, loss)
                     print(info)
 
         callbacks.on_train_end()
