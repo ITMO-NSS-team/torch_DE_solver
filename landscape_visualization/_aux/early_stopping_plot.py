@@ -61,10 +61,10 @@ class EarlyStopping(Callback):
                 self.stopped_epoch = self.model.epoch
                 self.stop_training = True
 
-    def on_train_end(self):
+    def on_train_end(self, logs=None):
         if self.stopped_epoch > 0:
             print("Epoch {}: early stopping".format(self.stopped_epoch))
         print("best model captured at epoch {} with loss={:.4f}".format(self.best_epoch, self.best))
-        create_directory_if_not_exists(self.path_to_plot_model)
-        torch.save(self.model.AE_model.state_dict(), self.path_to_plot_model)
+        create_directory_if_not_exists(self.model.path_to_plot_model)
+        torch.save(self.model.AE_model.state_dict(), self.model.path_to_plot_model)
         return self.model.AE_model
