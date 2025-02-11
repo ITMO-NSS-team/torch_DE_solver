@@ -1,7 +1,9 @@
 import torch
-from typing import Union, List, Any
+import numpy as np
+from typing import Union, List, Dict, Any
 import tempfile
 import os
+import datetime
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.input_preprocessing import Operator_bcond_preproc
@@ -10,8 +12,12 @@ from tedeous.solution import Solution
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.utils import save_model_nn, save_model_mat
 from tedeous.optimizers.closure import Closure
-from tedeous.device import device_type
-import datetime
+from tedeous.device import device_type, check_device
+
+from tedeous.rl_algorithms import DQNAgent
+from tedeous.rl_environment import OptimizerEnv
+from torch import optim
+from itertools import count
 
 
 class Model():
@@ -98,8 +104,8 @@ class Model():
                                                    boundary_order=boundary_order).set_strategy(mode)
 
         if self.batch_size != None:
-            if len(grid)<self.batch_size:
-                self.batch_size=None
+            if len(grid) < self.batch_size:
+                self.batch_size = None
 
         self.solution_cls = Solution(grid, self.equation_cls, self.net, mode, weak_form,
                                      lambda_operator, lambda_bound, tol, derivative_points,
@@ -125,71 +131,186 @@ class Model():
                 save_model_nn(self._save_dir, model=self.net, name=model_name)
 
     def train(self,
-              optimizer: Optimizer,
+              optimizer: Union[Optimizer, list, dict],
               epochs: int,
               info_string_every: Union[int, None] = None,
               mixed_precision: bool = False,
               save_model: bool = False,
               model_name: Union[str, None] = None,
-              callbacks: Union[List, None] = None):
+              callbacks: Union[List, None] = None,
+              rl_opt_flag: bool = False):
         """ train model.
 
         Args:
-            optimizer (Optimizer): the object of Optimizer class
+            optimizer (Union[Optimizer, list, dict]): the object of Optimizer class or dict, or list
             epochs (int): number of epoch for training.
             info_string_every (Union[int, None], optional): print loss state after *info_string_every* epoch. Defaults to None.
             mixed_precision (bool, optional): apply mixed precision for calculation. Defaults to False.
             save_model (bool, optional): save resulting model in cache. Defaults to False.
             model_name (Union[str, None], optional): model name. Defaults to None.
             callbacks (Union[List, None], optional): callbacks for training process. Defaults to None.
+            rl_opt_flag: use RL optimizer instead default. Defaults to False.
         """
 
         self.t = 1
         self.stop_training = False
-
         callbacks = CallbackList(callbacks=callbacks, model=self)
-
         callbacks.on_train_begin()
 
         self.net = self.solution_cls.model
 
-        self.optimizer = optimizer.optimizer_choice(self.mode, self.net)
-
-        closure = Closure(mixed_precision, self).get_closure(optimizer.optimizer)
-
+        # Initialize min_loss
         self.min_loss, _ = self.solution_cls.evaluate()
-
         self.cur_loss = self.min_loss
 
-        print('[{}] initial (min) loss is {}'.format(
-            datetime.datetime.now(), self.min_loss.item()))
+        print('[{}] initial (min) loss is {}'.format(datetime.datetime.now(), self.min_loss.item()))
 
-        while self.t < epochs and self.stop_training is False:
-            callbacks.on_epoch_begin()
-            self.optimizer.zero_grad()
+        def execute_training_phase(epochs, reuse_closure=False):
+            while self.t < epochs and self.stop_training is False:
+                callbacks.on_epoch_begin()
+                self.optimizer.zero_grad()
 
-            # this fellow should be in NNCG closure, but since it calls closure many times, it updates several time, which casuses instability
-            if optimizer.optimizer == 'NNCG' and ((self.t-1) % optimizer.params['precond_update_frequency'] == 0):
-                grads = self.optimizer.gradient(self.cur_loss)
-                grads = torch.where(grads != grads, torch.zeros_like(grads), grads)
-                self.optimizer.update_preconditioner(grads)
+                # this fellow should be in NNCG closure, but since it calls closure many times,
+                # it updates several time, which casuses instability
 
-            iter_count = 1 if self.batch_size is None else self.solution_cls.operator.n_batches
-            for _ in range(iter_count):  # if batch mod then iter until end of batches else only once
-                if device_type() == 'cuda' and mixed_precision:
-                    closure()
-                else:
-                    self.optimizer.step(closure)
-                if optimizer.gamma is not None and self.t % optimizer.decay_every == 0:
-                    optimizer.scheduler.step()
-            callbacks.on_epoch_end()
+                # a = ((self.t - 1) % optimizer.params['precond_update_frequency'] == 0)
+                # b = optimizer.optimizer == 'NNCG'
 
-            self.t += 1
-            if info_string_every is not None:
-                if self.t % info_string_every == 0:
+                if optimizer.optimizer == 'NNCG' and \
+                        ((self.t - 1) % optimizer.params['precond_update_frequency'] == 0) and \
+                        not reuse_closure:
+                    grads = self.optimizer.gradient(self.cur_loss)
+                    grads = torch.where(grads != grads, torch.zeros_like(grads), grads)
+                    print('here t={} and freq={}'.format(self.t - 1, optimizer.params['precond_update_frequency']))
+                    self.optimizer.update_preconditioner(grads)
+
+                iter_count = 1 if self.batch_size is None else self.solution_cls.operator.n_batches
+                for _ in range(iter_count):  # if batch mod then iter until end of batches else only once
+                    if device_type() == 'cuda' and mixed_precision:
+                        closure()
+                    else:
+                        self.optimizer.step(closure)
+                    if optimizer.gamma is not None and self.t % optimizer.decay_every == 0:
+                        optimizer.scheduler.step()
+
+                callbacks.on_epoch_end()
+                self.t += 1
+
+                if rl_opt_flag:
+                    return self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
+
+                if info_string_every is not None and self.t % info_string_every == 0:
                     loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
-                    info = '[{}] Step = {} loss = {:.6f}.'.format(datetime.datetime.now(), self.t, loss)
-                    print(info)
+                    print(f'[{datetime.datetime.now()}] Step = {self.t}, loss = {loss:.6f}.')
+
+        def compute_reward(prev_error, current_error, method="diff"):
+            """
+            Calculates the reward for the agent.
+
+            Args:
+                prev_error (float): Error in the previous step.
+                current_error (float): Error at the current step.
+                method (str): The method for calculating the reward (“diff” or “absolute”).
+
+            Returns:
+                float: The value of the reward.
+            """
+            if method == "diff":
+                return prev_error - current_error
+            elif method == "absolute":
+                return -current_error
+            else:
+                raise ValueError("Invalid reward method. Use 'diff' or 'absolute'.")
+
+        if isinstance(optimizer, list) and rl_opt_flag:
+            env = OptimizerEnv()
+
+            state_dim = env.observation_space.shape[0]
+            action_dim = env.action_space.n
+
+            device = torch.device(
+                "cuda" if torch.cuda.is_available() else
+                "mps" if torch.backends.mps.is_available() else
+                "cpu"
+            )
+
+            if torch.cuda.is_available() or torch.backends.mps.is_available():
+                num_episodes = 1000
+            else:
+                num_episodes = 500
+
+            rl_agent = DQNAgent(state_dim, action_dim)
+
+            # Optimization of the RL algorithm is implemented in the file rl_algorithms
+
+            episode_durations = []
+
+            for i_episode in range(num_episodes):
+                state, info = env.reset()
+                state = check_device(state)
+                total_reward = 0
+                prev_loss = 0
+
+                for t in count():
+                    # # Correct optimizer RL example (action)
+                    # action = {
+                    #     "opt_name": "Adam",
+                    #     "opt_params": {"lr": 1e-3},
+                    #     "epochs": 500
+                    # }
+
+                    # # Correct action
+                    # action = rl_agent.select_action(state)
+
+                    # Stub action
+                    action_index = np.random.choice(len(optimizer))
+                    action = optimizer[action_index]
+
+                    observation, terminated, truncated, _ = env.step(action.item())  # model.train()
+
+                    optimizer = Optimizer(optimizer['opt_name'], optimizer['opt_params'])
+                    self.optimizer = optimizer.optimizer_choice(self.mode, self.net)
+                    closure = Closure(mixed_precision, self, reuse_closure=True).get_closure(optimizer.optimizer)
+                    self.t = 1
+
+                    print(f'\n[{datetime.datetime.now()}] Using optimizer: {optimizer["opt_name"]} '
+                          f'for {optimizer["epochs"]} epochs.')
+                    loss = execute_training_phase(optimizer["epochs"], reuse_closure=True)
+                    print(f'[{datetime.datetime.now()}] Finished optimizer {optimizer["opt_name"]}.')
+
+                    reward = compute_reward(prev_loss, loss, method='diff' if prev_loss != 0 else 'absolute')
+
+                    prev_loss = loss
+                    done = terminated or truncated
+                    next_state = env.reset()
+
+                    rl_agent.push_memory(state, action, reward, next_state, reward)
+                    rl_agent.optimize_model()
+
+                    state = next_state
+                    total_reward += reward
+
+                    if done:
+                        print(f"Episode {t}: Total Reward = {total_reward}")
+                        break
+
+        elif isinstance(optimizer, dict):
+            optimizers_chain = optimizer.copy()
+            for opt_name, opt_params in optimizers_chain.items():
+                opt_param = opt_params[0]
+                opt_epochs = opt_params[1]
+                optimizer = Optimizer(opt_name, opt_param)
+                self.optimizer = optimizer.optimizer_choice(self.mode, self.net)
+                closure = Closure(mixed_precision, self, reuse_closure=True).get_closure(optimizer.optimizer)
+                self.t = 1
+                print(f'\n[{datetime.datetime.now()}] Using optimizer: {opt_name} for {opt_epochs} epochs.')
+                execute_training_phase(opt_epochs, reuse_closure=True)
+                print(f'[{datetime.datetime.now()}] Finished optimizer {opt_name}.')
+
+        elif isinstance(optimizer, Optimizer):
+            self.optimizer = optimizer.optimizer_choice(self.mode, self.net)
+            closure = Closure(mixed_precision, self).get_closure(optimizer.optimizer)
+            execute_training_phase(epochs)
 
         callbacks.on_train_end()
 
