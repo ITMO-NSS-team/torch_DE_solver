@@ -21,15 +21,13 @@ from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 from tedeous.models import mat_model
 
-# RL optimizer
-from examples.DeepONet_scripts.rl_env import OptimizerEnv_2
-from examples.DeepONet_scripts.rl_alg import DQNAgent, DQN
-from itertools import count
-from torch import optim
-from collections import deque, namedtuple
-import random
-import torch.nn as nn
-import math
+# # RL optimizer
+# from itertools import count
+# from torch import optim
+# from collections import deque, namedtuple
+# import random
+# import torch.nn as nn
+# import math
 
 solver_device('gpu')
 
@@ -107,16 +105,22 @@ def wave_1d_basic_experiment(grid_res):
 
     equation.add(wave_eq)
 
-    neurons = 100
+    neurons = 32
+
+    # net = torch.nn.Sequential(
+    #     torch.nn.Linear(2, neurons),
+    #     torch.nn.Tanh(),
+    #     torch.nn.Linear(neurons, neurons),
+    #     torch.nn.Tanh(),
+    #     torch.nn.Linear(neurons, neurons),
+    #     torch.nn.Tanh(),
+    #     torch.nn.Linear(neurons, neurons),
+    #     torch.nn.Tanh(),
+    #     torch.nn.Linear(neurons, 1)
+    # )
 
     net = torch.nn.Sequential(
         torch.nn.Linear(2, neurons),
-        torch.nn.Tanh(),
-        torch.nn.Linear(neurons, neurons),
-        torch.nn.Tanh(),
-        torch.nn.Linear(neurons, neurons),
-        torch.nn.Tanh(),
-        torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
@@ -128,11 +132,19 @@ def wave_1d_basic_experiment(grid_res):
             torch.nn.init.xavier_normal_(m.weight)
             torch.nn.init.zeros_(m.bias)
 
+    model_layers = [2, neurons, neurons, 1]
+
     start = time.time()
 
     # net = mat_model(domain, equation)
 
-    model = Model(net, domain, equation, boundaries)
+    grid = domain.build('autograd')
+    grid_test = torch.cartesian_prod(torch.linspace(0, 1, 100), torch.linspace(0, 1, 100))
+    u_exact_test = exact_func(grid_test).reshape(-1)
+
+    equation_params = [u_exact_test, grid_test, grid, domain, equation, boundaries, model_layers]
+
+    model = Model(net, *equation_params[3:-1])
 
     model.compile('autograd', lambda_operator=1, lambda_bound=100)
 
@@ -147,11 +159,10 @@ def wave_1d_basic_experiment(grid_res):
                                          randomize_parameter=1e-6,
                                          info_string_every=10)
 
-    cb_plots = plot.Plots(save_every=50,
-                          print_every=40,
+    cb_plots = plot.Plots(save_every=None,
+                          print_every=None,
                           img_dir=img_dir,
-                          # img_dim='2d',
-                          # scatter_flag=True
+                          scatter_flag=False
                           )
 
     # RL wrapper integration ###########################################################################################
@@ -163,7 +174,7 @@ def wave_1d_basic_experiment(grid_res):
     # work correctly due to the update of the model.train method
 
     # Following parameters must be entered into the model
-    # these parameters took from /landscape_visualization/_aux/plot_loss_surface.py file:
+    # these parameters took from /landscape_visualization_origin/_aux/plot_loss_surface.py file:
 
     # save_equation_loss_surface function parameters:
     # u_exact_test = u(grid_test).reshape(-1)
@@ -171,50 +182,50 @@ def wave_1d_basic_experiment(grid_res):
     # grid, domain, equation, boundaries = burgers1d_problem_formulation(grid_res)
     # model_layers = [2, 32, 32, 1]  # PINN layers
 
-    optimizer = {
-        'CSO': ({"lr": 1e-3}, 30),
-        'Adam': ({"lr": 1e-4}, 70),
-        'LBFGS': ({"lr": 1,
-                   "max_iter": 20,
-                   "max_eval": None,
-                   "tolerance_grad": 1e-05,
-                   "tolerance_change": 1e-07,
-                   "history_size": 50,
-                   "line_search_fn": "strong_wolfe"}, 50),
-        # 'NGD': ({'grid_steps_number': 20}, 30),
-        'NNCG': ({"mu": 1e-1,
-                  "lr": 1,
-                  "rank": 10,
-                  "line_search_fn": "armijo",
-                  "precond_update_frequency": 20,
-                  "eigencdecomp_shift_attepmt_count": 10,
-                  # 'cg_max_iters': 1000,
-                  "verbose": False}, 50)
-    }
+    # optimizer = {
+    #     'CSO': ({"lr": 1e-3}, 30),
+    #     'Adam': ({"lr": 1e-4}, 70),
+    #     'LBFGS': ({"lr": 1,
+    #                "max_iter": 20,
+    #                "max_eval": None,
+    #                "tolerance_grad": 1e-05,
+    #                "tolerance_change": 1e-07,
+    #                "history_size": 50,
+    #                "line_search_fn": "strong_wolfe"}, 50),
+    #     # 'NGD': ({'grid_steps_number': 20}, 30),
+    #     'NNCG': ({"mu": 1e-1,
+    #               "lr": 1,
+    #               "rank": 10,
+    #               "line_search_fn": "armijo",
+    #               "precond_update_frequency": 20,
+    #               "eigencdecomp_shift_attepmt_count": 10,
+    #               # 'cg_max_iters': 1000,
+    #               "verbose": False}, 50)
+    # }
 
     # version 1 (right) - wrapper in model.train method ################################################################
 
-    # optimizer RL example (action)
-    optimizer_rl_example = {
-        "opt_name": "Adam",
-        "opt_params": {"lr": 1e-4},
-        "epochs": 500
-    }
+    # # optimizer RL example (action)
+    # optimizer_rl_example = {
+    #     "opt_name": "Adam",
+    #     "opt_params": {"lr": 1e-4},
+    #     "epochs": 500
+    # }
 
     optimizer = [
         {
-            "opt_name": "CSO",
-            "opt_params": {"lr": 1e-3},
+            "name": "CSO",
+            "params": {"lr": 5e-4},
+            "epochs": 20
+        },
+        {
+            "name": "Adam",
+            "params": {"lr": 1e-4},
             "epochs": 100
         },
         {
-            "opt_name": "Adam",
-            "opt_params": {"lr": 1e-4},
-            "epochs": 1000
-        },
-        {
-            "opt_name": "LBFGS",
-            "opt_params": {
+            "name": "LBFGS",
+            "params": {
                 "lr": 1,
                 "max_iter": 20,
                 "max_eval": None,
@@ -225,8 +236,8 @@ def wave_1d_basic_experiment(grid_res):
             }, "epochs": 100
         },
         {
-            "opt_name": "NNCG",
-            "opt_params": {
+            "name": "NNCG",
+            "params": {
                 "mu": 1e-1,
                 "lr": 1,
                 "rank": 10,
@@ -239,62 +250,91 @@ def wave_1d_basic_experiment(grid_res):
         }
     ]
 
+    # optimizer = Optimizer('Adam', {'lr': 1e-4})
+
+    AE_model_params = {
+        "mode": "NN",
+        "num_of_layers": 3,
+        "layers_AE": [
+            991,
+            125,
+            15
+        ],
+        "num_models": None,
+        "from_last": False,
+        "prefix": "model-",
+        "every_nth": 1,
+        "grid_step": 0.1,
+        "d_max_latent": 2,
+        "anchor_mode": "circle",
+        "rec_weight": 10000.0,
+        "anchor_weight": 0.0,
+        "lastzero_weight": 0.0,
+        "polars_weight": 0.0,
+        "wellspacedtrajectory_weight": 0.0,
+        "gridscaling_weight": 0.0,
+    }
+
+    AE_train_params = {
+        "first_RL_epoch_AE_params": {
+            "epochs": 20000,
+            "patience_scheduler": 10000,
+            "cosine_scheduler_patience": 2000,
+        },
+        "other_RL_epoch_AE_params": {
+            "epochs": 6000,
+            "patience_scheduler": 4000,
+            "cosine_scheduler_patience": 1200,
+        },
+        "batch_size": 32,
+        "every_epoch": 100,
+        "learning_rate": 5e-4,
+        "resume": True,
+        "finetune_AE_model": False
+    }
+
+    loss_surface_params = {
+        "loss_type": "loss_total",
+        "every_nth": 1,
+        "num_of_layers": 3,
+        "layers_AE": [
+            991,
+            125,
+            15
+        ],
+        "batch_size": 32,
+        "num_models": None,
+        "from_last": False,
+        "prefix": "model-",
+        "loss_name": "loss_total",
+        "x_range": [-1.25, 1.25, 25],
+        "vmax": -1.0,
+        "vmin": -1.0,
+        "vlevel": 30.0,
+        "key_models": None,
+        "key_modelnames": None,
+        "density_type": "CKA",
+        "density_p": 2,
+        "density_vmax": -1,
+        "density_vmin": -1,
+        "colorFromGridOnly": True,
+        "img_dir": img_dir
+    }
+
+    n_save_models = 10
+
     model.train(optimizer,
                 5e5,
                 save_model=True,
                 callbacks=[cb_es, cb_plots, cb_cache],
-                rl_opt_flag=True)
-
-    # # version 2 ######################################################################################################
-
-    # agent = DQNAgent(state_dim=state_dim, action_dim=action_dim)
-    #
-    # reward_history = []
-    #
-    # for episode in range(num_episodes):
-    #
-    #     total_reward = 0
-    #     done = False
-    #     i_opt = 0
-    #
-    #     while not done:
-    #         # # Optimizer choice
-    #         # action = agent.select_action(state)
-    #         action = Optimizer(list(optimizers_dict.keys())[i_opt],
-    #                            list(optimizers_dict.values())[i_opt][0])
-    #
-    #         # model.train should be in env.step() method
-    #         model.train(action,
-    #                     list(optimizers_dict.values())[i_opt][1],
-    #                     save_model=True,
-    #                     callbacks=[cb_es, cb_plots, cb_cache],
-    #                     rl_opt_flag=True)
-    #         # get loss_current from model.train()
-    #         loss_current = None
-    #
-    #         current_optimizer_idx = action
-    #
-    #         next_state = env.reset()
-    #
-    #         reward = 0 if i == 0 else prev_error - error_current
-    #         self.prev_error = error_current
-    #
-    #         done = error_current < 1e-3 or self.epochs >= self.max_epochs
-    #
-    #         next_state, reward, done = env.step(action)
-    #         agent.store_experience(state, action, reward, next_state, done)
-    #         agent.train()
-    #
-    #         state = next_state
-    #         total_reward += reward
-    #         i_opt += 1
-    #
-    #     reward_history.append(total_reward)
-    #
-    #     if (episode + 1) % 50 == 0:
-    #         print(f"Episode {episode + 1}, Total Reward: {total_reward}")
-
-    ####################################################################################################################
+                reuse_nncg_flag=True,
+                rl_opt_flag=True,
+                models_concat_flag=False,
+                equation_params=equation_params,
+                AE_model_params=AE_model_params,
+                AE_train_params=AE_train_params,
+                loss_surface_params=loss_surface_params,
+                n_save_models=n_save_models)
 
     end = time.time()
 
