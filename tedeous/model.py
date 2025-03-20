@@ -1,9 +1,9 @@
 import torch
-import numpy as np
-from typing import Union, List, Dict, Any
+from typing import Union, List
 import tempfile
 import os
 import datetime
+import copy
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.input_preprocessing import Operator_bcond_preproc
@@ -12,12 +12,10 @@ from tedeous.solution import Solution
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.utils import save_model_nn, save_model_mat
 from tedeous.optimizers.closure import Closure
-from tedeous.device import device_type, check_device
+from tedeous.device import device_type
 
 from tedeous.rl_algorithms import DQNAgent
-from tedeous.rl_environment import OptimizerEnv
-from torch import optim
-from itertools import count
+from tedeous.rl_environment import EnvRLOptimizer
 
 
 class Model():
@@ -138,7 +136,14 @@ class Model():
               save_model: bool = False,
               model_name: Union[str, None] = None,
               callbacks: Union[List, None] = None,
-              rl_opt_flag: bool = False):
+              reuse_nncg_flag: bool = False,
+              rl_opt_flag: bool = False,
+              models_concat_flag: bool = False,
+              n_save_models: int = None,
+              equation_params: list = None,
+              AE_model_params: dict = None,
+              AE_train_params: dict = None,
+              loss_surface_params: dict = None):
         """ train model.
 
         Args:
@@ -149,10 +154,19 @@ class Model():
             save_model (bool, optional): save resulting model in cache. Defaults to False.
             model_name (Union[str, None], optional): model name. Defaults to None.
             callbacks (Union[List, None], optional): callbacks for training process. Defaults to None.
-            rl_opt_flag: use RL optimizer instead default. Defaults to False.
+            reuse_nncg_flag (bool): reuse of NNCG optimizer in optimizers chain. Default to False.
+            rl_opt_flag (bool): use RL optimizer instead default. Defaults to False.
+            n_save_models (int): number of points on the loss trajectory. Default to None.
+            models_concat_flag (bool): concatenate loss tensors of models (for loss landscape create) or not. Default to False.
+            equation_params (list): parameters (grid, domain, equation, boundaries) of experiment. Defaults to None.
+            AE_model_params (dict): parameters of autoencoder model. Default to None.
+            AE_train_params (dict): parameters of autoencoder train process. Default to None.
+            loss_surface_params (dict): parameters of loss surface create. Default to None.
         """
 
         self.t = 1
+        self.saved_models = []
+
         self.stop_training = False
         callbacks = CallbackList(callbacks=callbacks, model=self)
         callbacks.on_train_begin()
@@ -165,20 +179,19 @@ class Model():
 
         print('[{}] initial (min) loss is {}'.format(datetime.datetime.now(), self.min_loss.item()))
 
-        def execute_training_phase(epochs, reuse_closure=False):
-            while self.t < epochs and self.stop_training is False:
+        def execute_training_phase(epochs, reuse_nncg_flag=False, n_save_models=1):
+            if not(models_concat_flag and rl_opt_flag):
+                self.saved_models = []
+
+            while self.t < epochs and not self.stop_training:
                 callbacks.on_epoch_begin()
                 self.optimizer.zero_grad()
 
                 # this fellow should be in NNCG closure, but since it calls closure many times,
                 # it updates several time, which casuses instability
 
-                # a = ((self.t - 1) % optimizer.params['precond_update_frequency'] == 0)
-                # b = optimizer.optimizer == 'NNCG'
-
                 if optimizer.optimizer == 'NNCG' and \
-                        ((self.t - 1) % optimizer.params['precond_update_frequency'] == 0) and \
-                        not reuse_closure:
+                        ((self.t - 1) % optimizer.params['precond_update_frequency'] == 0) and not reuse_nncg_flag:
                     grads = self.optimizer.gradient(self.cur_loss)
                     grads = torch.where(grads != grads, torch.zeros_like(grads), grads)
                     print('here t={} and freq={}'.format(self.t - 1, optimizer.params['precond_update_frequency']))
@@ -191,17 +204,28 @@ class Model():
                     else:
                         self.optimizer.step(closure)
                     if optimizer.gamma is not None and self.t % optimizer.decay_every == 0:
-                        optimizer.scheduler.step()
+                        optimizer.sheduler.step()
+
+                if rl_opt_flag and self.t % (epochs // n_save_models) == 0:
+                    current_model = copy.deepcopy(self.net)
+                    self.saved_models.append(current_model)
 
                 callbacks.on_epoch_end()
                 self.t += 1
 
-                if rl_opt_flag:
-                    return self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
-
                 if info_string_every is not None and self.t % info_string_every == 0:
                     loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
                     print(f'[{datetime.datetime.now()}] Step = {self.t}, loss = {loss:.6f}.')
+            else:
+                loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
+                print(f'[{datetime.datetime.now()}] Step = {self.t}, loss = {loss:.6f}.')
+
+            if rl_opt_flag and self.t % (epochs // n_save_models) == 0:
+                current_model = copy.deepcopy(self.net)
+                self.saved_models.append(current_model)
+
+            if rl_opt_flag:
+                return loss, self.saved_models
 
         def compute_reward(prev_error, current_error, method="diff"):
             """
@@ -223,76 +247,128 @@ class Model():
                 raise ValueError("Invalid reward method. Use 'diff' or 'absolute'.")
 
         if isinstance(optimizer, list) and rl_opt_flag:
-            env = OptimizerEnv()
+            env = EnvRLOptimizer(optimizer,
+                                 equation_params=equation_params,
+                                 callbacks=callbacks,
+                                 AE_model_params=AE_model_params,
+                                 AE_train_params=AE_train_params,
+                                 loss_surface_params=loss_surface_params,
+                                 n_save_models=n_save_models)
 
-            state_dim = env.observation_space.shape[0]
+            # These objects must be created after the first optimizer is started
+            state_dim = env.observation_space
+            # state_dim = np.prod(env.observation_space.shape)
             action_dim = env.action_space.n
-
-            device = torch.device(
-                "cuda" if torch.cuda.is_available() else
-                "mps" if torch.backends.mps.is_available() else
-                "cpu"
-            )
-
-            if torch.cuda.is_available() or torch.backends.mps.is_available():
-                num_episodes = 1000
-            else:
-                num_episodes = 500
 
             rl_agent = DQNAgent(state_dim, action_dim)
 
+            total_reward = 0
+
+            # We will learn the model with first optimizer here
+            # # Correct action
+            # action = rl_agent.select_action(state)
+
             # Optimization of the RL algorithm is implemented in the file rl_algorithms
+            optimizers = optimizer.copy()
 
-            episode_durations = []
+            # Stub action
+            action = optimizer[0]
 
-            for i_episode in range(num_episodes):
-                state, info = env.reset()
-                state = check_device(state)
-                total_reward = 0
-                prev_loss = 0
+            optimizer = Optimizer(action['name'], action['params'])
+            self.optimizer = optimizer.optimizer_choice(self.mode, self.net)
+            closure = Closure(mixed_precision, self, reuse_nncg_flag=reuse_nncg_flag).get_closure(optimizer.optimizer)
+            self.t = 1
 
-                for t in count():
-                    # # Correct optimizer RL example (action)
-                    # action = {
-                    #     "opt_name": "Adam",
-                    #     "opt_params": {"lr": 1e-3},
-                    #     "epochs": 500
-                    # }
+            print(f'\nRL agent training: step {1}.')
+            print(f'Using optimizer: {action["name"]} for {action["epochs"]} epochs.')
+            loss, solver_models = execute_training_phase(
+                action["epochs"],
+                reuse_nncg_flag=reuse_nncg_flag,
+                n_save_models=n_save_models
+            )
+            env.solver_models = solver_models
+            env.current_loss = loss
+            print(f'Finished optimizer {action["name"]}.')
 
-                    # # Correct action
-                    # action = rl_agent.select_action(state)
+            # input weights (for generate state) and loss (for calculate reward) to step method
+            # first getting current weights and current losses
+            state, reward, done, _ = env.step()  # model.train()
 
-                    # Stub action
-                    action_index = np.random.choice(len(optimizer))
-                    action = optimizer[action_index]
+            # rl_agent.push_memory(state, action, reward, next_state, reward)
+            # rl_agent.optimize_model()
 
-                    observation, terminated, truncated, _ = env.step(action.item())  # model.train()
+            # state = next_state
+            total_reward += reward
 
-                    optimizer = Optimizer(optimizer['opt_name'], optimizer['opt_params'])
-                    self.optimizer = optimizer.optimizer_choice(self.mode, self.net)
-                    closure = Closure(mixed_precision, self, reuse_closure=True).get_closure(optimizer.optimizer)
-                    self.t = 1
+            callbacks.callbacks[1].save_every = self.t
+            env.render()
 
-                    print(f'\n[{datetime.datetime.now()}] Using optimizer: {optimizer["opt_name"]} '
-                          f'for {optimizer["epochs"]} epochs.')
-                    loss = execute_training_phase(optimizer["epochs"], reuse_closure=True)
-                    print(f'[{datetime.datetime.now()}] Finished optimizer {optimizer["opt_name"]}.')
+            num_episodes = len(optimizers)
+            # num_episodes = action_dim
 
-                    reward = compute_reward(prev_loss, loss, method='diff' if prev_loss != 0 else 'absolute')
+            # # Optimization of the RL algorithm is implemented in the file rl_algorithms
+            # optimizers = optimizer.copy()
 
-                    prev_loss = loss
-                    done = terminated or truncated
-                    next_state = env.reset()
+            for i_episode in range(1, num_episodes):
+                # if i_episode != 0:
+                #     state = env.reset()
+                #     state = check_device(state)
+                # total_reward = 0
 
-                    rl_agent.push_memory(state, action, reward, next_state, reward)
-                    rl_agent.optimize_model()
+                # # Correct action
+                # action = rl_agent.select_action(state)
 
-                    state = next_state
-                    total_reward += reward
+                # Stub action
+                action = optimizers[i_episode]
 
-                    if done:
-                        print(f"Episode {t}: Total Reward = {total_reward}")
-                        break
+                optimizer = Optimizer(action['name'], action['params'])
+                self.optimizer = optimizer.optimizer_choice(self.mode, self.net)
+                closure = Closure(mixed_precision, self, reuse_nncg_flag=reuse_nncg_flag).get_closure(optimizer.optimizer)
+                self.t = 1
+
+                print(f'\nRL agent training: step {i_episode + 1}.')
+                print(f'Using optimizer: {action["name"]} for {action["epochs"]} epochs.')
+                loss, solver_models = execute_training_phase(
+                    action["epochs"],
+                    reuse_nncg_flag=reuse_nncg_flag,
+                    n_save_models=n_save_models
+                )
+                env.solver_models = solver_models
+                env.current_loss = loss
+                print(f'Finished optimizer {action["name"]}.')
+
+                # input weights (for generate state) and loss (for calculate reward) to step method
+                # first getting current models and current losses
+                next_state, reward, done, _ = env.step()
+
+                rl_agent.push_memory(state, action, reward, next_state, reward)
+                rl_agent.optimize_model()
+
+                state = next_state
+                total_reward += reward
+
+                callbacks.callbacks[1].save_every = self.t
+                env.render()
+
+                if done or i_episode == len(optimizers):
+                    print(f"Episode {i_episode}: Total Reward = {total_reward}")
+                    break
+
+        elif isinstance(optimizer, list) and not rl_opt_flag:
+            optimizers_chain = optimizer.copy()
+            for optimizer in optimizers_chain:
+                opt_name = optimizer['name']
+                opt_params = optimizer['params']
+                opt_epochs = optimizer['epochs']
+                optimizer = Optimizer(opt_name, opt_params)
+                self.optimizer = optimizer.optimizer_choice(self.mode, self.net)
+
+                closure = Closure(mixed_precision, self, reuse_nncg_flag=reuse_nncg_flag).get_closure(optimizer.optimizer)
+                self.t = 1
+
+                print(f'\n[{datetime.datetime.now()}] Using optimizer: {opt_name} for {opt_epochs} epochs.')
+                execute_training_phase(opt_epochs, reuse_nncg_flag=reuse_nncg_flag)
+                print(f'[{datetime.datetime.now()}] Finished optimizer {opt_name}.')
 
         elif isinstance(optimizer, dict):
             optimizers_chain = optimizer.copy()
@@ -301,10 +377,12 @@ class Model():
                 opt_epochs = opt_params[1]
                 optimizer = Optimizer(opt_name, opt_param)
                 self.optimizer = optimizer.optimizer_choice(self.mode, self.net)
-                closure = Closure(mixed_precision, self, reuse_closure=True).get_closure(optimizer.optimizer)
+
+                closure = Closure(mixed_precision, self, reuse_nncg_flag=reuse_nncg_flag).get_closure(optimizer.optimizer)
                 self.t = 1
+
                 print(f'\n[{datetime.datetime.now()}] Using optimizer: {opt_name} for {opt_epochs} epochs.')
-                execute_training_phase(opt_epochs, reuse_closure=True)
+                execute_training_phase(opt_epochs, reuse_nncg_flag=reuse_nncg_flag)
                 print(f'[{datetime.datetime.now()}] Finished optimizer {opt_name}.')
 
         elif isinstance(optimizer, Optimizer):
