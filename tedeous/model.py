@@ -269,6 +269,7 @@ class Model():
                       f'\nTime: {datetime.datetime.now()}.'
                       f'\nUsing optimizer: {action["name"]} for {action["epochs"]} epochs.'
                       f'\nTotal Reward = {total_reward}.')
+
                 loss, solver_models = execute_training_phase(
                     action["epochs"],
                     reuse_nncg_flag=reuse_nncg_flag,
