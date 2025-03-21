@@ -283,8 +283,6 @@ class Model():
                 # input weights (for generate state) and loss (for calculate reward) to step method
                 # first getting current models and current losses
                 next_state, reward, done, _ = env.step()
-                print(f'\nTotal reward after using {", ".join(optimizers_history)} '
-                      f'{"optimizers" if len(optimizers_history) > 1 else "optimizer"}: {reward}.\n')
 
                 if i > 1:
                     rl_agent.push_memory(state, action, reward, next_state, reward)
@@ -293,11 +291,14 @@ class Model():
                 state = next_state
                 total_reward += reward
 
+                print(f'Current_reward after {action["name"]} optimizer: {reward}.\n'
+                      f'Total reward after using {", ".join(optimizers_history)} '
+                      f'{"optimizers" if len(optimizers_history) > 1 else "optimizer"}: {total_reward}.\n')
+
                 callbacks.callbacks[1].save_every = self.t
                 env.render()
 
                 if done:
-                    print(f"Episode {i}: Total Reward = {total_reward}")
                     break
 
         elif isinstance(optimizer, list) and not rl_opt_flag:
