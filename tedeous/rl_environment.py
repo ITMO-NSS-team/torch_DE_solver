@@ -56,7 +56,6 @@ class EnvRLOptimizer(gym.Env):
         self.equation_params = equation_params
         self.callbacks = callbacks
 
-        ################################################################################################################
         # Размерность нужно вытягивать из кода loss landscape, она будет постоянной,
         # т.к. action_dim - список оптимизаторов, он не меняется
         # state_dim - размерность поверхности, мы используем латентное 2D пространство, для генерации поверхности
@@ -71,35 +70,29 @@ class EnvRLOptimizer(gym.Env):
         # # State - loss surface (can be an array)
         # self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=self.visualization_model.latent_dim,
         #                                     dtype=np.float32)
-        self.observation_space = 2
+        # observation_space = latent_dim + 1
+        self.observation_space = 3
 
         self.loss_history = []
         self.tolerance = 1e-4
         self.counter = 1
         self.n_save_models = n_save_models
 
-        ################################################################################################################
-
     def reset(self):
         """Reset environment - load error surface, reset history to zero, select starting point."""
         self.current_loss = self.loss_history[-1]
-        # self.current_optimizer = self.optimizer_configs[self.n_opt]  # must be changed
         self.counter += 1
 
-    # There is action will be update model (not new optimizer, but new model)
-    # Last version of signature: def step(self, action: int, weights: torch.Tensor, current_loss: float, params: list):
     def step(self):
         """Applying an action (optimizer selection) and updating the state."""
 
-        ################################################################################################################
-        # There is a training of AE model for create loss landscape
         finetune_AE_model = self.AE_train_params['finetune_AE_model']
         batch_size = self.AE_train_params['batch_size']
         every_epoch = self.AE_train_params['every_epoch']
         learning_rate = self.AE_train_params['learning_rate']
         resume = self.AE_train_params['resume']
         AE_params = self.AE_train_params[
-            'first_RL_epoch_AE_params' if finetune_AE_model else 'other_RL_epoch_AE_params'
+            'other_RL_epoch_AE_params' if finetune_AE_model else 'first_RL_epoch_AE_params'
         ]
 
         epochs = AE_params['epochs']
@@ -109,9 +102,6 @@ class EnvRLOptimizer(gym.Env):
         optimizer = Optimizer('RMSprop', {'lr': learning_rate}, cosine_scheduler_patience=cosine_scheduler_patience)
         cb_es = EarlyStopping(patience=patience_scheduler)
 
-        # В результате обучения должны выдаваться веса обученного автоэнкодера,
-        # которые нужно передать дальше в PlotLossSurface для генерации состояния и отрисовки поверхности
-
         AEmodel = self.visualization_model.train(
             optimizer, epochs, every_epoch, batch_size, resume,
             callbacks=[cb_es], solver_models=self.solver_models, finetune_AE_model=finetune_AE_model
@@ -120,7 +110,6 @@ class EnvRLOptimizer(gym.Env):
         self.loss_surface_params['solver_models'] = self.solver_models
         self.loss_surface_params['AE_model'] = AEmodel
 
-        ################################################################################################################
         self.plot_loss_surface = PlotLossSurface(**self.loss_surface_params)
         self.plot_loss_surface.counter = self.counter
 
