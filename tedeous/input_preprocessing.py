@@ -1,15 +1,15 @@
-
 """preprocessing module for operator (equation) and boundaries.
 """
 
 from copy import deepcopy
-from typing import Union
+from typing import Union, Callable
 import numpy as np
 import torch
 
 from tedeous.points_type import Points_type
 from tedeous.finite_diffs import Finite_diffs
 from tedeous.device import check_device
+
 
 def lambda_prepare(val: torch.Tensor,
                    lambda_: Union[int, list, torch.Tensor]) -> torch.Tensor:
@@ -35,7 +35,8 @@ def lambda_prepare(val: torch.Tensor,
     elif isinstance(lambda_, list):
         lambdas = torch.tensor(lambda_)
 
-    return lambdas.reshape(1,-1)
+    return lambdas.reshape(1, -1)
+
 
 class EquationMixin:
     """
@@ -60,14 +61,14 @@ class EquationMixin:
             try:
                 operator['var']
             except:
-                if isinstance(operator['pow'], (int, float)):
+                if isinstance(operator['pow'], (int, float, Callable)):
                     operator[dif_dir] = [operator[dif_dir]]
                     operator['pow'] = [operator['pow']]
                     operator['var'] = [0]
                 elif isinstance(operator['pow'], list):
                     operator['var'] = [0 for _ in operator['pow']]
                 continue
-            if isinstance(operator['pow'], (int, float)):
+            if isinstance(operator['pow'], (int, float, Callable)):
                 operator[dif_dir] = [operator[dif_dir]]
                 operator['pow'] = [operator['pow']]
                 operator['var'] = [operator['var']]
@@ -187,7 +188,7 @@ class Equation_NN(EquationMixin, Points_type):
             method(i.e., grid resolution for scheme). Defaults to 0.001.
             inner_order (str, optional): accuracy inner order for finite difference.
             Defaults to '1'.
-            boundary_order (str, optional):accuracy boundary order for finite difference.
+            boundary_order (str, optional): accuracy boundary order for finite difference.
             Defaults to '2'.
         """
 
@@ -215,7 +216,6 @@ class Equation_NN(EquationMixin, Points_type):
             list: list, where the conventional operator changed to
             steps and signs (see scheme_build function description).
         """
-
         if axes_scheme_type == 'central':
             scheme_variant = self.inner_order
         else:
@@ -565,7 +565,7 @@ class Equation_mat(EquationMixin):
                     axis_intersect = torch.isclose(
                         pt[axis].float(), self.grid[axis].float())
                     prod *= axis_intersect
-                point_pos = torch.where(prod == True)
+                    point_pos = torch.where(prod)
             bpos.append(point_pos)
         return bpos
 

@@ -12,15 +12,16 @@ def solver_device(device: str):
         device (str): device mode, **cuda, gpu, cpu*.
 
     """
-    if device in ['cuda','gpu'] and torch.cuda.is_available():
+    if device in ['cuda', 'gpu'] and torch.cuda.is_available():
         print('CUDA is available and used.')
         return torch.set_default_device('cuda')
-    elif device in ['cuda','gpu'] and not torch.cuda.is_available():
+    elif device in ['cuda', 'gpu'] and not torch.cuda.is_available():
         print('CUDA is not available, cpu is used!')
         return torch.set_default_device('cpu')
     else:
         print('Default cpu processor is used.')
         return torch.set_default_device('cpu')
+
 
 def check_device(data: Any):
     """ checking the device of the data.
@@ -32,13 +33,22 @@ def check_device(data: Any):
     Returns:
         data (Any): data with correct device
     """
-    device = torch.tensor([0.]).device.type
-    if data.device.type != device:
-        return data.to(device)
-    else:
+    device = torch.tensor([0.]).device
+    if isinstance(data, torch.Tensor):
+        if data.device != device:
+            return data.to(device)
         return data
+    else:
+        try:
+            tensor_data = torch.tensor(data)
+            return tensor_data.to(device)
+        except Exception as e:
+            raise TypeError(f"Cannot convert data to tensor. Ensure it's a compatible type. Error: {e}")
+
 
 def device_type():
     """ Return the default device.
     """
     return torch.tensor([0.]).device.type
+
+

@@ -139,3 +139,5 @@ cb_plots = plot.Plots(save_every=5000, print_every=None, img_dir=img_dir)
 optimizer = Optimizer('Adam', {'lr': 1e-5})
 
 model.train(optimizer, 1e6, save_model=True, callbacks=[cb_es, cb_plots])
+
+print(1)
