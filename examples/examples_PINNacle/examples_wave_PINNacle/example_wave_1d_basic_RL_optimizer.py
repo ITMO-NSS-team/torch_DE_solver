@@ -31,7 +31,7 @@ from tedeous.models import mat_model
 
 # solver_device('gpu')
 # solver_device('cpu')
-torch.set_default_device("mps")
+torch.set_default_device("cpu")
 # torch.set_default_device('mps:0')
 
 

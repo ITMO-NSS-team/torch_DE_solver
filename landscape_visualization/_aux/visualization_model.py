@@ -304,8 +304,8 @@ class VisualizationModel:
                                                                         epoch=self.epoch,
                                                                         d_max_latent=self.d_max_latent)
 
-                    # loss_total_batch = torch.tensor(0.0, dtype=torch.float32, device="cuda")\
-                    loss_total_batch = torch.tensor(0.0, dtype=torch.float32, device="mps")
+                    # loss_total_batch = torch.tensor(0.0, dtype=torch.float32, device="cuda")\ 'mps'_
+                    loss_total_batch = torch.tensor(0.0, dtype=torch.float32, device="cpu")
                     for i in losses:
                         weighted_loss = losses[i].float() * float(self.loss_dict[i]['weight'])
                         loss_total_batch += weighted_loss

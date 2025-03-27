@@ -19,6 +19,14 @@ from tedeous.rl_algorithms import DQNAgent
 from tedeous.rl_environment import EnvRLOptimizer
 
 
+def raw_action_postproc(tup):
+    optims_ar = ['Adam', 'RAdam', 'SGD', 'LBFGS', 'NNCG', 'PSO', 'CSO', 'RMSprop']
+    loss_ar = [0.1, 0.01, 0.001, 0.0001, 0.00001]
+    epochs_ar = [1, 10, 100, 1000, 10000]
+    i_optim, i_loss, i_epochs = tup
+    return {'name': optims_ar[i_optim], 'params': {'lr': loss_ar[i_loss]}, 'epochs': epochs_ar[i_epochs]}
+
+
 class Model():
     """class for preprocessing"""
 
@@ -190,7 +198,7 @@ class Model():
                 # this fellow should be in NNCG closure, but since it calls closure many times,
                 # it updates several time, which casuses instability
 
-                if optimizer.optimizer == 'NNCG' and \
+                if optimizer.optimizer == 'NNCG' and  reuse_nncg_flag and \
                         ((self.t - 1) % optimizer.params['precond_update_frequency'] == 0) and not reuse_nncg_flag:
                     grads = self.optimizer.gradient(self.cur_loss)
                     grads = torch.where(grads != grads, torch.zeros_like(grads), grads)
@@ -241,24 +249,26 @@ class Model():
             # state_dim = np.prod(env.observation_space.shape)
             action_dim = env.action_space
 
-            rl_agent = DQNAgent(state_dim, action_dim)
+            rl_agent = DQNAgent()
 
             # Optimization of the RL algorithm is implemented in the file rl_algorithms
             optimizers = optimizer.copy()
 
-            state = None
+            state = torch.zeros((26, 26))
             total_reward = 0
             optimizers_history = []
 
             for i in itertools.count():
                 # # Correct action
-                # action = rl_agent.select_action(state)
+                action_raw = rl_agent.select_action(state)
+
+                action = raw_action_postproc(action_raw)
 
                 # Stub action
-                action = optimizers[i]
+                # action = optimizers[i]
 
-                reuse_nncg_flag = action["name"] == 'NNCG'
-
+                reuse_nncg_flag = action["name"] == 'NNCG' if i > 0 else False
+ 
                 optimizer = Optimizer(action['name'], action['params'])
                 self.optimizer = optimizer.optimizer_choice(self.mode, self.net)
                 closure = Closure(mixed_precision, self,
@@ -287,8 +297,16 @@ class Model():
                 next_state, reward, done, _ = env.step()
 
                 if i > 1:
-                    rl_agent.push_memory(state, action, reward, next_state, reward)
+                    rl_agent.push_memory(state, action, reward)
                     rl_agent.optimize_model()
+
+                #optim part
+                buff_test = []
+                for _ in range(8):
+                    buff_test.append((state, next_state, action_raw, loss))
+                
+                rl_agent.optim_(buff_test)
+
 
                 state = next_state
                 total_reward += reward

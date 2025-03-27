@@ -146,3 +146,4 @@ img/
 docs/img/*
 !docs/img/*.png
 .pylintrc
+rlpinn/
