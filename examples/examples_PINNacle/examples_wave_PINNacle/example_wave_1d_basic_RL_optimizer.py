@@ -4,6 +4,7 @@ Created on Mon May 31 12:33:44 2021
 
 @author: user
 """
+
 import torch
 import numpy as np
 import os
@@ -21,17 +22,9 @@ from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 from tedeous.models import mat_model
 
-# # RL optimizer
-# from itertools import count
-# from torch import optim
-# from collections import deque, namedtuple
-# import random
-# import torch.nn as nn
-# import math
-
-# solver_device('gpu')
+solver_device('gpu')
 # solver_device('cpu')
-torch.set_default_device("cpu")
+# torch.set_default_device("cpu")
 # torch.set_default_device('mps:0')
 
 
@@ -179,12 +172,6 @@ def wave_1d_basic_experiment(grid_res):
     # Following parameters must be entered into the model
     # these parameters took from /landscape_visualization_origin/_aux/plot_loss_surface.py file:
 
-    # save_equation_loss_surface function parameters:
-    # u_exact_test = u(grid_test).reshape(-1)
-    # grid_test = torch.cartesian_prod(torch.linspace(0, 1, 100), torch.linspace(0, 1, 100))
-    # grid, domain, equation, boundaries = burgers1d_problem_formulation(grid_res)
-    # model_layers = [2, 32, 32, 1]  # PINN layers
-
     # optimizer = {
     #     'CSO': ({"lr": 1e-3}, 30),
     #     'Adam': ({"lr": 1e-4}, 70),
@@ -208,23 +195,16 @@ def wave_1d_basic_experiment(grid_res):
 
     # version 1 (right) - wrapper in model.train method ################################################################
 
-    # # optimizer RL example (action)
-    # optimizer_rl_example = {
-    #     "opt_name": "Adam",
-    #     "opt_params": {"lr": 1e-4},
-    #     "epochs": 500
-    # }
-
     optimizer = [
         {
             "name": "CSO",
             "params": {"lr": 5e-4},
-            "epochs": 20
+            "epochs": 100
         },
         {
             "name": "Adam",
             "params": {"lr": 1e-4},
-            "epochs": 100
+            "epochs": 1000
         },
         {
             "name": "LBFGS",
@@ -276,13 +256,14 @@ def wave_1d_basic_experiment(grid_res):
         "polars_weight": 0.0,
         "wellspacedtrajectory_weight": 0.0,
         "gridscaling_weight": 0.0,
+        "device": "cpu"
     }
 
     AE_train_params = {
         "first_RL_epoch_AE_params": {
-            "epochs": 20000,
-            "patience_scheduler": 10000,
-            "cosine_scheduler_patience": 2000,
+            "epochs": 1000,
+            "patience_scheduler": 1000,
+            "cosine_scheduler_patience": 500,
         },
         "other_RL_epoch_AE_params": {
             "epochs": 6000,
@@ -325,20 +306,20 @@ def wave_1d_basic_experiment(grid_res):
     }
 
     n_save_models = 10
+    n_trajectories = 5
 
     model.train(optimizer,
                 5e5,
                 save_model=True,
                 callbacks=[cb_es, cb_plots, cb_cache],
-                # reuse_nncg_flag=True,
                 rl_opt_flag=True,
                 models_concat_flag=False,
                 equation_params=equation_params,
                 AE_model_params=AE_model_params,
                 AE_train_params=AE_train_params,
                 loss_surface_params=loss_surface_params,
-                n_save_models=n_save_models
-                )
+                n_save_models=n_save_models,
+                n_trajectories=n_trajectories)
 
     end = time.time()
 
