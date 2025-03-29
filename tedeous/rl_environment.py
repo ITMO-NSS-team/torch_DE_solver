@@ -70,8 +70,8 @@ class EnvRLOptimizer(gym.Env):
         # # State - loss surface (can be an array)
         # self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=self.visualization_model.latent_dim,
         #                                     dtype=np.float32)
-        # observation_space = latent_dim + 1
-        self.observation_space = 3
+        # observation_space = 3
+        self.observation_space = self.visualization_model.latent_dim + 1
 
         self.loss_history = []
         self.tolerance = 1e-4
