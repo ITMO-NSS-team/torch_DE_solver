@@ -22,7 +22,7 @@ from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 from tedeous.models import mat_model
 
-solver_device('gpu')
+# solver_device('gpu')
 # solver_device('cpu')
 # torch.set_default_device("cpu")
 # torch.set_default_device('mps:0')
@@ -256,7 +256,7 @@ def wave_1d_basic_experiment(grid_res):
         "polars_weight": 0.0,
         "wellspacedtrajectory_weight": 0.0,
         "gridscaling_weight": 0.0,
-        "device": "cpu"
+        # "device": "cpu"
     }
 
     AE_train_params = {

@@ -114,7 +114,8 @@ class VisualizationModel:
                                      'weight': wellspacedtrajectory_weight},
         }
         self.isEnabled = lambda loss: self.loss_dict[loss]['weight'] > 0
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("mps")
 
     def get_files_and_compile_train_mode(self,
                                          batch_size: int = 32,
@@ -305,7 +306,7 @@ class VisualizationModel:
                                                                         d_max_latent=self.d_max_latent)
 
                     # loss_total_batch = torch.tensor(0.0, dtype=torch.float32, device="cuda")\ 'mps'_
-                    loss_total_batch = torch.tensor(0.0, dtype=torch.float32, device="cpu")
+                    loss_total_batch = torch.tensor(0.0, dtype=torch.float32, device="mps:0")
                     for i in losses:
                         weighted_loss = losses[i].float() * float(self.loss_dict[i]['weight'])
                         loss_total_batch += weighted_loss

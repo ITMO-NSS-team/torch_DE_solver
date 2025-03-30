@@ -22,7 +22,7 @@ from tedeous.rl_environment import EnvRLOptimizer
 def raw_action_postproc(tup):
     optims_ar = ['Adam', 'RAdam', 'Adam', 'LBFGS', 'PSO', 'CSO', 'RMSprop']
     loss_ar = [0.1, 0.01, 0.001, 0.0001]
-    epochs_ar = [10, 50, 50]
+    epochs_ar = [10, 100, 1000]
     i_optim, i_loss, i_epochs = tup
     return {'name': optims_ar[i_optim], 'params': {'lr': loss_ar[i_loss]}, 'epochs': epochs_ar[i_epochs]}
 
@@ -163,7 +163,7 @@ class Model():
               AE_model_params: dict = None,
               AE_train_params: dict = None,
               loss_surface_params: dict = None,
-              n_trajectories: int = 1):
+              n_trajectories: int = 100):
         """ train model.
 
         Args:
@@ -261,7 +261,7 @@ class Model():
             # state_dim = np.prod(env.observation_space.shape)
             action_dim = env.action_space
 
-            memory_size = 2  # ????
+            memory_size = 1024  # ????
 
             rl_agent = DQNAgent(state_dim, action_dim, memory_size=memory_size)
 
@@ -288,6 +288,7 @@ class Model():
                 total_reward = 0
                 optimizers_history = []
                 state = torch.zeros(state_shape)
+                state = state.to('mps')
 
                 for i in itertools.count():
                     action_raw = rl_agent.select_action(state)
@@ -324,6 +325,8 @@ class Model():
                     # input weights (for generate state) and loss (for calculate reward) to step method
                     # first getting current models and current losses
                     next_state, reward, done, _ = env.step()
+                    reward = 1/loss
+                    next_state = next_state.to('mps')
 
                     if i != 0:
                         rl_agent.push_memory((state, next_state, action_raw, reward))
@@ -341,8 +344,8 @@ class Model():
                     callbacks.callbacks[1].save_every = self.t
                     env.render()
 
-                    if done or i == 3:
-                        break
+                    # if done or i == 3:
+                    #     break
                 a = 0
 
         elif isinstance(optimizer, list) and not rl_opt_flag:

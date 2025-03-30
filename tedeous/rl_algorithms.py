@@ -6,6 +6,7 @@ import torch.optim as optim
 import random
 from collections import deque, namedtuple
 import math
+import copy
 
 GAMMA = 0.99
 EPS_START = 0.9
@@ -45,7 +46,7 @@ class DQN(nn.Module):
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
         self.fc1 = nn.Linear(6 * 6 * 32, 128)
         self.relu3 = nn.ReLU()
-        self.fc2_optim = nn.Linear(128, 8)
+        self.fc2_optim = nn.Linear(128, 7)
         self.fc2_loss = nn.Linear(128, 4)
         self.fc2_epochs = nn.Linear(128, 3)
         self.softmax = nn.Softmax()
@@ -63,7 +64,7 @@ class DQN(nn.Module):
 
 class DQNAgent:
     def __init__(self, lr=1e-3, gamma=0.99, epsilon=1.0, epsilon_decay=0.995, epsilon_min=0.01,
-                 memory_size=10000, batch_size=2):
+                 memory_size=10000, batch_size=128):
         # self.state_dim = state_dim
         # self.action_dim = action_dim
         self.gamma = gamma
@@ -73,9 +74,12 @@ class DQNAgent:
         self.batch_size = batch_size
         self.replay_buffer = ReplayBuffer(memory_size)
         self.steps_done = 0
+        self.optim_steps = 0
 
-        self.model = DQN()
-        self.target_model = DQN()
+        self.model = DQN().to('mps:0')
+        self.target_model = DQN().to('mps:0')
+        for param in self.target_model.parameters():
+            param.requires_grad = False
         self.target_model.load_state_dict(self.model.state_dict())
         self.target_model.eval()
 
@@ -119,7 +123,7 @@ class DQNAgent:
             optim_max_Q = torch.max(left_Q_optim, dim=1).values
             loss_max_Q = torch.max(left_Q_loss, dim=1).values
             epochs_max_Q = torch.max(left_Q_epochs, dim=1).values
-            reward_ = 1 / reward
+            reward_ = reward
             dqn_optim = reward_ + GAMMA * optim_max_Q - optim_action_Q
             dqn_loss = reward_ + GAMMA * loss_max_Q - loss_action_Q
             dqn_epochs = reward_ + GAMMA * epochs_max_Q - epochs_action_Q
@@ -129,6 +133,13 @@ class DQNAgent:
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
+        self.optim_steps += 1
+        if self.optim_steps  == 5:
+            self.optim_steps = 0
+            self.target_model = copy.deepcopy(self.model)
+            for param in self.target_model.parameters():
+                param.requires_grad = False
+        
 
     # Action function stub
     def select_action(self, state):
