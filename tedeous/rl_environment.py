@@ -1,11 +1,7 @@
 import gym
 import matplotlib.pyplot as plt
 
-from typing import List, Dict, Union
-
-# from tedeous.loss_landscape.generate_plot_surface import PlotLossSurface
-# from tedeous.loss_landscape.visualization_model import VisualizationModel
-# from tedeous.loss_landscape.early_stopping_plot import EarlyStopping
+from typing import List, Union
 
 from landscape_visualization._aux.plot_loss_surface import PlotLossSurface
 from landscape_visualization._aux.visualization_model import VisualizationModel
@@ -37,7 +33,7 @@ def compute_reward(prev_loss, current_loss, method="diff"):
 
 class EnvRLOptimizer(gym.Env):
     def __init__(self,
-                 optimizer_configs: List[Dict],
+                 optimizers: dict,
                  equation_params: list = None,
                  loss_surface_params: dict = None,
                  AE_model_params: dict = None,
@@ -46,7 +42,7 @@ class EnvRLOptimizer(gym.Env):
                  n_save_models: int = None):
         super(EnvRLOptimizer, self).__init__()
 
-        self.optimizer_configs = optimizer_configs
+        self.optimizers = optimizers
         self.solver_models = None
         self.current_loss = None
 
@@ -65,7 +61,7 @@ class EnvRLOptimizer(gym.Env):
 
         # Action - selecting an optimizer with its parameters
         # self.action_space = spaces.Discrete(len(self.optimizer_configs))
-        self.action_space = len(optimizer_configs)
+        self.action_space = {key: len(value) for key, value in optimizers.items()}
 
         # # State - loss surface (can be an array)
         # self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=self.visualization_model.latent_dim,
