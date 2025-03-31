@@ -44,7 +44,9 @@ class DQN(nn.Module):
         self.relu2 = nn.ReLU()
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        self.fc1 = nn.Linear(n_observation * 32, 128)  # n_observation instead 6 * 6
+        self.n_observation = n_observation
+
+        self.fc1 = nn.Linear(self.n_observation * 32, 128)  # n_observation instead 6 * 6
         self.relu3 = nn.ReLU()
         self.fc2_optim = nn.Linear(128, n_action["type"])
         self.fc2_loss = nn.Linear(128, n_action["params"])
@@ -54,7 +56,7 @@ class DQN(nn.Module):
     def forward(self, x):
         x = self.pool1(self.relu1(self.conv1(x)))
         x = self.pool2(self.relu2(self.conv2(x)))
-        x = x.view(-1, 6 * 6 * 32)
+        x = x.view(-1, self.n_observation * 32)
         x = self.relu3(self.fc1(x))
         x_optim = self.fc2_optim(x)
         x_loss = self.fc2_loss(x)
@@ -89,9 +91,9 @@ class DQNAgent:
         self.loss_fn = nn.CrossEntropyLoss()
 
     def get_random_action(self):
-        x_optim = random.randint(0, 6)
-        x_loss = random.randint(0, 3)
-        x_epochs = random.randint(0, 2)
+        x_optim = random.randint(0, self.n_action["type"] - 1)
+        x_loss = random.randint(0, self.n_action["params"] - 1)
+        x_epochs = random.randint(0, self.n_action["epochs"] - 1)
 
         return x_optim, x_loss, x_epochs
 
