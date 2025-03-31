@@ -19,15 +19,6 @@ from tedeous.rl_algorithms import DQNAgent
 from tedeous.rl_environment import EnvRLOptimizer
 
 
-def raw_action_postproc(tup, opt_type_lst, opt_lr_lst, opt_epochs_lst):
-    i_optim, i_loss, i_epochs = tup
-    return {
-        'type': opt_type_lst[i_optim],
-        'params': {'lr': opt_lr_lst[i_loss]},
-        'epochs': opt_epochs_lst[i_epochs]
-    }
-
-
 def get_state_shape(loss_surface_params):
     min_x, max_x, xnum = loss_surface_params["x_range"]
     min_y, max_y = min_x, max_x
@@ -266,8 +257,8 @@ class Model():
 
             rl_agent = DQNAgent(n_observation, n_action, memory_size=memory_size, device=device_type())
 
-            # # Optimization of the RL algorithm is implemented in the file rl_algorithms
-            # optimizers = optimizer.copy()
+            # Optimization of the RL algorithm is implemented in the file rl_algorithms
+            optimizers = optimizer.copy()
 
             # n_dims = (1, 26, 26)  # CHANGE!!!
             # n_dims = (26, 26)
@@ -293,10 +284,12 @@ class Model():
 
                 for i in itertools.count():
                     action_raw = rl_agent.select_action(state)
-                    action = raw_action_postproc(action_raw,
-                                                 optimizer['type'],
-                                                 optimizer['params'],
-                                                 optimizer['epochs'])
+                    i_optim, i_loss, i_epochs = action_raw
+                    action = {
+                        'type': optimizers['type'][i_optim],
+                        'params': {'lr': optimizers['params'][i_loss]},
+                        'epochs': optimizers['epochs'][i_epochs]
+                    }
 
                     reuse_nncg_flag = action["type"] == 'NNCG' if i > 0 else False
 
@@ -319,7 +312,11 @@ class Model():
                     )
 
                     if solver_models is None:
-                        print("Solver models is None!!!")
+                        print("Solver models are None!!!")
+
+                    if len(solver_models) < n_save_models:
+                        print(f"Current number of solver models: {len(solver_models)}. "
+                              f"\nRight number = {n_save_models}")
 
                     env.solver_models = solver_models
                     env.current_loss = 1 / loss
