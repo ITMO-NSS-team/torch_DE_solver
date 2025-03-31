@@ -35,7 +35,7 @@ class ReplayBuffer:
 
 
 class DQN(nn.Module):
-    def __init__(self):
+    def __init__(self, n_observation, n_action):
         super(DQN, self).__init__()
         self.conv1 = nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1)
         self.relu1 = nn.ReLU()
@@ -43,11 +43,12 @@ class DQN(nn.Module):
         self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
         self.relu2 = nn.ReLU()
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.fc1 = nn.Linear(6 * 6 * 32, 128)
+
+        self.fc1 = nn.Linear(n_observation * 32, 128)  # n_observation instead 6 * 6
         self.relu3 = nn.ReLU()
-        self.fc2_optim = nn.Linear(128, 7)
-        self.fc2_loss = nn.Linear(128, 4)
-        self.fc2_epochs = nn.Linear(128, 3)
+        self.fc2_optim = nn.Linear(128, n_action["type"])
+        self.fc2_loss = nn.Linear(128, n_action["params"])
+        self.fc2_epochs = nn.Linear(128, n_action["epochs"])
         self.softmax = nn.Softmax()
 
     def forward(self, x):
@@ -58,14 +59,14 @@ class DQN(nn.Module):
         x_optim = self.fc2_optim(x)
         x_loss = self.fc2_loss(x)
         x_epochs = self.fc2_epochs(x)
-        return (x_optim, x_loss, x_epochs)
+        return x_optim, x_loss, x_epochs
 
 
 class DQNAgent:
-    def __init__(self, lr=1e-3, gamma=0.99, epsilon=1.0, epsilon_decay=0.995, epsilon_min=0.01,
-                 memory_size=10000, batch_size=128, device='cpu'):
-        # self.state_dim = state_dim
-        # self.action_dim = action_dim
+    def __init__(self, n_observation=None, n_action=None, lr=1e-3, gamma=0.99, epsilon=1.0,
+                 epsilon_decay=0.995, epsilon_min=0.01, memory_size=10000, batch_size=128, device='cpu'):
+        self.n_observation = n_observation
+        self.n_action = n_action
         self.gamma = gamma
         self.epsilon = epsilon
         self.epsilon_decay = epsilon_decay
@@ -76,9 +77,9 @@ class DQNAgent:
 
         self.device = device
 
-        self.model = DQN().to(self.device)
+        self.model = DQN(self.n_observation, self.n_action).to(self.device)
 
-        self.target_model = DQN().to(self.device)
+        self.target_model = DQN(self.n_observation, self.n_action).to(self.device)
         for param in self.target_model.parameters():
             param.requires_grad = False
         self.target_model.load_state_dict(self.model.state_dict())
@@ -92,7 +93,7 @@ class DQNAgent:
         x_loss = random.randint(0, 3)
         x_epochs = random.randint(0, 2)
 
-        return (x_optim, x_loss, x_epochs)
+        return x_optim, x_loss, x_epochs
 
     def optim_(self):
         while len(self.replay_buffer.memory) >= self.batch_size:
