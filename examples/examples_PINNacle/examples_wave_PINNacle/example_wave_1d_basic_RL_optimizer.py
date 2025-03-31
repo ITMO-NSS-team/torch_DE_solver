@@ -236,7 +236,7 @@ def wave_1d_basic_experiment(grid_res):
     optimizer = {
         "type": ['Adam', 'RAdam', 'Adam', 'LBFGS', 'PSO', 'CSO', 'RMSprop'],
         "params": [0.1, 0.01, 0.001, 0.0001],
-        "epochs": [10, 100, 1000]
+        "epochs": [100, 500, 1000]
     }
 
     # optimizer = Optimizer('Adam', {'lr': 1e-4})
@@ -267,9 +267,9 @@ def wave_1d_basic_experiment(grid_res):
 
     AE_train_params = {
         "first_RL_epoch_AE_params": {
-            "epochs": 1000,
-            "patience_scheduler": 1000,
-            "cosine_scheduler_patience": 500,
+            "epochs": 10000,
+            "patience_scheduler": 5000,
+            "cosine_scheduler_patience": 5000,
         },
         "other_RL_epoch_AE_params": {
             "epochs": 6000,
