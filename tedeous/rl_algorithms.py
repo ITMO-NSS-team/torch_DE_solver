@@ -6,7 +6,6 @@ import torch.optim as optim
 import random
 from collections import deque, namedtuple
 import math
-import copy
 
 GAMMA = 0.99
 EPS_START = 0.9
@@ -64,7 +63,7 @@ class DQN(nn.Module):
 
 class DQNAgent:
     def __init__(self, lr=1e-3, gamma=0.99, epsilon=1.0, epsilon_decay=0.995, epsilon_min=0.01,
-                 memory_size=10000, batch_size=128):
+                 memory_size=10000, batch_size=128, device='cpu'):
         # self.state_dim = state_dim
         # self.action_dim = action_dim
         self.gamma = gamma
@@ -74,10 +73,12 @@ class DQNAgent:
         self.batch_size = batch_size
         self.replay_buffer = ReplayBuffer(memory_size)
         self.steps_done = 0
-        self.optim_steps = 0
 
-        self.model = DQN().to('mps:0')
-        self.target_model = DQN().to('mps:0')
+        self.device = device
+
+        self.model = DQN().to(self.device)
+
+        self.target_model = DQN().to(self.device)
         for param in self.target_model.parameters():
             param.requires_grad = False
         self.target_model.load_state_dict(self.model.state_dict())
@@ -87,10 +88,6 @@ class DQNAgent:
         self.loss_fn = nn.CrossEntropyLoss()
 
     def get_random_action(self):
-        # x_optim = random.randint(0, 7)
-        # x_loss = random.randint(0, 4)
-        # x_epochs = random.randint(0, 4)
-
         x_optim = random.randint(0, 6)
         x_loss = random.randint(0, 3)
         x_epochs = random.randint(0, 2)
@@ -98,16 +95,14 @@ class DQNAgent:
         return (x_optim, x_loss, x_epochs)
 
     def optim_(self):
-        """Обучает сеть на данных из буфера памяти."""
         while len(self.replay_buffer.memory) >= self.batch_size:
             buff_test = self.replay_buffer.sample(self.batch_size)
-            # batch = Transition(*zip(*buff_test))
-            # ((4, 0, 1), [], [], [])
 
             state, next_state, action_raw, reward = zip(*buff_test)
-            state = torch.stack(state, dim=0).reshape(-1, 1, 26, 26)
-            next_state = torch.stack(next_state, dim=0).reshape(-1, 1, 26, 26)
-            reward = torch.FloatTensor(reward)
+            state = torch.stack(state, dim=0).reshape(-1, 1, 26, 26).to(self.device)
+            next_state = torch.stack(next_state, dim=0).reshape(-1, 1, 26, 26).to(self.device)
+            reward = torch.FloatTensor(reward).to(self.device)
+
             Q = self.model
             right_Q = Q(state)
             Q_ = self.target_model
@@ -133,17 +128,11 @@ class DQNAgent:
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
-        self.optim_steps += 1
-        if self.optim_steps  == 5:
-            self.optim_steps = 0
-            self.target_model = copy.deepcopy(self.model)
-            for param in self.target_model.parameters():
-                param.requires_grad = False
-        
+            print("\nRL optimization is complete!\n")
 
     # Action function stub
     def select_action(self, state):
-
+        state = state.to(self.device)
         sample = random.random()
         eps_threshold = EPS_END + (EPS_START - EPS_END) * \
                         math.exp(-1. * self.steps_done / EPS_DECAY)
@@ -159,43 +148,10 @@ class DQNAgent:
                 return (x_optim, x_loss, x_epochs)
         else:
             return self.get_random_action()
-        # if random.random() < self.epsilon:
-        #     return random.randint(0, self.action_dim - 1)  # choose optimizer and epochs
-        # state_tensor = torch.FloatTensor(state).unsqueeze(0)
-        # with torch.no_grad():
-        #     return torch.argmax(self.model(state_tensor)).item()
 
     def push_memory(self, rl_params):
         # self.replay_buffer.memory += (rl_params,)
         self.replay_buffer.push(*rl_params)
-
-    # def optimize_model(self):
-    #     """Обучение сети на данных из буфера памяти."""
-    #     if len(self.memory) < self.batch_size:
-    #         return
-    #
-    #     # transitions = self.memory.sample(self.batch_size)
-    #     # batch = Transition(*zip(*transitions))
-    #
-    #     # state_batch = torch.cat(batch.state)
-    #     # action_batch = torch.cat(batch.action)
-    #     # reward_batch = torch.cat(batch.reward)
-    #     # next_state_batch = torch.cat(batch.next_state)
-    #
-    #     # q_values = self.net(state_batch).gather(1, action_batch)
-    #
-    #     # with torch.no_grad():
-    #     #     next_q_values = self.net(next_state_batch).max(1)[0]
-    #     #     expected_q_values = reward_batch + self.gamma * next_q_values
-    #
-    #     # loss = self.loss_fn(q_values, expected_q_values.unsqueeze(1))
-    #
-    #     self.optimizer.zero_grad()
-    #     loss.backward()
-    #     self.optimizer.step()
-    #
-    #     if self.epsilon > self.epsilon_min:
-    #         self.epsilon *= self.epsilon_decay
 
     def update_target_model(self):
         self.target_model.load_state_dict(self.model.state_dict())
