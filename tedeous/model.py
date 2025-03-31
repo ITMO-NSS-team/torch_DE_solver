@@ -19,12 +19,13 @@ from tedeous.rl_algorithms import DQNAgent
 from tedeous.rl_environment import EnvRLOptimizer
 
 
-def raw_action_postproc(tup):
-    optims_ar = ['Adam', 'RAdam', 'Adam', 'LBFGS', 'PSO', 'CSO', 'RMSprop']
-    loss_ar = [0.1, 0.01, 0.001, 0.0001]
-    epochs_ar = [10, 100, 1000]
+def raw_action_postproc(tup, opt_type_lst, opt_lr_lst, opt_epochs_lst):
     i_optim, i_loss, i_epochs = tup
-    return {'name': optims_ar[i_optim], 'params': {'lr': loss_ar[i_loss]}, 'epochs': epochs_ar[i_epochs]}
+    return {
+        'type': opt_type_lst[i_optim],
+        'params': {'lr': opt_lr_lst[i_loss]},
+        'epochs': opt_epochs_lst[i_epochs]
+    }
 
 
 def get_state_shape(loss_surface_params):
@@ -257,13 +258,13 @@ class Model():
                                  n_save_models=n_save_models)
 
             # These objects must be created after the first optimizer is started
-            state_dim = env.observation_space
+            n_observation = env.observation_space
             # state_dim = np.prod(env.observation_space.shape)
-            action_dim = env.action_space
+            n_action = env.action_space
 
             memory_size = 1024  # ????
 
-            rl_agent = DQNAgent(state_dim, action_dim, memory_size=memory_size, device=device_type())
+            rl_agent = DQNAgent(n_observation, n_action, memory_size=memory_size, device=device_type())
 
             # # Optimization of the RL algorithm is implemented in the file rl_algorithms
             # optimizers = optimizer.copy()
@@ -292,14 +293,14 @@ class Model():
 
                 for i in itertools.count():
                     action_raw = rl_agent.select_action(state)
-                    action = raw_action_postproc(action_raw)
+                    action = raw_action_postproc(action_raw,
+                                                 optimizer['type'],
+                                                 optimizer['params'],
+                                                 optimizer['epochs'])
 
-                    # # Stub action
-                    # action = optimizers[i]
+                    reuse_nncg_flag = action["type"] == 'NNCG' if i > 0 else False
 
-                    reuse_nncg_flag = action["name"] == 'NNCG' if i > 0 else False
-
-                    optimizer = Optimizer(action['name'], action['params'])
+                    optimizer = Optimizer(action['type'], action['params'])
                     self.optimizer = optimizer.optimizer_choice(self.mode, self.net)
                     closure = Closure(mixed_precision, self, reuse_nncg_flag=reuse_nncg_flag).get_closure(
                         optimizer.optimizer)
@@ -308,7 +309,7 @@ class Model():
                     print('\n===========================================================================\n' +
                           f'\nRL agent training: step {i + 1}.'
                           f'\nTime: {datetime.datetime.now()}.'
-                          f'\nUsing optimizer: {action["name"]} for {action["epochs"]} epochs.'
+                          f'\nUsing optimizer: {action["type"]} for {action["epochs"]} epochs.'
                           f'\nTotal Reward = {total_reward}.\n')
 
                     loss, solver_models = execute_training_phase(
@@ -316,11 +317,15 @@ class Model():
                         reuse_nncg_flag=reuse_nncg_flag,
                         n_save_models=n_save_models
                     )
+
+                    if solver_models is None:
+                        print("Solver models is None!!!")
+
                     env.solver_models = solver_models
                     env.current_loss = 1 / loss
 
-                    optimizers_history.append(action["name"])
-                    print(f'\nPassed optimizer {action["name"]}.')
+                    optimizers_history.append(action["type"])
+                    print(f'\nPassed optimizer {action["type"]}.')
 
                     # input weights (for generate state) and loss (for calculate reward) to step method
                     # first getting current models and current losses
@@ -335,7 +340,7 @@ class Model():
                     state = next_state
                     total_reward += reward
 
-                    print(f'\nCurrent reward after {action["name"]} optimizer: {reward}.\n'
+                    print(f'\nCurrent reward after {action["type"]} optimizer: {reward}.\n'
                           f'Total reward after using {", ".join(optimizers_history)} '
                           f'{"optimizers" if len(optimizers_history) > 1 else "optimizer"}: {total_reward}.\n')
 
