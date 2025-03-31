@@ -263,7 +263,7 @@ class Model():
 
             memory_size = 1024  # ????
 
-            rl_agent = DQNAgent(state_dim, action_dim, memory_size=memory_size)
+            rl_agent = DQNAgent(state_dim, action_dim, memory_size=memory_size, device=device_type())
 
             # # Optimization of the RL algorithm is implemented in the file rl_algorithms
             # optimizers = optimizer.copy()
@@ -279,7 +279,8 @@ class Model():
             # optimizers_history = []
 
             for traj in range(n_trajectories):
-                print(f'\nStarting trajectory {traj + 1}/{n_trajectories} with a new initial point.')
+                print('\n############################################################################' +
+                      f'\nStarting trajectory {traj + 1}/{n_trajectories} with a new initial point.')
 
                 self.net = self.solution_cls.model
                 self.t = 1
@@ -288,7 +289,6 @@ class Model():
                 total_reward = 0
                 optimizers_history = []
                 state = torch.zeros(state_shape)
-                state = state.to('mps')
 
                 for i in itertools.count():
                     action_raw = rl_agent.select_action(state)
@@ -317,7 +317,7 @@ class Model():
                         n_save_models=n_save_models
                     )
                     env.solver_models = solver_models
-                    env.current_loss = loss
+                    env.current_loss = 1 / loss
 
                     optimizers_history.append(action["name"])
                     print(f'\nPassed optimizer {action["name"]}.')
@@ -325,8 +325,6 @@ class Model():
                     # input weights (for generate state) and loss (for calculate reward) to step method
                     # first getting current models and current losses
                     next_state, reward, done, _ = env.step()
-                    reward = 1/loss
-                    next_state = next_state.to('mps')
 
                     if i != 0:
                         rl_agent.push_memory((state, next_state, action_raw, reward))
@@ -344,9 +342,8 @@ class Model():
                     callbacks.callbacks[1].save_every = self.t
                     env.render()
 
-                    # if done or i == 3:
-                    #     break
-                a = 0
+                    if done:
+                        break
 
         elif isinstance(optimizer, list) and not rl_opt_flag:
             optimizers_chain = optimizer.copy()
