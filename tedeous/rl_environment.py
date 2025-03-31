@@ -52,12 +52,12 @@ class EnvRLOptimizer(gym.Env):
         self.equation_params = equation_params
         self.callbacks = callbacks
 
+        self.visualization_model = VisualizationModel(**self.AE_model_params)
+        self.plot_loss_surface = None
+
         # Размерность нужно вытягивать из кода loss landscape, она будет постоянной,
         # т.к. action_dim - список оптимизаторов, он не меняется
         # state_dim - размерность поверхности, мы используем латентное 2D пространство, для генерации поверхности
-
-        self.visualization_model = VisualizationModel(**self.AE_model_params)
-        self.plot_loss_surface = None
 
         # Action - selecting an optimizer with its parameters
         # self.action_space = spaces.Discrete(len(self.optimizer_configs))
