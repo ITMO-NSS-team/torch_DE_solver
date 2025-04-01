@@ -151,8 +151,8 @@ def wave_1d_basic_experiment(grid_res):
     cb_es = early_stopping.EarlyStopping(eps=1e-6,
                                          loss_window=100,
                                          no_improvement_patience=1000,
-                                         patience=5,
-                                         randomize_parameter=1e-6,
+                                         patience=100,
+                                         randomize_parameter=1e-4,
                                          info_string_every=10)
 
     cb_plots = plot.Plots(save_every=None,
@@ -261,12 +261,12 @@ def wave_1d_basic_experiment(grid_res):
 
     AE_train_params = {
         "first_RL_epoch_AE_params": {
-            "epochs": 1000,
-            "patience_scheduler": 1000,
-            "cosine_scheduler_patience": 500,
+            "epochs": 10000,
+            "patience_scheduler": 4000,
+            "cosine_scheduler_patience": 1200,
         },
         "other_RL_epoch_AE_params": {
-            "epochs": 6000,
+            "epochs": 20000,
             "patience_scheduler": 4000,
             "cosine_scheduler_patience": 1200,
         },

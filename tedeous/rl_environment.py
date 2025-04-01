@@ -140,7 +140,7 @@ class EnvRLOptimizer(gym.Env):
         self.callbacks.callbacks[1].save_every = 0.1
 
         # Plotting loss landscape
-        self.plot_loss_surface.plotting_equation_loss_surface(*self.equation_params)
+        # self.plot_loss_surface.plotting_equation_loss_surface(*self.equation_params)
 
     def close(self):
         plt.close('all')

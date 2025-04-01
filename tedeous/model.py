@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from typing import Union, List
 import tempfile
 import os
@@ -185,6 +186,7 @@ class Model():
 
         self.t = 1
         self.saved_models = []
+        self.prev_to_current_optimizer_models = []
 
         self.stop_training = False
         callbacks = CallbackList(callbacks=callbacks, model=self)
@@ -202,7 +204,7 @@ class Model():
             if not (models_concat_flag and rl_opt_flag):
                 self.saved_models = []
 
-            while self.t < epochs and not self.stop_training:
+            while self.t <= epochs and not self.stop_training:
                 callbacks.on_epoch_begin()
                 self.optimizer.zero_grad()
 
@@ -226,9 +228,10 @@ class Model():
                         optimizer.sheduler.step()
 
                 # ERROR: when epochs < n_save_models!!!
-                if rl_opt_flag and self.t % (epochs // n_save_models) == 0:
+                if rl_opt_flag:
                     current_model = copy.deepcopy(self.net)
                     self.saved_models.append(current_model)
+                    self.prev_to_current_optimizer_models.append(current_model)
 
                 callbacks.on_epoch_end()
                 self.t += 1
@@ -238,13 +241,23 @@ class Model():
                     print(f'[{datetime.datetime.now()}] Step = {self.t}, loss = {loss:.6f}.')
             else:
                 loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
+                print('while loop is over:', self.t, self.stop_training)
                 print(f'[{datetime.datetime.now()}] Step = {self.t}, loss = {loss:.6f}.')
 
-            if rl_opt_flag and self.t % (epochs // n_save_models) == 0:
+            if rl_opt_flag:
                 current_model = copy.deepcopy(self.net)
                 self.saved_models.append(current_model)
+                self.prev_to_current_optimizer_models.append(current_model)
+                indices_prev_to_current_models = np.linspace(0, len(self.prev_to_current_optimizer_models) - 1, 10, dtype=int)
+                self.prev_to_current_optimizer_models = [self.prev_to_current_optimizer_models[i] for i in indices_prev_to_current_models]
+                    
+                if len(self.saved_models) >= n_save_models:
+                    indices_saved_models = np.linspace(0, len(self.saved_models) - 1, 10, dtype=int)
+                    self.saved_models = [self.saved_models[i] for i in indices_saved_models]
+                else:
+                    print("Using prev optimizer models")
+                    self.saved_models = self.prev_to_current_optimizer_models
 
-            if rl_opt_flag:
                 return loss, self.saved_models
 
         if rl_opt_flag:

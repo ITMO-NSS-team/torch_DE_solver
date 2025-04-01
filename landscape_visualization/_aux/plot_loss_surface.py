@@ -343,8 +343,6 @@ class PlotLossSurface:
             d = (data_unnormalized - x_recon_unnormalized).pow(2).sum().sqrt()
             ds.append(d)
 
-            import hashlib
-
             # def model_hash(model):
             #     state_dict = model.state_dict()
             #     state_bytes = str(state_dict).encode()
