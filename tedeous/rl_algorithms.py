@@ -46,7 +46,7 @@ class DQN(nn.Module):
 
         self.n_observation = n_observation
 
-        self.fc1 = nn.Linear(self.n_observation * 32, 128)  # n_observation instead 6 * 6
+        self.fc1 = nn.Linear(6 * 6 * 32, 128)  # n_observation instead 6 * 6
         self.relu3 = nn.ReLU()
         self.fc2_optim = nn.Linear(128, n_action["type"])
         self.fc2_loss = nn.Linear(128, n_action["params"])
@@ -56,7 +56,7 @@ class DQN(nn.Module):
     def forward(self, x):
         x = self.pool1(self.relu1(self.conv1(x)))
         x = self.pool2(self.relu2(self.conv2(x)))
-        x = x.view(-1, self.n_observation * 32)
+        x = x.view(-1, 6 * 6 * 32)
         x = self.relu3(self.fc1(x))
         x_optim = self.fc2_optim(x)
         x_loss = self.fc2_loss(x)
