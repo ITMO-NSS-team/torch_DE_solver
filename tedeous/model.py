@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from typing import Union, List
 import tempfile
 import os
@@ -177,6 +178,7 @@ class Model():
 
         self.t = 1
         self.saved_models = []
+        self.prev_to_current_optimizer_models = []
 
         self.stop_training = False
         callbacks = CallbackList(callbacks=callbacks, model=self)
@@ -217,10 +219,14 @@ class Model():
                     if optimizer.gamma is not None and self.t % optimizer.decay_every == 0:
                         optimizer.sheduler.step()
 
-                # ERROR: when epochs < n_save_models!!!
-                if rl_opt_flag and self.t % (epochs // n_save_models) == 0:
+                if rl_opt_flag:
                     current_model = copy.deepcopy(self.net)
                     self.saved_models.append(current_model)
+                    self.prev_to_current_optimizer_models.append(current_model)
+                    indices_prev_to_current_models = np.linspace(0, len(self.prev_to_current_optimizer_models) - 1, 10,
+                                                                 dtype=int)
+                    self.prev_to_current_optimizer_models = [self.prev_to_current_optimizer_models[i] for i in
+                                                             indices_prev_to_current_models]
 
                 callbacks.on_epoch_end()
                 self.t += 1
@@ -284,6 +290,7 @@ class Model():
 
                 for i in itertools.count():
                     action_raw = rl_agent.select_action(state)
+                    print(f"\naction_raw = {action_raw}")
                     i_optim, i_loss, i_epochs = action_raw
                     action = {
                         'type': optimizers['type'][i_optim],
