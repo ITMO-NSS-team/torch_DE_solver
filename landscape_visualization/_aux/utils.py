@@ -269,8 +269,8 @@ def get_density_CKA(matrix):
     # HKH: n x n
 
     # norms = np.sqrt(np.diag(HKH))
-    # norms = np.sqrt(np.clip(np.diag(HKH), a_min=0, a_max=None))
-    norms = np.sqrt(np.abs(np.diag(HKH)))
+    norms = np.sqrt(np.clip(np.diag(HKH), a_min=0, a_max=None))
+    # norms = np.sqrt(np.abs(np.diag(HKH)))
     # norms: n
 
     outer_norms = np.outer(norms, norms)
