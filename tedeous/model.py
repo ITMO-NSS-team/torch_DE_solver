@@ -206,6 +206,9 @@ class Model():
                 callbacks.on_epoch_begin()
                 self.optimizer.zero_grad()
 
+                if rl_opt_flag:
+                    callbacks.callbacks[0]._stop_dings = 0
+
                 # this fellow should be in NNCG closure, but since it calls closure many times,
                 # it updates several time, which casuses instability
 
@@ -220,6 +223,8 @@ class Model():
                 for _ in range(iter_count):  # if batch mod then iter until end of batches else only once
                     if device_type() == 'cuda' and mixed_precision:
                         closure()
+                        # loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
+                        # loss_history.append(loss)
                     else:
                         self.optimizer.step(closure)
                     if optimizer.gamma is not None and self.t % optimizer.decay_every == 0:
@@ -230,14 +235,19 @@ class Model():
                     self.saved_models.append(current_model)
                     # self.prev_to_current_optimizer_models.append(current_model)
 
+                loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
+                loss_history.append(loss)
+
                 callbacks.on_epoch_end()
                 self.t += 1
 
                 if info_string_every is not None and self.t % info_string_every == 0:
-                    loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
+                    # loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
+                    # loss_history.append(loss)
                     print(f'[{datetime.datetime.now()}] Step = {self.t}, loss = {loss:.6f}.')
             else:
                 loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
+                loss_history.append(loss)
                 print(f'[{datetime.datetime.now()}] Step = {self.t}, loss = {loss:.6f}.')
 
             if rl_opt_flag:
@@ -249,8 +259,8 @@ class Model():
                 # self.prev_to_current_optimizer_models = [self.prev_to_current_optimizer_models[i] for i in
                 #                                          indices_prev_to_current_models]
                 #
-                loss_value = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
-                loss_history.append(loss_value)
+                # loss_value = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
+                # loss_history.append(loss_value)
 
                 # if len(self.saved_models) >= n_save_models:
                 #     indices_saved_models = np.linspace(0, len(self.saved_models) - 1, 10, dtype=int)
@@ -271,14 +281,14 @@ class Model():
                         if param.grad is not None:
                             grad_norm += param.grad.norm().item()
 
-                if delta_loss < min_loss_change and grad_norm < min_grad_norm:
+                if delta_loss < min_loss_change or grad_norm < min_grad_norm:
                     print(f"\nLocal min!!!\nLoss: {delta_loss}, grad norm: {grad_norm}")
                     self.rl_penalty = -1
 
                 indices_saved_models = np.linspace(0, len(self.saved_models) - 1, n_save_models, dtype=int)
                 self.saved_models = [self.saved_models[i] for i in indices_saved_models]
 
-                return loss_value, self.saved_models
+                return loss_history[-1], self.saved_models
 
         if rl_opt_flag:
             env = EnvRLOptimizer(optimizer,
