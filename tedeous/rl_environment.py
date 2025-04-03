@@ -38,6 +38,7 @@ class EnvRLOptimizer(gym.Env):
                  loss_surface_params: dict = None,
                  AE_model_params: dict = None,
                  AE_train_params: dict = None,
+                 reward_method: str = "absolute",
                  callbacks: Union[CallbackList, List, None] = None,
                  n_save_models: int = None):
         super(EnvRLOptimizer, self).__init__()
@@ -45,11 +46,13 @@ class EnvRLOptimizer(gym.Env):
         self.optimizers = optimizers
         self.solver_models = None
         self.current_loss = None
+        self.rl_penalty = 0
 
         self.AE_model_params = AE_model_params
         self.AE_train_params = AE_train_params
         self.loss_surface_params = loss_surface_params
         self.equation_params = equation_params
+        self.reward_method = reward_method
         self.callbacks = callbacks
 
         self.visualization_model = VisualizationModel(**self.AE_model_params)
@@ -117,10 +120,10 @@ class EnvRLOptimizer(gym.Env):
         else:
             prev_loss = self.loss_history[-1]
 
-        reward = compute_reward(prev_loss, self.current_loss)
+        reward = compute_reward(prev_loss, self.current_loss, method=self.reward_method) + self.rl_penalty
         self.loss_history.append(self.current_loss)
 
-        done = self.current_loss < self.tolerance
+        done = self.current_loss < self.tolerance + self.rl_penalty
 
         return state, reward, done, {}
 
@@ -135,8 +138,9 @@ class EnvRLOptimizer(gym.Env):
         self.callbacks.on_epoch_end()
         self.callbacks.callbacks[1].save_every = 0.1
 
-        # # Plotting loss landscape
-        # self.plot_loss_surface.plotting_equation_loss_surface(*self.equation_params)
+        # Plotting loss landscape
+        if self.rl_penalty != -1:
+            self.plot_loss_surface.plotting_equation_loss_surface(*self.equation_params)
 
     def close(self):
         plt.close('all')
