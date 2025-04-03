@@ -6,6 +6,7 @@ import torch.optim as optim
 import random
 from collections import deque, namedtuple
 import math
+from copy import deepcopy
 
 GAMMA = 0.99
 EPS_START = 0.9
@@ -27,7 +28,6 @@ class ReplayBuffer:
     def sample(self, batch_size):
         current_sample = random.sample(self.memory, batch_size)
         current_sample_tuples = [tuple(t) for t in current_sample]
-        self.memory = deque(filter(lambda x: x not in set(current_sample), self.memory), maxlen=self.memory.maxlen)
         return current_sample_tuples
 
     def __len__(self):
@@ -46,7 +46,7 @@ class DQN(nn.Module):
 
         self.n_observation = n_observation
 
-        self.fc1 = nn.Linear(self.n_observation * 32, 128)  # n_observation instead 6 * 6
+        self.fc1 = nn.Linear(6 * 6 * 32, 128)  # n_observation instead 6 * 6
         self.relu3 = nn.ReLU()
         self.fc2_optim = nn.Linear(128, n_action["type"])
         self.fc2_loss = nn.Linear(128, n_action["params"])
@@ -56,7 +56,7 @@ class DQN(nn.Module):
     def forward(self, x):
         x = self.pool1(self.relu1(self.conv1(x)))
         x = self.pool2(self.relu2(self.conv2(x)))
-        x = x.view(-1, self.n_observation * 32)
+        x = x.view(-1, 6 * 6 * 32)
         x = self.relu3(self.fc1(x))
         x_optim = self.fc2_optim(x)
         x_loss = self.fc2_loss(x)
@@ -75,6 +75,7 @@ class DQNAgent:
         self.epsilon_min = epsilon_min
         self.batch_size = batch_size
         self.replay_buffer = ReplayBuffer(memory_size)
+        self.replay_buffer_copy = None
         self.steps_done = 0
 
         self.device = device
@@ -98,8 +99,11 @@ class DQNAgent:
         return x_optim, x_loss, x_epochs
 
     def optim_(self):
-        while len(self.replay_buffer.memory) >= self.batch_size:
+        self.replay_buffer_copy = deepcopy(self.replay_buffer)
+        while len(self.replay_buffer_copy.memory) >= self.batch_size:
             buff_test = self.replay_buffer.sample(self.batch_size)
+            self.replay_buffer_copy.memory = deque(filter(lambda x: x not in set(buff_test), self.replay_buffer.memory),
+                                              maxlen=self.replay_buffer.memory.maxlen)
 
             state, next_state, action_raw, reward = zip(*buff_test)
             state = torch.stack(state, dim=0).reshape(-1, 1, 26, 26).to(self.device)
@@ -132,6 +136,9 @@ class DQNAgent:
             loss.backward()
             self.optimizer.step()
             print("\nRL optimization is complete!\n")
+
+        self.replay_buffer.memory = deque(filter(lambda x: x not in set(buff_test), self.replay_buffer.memory),
+                                               maxlen=self.replay_buffer.memory.maxlen)
 
     # Action function stub
     def select_action(self, state):
