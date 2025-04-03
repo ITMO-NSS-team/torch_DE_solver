@@ -123,7 +123,7 @@ class EnvRLOptimizer(gym.Env):
         reward = compute_reward(prev_loss, self.current_loss, method=self.reward_method) + self.rl_penalty
         self.loss_history.append(self.current_loss)
 
-        done = self.current_loss < self.tolerance + self.rl_penalty
+        done = (self.current_loss < self.tolerance) + self.rl_penalty
 
         return state, reward, done, {}
 
