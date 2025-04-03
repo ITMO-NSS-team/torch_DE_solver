@@ -93,8 +93,8 @@ def get_trajectory_dataloader(batch_size, models=None, pt_files=None, normalize=
     dataset, normalizer = get_trajectory_dataset(models if models else pt_files, normalize=normalize)
 
     if models:
-        # generator = torch.Generator(device=device)  # CUDA mps
-        generator = torch.Generator(device='cpu')
+        generator = torch.Generator(device=device)  # CUDA mps
+        # generator = torch.Generator(device='cpu')
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, generator=generator)
     else:
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
