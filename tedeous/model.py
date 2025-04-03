@@ -372,7 +372,7 @@ class Model():
                               f"\nRight number = {n_save_models}")
 
                     env.solver_models = solver_models
-                    env.current_loss = 1 / loss
+                    env.current_loss = loss
 
                     optimizers_history.append(action["type"])
                     print(f'\nPassed optimizer {action["type"]}.')
@@ -382,7 +382,7 @@ class Model():
                     next_state, reward, done, _ = env.step()
 
                     if i != 0:
-                        rl_agent.push_memory((state, next_state, action_raw, reward))
+                        rl_agent.push_memory((state, next_state, action_raw, 1 / loss))
 
                     if rl_agent.replay_buffer.__len__() == rl_buffer_size:
                         rl_agent.optim_()
