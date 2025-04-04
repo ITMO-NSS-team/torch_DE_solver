@@ -1,11 +1,7 @@
 import gym
 import matplotlib.pyplot as plt
 
-from typing import List, Dict, Union
-
-# from tedeous.loss_landscape.generate_plot_surface import PlotLossSurface
-# from tedeous.loss_landscape.visualization_model import VisualizationModel
-# from tedeous.loss_landscape.early_stopping_plot import EarlyStopping
+from typing import List, Union
 
 from landscape_visualization._aux.plot_loss_surface import PlotLossSurface
 from landscape_visualization._aux.visualization_model import VisualizationModel
@@ -37,35 +33,38 @@ def compute_reward(prev_loss, current_loss, method="diff"):
 
 class EnvRLOptimizer(gym.Env):
     def __init__(self,
-                 optimizer_configs: List[Dict],
+                 optimizers: dict,
                  equation_params: list = None,
                  loss_surface_params: dict = None,
                  AE_model_params: dict = None,
                  AE_train_params: dict = None,
+                 reward_method: str = "absolute",
                  callbacks: Union[CallbackList, List, None] = None,
                  n_save_models: int = None):
         super(EnvRLOptimizer, self).__init__()
 
-        self.optimizer_configs = optimizer_configs
+        self.optimizers = optimizers
         self.solver_models = None
         self.current_loss = None
+        self.rl_penalty = 0
 
         self.AE_model_params = AE_model_params
         self.AE_train_params = AE_train_params
         self.loss_surface_params = loss_surface_params
         self.equation_params = equation_params
+        self.reward_method = reward_method
         self.callbacks = callbacks
+
+        self.visualization_model = VisualizationModel(**self.AE_model_params)
+        self.plot_loss_surface = None
 
         # Размерность нужно вытягивать из кода loss landscape, она будет постоянной,
         # т.к. action_dim - список оптимизаторов, он не меняется
         # state_dim - размерность поверхности, мы используем латентное 2D пространство, для генерации поверхности
 
-        self.visualization_model = VisualizationModel(**self.AE_model_params)
-        self.plot_loss_surface = None
-
         # Action - selecting an optimizer with its parameters
         # self.action_space = spaces.Discrete(len(self.optimizer_configs))
-        self.action_space = len(optimizer_configs)
+        self.action_space = {key: len(value) for key, value in optimizers.items()}
 
         # # State - loss surface (can be an array)
         # self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=self.visualization_model.latent_dim,
@@ -121,10 +120,10 @@ class EnvRLOptimizer(gym.Env):
         else:
             prev_loss = self.loss_history[-1]
 
-        reward = compute_reward(prev_loss, self.current_loss)
+        reward = compute_reward(prev_loss, self.current_loss, method=self.reward_method) + self.rl_penalty
         self.loss_history.append(self.current_loss)
 
-        done = self.current_loss < self.tolerance
+        done = (self.current_loss < self.tolerance) + self.rl_penalty
 
         return state, reward, done, {}
 
@@ -140,7 +139,8 @@ class EnvRLOptimizer(gym.Env):
         self.callbacks.callbacks[1].save_every = 0.1
 
         # Plotting loss landscape
-        # self.plot_loss_surface.plotting_equation_loss_surface(*self.equation_params)
+        if self.rl_penalty != -1:
+            self.plot_loss_surface.plotting_equation_loss_surface(*self.equation_params)
 
     def close(self):
         plt.close('all')

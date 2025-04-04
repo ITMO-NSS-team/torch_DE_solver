@@ -195,43 +195,49 @@ def wave_1d_basic_experiment(grid_res):
 
     # version 1 (right) - wrapper in model.train method ################################################################
 
-    optimizer = [
-        {
-            "name": "CSO",
-            "params": {"lr": 5e-4},
-            "epochs": 100
-        },
-        {
-            "name": "Adam",
-            "params": {"lr": 1e-4},
-            "epochs": 1000
-        },
-        {
-            "name": "LBFGS",
-            "params": {
-                "lr": 1,
-                "max_iter": 20,
-                "max_eval": None,
-                "tolerance_grad": 1e-05,
-                "tolerance_change": 1e-07,
-                "history_size": 50,
-                "line_search_fn": "strong_wolfe"
-            }, "epochs": 100
-        },
-        {
-            "name": "NNCG",
-            "params": {
-                "mu": 1e-1,
-                "lr": 1,
-                "rank": 10,
-                "line_search_fn": "armijo",
-                "precond_update_frequency": 20,
-                "eigencdecomp_shift_attepmt_count": 10,
-                # 'cg_max_iters': 1000,
-                "verbose": False},
-            "epochs": 50
-        }
-    ]
+    # optimizer = [
+    #     {
+    #         "name": "CSO",
+    #         "params": {"lr": 5e-4},
+    #         "epochs": 100
+    #     },
+    #     {
+    #         "name": "Adam",
+    #         "params": {"lr": 1e-4},
+    #         "epochs": 1000
+    #     },
+    #     {
+    #         "name": "LBFGS",
+    #         "params": {
+    #             "lr": 1,
+    #             "max_iter": 20,
+    #             "max_eval": None,
+    #             "tolerance_grad": 1e-05,
+    #             "tolerance_change": 1e-07,
+    #             "history_size": 50,
+    #             "line_search_fn": "strong_wolfe"
+    #         }, "epochs": 100
+    #     },
+    #     {
+    #         "name": "NNCG",
+    #         "params": {
+    #             "mu": 1e-1,
+    #             "lr": 1,
+    #             "rank": 10,
+    #             "line_search_fn": "armijo",
+    #             "precond_update_frequency": 20,
+    #             "eigencdecomp_shift_attepmt_count": 10,
+    #             # 'cg_max_iters': 1000,
+    #             "verbose": False},
+    #         "epochs": 50
+    #     }
+    # ]
+
+    optimizer = {
+        "type": ['Adam', 'RAdam', 'Adam', 'LBFGS', 'PSO', 'CSO', 'RMSprop'],
+        "params": [0.1, 0.01, 0.001, 0.0001],
+        "epochs": [100, 500, 1000]
+    }
 
     # optimizer = Optimizer('Adam', {'lr': 1e-4})
 
