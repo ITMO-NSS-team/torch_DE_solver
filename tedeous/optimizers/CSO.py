@@ -18,7 +18,7 @@ class CSO(torch.optim.Optimizer):
                  lr: float = 1e-3,
                  betas: Tuple = (0.99, 0.999),
                  c_decrease: bool = False,
-                 variance: float = 1,
+                 variance: float = 1e-3,
                  epsilon: float = 1e-8,
                  n_iter: int = 2000):
         """The Competitive Swarm Optimizer class.
@@ -48,7 +48,7 @@ class CSO(torch.optim.Optimizer):
         self.fi = fi
         self.epsilon = epsilon
         self.beta1, self.beta2 = betas
-        self.lr = lr * np.sqrt(1 - self.beta2) / (1 - self.beta1)
+        self.lr = 0 #lr * np.sqrt(1 - self.beta2) / (1 - self.beta1)
         self.use_grad = True if self.lr != 0 else False
         self.variance = variance
         self.name = "СSO"

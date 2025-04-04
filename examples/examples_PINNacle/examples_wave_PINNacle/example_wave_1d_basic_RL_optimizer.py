@@ -150,8 +150,8 @@ def wave_1d_basic_experiment(grid_res):
 
     cb_es = early_stopping.EarlyStopping(eps=1e-6,
                                          loss_window=100,
-                                         no_improvement_patience=1000,
-                                         patience=100,
+                                         no_improvement_patience=100,
+                                         patience=1000,
                                          randomize_parameter=1e-4,
                                          info_string_every=10)
 

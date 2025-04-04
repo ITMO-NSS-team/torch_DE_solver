@@ -44,6 +44,8 @@ class Optimizer():
 
         if self.optimizer == 'Adam':
             torch_optim = torch.optim.Adam
+        if self.optimizer == 'AdamW':
+            torch_optim = torch.optim.AdamW
         elif self.optimizer == 'RAdam':
             torch_optim = RiemannianAdam
         elif self.optimizer == 'SGD':
