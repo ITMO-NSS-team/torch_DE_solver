@@ -146,13 +146,13 @@ def wave_1d_basic_experiment(grid_res):
 
     img_dir = os.path.join(os.path.dirname(__file__), 'wave_1d_basic_img')
 
-    cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-6)
+    # cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-4)
 
     cb_es = early_stopping.EarlyStopping(eps=1e-6,
                                          loss_window=100,
                                          no_improvement_patience=100,
                                          patience=1000,
-                                         randomize_parameter=1e-4,
+                                         randomize_parameter=1e-3,
                                          info_string_every=10)
 
     cb_plots = plot.Plots(save_every=None,
@@ -234,9 +234,9 @@ def wave_1d_basic_experiment(grid_res):
     # ]
 
     optimizer = {
-        "type": ['Adam', 'RAdam', 'Adam', 'LBFGS', 'PSO', 'CSO', 'RMSprop'],
-        "params": [0.1, 0.01, 0.001, 0.0001],
-        "epochs": [100, 500, 1000]
+        "type": ['Adam', 'RAdam', 'AdamW', 'LBFGS', 'PSO', 'CSO', 'RMSprop'],
+        "params": [0.1, 0.01, 0.001, 0.001],
+        "epochs": [10, 100, 1000]
     }
 
     # optimizer = Optimizer('Adam', {'lr': 1e-4})
@@ -317,7 +317,7 @@ def wave_1d_basic_experiment(grid_res):
     model.train(optimizer,
                 5e5,
                 save_model=True,
-                callbacks=[cb_es, cb_plots, cb_cache],
+                callbacks=[cb_es, cb_plots],
                 rl_opt_flag=True,
                 models_concat_flag=False,
                 equation_params=equation_params,

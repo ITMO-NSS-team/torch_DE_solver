@@ -11,7 +11,7 @@ from tedeous.optimizers.optimizer import Optimizer
 from tedeous.callbacks.callback_list import CallbackList
 
 
-def compute_reward(prev_loss, current_loss, method="diff"):
+def compute_reward(prev_loss, current_loss, method="absolute"):
     """
     Calculates the reward for the agent.
 
@@ -118,12 +118,12 @@ class EnvRLOptimizer(gym.Env):
         if len(self.loss_history) == 0:
             prev_loss = 0
         else:
-            prev_loss = self.loss_history[-1]
+            prev_loss = self.loss_history[-1] #min(self.loss_history[-10:]) if len(self.loss_history) > 9 else self.loss_history[-1]
 
         reward = compute_reward(prev_loss, self.current_loss, method=self.reward_method) + self.rl_penalty
         self.loss_history.append(self.current_loss)
 
-        done = (self.current_loss < self.tolerance) + self.rl_penalty
+        done = (self.current_loss < self.tolerance) + self.rl_penalty 
 
         return state, reward, done, {}
 
@@ -139,8 +139,8 @@ class EnvRLOptimizer(gym.Env):
         self.callbacks.callbacks[1].save_every = 0.1
 
         # Plotting loss landscape
-        if self.rl_penalty != -1:
-            self.plot_loss_surface.plotting_equation_loss_surface(*self.equation_params)
+        # if self.rl_penalty != -1:
+        #     self.plot_loss_surface.plotting_equation_loss_surface(*self.equation_params)
 
     def close(self):
         plt.close('all')

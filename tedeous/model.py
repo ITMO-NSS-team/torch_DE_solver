@@ -1,4 +1,6 @@
 import torch
+import torch.nn.init as init
+import torch.nn as nn
 import numpy as np
 from typing import Union, List
 import tempfile
@@ -140,6 +142,14 @@ class Model():
                                name=model_name)
             else:
                 save_model_nn(self._save_dir, model=self.net, name=model_name)
+    
+    def reinit_weights(self, m):
+        # Если это линейный слой
+        if isinstance(m, nn.Linear):
+            # Например, инициализация Ксавьера
+            init.xavier_uniform_(m.weight)
+            if m.bias is not None:
+                init.constant_(m.bias, 0)
 
     def train(self,
               optimizer: Union[Optimizer, list, dict],
@@ -198,16 +208,16 @@ class Model():
                 self.saved_models = []
 
             loss_history = []
-            stuck_threshold = 50  # Число эпох без значительного изменения
-            min_loss_change = 1e-3
+            stuck_threshold = 500  # Число эпох без значительного изменения
+            min_loss_change = 1e-6
             min_grad_norm = 1e-4
 
             while self.t < epochs and not self.stop_training:
                 callbacks.on_epoch_begin()
                 self.optimizer.zero_grad()
 
-                if rl_opt_flag:
-                    callbacks.callbacks[0]._stop_dings = 0
+                # if rl_opt_flag:
+                #     callbacks.callbacks[0]._stop_dings = 0
 
                 # this fellow should be in NNCG closure, but since it calls closure many times,
                 # it updates several time, which casuses instability
@@ -232,7 +242,7 @@ class Model():
 
                 # ERROR: when epochs < n_save_models!!!
                 if rl_opt_flag:
-                    current_model = copy.deepcopy(self.net)
+                    current_model = copy.deepcopy(self.solution_cls.model)
                     self.saved_models.append(current_model)
                     # self.prev_to_current_optimizer_models.append(current_model)
 
@@ -253,7 +263,7 @@ class Model():
                 print(f'[{datetime.datetime.now()}] Step = {self.t}, loss = {loss:.6f}.')
 
             if rl_opt_flag:
-                current_model = copy.deepcopy(self.net)
+                current_model = copy.deepcopy(self.solution_cls.model)
                 self.saved_models.append(current_model)
                 # self.prev_to_current_optimizer_models.append(current_model)
                 # indices_prev_to_current_models = np.linspace(0, len(self.prev_to_current_optimizer_models) - 1, 10,
@@ -274,17 +284,20 @@ class Model():
                 loss_history = loss_history[-stuck_threshold:]
                 delta_loss = max(loss_history) - min(loss_history)
 
-                if optimizer.optimizer in ('PSO', 'CSO'):
-                    grad_norm = torch.norm(torch.mean(self.optimizer.grads_swarm, dim=0)).item()
-                    # grad_norm = torch.norm(self.optimizer.gradient(self.cur_loss)).item()  # здесь ошибка
-                else:
-                    grad_norm = 0.
-                    for param in self.net.parameters():
-                        if param.grad is not None:
-                            grad_norm += param.grad.norm().item()
+                # if optimizer.optimizer in ('PSO', 'CSO'):
+                #     grad_norm = torch.norm(torch.mean(self.optimizer.grads_swarm, dim=0)).item()
+                #     # grad_norm = torch.norm(self.optimizer.gradient(self.cur_loss)).item()  # здесь ошибка
+                # else:
+                #     grad_norm = 0.
+                #     for param in self.net.parameters():
+                #         if param.grad is not None:
+                #             grad_norm += param.grad.norm().item()
 
-                if delta_loss < min_loss_change or grad_norm < min_grad_norm:
-                    print(f"\nLocal min!!!\nLoss: {delta_loss}, grad norm: {grad_norm}")
+                # if delta_loss < min_loss_change or grad_norm < min_grad_norm:
+                #     print(f"\nLocal min!!!\nLoss: {delta_loss}, grad norm: {grad_norm}")
+                #     self.rl_penalty = -1
+                if delta_loss < min_loss_change:
+                    print(f"\nLocal min!!!\nLoss: {delta_loss}")
                     self.rl_penalty = -1
 
                 indices_saved_models = np.linspace(0, len(self.saved_models) - 1, n_save_models, dtype=int)
@@ -327,6 +340,10 @@ class Model():
                       f'\nStarting trajectory {traj + 1}/{n_trajectories} with a new initial point.')
 
                 self.net = self.solution_cls.model
+                # Применяем к каждому слою сети:
+                self.net.apply(self.reinit_weights)
+
+                self.solution_cls._model_change(self.net)
                 self.t = 1
 
                 # state = torch init -> AE_model
@@ -414,7 +431,7 @@ class Model():
                 opt_params = optimizer['params']
                 opt_epochs = optimizer['epochs']
                 optimizer = Optimizer(opt_name, opt_params)
-                self.optimizer = optimizer.optimizer_choice(self.mode, self.net)
+                self.optimizer = optimizer.optimizer_choice(self.mode, self.solution_cls.model)
 
                 reuse_nncg_flag = opt_name == 'NNCG'
                 closure = Closure(mixed_precision, self, reuse_nncg_flag=reuse_nncg_flag).get_closure(
@@ -431,7 +448,7 @@ class Model():
                 opt_param = opt_params[0]
                 opt_epochs = opt_params[1]
                 optimizer = Optimizer(opt_name, opt_param)
-                self.optimizer = optimizer.optimizer_choice(self.mode, self.net)
+                self.optimizer = optimizer.optimizer_choice(self.mode, self.solution_cls.model)
 
                 reuse_nncg_flag = opt_name == 'NNCG'
                 closure = Closure(mixed_precision, self, reuse_nncg_flag=reuse_nncg_flag).get_closure(
@@ -443,7 +460,7 @@ class Model():
                 print(f'[{datetime.datetime.now()}] Finished optimizer {opt_name}.')
 
         elif isinstance(optimizer, Optimizer):
-            self.optimizer = optimizer.optimizer_choice(self.mode, self.net)
+            self.optimizer = optimizer.optimizer_choice(self.mode, self.solution_cls.model)
             closure = Closure(mixed_precision, self).get_closure(optimizer.optimizer)
             execute_training_phase(epochs)
 
