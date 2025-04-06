@@ -21,9 +21,25 @@ from tedeous.callbacks import early_stopping, plot, cache
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 from tedeous.models import mat_model
+import wandb
+wandb.login()
 
-solver_device('cuda')
-# solver_device('cpu')
+run = wandb.init(
+    # Set the wandb entity where your project will be logged (generally your team name).
+    # Set the wandb project where this run will be logged.
+    project="rlpinn",
+    # Track hyperparameters and run metadata.
+    config={
+        "param": "v_1",
+        "reward_function": "v_1",
+        "buffer_size": 1024,
+        "batch_size": 128,
+        "type_buffer": "partly_minus_butch_size"
+    },
+)
+
+# solver_device('cuda')
+solver_device('cpu')
 # torch.set_default_device("cpu")
 # torch.set_default_device('mps:0')
 
@@ -234,7 +250,7 @@ def wave_1d_basic_experiment(grid_res):
     # ]
 
     optimizer = {
-        "type": ['Adam', 'RAdam', 'Adam', 'LBFGS', 'PSO', 'CSO', 'RMSprop'],
+        "type": ['RAdam', 'Adam', 'LBFGS', 'PSO', 'CSO', 'RMSprop'],
         "params": [0.1, 0.01, 0.001, 0.0001],
         "epochs": [100, 500, 1000]
     }
@@ -262,7 +278,7 @@ def wave_1d_basic_experiment(grid_res):
         "polars_weight": 0.0,
         "wellspacedtrajectory_weight": 0.0,
         "gridscaling_weight": 0.0,
-        "device": "cuda"
+        "device": "cpu"
     }
 
     AE_train_params = {

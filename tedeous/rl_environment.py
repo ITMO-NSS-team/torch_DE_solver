@@ -73,7 +73,7 @@ class EnvRLOptimizer(gym.Env):
         self.observation_space = self.visualization_model.latent_dim + 1
 
         self.loss_history = []
-        self.tolerance = 1e-4
+        self.tolerance = 1e-3
         self.counter = 1
         self.n_save_models = n_save_models
 
@@ -139,8 +139,8 @@ class EnvRLOptimizer(gym.Env):
         self.callbacks.callbacks[1].save_every = 0.1
 
         # Plotting loss landscape
-        if self.rl_penalty != -1:
-            self.plot_loss_surface.plotting_equation_loss_surface(*self.equation_params)
+        # if self.rl_penalty != -1:
+        #     self.plot_loss_surface.plotting_equation_loss_surface(*self.equation_params)
 
     def close(self):
         plt.close('all')

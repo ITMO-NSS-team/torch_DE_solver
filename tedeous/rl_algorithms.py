@@ -7,6 +7,7 @@ import random
 from collections import deque, namedtuple
 import math
 from copy import deepcopy
+import wandb
 
 GAMMA = 0.99
 EPS_START = 0.9
@@ -77,19 +78,23 @@ class DQNAgent:
         self.replay_buffer = ReplayBuffer(memory_size)
         self.replay_buffer_copy = None
         self.steps_done = 0
+        self.opt_count = 0
 
         self.device = device
 
         self.model = DQN(self.n_observation, self.n_action).to(self.device)
 
+        self.reinit_target()
+
+        self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
+        self.loss_fn = nn.CrossEntropyLoss()
+
+    def reinit_target(self):
         self.target_model = DQN(self.n_observation, self.n_action).to(self.device)
         for param in self.target_model.parameters():
             param.requires_grad = False
         self.target_model.load_state_dict(self.model.state_dict())
         self.target_model.eval()
-
-        self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
-        self.loss_fn = nn.CrossEntropyLoss()
 
     def get_random_action(self):
         x_optim = random.randint(0, self.n_action["type"] - 1)
@@ -99,11 +104,12 @@ class DQNAgent:
         return x_optim, x_loss, x_epochs
 
     def optim_(self):
+        mean_batch_loss_arr = []
         self.replay_buffer_copy = deepcopy(self.replay_buffer)
         while len(self.replay_buffer_copy.memory) >= self.batch_size:
-            buff_test = self.replay_buffer.sample(self.batch_size)
-            self.replay_buffer_copy.memory = deque(filter(lambda x: x not in set(buff_test), self.replay_buffer.memory),
-                                              maxlen=self.replay_buffer.memory.maxlen)
+            buff_test = self.replay_buffer_copy.sample(self.batch_size)
+            self.replay_buffer_copy.memory = deque(filter(lambda x: x not in set(buff_test), self.replay_buffer_copy.memory),
+                                              maxlen=self.replay_buffer_copy.memory.maxlen)
 
             state, next_state, action_raw, reward = zip(*buff_test)
             state = torch.stack(state, dim=0).reshape(-1, 1, 26, 26).to(self.device)
@@ -113,7 +119,8 @@ class DQNAgent:
             Q = self.model
             right_Q = Q(state)
             Q_ = self.target_model
-            left_Q = Q_(next_state)
+            with torch.no_grad():
+                left_Q = Q_(next_state)
 
             optim_action, loss_action, epochs_action = zip(*action_raw)
             right_Q_optim, right_Q_loss, right_Q_epochs = right_Q
@@ -130,34 +137,46 @@ class DQNAgent:
             dqn_loss = reward_ + GAMMA * loss_max_Q - loss_action_Q
             dqn_epochs = reward_ + GAMMA * epochs_max_Q - epochs_action_Q
             loss_dqn = dqn_optim ** 2 + dqn_loss ** 2 + dqn_epochs ** 2
-            loss = torch.mean(loss_dqn)
+            loss = torch.sum(loss_dqn)
+            mean_batch_loss_arr.append(loss)
 
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
             print("\nRL optimization is complete!\n")
+        mean_batch_loss = 0
+        for el in mean_batch_loss_arr:
+            mean_batch_loss += el
+        mean_batch_loss = mean_batch_loss/len(mean_batch_loss_arr)
+        wandb.log({"mean_batch_loss": mean_batch_loss, "steps_done": self.steps_done})
 
         self.replay_buffer.memory = deque(filter(lambda x: x not in set(buff_test), self.replay_buffer.memory),
                                                maxlen=self.replay_buffer.memory.maxlen)
+        
+        self.opt_count += 1
+        if self.opt_count == 5:
+            self.reinit_target()
+            self.opt_count += 0
 
     # Action function stub
     def select_action(self, state):
-        state = state.to(self.device)
-        sample = random.random()
-        eps_threshold = EPS_END + (EPS_START - EPS_END) * \
-                        math.exp(-1. * self.steps_done / EPS_DECAY)
-        self.steps_done += 1
-        if sample > eps_threshold:
-            with torch.no_grad():
-                # t.max(1) will return the largest column value of each row.
-                # second column on max result is index of where max element was
-                # found, so we pick action with the larger expected reward.
-                state = state.reshape((1, 26, 26))
-                x_optim, x_loss, x_epochs = self.model(state)
-                x_optim, x_loss, x_epochs = torch.argmax(x_optim), torch.argmax(x_loss), torch.argmax(x_epochs)
-                return (x_optim, x_loss, x_epochs)
-        else:
-            return self.get_random_action()
+        with torch.no_grad():
+            state = state.to(self.device)
+            sample = random.random()
+            eps_threshold = EPS_END + (EPS_START - EPS_END) * \
+                            math.exp(-1. * self.steps_done / EPS_DECAY)
+            self.steps_done += 1
+            if sample > eps_threshold:
+                with torch.no_grad():
+                    # t.max(1) will return the largest column value of each row.
+                    # second column on max result is index of where max element was
+                    # found, so we pick action with the larger expected reward.
+                    state = state.reshape((1, 26, 26))
+                    x_optim, x_loss, x_epochs = self.model(state)
+                    x_optim, x_loss, x_epochs = torch.argmax(x_optim), torch.argmax(x_loss), torch.argmax(x_epochs)
+                    return (x_optim, x_loss, x_epochs)
+            else:
+                return self.get_random_action()
 
     def push_memory(self, rl_params):
         # self.replay_buffer.memory += (rl_params,)

@@ -6,6 +6,7 @@ import os
 import datetime
 import copy
 import itertools
+import math
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.input_preprocessing import Operator_bcond_preproc
@@ -205,9 +206,8 @@ class Model():
             while self.t < epochs and not self.stop_training:
                 callbacks.on_epoch_begin()
                 self.optimizer.zero_grad()
+                if rl_opt_flag: callbacks.callbacks[0]._stop_dings = 0
 
-                if rl_opt_flag:
-                    callbacks.callbacks[0]._stop_dings = 0
 
                 # this fellow should be in NNCG closure, but since it calls closure many times,
                 # it updates several time, which casuses instability
@@ -237,13 +237,11 @@ class Model():
 
                 loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
                 loss_history.append(loss)
-
                 callbacks.on_epoch_end()
                 self.t += 1
 
                 if info_string_every is not None and self.t % info_string_every == 0:
-                    # loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
-                    # loss_history.append(loss)
+                    loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
                     print(f'[{datetime.datetime.now()}] Step = {self.t}, loss = {loss:.6f}.')
             else:
                 loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
@@ -285,6 +283,9 @@ class Model():
                     print(f"\nLocal min!!!\nLoss: {delta_loss}, grad norm: {grad_norm}")
                     self.rl_penalty = -1
 
+                if loss_history[-1] != loss_history[-1]:
+                    self.rl_penalty = -1
+
                 indices_saved_models = np.linspace(0, len(self.saved_models) - 1, n_save_models, dtype=int)
                 self.saved_models = [self.saved_models[i] for i in indices_saved_models]
 
@@ -304,8 +305,8 @@ class Model():
             # state_dim = np.prod(env.observation_space.shape)
             n_action = env.action_space
 
-            rl_buffer_size = 128  # ????
-            rl_batch_size = 16
+            rl_buffer_size = 1024  # ????
+            rl_batch_size = 128
 
             rl_agent = DQNAgent(n_observation, n_action,
                                 memory_size=rl_buffer_size, device=device_type(), batch_size=rl_batch_size)
@@ -319,10 +320,14 @@ class Model():
             # state = torch.zeros(state_shape)
             # total_reward = 0
             # optimizers_history = []
+            done = None
+            idx_traj = 0
+            n_trajectories = 1000
+            loss_prev = 0
 
-            for traj in range(n_trajectories):
+            while n_trajectories - idx_traj > 0:
                 print('\n############################################################################' +
-                      f'\nStarting trajectory {traj + 1}/{n_trajectories} with a new initial point.')
+                      f'\nStarting trajectory {idx_traj + 1}/{n_trajectories} with a new initial point.')
 
                 self.net = self.solution_cls.model
                 self.t = 1
@@ -331,6 +336,10 @@ class Model():
                 total_reward = 0
                 optimizers_history = []
                 state = torch.zeros(state_shape)
+                for m in self.net.modules():
+                    if isinstance(m, torch.nn.Linear):
+                        torch.nn.init.xavier_normal_(m.weight)
+                        torch.nn.init.zeros_(m.bias)
 
                 for i in itertools.count():
                     action_raw = rl_agent.select_action(state)
@@ -380,9 +389,20 @@ class Model():
                     # input weights (for generate state) and loss (for calculate reward) to step method
                     # first getting current models and current losses
                     next_state, reward, done, _ = env.step()
+                    reward = loss_prev - loss
+
+                    if done == 1:
+                        reward += 100
+                    elif done == 0:
+                        reward -= 0.01 * i
+                    elif done == -1:
+                        reward = -100
+                    loss_prev = loss
 
                     if i != 0:
-                        rl_agent.push_memory((state, next_state, action_raw, 1 / loss))
+                        rl_agent.push_memory((state, next_state, action_raw, reward))
+                    else:
+                        rl_agent.steps_done -= 1
 
                     if rl_agent.replay_buffer.__len__() == rl_buffer_size:
                         rl_agent.optim_()
@@ -404,6 +424,9 @@ class Model():
                     elif done == -1:
                         self.rl_penalty = 0
                         break
+                if done == 1:
+                    idx_traj += 1
+            self.net = self.rl_agent.model
 
         elif isinstance(optimizer, list) and not rl_opt_flag:
             optimizers_chain = optimizer.copy()
