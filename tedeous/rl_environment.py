@@ -73,7 +73,7 @@ class EnvRLOptimizer(gym.Env):
         self.observation_space = self.visualization_model.latent_dim + 1
 
         self.loss_history = []
-        self.tolerance = 1e-4
+        self.tolerance = 1e-3
         self.counter = 1
         self.n_save_models = n_save_models
 
