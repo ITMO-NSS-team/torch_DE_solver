@@ -370,6 +370,9 @@ class Model():
                         reuse_nncg_flag=reuse_nncg_flag,
                         n_save_models=n_save_models
                     )
+                    if loss!=loss:
+                        self.rl_penalty = 0
+                        break
 
                     env.rl_penalty = self.rl_penalty
 
