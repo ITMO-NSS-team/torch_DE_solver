@@ -47,6 +47,7 @@ class EnvRLOptimizer(gym.Env):
         self.solver_models = None
         self.current_loss = None
         self.rl_penalty = 0
+        self.raw_states_dict = {}
 
         self.AE_model_params = AE_model_params
         self.AE_train_params = AE_train_params
@@ -108,12 +109,11 @@ class EnvRLOptimizer(gym.Env):
 
         self.loss_surface_params['solver_models'] = self.solver_models
         self.loss_surface_params['AE_model'] = AEmodel
-
+        
         self.plot_loss_surface = PlotLossSurface(**self.loss_surface_params)
         self.plot_loss_surface.counter = self.counter
 
-        raw_state = self.plot_loss_surface.save_equation_loss_surface(*self.equation_params)
-        state = raw_state['grid_losses']
+        self.raw_states_dict = self.plot_loss_surface.save_equation_loss_surface(*self.equation_params)
 
         if len(self.loss_history) == 0:
             prev_loss = 0
@@ -125,7 +125,7 @@ class EnvRLOptimizer(gym.Env):
 
         done = (self.current_loss < self.tolerance) + self.rl_penalty 
 
-        return state, reward, done, {}
+        return self.raw_states_dict, reward, done, {}
 
     def render(self):
         """Display the current error and convergence history."""

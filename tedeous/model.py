@@ -347,7 +347,11 @@ class Model():
                 # state = torch init -> AE_model
                 total_reward = 0
                 optimizers_history = []
-                state = torch.zeros(state_shape)
+
+                state = {"loss_total": torch.zeros(state_shape),
+                         "loss_oper": torch.zeros(state_shape),
+                         "loss_bnd": torch.zeros(state_shape)
+                         }
 
                 for i in itertools.count():
                     action_raw = rl_agent.select_action(state)
@@ -415,7 +419,7 @@ class Model():
                     else:
                         rl_agent.steps_done -= 1
 
-                    if rl_agent.replay_buffer.__len__() == rl_buffer_size:
+                    if rl_agent.replay_buffer.__len__() == 1:
                         rl_agent.optim_()
 
                     state = next_state

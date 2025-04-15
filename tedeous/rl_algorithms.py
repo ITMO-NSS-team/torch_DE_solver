@@ -112,6 +112,8 @@ class DQNAgent:
                                               maxlen=self.replay_buffer_copy.memory.maxlen)
 
             state, next_state, action_raw, reward = zip(*buff_test)
+            state = state['loss_total']
+            next_state = next_state['loss_total']
             state = torch.stack(state, dim=0).reshape(-1, 1, 26, 26).to(self.device)
             next_state = torch.stack(next_state, dim=0).reshape(-1, 1, 26, 26).to(self.device)
             reward = torch.FloatTensor(reward).to(self.device)
@@ -161,7 +163,7 @@ class DQNAgent:
     # Action function stub
     def select_action(self, state):
         with torch.no_grad():
-            state = state.to(self.device)
+            state = state['loss_total'].to(self.device)
             sample = random.random()
             eps_threshold = EPS_END + (EPS_START - EPS_END) * \
                             math.exp(-1. * self.steps_done / EPS_DECAY)

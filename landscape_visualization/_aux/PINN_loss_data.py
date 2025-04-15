@@ -136,7 +136,7 @@ class PINNLossData:
             torch.cuda.empty_cache()
             loss = temp_loss
         loss_dict = {
-            "loss": loss,
+            "loss_total": loss,
             "loss_normalized": loss_normalized.detach(),
             "loss_oper": loss_oper.detach(),
             "loss_bnd": loss_bnd.detach(),
@@ -188,7 +188,7 @@ class PINNLossData:
                               lambda_bound_normalized @ bval_diff
 
         loss_dict = {
-            "loss": loss,
+            "loss_total": loss,
             "loss_normalized": loss_normalized.detach(),
             "loss_oper": loss_oper.detach(),
             "loss_bnd": loss_bnd.detach(),
@@ -235,7 +235,7 @@ class PINNLossData:
                               bval_diff @ lambda_bound_normalized.T
 
         loss_dict = {
-            "loss": loss,
+            "loss_total": loss,
             "loss_normalized": loss_normalized.detach(),
             "loss_oper": loss_oper.detach(),
             "loss_bnd": loss_bnd.detach(),

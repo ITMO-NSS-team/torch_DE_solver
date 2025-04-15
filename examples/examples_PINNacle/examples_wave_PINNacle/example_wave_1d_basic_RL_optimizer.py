@@ -22,21 +22,21 @@ from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 from tedeous.models import mat_model
 import wandb
-wandb.login()
+# wandb.login()
 
-run = wandb.init(
-    # Set the wandb entity where your project will be logged (generally your team name).
-    # Set the wandb project where this run will be logged.
-    project="rlpinn",
-    # Track hyperparameters and run metadata.
-    config={
-        "param": "v_1",
-        "reward_function": "v_1",
-        "buffer_size": 1024,
-        "batch_size": 128,
-        "type_buffer": "partly_minus_butch_size"
-    },
-)
+# run = wandb.init(
+#     # Set the wandb entity where your project will be logged (generally your team name).
+#     # Set the wandb project where this run will be logged.
+#     project="rlpinn",
+#     # Track hyperparameters and run metadata.
+#     config={
+#         "param": "v_1",
+#         "reward_function": "v_1",
+#         "buffer_size": 1024,
+#         "batch_size": 128,
+#         "type_buffer": "partly_minus_butch_size"
+#     },
+# )
 
 # solver_device('cuda')
 solver_device('cpu')
@@ -167,7 +167,7 @@ def wave_1d_basic_experiment(grid_res):
     cb_es = early_stopping.EarlyStopping(eps=1e-6,
                                          loss_window=100,
                                          no_improvement_patience=100,
-                                         patience=1000,
+                                         patience=100,
                                          randomize_parameter=1e-3,
                                          info_string_every=10)
 
@@ -300,7 +300,7 @@ def wave_1d_basic_experiment(grid_res):
     }
 
     loss_surface_params = {
-        "loss_type": "loss_total",
+        "loss_types": ["loss_total", "loss_oper", "loss_bnd"],
         "every_nth": 1,
         "num_of_layers": 3,
         "layers_AE": [
