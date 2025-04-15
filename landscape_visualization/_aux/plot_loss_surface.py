@@ -291,6 +291,8 @@ class PlotLossSurface:
         rec_grid_models = rec_grid_models * self.transform.std.to(self.device) + self.transform.mean.to(self.device)
 
         grid_losses = self.compute_losses(rec_grid_models, domain, equation, boundaries, PINN_layers)
+        for loss_type in self.loss_types:
+                grid_losses[loss_type] = grid_losses[loss_type].view(grid_xx.shape)
 
         return grid_losses, grid_xx, grid_yy, rec_grid_models
 
@@ -308,7 +310,6 @@ class PlotLossSurface:
             grid_yy (torch.Tensor): 2D tensor representing the y-coordinates of the grid for the loss surface.
             rec_grid_models (torch.Tensor): Tensor containing the reconstructed models obtained by decoding grid points in the latent space.
         """
-        grid_losses = grid_losses.view(grid_xx.shape)
         vmax = self.vmax
         vmin = self.vmin
         if self.vmax <= 0 or self.vmin <= 0:
