@@ -22,6 +22,7 @@ from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 from tedeous.models import mat_model
 import wandb
+
 # wandb.login()
 
 # run = wandb.init(
@@ -32,14 +33,14 @@ import wandb
 #     config={
 #         "param": "v_1",
 #         "reward_function": "v_1",
-#         "buffer_size": 1024,
-#         "batch_size": 128,
+#         "buffer_size": 4,
+#         "batch_size": 2,
 #         "type_buffer": "partly_minus_butch_size"
 #     },
 # )
 
-# solver_device('cuda')
-solver_device('cpu')
+solver_device('cuda')
+# solver_device('cpu')
 # torch.set_default_device("cpu")
 # torch.set_default_device('mps:0')
 
@@ -56,6 +57,8 @@ def wave_1d_basic_experiment(grid_res):
 
     x_min, x_max = 0, 1
     t_max = 1
+
+    pde_dim_in, pde_dim_out = 2, 1
 
     domain = Domain()
     domain.variable('x', [x_min, x_max], grid_res)
@@ -119,24 +122,12 @@ def wave_1d_basic_experiment(grid_res):
 
     neurons = 32
 
-    # net = torch.nn.Sequential(
-    #     torch.nn.Linear(2, neurons),
-    #     torch.nn.Tanh(),
-    #     torch.nn.Linear(neurons, neurons),
-    #     torch.nn.Tanh(),
-    #     torch.nn.Linear(neurons, neurons),
-    #     torch.nn.Tanh(),
-    #     torch.nn.Linear(neurons, neurons),
-    #     torch.nn.Tanh(),
-    #     torch.nn.Linear(neurons, 1)
-    # )
-
     net = torch.nn.Sequential(
-        torch.nn.Linear(2, neurons),
+        torch.nn.Linear(pde_dim_in, neurons),
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
-        torch.nn.Linear(neurons, 1)
+        torch.nn.Linear(neurons, pde_dim_out)
     )
 
     for m in net.modules():
@@ -162,23 +153,21 @@ def wave_1d_basic_experiment(grid_res):
 
     img_dir = os.path.join(os.path.dirname(__file__), 'wave_1d_basic_img')
 
-    # cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-4)
+    cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-6)
 
     cb_es = early_stopping.EarlyStopping(eps=1e-6,
                                          loss_window=100,
-                                         no_improvement_patience=100,
+                                         no_improvement_patience=1000,
                                          patience=100,
-                                         randomize_parameter=1e-3,
+                                         randomize_parameter=1e-4,
                                          info_string_every=10)
 
     cb_plots = plot.Plots(save_every=None,
                           print_every=None,
                           img_dir=img_dir,
-                          scatter_flag=False
-                          )
+                          scatter_flag=False)
 
     # RL wrapper integration ###########################################################################################
-
     # The wrapper should be inside the model.train method
     # We need to change the optimizers inside the RL learning loop and substitute them into the model learning loop
     # We can change optimizers only inside model.train and inside the RL loop
@@ -208,8 +197,6 @@ def wave_1d_basic_experiment(grid_res):
     #               # 'cg_max_iters': 1000,
     #               "verbose": False}, 50)
     # }
-
-    # version 1 (right) - wrapper in model.train method ################################################################
 
     # optimizer = [
     #     {
@@ -250,9 +237,9 @@ def wave_1d_basic_experiment(grid_res):
     # ]
 
     optimizer = {
-        "type": ['Adam', 'RAdam', 'AdamW', 'LBFGS', 'PSO', 'CSO', 'RMSprop'],
-        "params": [0.1, 0.01, 0.001, 0.001],
-        "epochs": [10, 100, 1000]
+        "type": ['Adam', 'RAdam', 'LBFGS', 'PSO', 'CSO', 'RMSprop'],
+        "params": [0.1, 0.01, 0.001, 0.0001],
+        "epochs": [10, 50, 100]
     }
 
     # optimizer = Optimizer('Adam', {'lr': 1e-4})
@@ -278,7 +265,7 @@ def wave_1d_basic_experiment(grid_res):
         "polars_weight": 0.0,
         "wellspacedtrajectory_weight": 0.0,
         "gridscaling_weight": 0.0,
-        "device": "cpu"
+        "device": "cuda"
     }
 
     AE_train_params = {
@@ -327,21 +314,32 @@ def wave_1d_basic_experiment(grid_res):
         "img_dir": img_dir
     }
 
-    n_save_models = 10
-    n_trajectories = 5
+    rl_agent_params = {
+        "n_save_models": 10,
+        "n_trajectories": 1,
+        "tolerance": 1e-1,
+        "stuck_threshold": 10,  # Число эпох без значительного изменения прогресса
+        "min_loss_change": 1e-4,
+        "min_grad_norm": 1e-5,
+        "rl_buffer_size": 4,
+        "rl_batch_size": 2,
+        "rl_reward_method": "absolute",
+        "exact_solution_func": exact_func,
+        "reward_operator_coeff": 1,
+        "reward_boundary_coeff": 1
+    }
 
     model.train(optimizer,
                 5e5,
                 save_model=True,
-                callbacks=[cb_es, cb_plots],
-                rl_opt_flag=True,
+                callbacks=[cb_es, cb_plots, cb_cache],
+                rl_agent_params=rl_agent_params,
                 models_concat_flag=False,
+                model_name='rl_optimization_agent',
                 equation_params=equation_params,
                 AE_model_params=AE_model_params,
                 AE_train_params=AE_train_params,
-                loss_surface_params=loss_surface_params,
-                n_save_models=n_save_models,
-                n_trajectories=n_trajectories)
+                loss_surface_params=loss_surface_params)
 
     end = time.time()
 
