@@ -16,12 +16,12 @@ EPS_DECAY = 1000
 TAU = 0.005
 
 Transition = namedtuple('Transition',
-                        ('state', 'action', 'next_state', 'reward'))
+                        ('state', 'next_state', 'action', 'reward'))
 
 
 class ReplayBuffer:
     def __init__(self, capacity):
-        self.memory = deque(maxlen=capacity)
+        self.memory = deque()
 
     def push(self, *args):
         self.memory.append(Transition(*args))
@@ -103,17 +103,56 @@ class DQNAgent:
 
         return x_optim, x_loss, x_epochs
 
+    def detach_transition(self, transition):
+        def detach_item(item):
+            if isinstance(item, torch.Tensor):
+                return item.detach().clone()
+            elif isinstance(item, tuple):
+                return tuple(detach_item(subitem) for subitem in item)
+            elif isinstance(item, dict):
+                return {k: detach_item(v) for k, v in item.items()}
+            else:
+                return item
+
+        return Transition(
+            state=detach_item(transition.state),
+            next_state=detach_item(transition.next_state),
+            action=detach_item(transition.action),
+            reward=detach_item(transition.reward)
+        )
+
+    def deepcopy_replay_buffer_without_graph(self, buffer):
+        clean_buffer = ReplayBuffer(capacity=len(buffer.memory))
+        for transition in buffer.memory:
+            clean_buffer.push(*self.detach_transition(transition))
+        return clean_buffer
+
     def optim_(self):
         mean_batch_loss_arr = []
-        self.replay_buffer_copy = deepcopy(self.replay_buffer)
+        # self.replay_buffer_copy = deepcopy(self.replay_buffer)
+        self.replay_buffer_copy = self.deepcopy_replay_buffer_without_graph(self.replay_buffer)
+
         while len(self.replay_buffer_copy.memory) >= self.batch_size:
             buff_test = self.replay_buffer_copy.sample(self.batch_size)
-            self.replay_buffer_copy.memory = deque(filter(lambda x: x not in set(buff_test), self.replay_buffer_copy.memory),
-                                              maxlen=self.replay_buffer_copy.memory.maxlen)
+
+            transition_equal = lambda t1, t2: (
+                        all(torch.equal(t1.state[k], t2[0][k]) for k in t1.state) and
+                        all(torch.equal(t1.next_state[k], t2[1][k]) for k in t1.next_state) and
+                        t1.action == t2[2] and
+                        torch.equal(t1.reward, t2[3])
+                )
+
+            self.replay_buffer_copy.memory = deque(
+                filter(
+                    lambda x: all(not transition_equal(x, y) for y in buff_test), self.replay_buffer_copy.memory
+                )
+            )
 
             state, next_state, action_raw, reward = zip(*buff_test)
-            state = state['loss_total']
-            next_state = next_state['loss_total']
+
+            # state = {'loss_total': tensor([...]), 'loss_oper': tensor([...]), 'loss_bnd': tensor([...])}
+            state = [elem['loss_total'] for elem in state]
+            next_state = [elem['loss_total'] for elem in next_state]
             state = torch.stack(state, dim=0).reshape(-1, 1, 26, 26).to(self.device)
             next_state = torch.stack(next_state, dim=0).reshape(-1, 1, 26, 26).to(self.device)
             reward = torch.FloatTensor(reward).to(self.device)
@@ -146,15 +185,16 @@ class DQNAgent:
             loss.backward()
             self.optimizer.step()
             print("\nRL optimization is complete!\n")
+
         mean_batch_loss = 0
         for el in mean_batch_loss_arr:
             mean_batch_loss += el
-        mean_batch_loss = mean_batch_loss/len(mean_batch_loss_arr)
-        wandb.log({"mean_batch_loss": mean_batch_loss, "steps_done": self.steps_done})
+        mean_batch_loss = mean_batch_loss / len(mean_batch_loss_arr)
+        # wandb.log({"mean_batch_loss": mean_batch_loss, "steps_done": self.steps_done})
 
-        self.replay_buffer.memory = deque(filter(lambda x: x not in set(buff_test), self.replay_buffer.memory),
-                                               maxlen=self.replay_buffer.memory.maxlen)
-        
+        # self.replay_buffer.memory = deque(filter(lambda x: x not in set(buff_test), self.replay_buffer.memory),
+        #                                   maxlen=self.replay_buffer.memory.maxlen)
+
         self.opt_count += 1
         if self.opt_count == 5:
             self.reinit_target()
@@ -176,7 +216,7 @@ class DQNAgent:
                     state = state.reshape((1, 26, 26))
                     x_optim, x_loss, x_epochs = self.model(state)
                     x_optim, x_loss, x_epochs = torch.argmax(x_optim), torch.argmax(x_loss), torch.argmax(x_epochs)
-                    return (x_optim, x_loss, x_epochs)
+                    return x_optim, x_loss, x_epochs
             else:
                 return self.get_random_action()
 
