@@ -7,7 +7,9 @@ import random
 from collections import deque, namedtuple
 import math
 from copy import deepcopy
-import wandb
+# import wandb
+import matplotlib.pyplot as plt
+
 
 GAMMA = 0.99
 EPS_START = 0.9
@@ -34,11 +36,10 @@ class ReplayBuffer:
     def __len__(self):
         return len(self.memory)
 
-
 class DQN(nn.Module):
     def __init__(self, n_observation, n_action):
         super(DQN, self).__init__()
-        self.conv1 = nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(2, 16, kernel_size=3, stride=1, padding=1)
         self.relu1 = nn.ReLU()
         self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
@@ -49,9 +50,10 @@ class DQN(nn.Module):
 
         self.fc1 = nn.Linear(6 * 6 * 32, 128)  # n_observation instead 6 * 6
         self.relu3 = nn.ReLU()
-        self.fc2_optim = nn.Linear(128, n_action["type"])
-        self.fc2_loss = nn.Linear(128, n_action["params"])
-        self.fc2_epochs = nn.Linear(128, n_action["epochs"])
+        self.fc_last = nn.Linear(128, n_action["type"] * n_action["params"] * n_action["epochs"])
+        # self.fc2_optim = nn.Linear(128, n_action["type"])
+        # self.fc2_loss = nn.Linear(128, n_action["params"])
+        # self.fc2_epochs = nn.Linear(128, n_action["epochs"])
         self.softmax = nn.Softmax()
 
     def forward(self, x):
@@ -59,10 +61,12 @@ class DQN(nn.Module):
         x = self.pool2(self.relu2(self.conv2(x)))
         x = x.view(-1, 6 * 6 * 32)
         x = self.relu3(self.fc1(x))
-        x_optim = self.fc2_optim(x)
-        x_loss = self.fc2_loss(x)
-        x_epochs = self.fc2_epochs(x)
-        return x_optim, x_loss, x_epochs
+        # x_optim = self.fc2_optim(x)
+        # x_loss = self.fc2_loss(x)
+        # x_epochs = self.fc2_epochs(x)
+        # return x_optim, x_loss, x_epochs
+        x = self.fc_last(x)
+        return x
 
 
 class DQNAgent:
@@ -79,6 +83,7 @@ class DQNAgent:
         self.replay_buffer_copy = None
         self.steps_done = 0
         self.opt_count = 0
+        self.opt_count_out = 0
 
         self.device = device
 
@@ -97,11 +102,9 @@ class DQNAgent:
         self.target_model.eval()
 
     def get_random_action(self):
-        x_optim = random.randint(0, self.n_action["type"] - 1)
-        x_loss = random.randint(0, self.n_action["params"] - 1)
-        x_epochs = random.randint(0, self.n_action["epochs"] - 1)
+        x = random.randint(0, self.n_action["epochs"] * self.n_action["params"] * self.n_action["type"] - 1)
 
-        return x_optim, x_loss, x_epochs
+        return x
 
     def detach_transition(self, transition):
         def detach_item(item):
@@ -151,10 +154,10 @@ class DQNAgent:
             state, next_state, action_raw, reward = zip(*buff_test)
 
             # state = {'loss_total': tensor([...]), 'loss_oper': tensor([...]), 'loss_bnd': tensor([...])}
-            state = [elem['loss_total'] for elem in state]
-            next_state = [elem['loss_total'] for elem in next_state]
-            state = torch.stack(state, dim=0).reshape(-1, 1, 26, 26).to(self.device)
-            next_state = torch.stack(next_state, dim=0).reshape(-1, 1, 26, 26).to(self.device)
+            state = [torch.stack((elem['loss_oper'], elem['loss_bnd']), dim=0) for elem in state]
+            next_state = [torch.stack((elem['loss_oper'], elem['loss_bnd']), dim=0) for elem in next_state]
+            state = torch.stack(state, dim=0).reshape(-1, 2, 26, 26).to(self.device)
+            next_state = torch.stack(next_state, dim=0).reshape(-1, 2, 26, 26).to(self.device)
             reward = torch.FloatTensor(reward).to(self.device)
 
             Q = self.model
@@ -162,23 +165,30 @@ class DQNAgent:
             Q_ = self.target_model
             with torch.no_grad():
                 left_Q = Q_(next_state)
+            action = action_raw
 
-            optim_action, loss_action, epochs_action = zip(*action_raw)
-            right_Q_optim, right_Q_loss, right_Q_epochs = right_Q
+            # optim_action, loss_action, epochs_action = zip(*action_raw)
+            # right_Q_optim, right_Q_loss, right_Q_epochs = right_Q
+            # get_reward_by_action = lambda q_values, actions: q_values[torch.arange(len(actions)), actions]
+            # optim_action_Q = get_reward_by_action(right_Q_optim, optim_action)
+            # loss_action_Q = get_reward_by_action(right_Q_loss, loss_action)
+            # epochs_action_Q = get_reward_by_action(right_Q_epochs, epochs_action)
+            # left_Q_optim, left_Q_loss, left_Q_epochs = left_Q
+            # optim_max_Q = torch.max(left_Q_optim, dim=1).values
+            # loss_max_Q = torch.max(left_Q_loss, dim=1).values
+            # epochs_max_Q = torch.max(left_Q_epochs, dim=1).values
+            # reward_ = reward
+            # dqn_optim = reward_ + GAMMA * optim_max_Q - optim_action_Q
+            # dqn_loss = reward_ + GAMMA * loss_max_Q - loss_action_Q
+            # dqn_epochs = reward_ + GAMMA * epochs_max_Q - epochs_action_Q
+            # loss_dqn = dqn_optim ** 2 + dqn_loss ** 2 + dqn_epochs ** 2
+            # loss = torch.sum(loss_dqn)
             get_reward_by_action = lambda q_values, actions: q_values[torch.arange(len(actions)), actions]
-            optim_action_Q = get_reward_by_action(right_Q_optim, optim_action)
-            loss_action_Q = get_reward_by_action(right_Q_loss, loss_action)
-            epochs_action_Q = get_reward_by_action(right_Q_epochs, epochs_action)
-            left_Q_optim, left_Q_loss, left_Q_epochs = left_Q
-            optim_max_Q = torch.max(left_Q_optim, dim=1).values
-            loss_max_Q = torch.max(left_Q_loss, dim=1).values
-            epochs_max_Q = torch.max(left_Q_epochs, dim=1).values
+            action_Q = get_reward_by_action(right_Q, action)
+            max_Q = torch.max(left_Q, dim=1).values
             reward_ = reward
-            dqn_optim = reward_ + GAMMA * optim_max_Q - optim_action_Q
-            dqn_loss = reward_ + GAMMA * loss_max_Q - loss_action_Q
-            dqn_epochs = reward_ + GAMMA * epochs_max_Q - epochs_action_Q
-            loss_dqn = dqn_optim ** 2 + dqn_loss ** 2 + dqn_epochs ** 2
-            loss = torch.sum(loss_dqn)
+            loss = (reward_ + GAMMA * max_Q - action_Q)**2
+            loss = torch.mean(loss)
             mean_batch_loss_arr.append(loss)
 
             self.optimizer.zero_grad()
@@ -196,14 +206,17 @@ class DQNAgent:
         #                                   maxlen=self.replay_buffer.memory.maxlen)
 
         self.opt_count += 1
+        self.opt_count_out += 1
         if self.opt_count == 5:
             self.reinit_target()
-            self.opt_count += 0
+            self.opt_count = 0
+        return mean_batch_loss
 
     # Action function stub
     def select_action(self, state):
         with torch.no_grad():
-            state = state['loss_total'].to(self.device)
+            # state = state['loss_total'].to(self.device)
+            state = torch.stack((state['loss_oper'], state['loss_bnd']), dim=0)
             sample = random.random()
             eps_threshold = EPS_END + (EPS_START - EPS_END) * \
                             math.exp(-1. * self.steps_done / EPS_DECAY)
@@ -213,10 +226,11 @@ class DQNAgent:
                     # t.max(1) will return the largest column value of each row.
                     # second column on max result is index of where max element was
                     # found, so we pick action with the larger expected reward.
-                    state = state.reshape((1, 26, 26))
-                    x_optim, x_loss, x_epochs = self.model(state)
-                    x_optim, x_loss, x_epochs = torch.argmax(x_optim), torch.argmax(x_loss), torch.argmax(x_epochs)
-                    return x_optim, x_loss, x_epochs
+                    state = state.reshape((-1, 26, 26))
+                    # x_optim, x_loss, x_epochs = self.model(state)
+                    # x_optim, x_loss, x_epochs = torch.argmax(x_optim), torch.argmax(x_loss), torch.argmax(x_epochs)
+                    x = torch.argmax(self.model(state))
+                    return x
             else:
                 return self.get_random_action()
 
@@ -226,3 +240,10 @@ class DQNAgent:
 
     def update_target_model(self):
         self.target_model.load_state_dict(self.model.state_dict())
+
+    def render_Q_function(self):
+        x = nn.Sigmoid()(torch.sum(self.model.fc_last.weight, dim=1))
+        x = x.detach().numpy() 
+        plt.figure(figsize=(10, 6))
+        plt.bar([i for i in range(len(x))],x,align='center')
+        plt.savefig(f'q_function_steps_{self.opt_count_out}.png')

@@ -152,3 +152,4 @@ wave_1d_basic_img/
 .DS_Store
 wandb/
 replay_buffer.pickle
+legend.txt

@@ -21,7 +21,7 @@ from tedeous.callbacks import early_stopping, plot, cache
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 from tedeous.models import mat_model
-import wandb
+# import wandb
 
 # wandb.login()
 
@@ -39,8 +39,8 @@ import wandb
 #     },
 # )
 
-solver_device('cuda')
-# solver_device('cpu')
+# solver_device('cuda')
+solver_device('cpu')
 # torch.set_default_device("cpu")
 # torch.set_default_device('mps:0')
 
@@ -239,7 +239,7 @@ def wave_1d_basic_experiment(grid_res):
     optimizer = {
         "type": ['Adam', 'RAdam', 'LBFGS', 'PSO', 'CSO', 'RMSprop'],
         "params": [0.1, 0.01, 0.001, 0.0001],
-        "epochs": [10, 50, 100]
+        "epochs": [100, 500, 1000]
     }
 
     # optimizer = Optimizer('Adam', {'lr': 1e-4})
@@ -265,7 +265,7 @@ def wave_1d_basic_experiment(grid_res):
         "polars_weight": 0.0,
         "wellspacedtrajectory_weight": 0.0,
         "gridscaling_weight": 0.0,
-        "device": "cuda"
+        "device": "cpu"
     }
 
     AE_train_params = {
@@ -316,13 +316,13 @@ def wave_1d_basic_experiment(grid_res):
 
     rl_agent_params = {
         "n_save_models": 10,
-        "n_trajectories": 1,
+        "n_trajectories": 1000,
         "tolerance": 1e-1,
         "stuck_threshold": 10,  # Число эпох без значительного изменения прогресса
         "min_loss_change": 1e-4,
         "min_grad_norm": 1e-5,
         "rl_buffer_size": 4,
-        "rl_batch_size": 2,
+        "rl_batch_size": 32,
         "rl_reward_method": "absolute",
         "exact_solution_func": exact_func,
         "reward_operator_coeff": 1,

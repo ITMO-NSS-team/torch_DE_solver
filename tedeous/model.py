@@ -32,6 +32,23 @@ def get_state_shape(loss_surface_params):
 
     return tuple(torch.meshgrid(x_coords, y_coords)[0].shape)
 
+def get_tup_actions(optimizers):
+    tupe_actions = []
+    for opt in range(len(optimizers['type'])):
+        for epoch in range(len(optimizers['epochs'])):
+            for lr in range(len(optimizers['params'])):
+                tupe_actions.append((opt, epoch, lr))
+    return tupe_actions
+
+def make_legend(tupe_dqn_class, optimizers):
+    with open('legend.txt', 'a') as the_file:
+        for i, el in enumerate(tupe_dqn_class):
+            opt, epoch, lr = el 
+            type_ = optimizers['type'][opt]
+            epochs_ = optimizers['epochs'][epoch]
+            params_ = optimizers['params'][lr]
+            the_file.write(f'{i}: {type_}, {epochs_}, {params_}\n')
+
 
 class Model():
     """class for preprocessing"""
@@ -339,6 +356,9 @@ class Model():
             variable_dict = self.domain.variable_dict
             bconds = self.conditions.build(variable_dict)
 
+            tupe_dqn_class = get_tup_actions(optimizers)
+            make_legend(tupe_dqn_class, optimizers)
+
             while rl_agent_params['n_trajectories'] - idx_traj > 0:
                 self.net = self.solution_cls.model
                 self.t = 1
@@ -357,9 +377,11 @@ class Model():
                       'with a new initial point.')
 
                 for i in itertools.count():
-                    action_raw = rl_agent.select_action(state)
+                    # state = torch.stack((state['loss_oper'], state['loss_bnd']), dim=0)
+                    dqn_class = rl_agent.select_action(state)
+                    action_raw = tupe_dqn_class[dqn_class]
                     print(f"\naction_raw = {action_raw}")
-                    i_optim, i_loss, i_epochs = action_raw
+                    i_optim, i_epochs, i_loss = action_raw
                     action = {
                         'type': optimizers['type'][i_optim],
                         'params': {'lr': optimizers['params'][i_loss]},
@@ -437,15 +459,19 @@ class Model():
                     elif done == 0:
                         reward -= 0.01 * i
                     elif done == -1:
-                        reward = -100
+                        reward = torch.tensor(-100, dtype=torch.int8)
 
-                    if i != 0:
-                        rl_agent.push_memory((state, next_state, action_raw, reward))
-                    else:
-                        rl_agent.steps_done -= 1
+                    # if i != 0:
+                    #     rl_agent.push_memory((state, next_state, action_raw, reward))
+                    # else:
+                    #     rl_agent.steps_done -= 1
+                    rl_agent.push_memory((state, next_state, dqn_class, reward))
+                    # for _ in range(32):
+                    #     rl_agent.push_memory((state, next_state, dqn_class, reward))
 
-                    if rl_agent.replay_buffer.__len__() == rl_agent_params["rl_batch_size"]:
+                    if rl_agent.replay_buffer.__len__() % rl_agent_params["rl_batch_size"] == 0:
                         rl_agent.optim_()
+                        rl_agent.render_Q_function()
 
                     state = next_state
                     total_reward += reward
