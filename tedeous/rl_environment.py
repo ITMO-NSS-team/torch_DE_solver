@@ -1,4 +1,5 @@
 import gym
+import numpy as np
 import matplotlib.pyplot as plt
 
 from typing import List, Union
@@ -11,22 +12,24 @@ from tedeous.optimizers.optimizer import Optimizer
 from tedeous.callbacks.callback_list import CallbackList
 
 
-def compute_reward(prev_loss, current_loss, method="absolute"):
+def compute_reward(reward_params, prev_reward, method="diff"):
     """
     Calculates the reward for the agent.
 
     Args:
-        prev_loss (float): Error in the previous step.
-        current_loss (float): Error at the current step.
+        reward_params (dict): dictionary with operator and boundary error value and coefficients.
+        prev_reward (float): previous value of reward.
         method (str): The method for calculating the reward (“diff” or “absolute”).
-
     Returns:
         float: The value of the reward.
     """
+    current_reward = reward_params["operator"]["coeff"] * reward_params["operator"]["error"] + \
+        reward_params["bconds"]["coeff"] * reward_params["bconds"]["error"]
+
     if method == "diff":
-        return prev_loss - current_loss
+        return prev_reward - current_reward
     elif method == "absolute":
-        return -current_loss
+        return -current_reward
     else:
         raise ValueError("Invalid reward method. Use 'diff' or 'absolute'.")
 
@@ -40,12 +43,13 @@ class EnvRLOptimizer(gym.Env):
                  AE_train_params: dict = None,
                  reward_method: str = "absolute",
                  callbacks: Union[CallbackList, List, None] = None,
-                 n_save_models: int = None):
+                 n_save_models: int = None,
+                 tolerance: float = 1e-2):
         super(EnvRLOptimizer, self).__init__()
 
         self.optimizers = optimizers
         self.solver_models = None
-        self.current_loss = None
+        self.reward_params = None
         self.rl_penalty = 0
         self.raw_states_dict = {}
 
@@ -73,14 +77,15 @@ class EnvRLOptimizer(gym.Env):
         # observation_space = 3
         self.observation_space = self.visualization_model.latent_dim + 1
 
-        self.loss_history = []
-        self.tolerance = 1e-3
+        self.current_reward = None
+        self.reward_history = []
+        self.tolerance = tolerance
         self.counter = 1
         self.n_save_models = n_save_models
 
     def reset(self):
         """Reset environment - load error surface, reset history to zero, select starting point."""
-        self.current_loss = self.loss_history[-1]
+        self.current_reward = self.reward_history[-1]
         self.counter += 1
 
     def step(self):
@@ -109,23 +114,27 @@ class EnvRLOptimizer(gym.Env):
 
         self.loss_surface_params['solver_models'] = self.solver_models
         self.loss_surface_params['AE_model'] = AEmodel
-        
+
         self.plot_loss_surface = PlotLossSurface(**self.loss_surface_params)
         self.plot_loss_surface.counter = self.counter
 
         self.raw_states_dict = self.plot_loss_surface.save_equation_loss_surface(*self.equation_params)
 
-        if len(self.loss_history) == 0:
-            prev_loss = 0
+        if len(self.reward_history) == 0:
+            prev_reward = 0
         else:
-            prev_loss = self.loss_history[-1] #min(self.loss_history[-10:]) if len(self.loss_history) > 9 else self.loss_history[-1]
+            prev_reward = self.reward_history[-1]
+            # min(self.loss_history[-10:]) if len(self.loss_history) > 9 else self.loss_history[-1]
 
-        reward = compute_reward(prev_loss, self.current_loss, method=self.reward_method) + self.rl_penalty
-        self.loss_history.append(self.current_loss)
+        self.current_reward = compute_reward(
+            self.reward_params, prev_reward, method=self.reward_method
+        ) + self.rl_penalty
 
-        done = (self.current_loss < self.tolerance) + self.rl_penalty 
+        self.reward_history.append(self.current_reward)
 
-        return self.raw_states_dict, reward, done, {}
+        done = (abs(self.current_reward) < self.tolerance) + self.rl_penalty
+
+        return self.raw_states_dict, self.current_reward, done, {}
 
     def render(self):
         """Display the current error and convergence history."""
@@ -138,7 +147,7 @@ class EnvRLOptimizer(gym.Env):
         self.callbacks.on_epoch_end()
         self.callbacks.callbacks[1].save_every = 0.1
 
-        # Plotting loss landscape
+        # # Plotting loss landscape
         # if self.rl_penalty != -1:
         #     self.plot_loss_surface.plotting_equation_loss_surface(*self.equation_params)
 
