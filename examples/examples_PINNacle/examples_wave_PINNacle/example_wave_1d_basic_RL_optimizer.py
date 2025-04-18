@@ -21,23 +21,23 @@ from tedeous.callbacks import early_stopping, plot, cache
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 from tedeous.models import mat_model
-# import wandb
+import wandb
 
-# wandb.login()
+wandb.login()
 
-# run = wandb.init(
-#     # Set the wandb entity where your project will be logged (generally your team name).
-#     # Set the wandb project where this run will be logged.
-#     project="rlpinn",
-#     # Track hyperparameters and run metadata.
-#     config={
-#         "param": "v_1",
-#         "reward_function": "v_1",
-#         "buffer_size": 4,
-#         "batch_size": 2,
-#         "type_buffer": "partly_minus_butch_size"
-#     },
-# )
+run = wandb.init(
+    # Set the wandb entity where your project will be logged (generally your team name).
+    # Set the wandb project where this run will be logged.
+    project="rlpinn",
+    # Track hyperparameters and run metadata.
+    config={
+        "param": "v_1",
+        "reward_function": "v_1",
+        "buffer_size": 4,
+        "batch_size": 2,
+        "type_buffer": "partly_minus_butch_size"
+    },
+)
 
 # solver_device('cuda')
 solver_device('cpu')

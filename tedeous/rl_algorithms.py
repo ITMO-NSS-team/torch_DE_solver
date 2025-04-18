@@ -7,7 +7,7 @@ import random
 from collections import deque, namedtuple
 import math
 from copy import deepcopy
-# import wandb
+import wandb
 import matplotlib.pyplot as plt
 
 
@@ -188,7 +188,7 @@ class DQNAgent:
             max_Q = torch.max(left_Q, dim=1).values
             reward_ = reward
             loss = (reward_ + GAMMA * max_Q - action_Q)**2
-            loss = torch.mean(loss)
+            loss = torch.median(loss)
             mean_batch_loss_arr.append(loss)
 
             self.optimizer.zero_grad()
@@ -200,7 +200,7 @@ class DQNAgent:
         for el in mean_batch_loss_arr:
             mean_batch_loss += el
         mean_batch_loss = mean_batch_loss / len(mean_batch_loss_arr)
-        # wandb.log({"mean_batch_loss": mean_batch_loss, "steps_done": self.steps_done})
+        wandb.log({"mean_batch_loss": mean_batch_loss, "steps_done": self.steps_done})
 
         # self.replay_buffer.memory = deque(filter(lambda x: x not in set(buff_test), self.replay_buffer.memory),
         #                                   maxlen=self.replay_buffer.memory.maxlen)

@@ -361,6 +361,10 @@ class Model():
 
             while rl_agent_params['n_trajectories'] - idx_traj > 0:
                 self.net = self.solution_cls.model
+                for m in self.net.modules():
+                    if isinstance(m, torch.nn.Linear):
+                        torch.nn.init.xavier_normal_(m.weight)
+                        torch.nn.init.zeros_(m.bias)
                 self.t = 1
 
                 # state = torch init -> AE_model
