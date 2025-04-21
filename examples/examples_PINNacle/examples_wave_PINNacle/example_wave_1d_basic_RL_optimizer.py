@@ -10,7 +10,7 @@ import numpy as np
 import os
 import sys
 import time
-
+torch.manual_seed(42)
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
