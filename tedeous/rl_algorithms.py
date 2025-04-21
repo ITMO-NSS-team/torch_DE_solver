@@ -189,8 +189,7 @@ class DQNAgent:
             reward_ = reward
             loss = (reward_ + GAMMA * max_Q - action_Q)**2
             mean_batch_loss_arr += loss.tolist()
-            with torch.no_grad():
-                loss = loss.type(torch.DoubleTensor)
+            loss = loss.type(torch.DoubleTensor)
             loss = torch.sum(loss)
 
             self.optimizer.zero_grad()
