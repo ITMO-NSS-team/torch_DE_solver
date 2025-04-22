@@ -32,6 +32,7 @@ def get_state_shape(loss_surface_params):
 
     return tuple(torch.meshgrid(x_coords, y_coords)[0].shape)
 
+
 def get_tup_actions(optimizers):
     tupe_actions = []
     for opt in range(len(optimizers['type'])):
@@ -40,10 +41,11 @@ def get_tup_actions(optimizers):
                 tupe_actions.append((opt, epoch, lr))
     return tupe_actions
 
+
 def make_legend(tupe_dqn_class, optimizers):
     with open('legend.txt', 'a') as the_file:
         for i, el in enumerate(tupe_dqn_class):
-            opt, epoch, lr = el 
+            opt, epoch, lr = el
             type_ = optimizers['type'][opt]
             epochs_ = optimizers['epochs'][epoch]
             params_ = optimizers['params'][lr]
@@ -231,9 +233,6 @@ class Model():
                 callbacks.on_epoch_begin()
                 self.optimizer.zero_grad()
 
-                if rl_agent_params:
-                    callbacks.callbacks[0]._stop_dings = 0
-
                 # this fellow should be in NNCG closure, but since it calls closure many times,
                 # it updates several time, which casuses instability
 
@@ -278,37 +277,13 @@ class Model():
             if rl_agent_params:
                 current_model = copy.deepcopy(self.net)
                 self.saved_models.append(current_model)
-                # self.prev_to_current_optimizer_models.append(current_model)
-                # indices_prev_to_current_models = np.linspace(0, len(self.prev_to_current_optimizer_models) - 1, 10,
-                #                                              dtype=int)
-                # self.prev_to_current_optimizer_models = [self.prev_to_current_optimizer_models[i] for i in
-                #                                          indices_prev_to_current_models]
-                #
-                # loss_value = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
-                # loss_history.append(loss_value)
-
-                # if len(self.saved_models) >= n_save_models:
-                #     indices_saved_models = np.linspace(0, len(self.saved_models) - 1, 10, dtype=int)
-                #     self.saved_models = [self.saved_models[i] for i in indices_saved_models]
-                # else:
-                #     print("Using prev optimizer models")
-                #     self.saved_models = self.prev_to_current_optimizer_models
 
                 loss_history = loss_history[-stuck_threshold:]
-                delta_loss = max(loss_history) - min(loss_history)
 
-                if optimizer.optimizer in ('PSO', 'CSO'):
-                    grad_norm = torch.norm(torch.mean(self.optimizer.grads_swarm, dim=0)).item()
-                    # grad_norm = torch.norm(self.optimizer.gradient(self.cur_loss)).item()  # здесь ошибка
-                else:
-                    grad_norm = 0.
-                    for param in self.net.parameters():
-                        if param.grad is not None:
-                            grad_norm += param.grad.norm().item()
-
-                if delta_loss < min_loss_change or grad_norm < min_grad_norm:
-                    print(f"\nLocal min!!!\nDelta loss: {delta_loss}, grad norm: {grad_norm}")
+                if self.stop_training:
+                    print(f"\nLocal min!!!")
                     self.rl_penalty = -1
+                    callbacks.callbacks[0]._stop_dings = 0
 
                 if loss_history[-1] == np.nan:
                     self.rl_penalty = -1
