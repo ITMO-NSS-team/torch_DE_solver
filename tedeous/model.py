@@ -284,6 +284,7 @@ class Model():
                     print(f"\nLocal min!!!")
                     self.rl_penalty = -1
                     callbacks.callbacks[0]._stop_dings = 0
+                    self.stop_training = False
 
                 if loss_history[-1] == np.nan:
                     self.rl_penalty = -1
