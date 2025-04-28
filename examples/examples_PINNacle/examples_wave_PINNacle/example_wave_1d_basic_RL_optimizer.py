@@ -157,8 +157,8 @@ def wave_1d_basic_experiment(grid_res):
 
     cb_es = early_stopping.EarlyStopping(eps=1e-6,
                                          loss_window=100,
-                                         no_improvement_patience=1000,
-                                         patience=100,
+                                         no_improvement_patience=100,
+                                         patience=20,
                                          randomize_parameter=1e-4,
                                          info_string_every=10)
 
@@ -319,12 +319,10 @@ def wave_1d_basic_experiment(grid_res):
         "n_trajectories": 1000,
         "tolerance": 1e-1,
         "stuck_threshold": 10,  # Число эпох без значительного изменения прогресса
-        "min_loss_change": 1e-4,
-        "min_grad_norm": 1e-5,
         "rl_buffer_size": 4,
         "rl_batch_size": 32,
         "rl_reward_method": "absolute",
-        "exact_solution_func": exact_func,
+        "exact_solution": exact_func,
         "reward_operator_coeff": 1,
         "reward_boundary_coeff": 1
     }
@@ -339,7 +337,8 @@ def wave_1d_basic_experiment(grid_res):
                 equation_params=equation_params,
                 AE_model_params=AE_model_params,
                 AE_train_params=AE_train_params,
-                loss_surface_params=loss_surface_params)
+                loss_surface_params=loss_surface_params
+                )
 
     end = time.time()
 
