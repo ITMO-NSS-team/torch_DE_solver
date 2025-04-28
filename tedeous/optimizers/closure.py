@@ -129,7 +129,7 @@ class Closure():
 
         # This fellow moved to model.py since it called several times a row
         if ((self.model.t - 1) % self.optimizer.precond_update_frequency == 0) and self.reuse_nncg_flag:
-            print('here t={} and freq={}'.format(self.model.t - 1, self.optimizer.precond_update_frequency))
+            # print('here t={} and freq={}'.format(self.model.t - 1, self.optimizer.precond_update_frequency))
             self.optimizer.update_preconditioner(grads)
 
         self.model.cur_loss = loss_normalized if self.normalized_loss_stop else loss
