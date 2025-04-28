@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import torch.nn.init as init
 import torch.nn as nn
-from typing import Union, List
+from typing import Union, List, Callable
 import tempfile
 import os
 import datetime
@@ -14,7 +14,7 @@ from tedeous.input_preprocessing import Operator_bcond_preproc
 from tedeous.callbacks.callback_list import CallbackList
 from tedeous.solution import Solution
 from tedeous.optimizers.optimizer import Optimizer
-from tedeous.utils import save_model_nn, save_model_mat
+from tedeous.utils import save_model_nn, save_model_mat, exact_solution_data
 from tedeous.optimizers.closure import Closure
 from tedeous.device import device_type
 
@@ -200,7 +200,6 @@ class Model():
             AE_model_params (dict): parameters of autoencoder model. Defaults to None.
             AE_train_params (dict): parameters of autoencoder train process. Defaults to None.
             loss_surface_params (dict): parameters of loss surface create. Defaults to None.
-            exact_solution_func (callable): exact solution function for error calculate. Defaults to None.
         """
 
         self.t = 1
@@ -222,8 +221,7 @@ class Model():
 
         print('[{}] initial (min) loss is {}'.format(datetime.datetime.now(), self.min_loss.item()))
 
-        def execute_training_phase(epochs, reuse_nncg_flag=False, n_save_models=1, stuck_threshold=50,
-                                   min_loss_change=1e-3, min_grad_norm=1e-4):
+        def execute_training_phase(epochs, reuse_nncg_flag=False, n_save_models=1, stuck_threshold=50):
             if not (models_concat_flag and rl_agent_params):
                 self.saved_models = []
 
@@ -236,12 +234,14 @@ class Model():
                 # this fellow should be in NNCG closure, but since it calls closure many times,
                 # it updates several time, which casuses instability
 
-                if optimizer.optimizer == 'NNCG' and \
-                        ((self.t - 1) % optimizer.params['precond_update_frequency'] == 0) and not reuse_nncg_flag:
-                    grads = self.optimizer.gradient(self.cur_loss)
-                    grads = torch.where(grads != grads, torch.zeros_like(grads), grads)
-                    print('here t={} and freq={}'.format(self.t - 1, optimizer.params['precond_update_frequency']))
-                    self.optimizer.update_preconditioner(grads)
+                if optimizer.optimizer == 'NNCG' and ((self.t - 1) % optimizer.params['precond_update_frequency'] == 0):
+                    if not reuse_nncg_flag:
+                        grads = self.optimizer.gradient(self.cur_loss)
+                        grads = torch.where(grads != grads, torch.zeros_like(grads), grads)
+                        print('here t={} and freq={}'.format(self.t - 1, optimizer.params['precond_update_frequency']))
+                        self.optimizer.update_preconditioner(grads)
+                    else:
+                        print('here t={} and freq={}'.format(self.t - 1, optimizer.params['precond_update_frequency']))
 
                 iter_count = 1 if self.batch_size is None else self.solution_cls.operator.n_batches
                 for _ in range(iter_count):  # if batch mod then iter until end of batches else only once
@@ -386,9 +386,7 @@ class Model():
                         action["epochs"],
                         reuse_nncg_flag=reuse_nncg_flag,
                         n_save_models=rl_agent_params['n_save_models'],
-                        stuck_threshold=rl_agent_params['stuck_threshold'],
-                        min_loss_change=rl_agent_params['min_loss_change'],
-                        min_grad_norm=rl_agent_params['min_grad_norm']
+                        stuck_threshold=rl_agent_params['stuck_threshold']
                     )
 
                     if loss != loss:
@@ -406,9 +404,16 @@ class Model():
 
                     net = self.net.to(device_type())
 
-                    operator_rmse = torch.sqrt(
-                        torch.mean((rl_agent_params["exact_solution_func"](grid).reshape(-1, 1) - net(grid)) ** 2)
-                    )
+                    if callable(rl_agent_params["exact_solution"]):
+                        operator_rmse = torch.sqrt(
+                            torch.mean((rl_agent_params["exact_solution"](grid).reshape(-1, 1) - net(grid)) ** 2)
+                        )
+                    else:
+                        exact = exact_solution_data(grid, rl_agent_params["exact_solution"],
+                                                    equation_params[-1][0], equation_params[-1][-1],
+                                                    t_dim_flag='t' in list(self.domain.variable_dict.keys()))
+                        net_predicted = net(grid)
+                        operator_rmse = torch.sqrt(torch.mean((exact.reshape(-1, 1) - net_predicted) ** 2))
 
                     boundary_rmse = torch.sum(torch.tensor([
                         torch.sqrt(torch.mean(
@@ -487,6 +492,7 @@ class Model():
                 self.optimizer = optimizer.optimizer_choice(self.mode, self.net)
 
                 reuse_nncg_flag = opt_name == 'NNCG'
+
                 closure = Closure(mixed_precision, self, reuse_nncg_flag=reuse_nncg_flag).get_closure(
                     optimizer.optimizer)
                 self.t = 1
