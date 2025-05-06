@@ -37,6 +37,7 @@ class PlotLossSurface:
                  vmin: float = -1,
                  vmax: float = 1,
                  x_range: list = [-1.2, 1.2, 25],
+                 loss_types: list = ["loss_total", "loss_oper", "loss_bnd"],
                  loss_type: str = "loss_total",
                  loss_name: str = "train_loss",
                  layers_AE: list = [991, 125, 15],
@@ -104,9 +105,10 @@ class PlotLossSurface:
         self.density_vmax = density_vmax
         self.density_vmin = density_vmin
         self.colorFromGridOnly = colorFromGridOnly
+        self.loss_types = loss_types
         self.latent_dim = 2
         self.img_dir = img_dir
-        self.loss_dict = {}
+        self.states_dict = {}
         self.counter = 1
 
         if self.path_to_plot_model:
@@ -182,7 +184,9 @@ class PlotLossSurface:
 
     def compute_losses(self, models, domain, equation, boundaries, PINN_layers):
         """Get losses for list of models"""
-        losses = []
+        losses_dict = {}
+        for loss_type in self.loss_types:
+            losses_dict[loss_type] = []
         for i in range(models.shape[0]):
             model_flattened = models[i, :]
             model_repopulated = repopulate_model(model_flattened, get_PINN(PINN_layers, self.device))
@@ -192,12 +196,18 @@ class PlotLossSurface:
             equation_model.compile('autograd', lambda_operator=1, lambda_bound=100)
 
             loss_compute = PINNLossData(equation_model.solution_cls)
-            self.loss_dict = loss_compute.evaluate(save_graph=False)
-            loss = self.get_errors(model_repopulated, self.loss_type, self.loss_dict).detach()
+            loss_dict = loss_compute.evaluate(save_graph=False)
+            for loss_type in self.loss_types:
+                losses_dict[loss_type].append(loss_dict[loss_type])
+        #     # loss = self.get_errors(model_repopulated, self.loss_type, self.loss_dict).detach()
 
-            losses.append(loss)
+        #   losses.append(loss)
 
-        return torch.stack(losses)
+        # return torch.stack(losses)
+        for loss_type in self.loss_types:
+                losses_dict[loss_type] = torch.stack(losses_dict[loss_type])
+        
+        return losses_dict 
 
     def get_coordinates_and_losses_of_trajectories(self, grid, domain, equation, boundaries, PINN_layers):
         """Get coordinates and losses of trajectories.
@@ -245,9 +255,6 @@ class PlotLossSurface:
 
         return trajectory_losses, original_trajectory_losses, trajectory_coordinates
 
-    def get_loss_dict(self):
-        return self.loss_dict
-
     def get_coordinates_and_losses_of_surface(self, grid, domain, equation, boundaries, PINN_layers):
         """Get coordinates and losses of surface.
 
@@ -284,7 +291,8 @@ class PlotLossSurface:
         rec_grid_models = rec_grid_models * self.transform.std.to(self.device) + self.transform.mean.to(self.device)
 
         grid_losses = self.compute_losses(rec_grid_models, domain, equation, boundaries, PINN_layers)
-        grid_losses = grid_losses.view(grid_xx.shape)
+        for loss_type in self.loss_types:
+                grid_losses[loss_type] = grid_losses[loss_type].view(grid_xx.shape)
 
         return grid_losses, grid_xx, grid_yy, rec_grid_models
 
@@ -342,8 +350,6 @@ class PlotLossSurface:
             x_recon_unnormalized = x_recon * transform.std.to(self.device) + transform.mean.to(self.device)
             d = (data_unnormalized - x_recon_unnormalized).pow(2).sum().sqrt()
             ds.append(d)
-
-            import hashlib
 
             # def model_hash(model):
             #     state_dict = model.state_dict()
@@ -537,9 +543,11 @@ class PlotLossSurface:
 
         grid_losses, grid_xx, grid_yy, rec_grid_models = self.get_coordinates_and_losses_of_surface(
             grid, domain, equation, boundaries, PINN_layers)
-
-        self.plotting(trajectory_losses, original_trajectory_losses, trajectory_coordinates,
-                      grid_losses, grid_xx, grid_yy, rec_grid_models)
+        
+        for loss_type in self.loss_types: 
+            self.loss_type = loss_type
+            self.plotting(trajectory_losses[loss_type], original_trajectory_losses[loss_type], trajectory_coordinates,
+                      grid_losses[loss_type], grid_xx, grid_yy, rec_grid_models)
 
     def save_equation_loss_surface(self, u_exact_test: torch.Tensor, grid_test: torch.Tensor, grid: torch.Tensor,
                                    domain: Domain, equation: Equation, boundaries: Conditions, PINN_layers: list):
@@ -551,6 +559,7 @@ class PlotLossSurface:
             conditions (Conditions): object of class Conditions
             PINN_layers (list): list of layers used for repopulating models.
         """
+        raw_states_dict = {}
         self.grid_test = grid_test
         self.u_exact_test = u_exact_test
 
@@ -559,17 +568,22 @@ class PlotLossSurface:
 
         grid_losses, grid_xx, grid_yy, rec_grid_models = \
             self.get_coordinates_and_losses_of_surface(grid, domain, equation, boundaries, PINN_layers)
+        
+        for loss_type in self.loss_types:
+            raw_state = {
+                'grid_losses': grid_losses[loss_type],
+                'grid_xx': grid_xx,
+                'grid_yy': grid_yy,
+                'trajectory_losses': trajectory_losses[loss_type],
+                'original_trajectory_losses': original_trajectory_losses[loss_type],
+                'trajectory_coordinates': trajectory_coordinates
+            }
 
-        raw_state = {
-            'grid_losses': grid_losses,
-            'grid_xx': grid_xx,
-            'grid_yy': grid_yy,
-            'trajectory_losses': trajectory_losses,
-            'original_trajectory_losses': original_trajectory_losses,
-            'trajectory_coordinates': trajectory_coordinates
-        }
+            self.states_dict[loss_type] = raw_state
 
-        if self.solver_models is None:
-            torch.save(raw_state, self.path_to_plot_model_directory + '/loss_surface_data.pt')
+            if self.solver_models is None:
+                torch.save(self.states_dict, self.path_to_plot_model_directory + '/loss_surface_data.pt')
+            
+            raw_states_dict[loss_type] = raw_state['grid_losses']
 
-        return raw_state
+        return raw_states_dict

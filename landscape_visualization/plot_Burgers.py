@@ -128,7 +128,7 @@ def generate_key_lists(base_folder):
 
 
 if __name__ == '__main__':
-    path_to_trajectories = "landscape_visualization/trajectories/burgers/adam_5_starts"  # Replace with the path to your folder
+    path_to_trajectories = "landscape_visualization/trajectories/burgers/adam_5_starts"  # Replace with the path to your folder with  models in it
     key_models, key_modelnames = generate_key_lists(path_to_trajectories)
 
     model_layers = [2, 32, 32, 1]  # PINN layers
@@ -136,7 +136,7 @@ if __name__ == '__main__':
     grid_test = torch.cartesian_prod(torch.linspace(0, 1, 100), torch.linspace(0, 1, 100))
     u_exact_test = u(grid_test).reshape(-1)
     plot_args = {
-        "loss_type": "loss_bnd",
+        "loss_types": ["loss_total"],
         "every_nth": 1,
         "num_of_layers": 3,
         "layers_AE": [
@@ -145,7 +145,7 @@ if __name__ == '__main__':
             15
         ],
         "batch_size": 32,
-        "path_to_plot_model": "../landscape_visualization_origin/saved_models/PINN_burgers_adam_5_starts/model.pt",
+        "path_to_plot_model": "../landscape_visualization_origin/saved_models/PINN_burgers_adam_5_starts/model.pt", # Replace with the path to your model. path like path_to_folder + model.pt
         "num_models": None,
         "from_last": False,
         "prefix": "model-",

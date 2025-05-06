@@ -44,6 +44,7 @@ class VisualizationModel:
                  polars_weight: float = 0.0,
                  wellspacedtrajectory_weight: float = 0.0,
                  gridscaling_weight: float = 0.0,
+                 device: str = None,
                  # resume: bool = False
                  ):
 
@@ -89,6 +90,11 @@ class VisualizationModel:
         self.d_max_latent = d_max_latent
         self.anchor_mode = anchor_mode
 
+        if device:
+            self.device = device
+        else:
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         if self.path_to_plot_model is None:
             self.path_to_plot_model_directory = None
         else:
@@ -114,7 +120,6 @@ class VisualizationModel:
                                      'weight': wellspacedtrajectory_weight},
         }
         self.isEnabled = lambda loss: self.loss_dict[loss]['weight'] > 0
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def get_files_and_compile_train_mode(self,
                                          batch_size: int = 32,
@@ -206,7 +211,7 @@ class VisualizationModel:
         if finetune_AE_model and self.AE_model is not None:
             print("Fine-tune the existing autoencoder model.")
         else:
-            print("Training of a new autoencoder model.")
+            print("Training of a new autoencoder model.\n")
             self.AE_model = UniformAutoencoder(input_dim, self.num_of_layers, self.latent_dim, h=self.layers_AE).to(
                 self.device)
 
@@ -217,7 +222,7 @@ class VisualizationModel:
 
         def cycle_dataloader(dataloader):
             """Returns an infinite iterator for a dataloader."""
-            return itertools.cycle(iter(dataloader))
+            return itertools.cycle(iter(dataloader))  # add the ability to use the CPU
 
         if self.path_to_plot_model:
             if os.path.exists(self.path_to_plot_model):
@@ -304,7 +309,7 @@ class VisualizationModel:
                                                                         epoch=self.epoch,
                                                                         d_max_latent=self.d_max_latent)
 
-                    loss_total_batch = torch.tensor(0.0, dtype=torch.float32, device="cuda")
+                    loss_total_batch = torch.tensor(0.0, dtype=torch.float32, device=self.device)
                     for i in losses:
                         weighted_loss = losses[i].float() * float(self.loss_dict[i]['weight'])
                         loss_total_batch += weighted_loss
