@@ -48,9 +48,9 @@ def u0(x, x0):
 boundaries = Conditions()
 
 # Initial conditions at t=0
-u_init0 = np.zeros(x.shape[0])
-u_init1 = np.zeros(x.shape[0])
-u_init2 = np.zeros(x.shape[0])
+u_init0 = torch.zeros(x.shape[0])
+u_init1 = torch.zeros(x.shape[0])
+u_init2 = torch.zeros(x.shape[0])
 j = 0
 for i in x:
     u_init0[j] = u0(i, x0)[0]
@@ -58,23 +58,19 @@ for i in x:
     u_init2[j] = u0(i, x0)[2]
     j += 1
 
-bndval1_0 = torch.tensor(torch.from_numpy(u_init0), dtype=torch.float64)
-bndval1_1 = torch.tensor(torch.from_numpy(u_init1), dtype=torch.float64)
-bndval1_2 = torch.tensor(torch.from_numpy(u_init2), dtype=torch.float64)
-
-boundaries.dirichlet({'x': [0, 1], 't': 0}, value=bndval1_0, var=0)
-boundaries.dirichlet({'x': [0, 1], 't': 0}, value=bndval1_1, var=1)
-boundaries.dirichlet({'x': [0, 1], 't': 0}, value=bndval1_2, var=2)
+boundaries.dirichlet({'x': [0, 1], 't': 0}, value=u_init0, var=0)
+boundaries.dirichlet({'x': [0, 1], 't': 0}, value=u_init1, var=1)
+boundaries.dirichlet({'x': [0, 1], 't': 0}, value=u_init2, var=2)
 
 #  Boundary conditions at x=0
-boundaries.dirichlet({'x': 0, 't': [0, 0.2]}, value=torch.tensor(torch.from_numpy(p_l), dtype=torch.float64), var=0)
-boundaries.dirichlet({'x': 0, 't': [0, 0.2]}, value=torch.tensor(torch.from_numpy(v_l), dtype=torch.float64), var=1)
-boundaries.dirichlet({'x': 0, 't': [0, 0.2]}, value=torch.tensor(torch.from_numpy(Ro_l), dtype=torch.float64), var=2)
+boundaries.dirichlet({'x': 0, 't': [0, 0.2]}, value=p_l, var=0)
+boundaries.dirichlet({'x': 0, 't': [0, 0.2]}, value=v_l, var=1)
+boundaries.dirichlet({'x': 0, 't': [0, 0.2]}, value=Ro_l, var=2)
 
 # Boundary conditions at x=1
-boundaries.dirichlet({'x': 1, 't': [0, 0.2]}, value=torch.tensor(torch.from_numpy(p_r), dtype=torch.float64), var=0)
-boundaries.dirichlet({'x': 1, 't': [0, 0.2]}, value=torch.tensor(torch.from_numpy(v_r), dtype=torch.float64), var=1)
-boundaries.dirichlet({'x': 1, 't': [0, 0.2]}, value=torch.tensor(torch.from_numpy(Ro_r), dtype=torch.float64), var=2)
+boundaries.dirichlet({'x': 1, 't': [0, 0.2]}, value=p_r, var=0)
+boundaries.dirichlet({'x': 1, 't': [0, 0.2]}, value=v_r, var=1)
+boundaries.dirichlet({'x': 1, 't': [0, 0.2]}, value=Ro_r, var=2)
 
 '''
 gas dynamic system equations:

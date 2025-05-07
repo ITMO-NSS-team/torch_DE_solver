@@ -65,12 +65,13 @@ def SOD_experiment(grid_res, CACHE):
         else:
             return [p_l, v_l, Ro_l]
 
+    # Initial conditions at t=0
     boundaries = Conditions()
 
     # Initial conditions at t=0
-    u_init0 = np.zeros(x.shape[0])
-    u_init1 = np.zeros(x.shape[0])
-    u_init2 = np.zeros(x.shape[0])
+    u_init0 = torch.zeros(x.shape[0])
+    u_init1 = torch.zeros(x.shape[0])
+    u_init2 = torch.zeros(x.shape[0])
     j = 0
     for i in x:
         u_init0[j] = u0(i, x0)[0]
@@ -78,13 +79,9 @@ def SOD_experiment(grid_res, CACHE):
         u_init2[j] = u0(i, x0)[2]
         j += 1
 
-    bndval1_0 = torch.from_numpy(u_init0)
-    bndval1_1 = torch.from_numpy(u_init1)
-    bndval1_2 = torch.from_numpy(u_init2)
-
-    boundaries.dirichlet({'x': [0, 1], 't': 0}, value=bndval1_0, var=0)
-    boundaries.dirichlet({'x': [0, 1], 't': 0}, value=bndval1_1, var=1)
-    boundaries.dirichlet({'x': [0, 1], 't': 0}, value=bndval1_2, var=2)
+    boundaries.dirichlet({'x': [0, 1], 't': 0}, value=u_init0, var=0)
+    boundaries.dirichlet({'x': [0, 1], 't': 0}, value=u_init1, var=1)
+    boundaries.dirichlet({'x': [0, 1], 't': 0}, value=u_init2, var=2)
 
     #  Boundary conditions at x=0
     boundaries.dirichlet({'x': 0, 't': [0, 0.2]}, value=p_l, var=0)
