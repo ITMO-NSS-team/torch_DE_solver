@@ -134,6 +134,7 @@ class Model():
               epochs: int,
               info_string_every: Union[int, None] = None,
               mixed_precision: bool = False,
+              save_model: bool = False,
               model_name: Union[str, None] = None,
               callbacks: Union[List, None] = None):
         """ train model.
@@ -146,8 +147,6 @@ class Model():
             save_model (bool, optional): save resulting model in cache. Defaults to False.
             model_name (Union[str, None], optional): model name. Defaults to None.
             callbacks (Union[List, None], optional): callbacks for training process. Defaults to None.
-            rl_agent_params (dict): dictionary with rl agent parameters. Defaults to None.
-            models_concat_flag (bool): concatenate loss tensors of models (for loss landscape create) or not. Defaults to False.
         """
 
         self.t = 1
