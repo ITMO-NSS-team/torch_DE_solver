@@ -12,12 +12,14 @@ from tedeous.device import check_device
 
 
 def lambda_prepare(val: torch.Tensor,
-                   lambda_: Union[int, list, torch.Tensor]) -> torch.Tensor:
+                   lambda_: Union[int, list, torch.Tensor],
+                   dtype: torch.dtype = None) -> torch.Tensor:
     """ Prepares lambdas for corresponding equation or bcond type.
 
     Args:
         val (_type_): operator tensor or bval tensor
         lambda_ (Union[int, list, torch.Tensor]): regularization parameters values
+        dtype (torch.dtype): type of lambda. Default to None.
 
     Returns:
         torch.Tensor: torch.Tensor with lambda_ values,
@@ -34,6 +36,9 @@ def lambda_prepare(val: torch.Tensor,
             lambdas = torch.tensor(lambda_)
     elif isinstance(lambda_, list):
         lambdas = torch.tensor(lambda_)
+
+    if dtype:
+        lambdas = torch.tensor(lambdas, dtype=dtype)
 
     return lambdas.reshape(1, -1)
 
