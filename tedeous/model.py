@@ -469,7 +469,7 @@ class Model():
                     #     rl_agent.push_memory((state, next_state, action_raw, reward))
                     # else:
                     #     rl_agent.steps_done -= 1
-                    rl_agent.push_memory((state, next_state, dqn_class, reward))
+                    rl_agent.push_memory((state, next_state, dqn_class, reward, abs(done)))
                     # for _ in range(32):
                     #     rl_agent.push_memory((state, next_state, dqn_class, reward))
 
