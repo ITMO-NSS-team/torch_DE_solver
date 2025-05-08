@@ -153,3 +153,11 @@ wave_1d_basic_img/
 wandb/
 replay_buffer.pickle
 legend.txt
+buffer_rep.pickle
+model_self.pickle
+end_buffer.pickle
+rl_agent_model.pickle
+save_inf_agent.pickle
+save_inf_base_agen_params.pickle 
+save_inf_baseline_orig_param_lfbgs_1.pickle 
+save_inf_baseline_param_orig.pickle

@@ -335,6 +335,7 @@ class Model():
 
             rl_agent = DQNAgent(n_observation,
                                 n_action,
+                                optimizer_dict=optimizer,
                                 memory_size=rl_agent_params["rl_buffer_size"],
                                 device=device_type(),
                                 batch_size=rl_agent_params["rl_batch_size"])
@@ -356,8 +357,7 @@ class Model():
             variable_dict = self.domain.variable_dict
             bconds = self.conditions.build(variable_dict)
 
-            tupe_dqn_class = get_tup_actions(optimizers)
-            make_legend(tupe_dqn_class, optimizers)
+            # make_legend(tupe_dqn_class, optimizers)
 
             while rl_agent_params['n_trajectories'] - idx_traj > 0:
                 self.net = self.solution_cls.model
@@ -382,15 +382,15 @@ class Model():
 
                 for i in itertools.count():
                     # state = torch.stack((state['loss_oper'], state['loss_bnd']), dim=0)
-                    dqn_class = rl_agent.select_action(state)
-                    action_raw = tupe_dqn_class[dqn_class]
-                    print(f"\naction_raw = {action_raw}")
-                    i_optim, i_epochs, i_loss = action_raw
-                    action = {
-                        'type': optimizers['type'][i_optim],
-                        'params': {'lr': optimizers['params'][i_loss]},
-                        'epochs': optimizers['epochs'][i_epochs]
-                    }
+                    action = rl_agent.select_action(state)
+                    # action_raw = tupe_dqn_class[dqn_class]
+                    print(f"\naction = {action}")
+                    # i_optim, i_epochs, i_loss = action_raw
+                    # action = {
+                    #     'type': optimizers['type'][i_optim],
+                    #     'params': {'lr': optimizers['params'][i_loss]},
+                    #     'epochs': optimizers['epochs'][i_epochs]
+                    # }
 
                     reuse_nncg_flag = action["type"] == 'NNCG' if i > 0 else False
 
@@ -469,7 +469,7 @@ class Model():
                     #     rl_agent.push_memory((state, next_state, action_raw, reward))
                     # else:
                     #     rl_agent.steps_done -= 1
-                    rl_agent.push_memory((state, next_state, dqn_class, reward))
+                    rl_agent.push_memory((state, next_state, -1, reward, abs(done)))
                     # for _ in range(32):
                     #     rl_agent.push_memory((state, next_state, dqn_class, reward))
 
