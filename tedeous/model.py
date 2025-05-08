@@ -360,6 +360,10 @@ class Model():
             make_legend(tupe_dqn_class, optimizers)
 
             while rl_agent_params['n_trajectories'] - idx_traj > 0:
+                for m in self.net.modules():
+                    if isinstance(m, torch.nn.Linear):
+                        torch.nn.init.xavier_normal_(m.weight)
+                        torch.nn.init.zeros_(m.bias)
                 self.net = self.solution_cls.model
                 self.t = 1
 
