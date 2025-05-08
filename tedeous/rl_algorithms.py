@@ -18,7 +18,7 @@ EPS_DECAY = 1000
 TAU = 0.005
 
 Transition = namedtuple('Transition',
-                        ('state', 'next_state', 'action', 'reward'))
+                        ('state', 'next_state', 'action', 'reward', 'done'))
 
 
 class ReplayBuffer:
@@ -92,7 +92,7 @@ class DQNAgent:
         self.reinit_target()
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
-        self.loss_fn = nn.CrossEntropyLoss()
+        self.huberloss = nn.HuberLoss()
 
     def reinit_target(self):
         self.target_model = DQN(self.n_observation, self.n_action).to(self.device)
@@ -121,7 +121,8 @@ class DQNAgent:
             state=detach_item(transition.state),
             next_state=detach_item(transition.next_state),
             action=detach_item(transition.action),
-            reward=detach_item(transition.reward)
+            reward=detach_item(transition.reward),
+            done=detach_item(transition.done)
         )
 
     def deepcopy_replay_buffer_without_graph(self, buffer):
@@ -142,7 +143,8 @@ class DQNAgent:
                         all(torch.equal(t1.state[k], t2[0][k]) for k in t1.state) and
                         all(torch.equal(t1.next_state[k], t2[1][k]) for k in t1.next_state) and
                         t1.action == t2[2] and
-                        torch.equal(t1.reward, t2[3])
+                        torch.equal(t1.reward, t2[3]) and
+                        t1.done == t2[4]
                 )
 
             self.replay_buffer_copy.memory = deque(
@@ -151,7 +153,7 @@ class DQNAgent:
                 )
             )
 
-            state, next_state, action_raw, reward = zip(*buff_test)
+            state, next_state, action_raw, reward, done = zip(*buff_test)
 
             # state = {'loss_total': tensor([...]), 'loss_oper': tensor([...]), 'loss_bnd': tensor([...])}
             state = [torch.stack((elem['loss_oper'], elem['loss_bnd']), dim=0) for elem in state]
@@ -159,37 +161,19 @@ class DQNAgent:
             state = torch.stack(state, dim=0).reshape(-1, 2, 26, 26).to(self.device)
             next_state = torch.stack(next_state, dim=0).reshape(-1, 2, 26, 26).to(self.device)
             reward = torch.FloatTensor(reward).to(self.device)
+            done = torch.IntTensor(done).to(self.device)
 
-            Q = self.model
-            right_Q = Q(state)
-            Q_ = self.target_model
-            with torch.no_grad():
-                left_Q = Q_(next_state)
-            action = action_raw
-
-            # optim_action, loss_action, epochs_action = zip(*action_raw)
-            # right_Q_optim, right_Q_loss, right_Q_epochs = right_Q
-            # get_reward_by_action = lambda q_values, actions: q_values[torch.arange(len(actions)), actions]
-            # optim_action_Q = get_reward_by_action(right_Q_optim, optim_action)
-            # loss_action_Q = get_reward_by_action(right_Q_loss, loss_action)
-            # epochs_action_Q = get_reward_by_action(right_Q_epochs, epochs_action)
-            # left_Q_optim, left_Q_loss, left_Q_epochs = left_Q
-            # optim_max_Q = torch.max(left_Q_optim, dim=1).values
-            # loss_max_Q = torch.max(left_Q_loss, dim=1).values
-            # epochs_max_Q = torch.max(left_Q_epochs, dim=1).values
-            # reward_ = reward
-            # dqn_optim = reward_ + GAMMA * optim_max_Q - optim_action_Q
-            # dqn_loss = reward_ + GAMMA * loss_max_Q - loss_action_Q
-            # dqn_epochs = reward_ + GAMMA * epochs_max_Q - epochs_action_Q
-            # loss_dqn = dqn_optim ** 2 + dqn_loss ** 2 + dqn_epochs ** 2
-            # loss = torch.sum(loss_dqn)
-            get_reward_by_action = lambda q_values, actions: q_values[torch.arange(len(actions)), actions]
-            action_Q = get_reward_by_action(right_Q, action)
-            max_Q = torch.max(left_Q, dim=1).values
-            reward_ = reward
-            loss = (reward_ + GAMMA * max_Q - action_Q)**2
-            loss = torch.mean(loss)
-            mean_batch_loss_arr.append(loss)
+            target = self.target_model(next_state)
+            model = self.model(state)
+            
+            targets = lambda reward, done, target_res: \
+                    reward + (1 - done) * GAMMA * torch.max(target_res, dim=1).values
+            q_values = lambda model_res, action_: \
+                    model_res[torch.arange(self.batch_size), action_]
+            q_values_optim = targets(reward, done, target)
+            targets_optim = q_values(model, action_raw)
+            loss = self.huberloss(input=q_values_optim, target=targets_optim)
+            mean_batch_loss_arr.append(float(loss))
 
             self.optimizer.zero_grad()
             loss.backward()
