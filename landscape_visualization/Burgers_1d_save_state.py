@@ -283,11 +283,8 @@ def make_loss_surface(path_to_plot_model, path_to_trajectories, grid_res=100, re
     model_layers = [2, 32, 32, 1]  # PINN layers
     grid_test = torch.cartesian_prod(torch.linspace(0, 1, 100), torch.linspace(0, 1, 100))
     u_exact_test = u(grid_test).reshape(-1)
-    loss_type = "loss_total"  # loss_total, loss_oper, loss_bnd, u
-    raw_states = {}
-    for loss_type in ["loss_total", "loss_oper", "loss_bnd"]:
-        plot_args = {
-            "loss_type": loss_type,
+    plot_args = {
+            "loss_types":["loss_total", "loss_oper", "loss_bnd"],
             "every_nth": nth,
             "num_of_layers": 3,
             "layers_AE": [
@@ -301,8 +298,7 @@ def make_loss_surface(path_to_plot_model, path_to_trajectories, grid_res=100, re
             "from_last": False,
             "prefix": "model-",
             "path_to_trajectories": path_to_trajectories,
-            "loss_name": loss_type,
-            "x_range": [-1.25, 1.25, 25],
+            "x_range": [-1.25, 1.25, 20],
             "vmax": -1.0,
             "vmin": -1.0,
             "vlevel": 30.0,
@@ -315,13 +311,10 @@ def make_loss_surface(path_to_plot_model, path_to_trajectories, grid_res=100, re
             "colorFromGridOnly": True
         }
 
-        plotter = PlotLossSurface(**plot_args)
-        grid, domain, equation, boundaries = burgers1d_problem_formulation(grid_res)
-        raw_state = plotter.save_equation_loss_surface(
-            u_exact_test, grid_test, grid, domain, equation, boundaries, model_layers
-        )                                 [domain, equation, boundaries, PINN_layers]
-        raw_states[loss_type] = raw_state
-    return raw_states
+    plotter = PlotLossSurface(**plot_args)
+    grid, domain, equation, boundaries = burgers1d_problem_formulation(grid_res)
+    raw_state = plotter.save_equation_loss_surface(u_exact_test, grid_test,  grid, domain, equation, boundaries, model_layers)
+    return raw_state
 
 
 if __name__ == '__main__':
