@@ -239,16 +239,16 @@ def wave_1d_basic_experiment(grid_res):
     optimizer = {
         'Adam':{
             'lr':[1e-2, 1e-3, 1e-4],
-            'epochs':[100, 500, 1000, 2500]
+            'epochs':[100, 1000, 2500]
         },
         'LBFGS':{
-            'lr':[1, 5e-1, 1e-1, 5e-2, 1e-2],
+            'lr':[1, 5e-1, 1e-1],
             "history_size": [10, 50, 100],
-            'epochs':[100, 250, 500]
+            'epochs':[100, 500]
         },
         'PSO':{
-            'lr':[5e-3, 1e-3, 5e-4, 1e-4, 5e-5],
-            'epochs':[100, 250, 500]
+            'lr':[5e-3, 1e-3, 1e-4],
+            'epochs':[100, 500]
         },
         # 'NNCG':{
         #     # 'lr':[1, 5e-1, 1e-1, 5e-2, 1e-2],

@@ -382,7 +382,9 @@ class Model():
 
                 for i in itertools.count():
                     # state = torch.stack((state['loss_oper'], state['loss_bnd']), dim=0)
-                    action = rl_agent.select_action(state)
+                    action, action_raw = rl_agent.select_action(state)
+                    action_raw[2]['epochs'] = action_raw[1]
+                    action_raw = (action_raw[0], action_raw[2])
                     # action_raw = tupe_dqn_class[dqn_class]
                     print(f"\naction = {action}")
                     # i_optim, i_epochs, i_loss = action_raw
@@ -469,13 +471,13 @@ class Model():
                     #     rl_agent.push_memory((state, next_state, action_raw, reward))
                     # else:
                     #     rl_agent.steps_done -= 1
-                    rl_agent.push_memory((state, next_state, -1, reward, abs(done)))
+                    rl_agent.push_memory((state, next_state, action_raw, reward, abs(done)))
                     # for _ in range(32):
                     #     rl_agent.push_memory((state, next_state, dqn_class, reward))
 
                     if rl_agent.replay_buffer.__len__() % rl_agent_params["rl_batch_size"] == 0:
                         rl_agent.optim_()
-                        rl_agent.render_Q_function()
+                        # rl_agent.render_Q_function()
 
                     state = next_state
                     total_reward += reward
