@@ -12,7 +12,8 @@ import time
 import torch.nn.functional as F
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../examples_wave')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
@@ -213,7 +214,7 @@ def wave_experiment(grid_res):
     error_rmse = torch.sqrt(torch.mean((func(grid).reshape(-1, 1) - net(grid)) ** 2))
 
     exp_dict_list.append({'grid_res': grid_res, 'time': end - start, 'RMSE': error_rmse.detach().cpu().numpy(),
-                          'type': 'wave_eqn_physical', 'cache': True})
+                          'type': 'wave_eqn_physical_kan', 'cache': True})
 
     print('Time taken {} = {}'.format(grid_res, end - start))
     print('RMSE {} = {}'.format(grid_res, error_rmse))

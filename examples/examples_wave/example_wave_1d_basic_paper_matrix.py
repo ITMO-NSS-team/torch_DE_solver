@@ -11,7 +11,8 @@ import os
 import time
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../examples_wave')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
@@ -104,7 +105,7 @@ for grid_res in range(20, 110, 10):
 
     for _ in range(10):
         sln = np.genfromtxt(
-            os.path.abspath(os.path.join(os.path.dirname(__file__), 'wolfram_sln/wave_sln_' + str(grid_res) + '.csv')),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), '../wolfram_sln/wave_sln_' + str(grid_res) + '.csv')),
             delimiter=',')
 
         start = time.time()

@@ -188,7 +188,7 @@ class Model():
                     else:
                         self.optimizer.step(closure)
                     if optimizer.gamma is not None and self.t % optimizer.decay_every == 0:
-                        optimizer.sheduler.step()
+                        optimizer.scheduler.step()
 
                 loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
 

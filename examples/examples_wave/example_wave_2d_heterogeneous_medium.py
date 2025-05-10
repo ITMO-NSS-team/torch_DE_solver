@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon May 31 12:33:44 2021
-
-@author: user
-"""
 import torch
 import numpy as np
 import os
@@ -11,8 +5,10 @@ import sys
 import time
 from scipy import interpolate
 
+
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../examples_wave')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
@@ -24,8 +20,8 @@ from tedeous.utils import exact_solution_data
 
 solver_device('gpu')
 
-datapath = "../PINNacle_data/wave_darcy.npy"
-darcy_2d_coef_data = np.load("../PINNacle_data/darcy_2d_coef_256.npy")
+data_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../PINNacle_data/wave_darcy.npy"))
+darcy_2d_coef_data = np.load(data_file)
 
 mu_1, mu_2 = -0.5, 0
 sigma = 0.3
@@ -180,14 +176,14 @@ def wave2d_heterogeneous_experiment(grid_res):
 
     optimizer = Optimizer('Adam', {'lr': 1e-4})
 
-    model.train(optimizer, 5e5, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
+    model.train(optimizer, 5e3, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
 
     end = time.time()
 
     grid = domain.build('NN').to('cuda')
     net = net.to('cuda')
 
-    exact = exact_solution_data(grid, datapath, pde_dim_in, pde_dim_out, t_dim_flag=True).reshape(-1, 1)
+    exact = exact_solution_data(grid, data_file, pde_dim_in, pde_dim_out, t_dim_flag=True).reshape(-1, 1)
     net_predicted = net(grid)
 
     error_rmse = torch.sqrt(torch.mean((exact - net_predicted) ** 2))

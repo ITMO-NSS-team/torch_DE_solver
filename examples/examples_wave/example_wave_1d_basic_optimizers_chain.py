@@ -11,7 +11,8 @@ import sys
 import time
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../examples_wave')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
@@ -128,7 +129,7 @@ def wave_1d_basic_experiment(grid_res):
 
     model.compile('autograd', lambda_operator=1, lambda_bound=100)
 
-    img_dir = os.path.join(os.path.dirname(__file__), 'wave_1d_basic_img')
+    img_dir = os.path.join(os.path.dirname(__file__), 'wave_1d_basic_optimizer_chain_img')
 
     cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-6)
 
@@ -140,7 +141,7 @@ def wave_1d_basic_experiment(grid_res):
                                          info_string_every=10)
 
     cb_plots = plot.Plots(save_every=500,
-                          print_every=50,
+                          print_every=None,
                           img_dir=img_dir,
                           scatter_flag=False
                           )
