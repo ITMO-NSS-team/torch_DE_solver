@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon May 31 12:33:44 2021
-
-@author: user
-"""
 import torch
 import numpy as np
 import os
@@ -11,7 +5,8 @@ import sys
 import time
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../examples_painleve')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
@@ -19,7 +14,7 @@ from tedeous.callbacks import cache, early_stopping, plot
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device, check_device
 
-solver_device('cpu')
+solver_device('gpu')
 
 
 def p_I_exp(grid_res, nruns, CACHE):
