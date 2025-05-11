@@ -7,7 +7,8 @@ from matplotlib import cm
 import sys
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../examples_sod_shock_tube')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
@@ -184,7 +185,7 @@ cb_es = early_stopping.EarlyStopping(eps=1e-6,
                                      randomize_parameter=1e-6,
                                      info_string_every=1000)
 
-cb_plots = plot.Plots(save_every=1000, print_every=50, img_dir=img_dir)
+cb_plots = plot.Plots(save_every=1000, print_every=None, img_dir=img_dir)
 
 optimizer = Optimizer('Adam', {'lr': 1e-2})
 
@@ -319,7 +320,7 @@ exact_solution_print(grid, u_exact)
 # 1d at one moment of time (t_var) plotting
 t_var = 0.2
 x = x.to(device)
-grid1 = torch.cartesian_prod(x, torch.tensor([t_var]))
+grid1 = torch.cartesian_prod(x, torch.tensor([t_var]).double())
 u_exact = np.zeros((grid1.shape[0], 3))
 j = 0
 for i in grid1:

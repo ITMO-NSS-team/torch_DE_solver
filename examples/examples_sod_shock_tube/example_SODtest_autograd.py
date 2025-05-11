@@ -7,7 +7,8 @@ from matplotlib import cm
 import sys
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../examples_sod_shock_tube')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
@@ -322,7 +323,7 @@ def exact_solution_print(grid, u_exact):
 exact_solution_print(grid, u_exact)
 # 1d at one moment of time (t_var) plotting
 t_var = 0.2
-grid1 = torch.cartesian_prod(check_device(x), torch.tensor([t_var])).float()
+grid1 = torch.cartesian_prod(check_device(x), torch.tensor([t_var]).double()).float()
 u_exact = np.zeros((grid1.shape[0], 3))
 j = 0
 for i in grid1:
@@ -332,13 +333,13 @@ torch.from_numpy(u_exact)
 plt.figure()
 plt.title('pressure')
 plt.plot(grid1[:, 0], u_exact[:, 0])
-plt.plot(grid1[:, 0], net(grid1)[:, 0].detach().numpy().reshape(-1), '*')
+plt.plot(grid1[:, 0], net(grid1.double())[:, 0].detach().numpy().reshape(-1), '*')
 plt.show()
 plt.title('velocity')
 plt.plot(grid1[:, 0], u_exact[:, 1])
-plt.plot(grid1[:, 0], net(grid1)[:, 1].detach().numpy().reshape(-1), '*')
+plt.plot(grid1[:, 0], net(grid1.double())[:, 1].detach().numpy().reshape(-1), '*')
 plt.show()
 plt.title('density')
 plt.plot(grid1[:, 0], u_exact[:, 2])
-plt.plot(grid1[:, 0], net(grid1)[:, 2].detach().numpy().reshape(-1), '*')
+plt.plot(grid1[:, 0], net(grid1.double())[:, 2].detach().numpy().reshape(-1), '*')
 plt.show()
