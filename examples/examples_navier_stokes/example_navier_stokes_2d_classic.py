@@ -4,7 +4,8 @@ import sys
 import time
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../examples_navier_stokes')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
@@ -15,7 +16,9 @@ from tedeous.utils import exact_solution_data
 
 solver_device('gpu')
 
-datapath = "../PINNacle_data/ns2d.npy"
+data_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../PINNacle_data/ns2d.npy"))
+
+
 
 k = 1
 ro = 1
@@ -237,7 +240,7 @@ def navier_stokes_2d_classic_experiment(grid_res):
     net = net.to('cuda')
 
     predicted_u, predicted_v, predicted_p = net(grid)[:, 0], net(grid)[:, 1], net(grid)[:, 2]
-    exact_u, exact_v, exact_p = exact_solution_data(grid, datapath, pde_dim_in, pde_dim_out, t_dim_flag=True)
+    exact_u, exact_v, exact_p = exact_solution_data(grid, data_file, pde_dim_in, pde_dim_out, t_dim_flag=True)
 
     error_rmse_u = torch.sqrt(torch.mean((exact_u - predicted_u) ** 2))
     error_rmse_v = torch.sqrt(torch.mean((exact_v - predicted_v) ** 2))
