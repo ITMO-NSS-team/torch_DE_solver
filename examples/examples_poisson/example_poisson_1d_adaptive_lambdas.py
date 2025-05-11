@@ -4,7 +4,8 @@ import sys
 import matplotlib.pyplot as plt
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../examples_poisson')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
@@ -12,7 +13,7 @@ from tedeous.callbacks import adaptive_lambda, cache, early_stopping, plot
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 
-solver_device('cpu')
+solver_device('gpu')
 
 a = 4
 
@@ -93,8 +94,8 @@ optimizer = Optimizer('Adam', {'lr': 1e-3}, gamma=0.9, decay_every=1000)
 
 model.train(optimizer, 1e5, save_model=True, callbacks=[cb_lambda, cb_cache, cb_es, cb_plots])
 
-plt.plot(grid.detach().numpy(), u(grid, a).detach().numpy(), label='Exact')
-plt.plot(grid.detach().numpy(), net(grid).detach().numpy(), '--', label='Predicted')
+plt.plot(grid.detach().cpu().numpy(), u(grid, a).detach().cpu().numpy(), label='Exact')
+plt.plot(grid.detach().cpu().numpy(), net(grid).detach().cpu().numpy(), '--', label='Predicted')
 plt.xlabel('x')
 plt.ylabel('y')
 plt.legend(loc='upper right')

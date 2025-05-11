@@ -4,7 +4,8 @@ import sys
 import numpy as np
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../examples_poisson')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
@@ -55,7 +56,7 @@ bc_y = np.linspace(0, 1, int(N_samples ** 0.5))
 bc_x, bc_y = np.meshgrid(bc_x, bc_y)
 
 data_grid = torch.tensor(np.stack((bc_x.reshape(-1), bc_y.reshape(-1)))).T
-u_bnd_val = u_func(data_grid).reshape(-1, 1) + torch.normal(0, 0.1, size=(2500, 1))
+u_bnd_val = u_func(data_grid).reshape(-1, 1) + torch.normal(0, 0.1, size=(2500, 1)).to(data_grid.device)
 
 ind_bnd = np.random.choice(len(data_grid), N_samples, replace=False)
 
