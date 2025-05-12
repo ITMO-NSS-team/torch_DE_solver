@@ -14,7 +14,7 @@ from tedeous.input_preprocessing import Operator_bcond_preproc
 from tedeous.callbacks.callback_list import CallbackList
 from tedeous.solution import Solution
 from tedeous.optimizers.optimizer import Optimizer
-from tedeous.utils import save_model_nn, save_model_mat
+from tedeous.utils import save_model_nn, save_model_mat, exact_solution_data
 from tedeous.optimizers.closure import Closure
 from tedeous.device import device_type
 
@@ -432,9 +432,16 @@ class Model():
 
                     net = self.net.to(device_type())
 
-                    operator_rmse = torch.sqrt(
-                        torch.mean((rl_agent_params["exact_solution_func"](grid).reshape(-1, 1) - net(grid)) ** 2)
-                    )
+                    if callable(rl_agent_params["exact_solution"]):
+                        operator_rmse = torch.sqrt(
+                            torch.mean((rl_agent_params["exact_solution"](grid).reshape(-1, 1) - net(grid)) ** 2)
+                        )
+                    else:
+                        exact = exact_solution_data(grid, rl_agent_params["exact_solution"],
+                                                    equation_params[-1][0], equation_params[-1][-1],
+                                                    t_dim_flag='t' in list(self.domain.variable_dict.keys()))
+                        net_predicted = net(grid)
+                        operator_rmse = torch.sqrt(torch.mean((exact.reshape(-1, 1) - net_predicted) ** 2))
 
                     boundary_rmse = torch.sum(torch.tensor([
                         torch.sqrt(torch.mean((bconds[i]["bval"].reshape(-1, 1) - net(bconds[i]["bnd"])) ** 2))
