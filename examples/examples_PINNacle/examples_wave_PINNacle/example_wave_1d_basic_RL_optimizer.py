@@ -324,7 +324,7 @@ def wave_1d_basic_experiment(grid_res):
         "rl_buffer_size": 4,
         "rl_batch_size": 32,
         "rl_reward_method": "absolute",
-        "exact_solution_func": exact_func,
+        "exact_solution": exact_func,
         "reward_operator_coeff": 1,
         "reward_boundary_coeff": 1
     }
