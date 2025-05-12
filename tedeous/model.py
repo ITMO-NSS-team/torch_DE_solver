@@ -416,8 +416,7 @@ class Model():
                         operator_rmse = torch.sqrt(torch.mean((exact.reshape(-1, 1) - net_predicted) ** 2))
 
                     boundary_rmse = torch.sum(torch.tensor([
-                        torch.sqrt(torch.mean(
-                            bconds[i]["bval"].reshape(-1, 1) - net(bconds[i]["bnd"]), dtype=torch.float32) ** 2)
+                        torch.sqrt(torch.mean((bconds[i]["bval"].reshape(-1, 1) - net(bconds[i]["bnd"])) ** 2))
                         for i in range(len(bconds))]))
 
                     env.solver_models = solver_models
