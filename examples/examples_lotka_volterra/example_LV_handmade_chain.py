@@ -1,29 +1,4 @@
-﻿import torch
-import os
-import sys
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-from torch.nn.utils import parameters_to_vector, vector_to_parameters
-import time
-from scipy.integrate import quad
-
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname('../AAAI_expetiments'))))
-
-from tedeous.data import Domain, Conditions, Equation
-from tedeous.model import Model
-from tedeous.models import mat_model, Fourier_embedding
-from tedeous.callbacks import plot, early_stopping, adaptive_lambda
-from tedeous.optimizers.optimizer import Optimizer
-from tedeous.device import solver_device
-from tedeous.eval import integration
-
-import pandas as pd
-
-solver_device('cuda')
-
-# Lotka-Volterra equations also known as predator-prey equations, describe the variation in populations
+﻿# Lotka-Volterra equations also known as predator-prey equations, describe the variation in populations
 # of two species which interact via predation.
 # For example, wolves (predators) and deer (prey).
 # This is a classical model to represent the dynamic of two populations.
@@ -37,6 +12,7 @@ solver_device('cuda')
 # It’s a system of first-order ordinary differential equations.
 import torch
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 from scipy import integrate
 import time
@@ -44,7 +20,8 @@ import os
 import sys
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
