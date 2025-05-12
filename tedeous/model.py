@@ -43,7 +43,7 @@ def get_tup_actions(optimizers):
 def make_legend(tupe_dqn_class, optimizers):
     with open('legend.txt', 'a') as the_file:
         for i, el in enumerate(tupe_dqn_class):
-            opt, epoch, lr = el 
+            opt, epoch, lr = el
             type_ = optimizers['type'][opt]
             epochs_ = optimizers['epochs'][epoch]
             params_ = optimizers['params'][lr]
@@ -437,8 +437,7 @@ class Model():
                     )
 
                     boundary_rmse = torch.sum(torch.tensor([
-                        torch.sqrt(torch.mean(
-                            bconds[i]["bval"].reshape(-1, 1) - net(bconds[i]["bnd"]), dtype=torch.float32) ** 2)
+                        torch.sqrt(torch.mean((bconds[i]["bval"].reshape(-1, 1) - net(bconds[i]["bnd"])) ** 2))
                         for i in range(len(bconds))]))
 
                     env.solver_models = solver_models
