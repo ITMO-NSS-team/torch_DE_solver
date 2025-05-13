@@ -8,7 +8,7 @@ import os
 
 from tedeous.device import check_device
 from tedeous.input_preprocessing import EquationMixin
-from tedeous.data_CSG import csg_domain_difference, csg_boundary_circle
+from tedeous.data_CSG import csg_difference, csg_boundary, Circle, Rectangle
 
 
 def tensor_dtype(dtype: str):
@@ -89,19 +89,16 @@ class Domain():
                 if removed_domains is not None:
                     for domain_dict in removed_domains:
                         figure_type = list(domain_dict.keys())[0]
-                        geom_figure = {}
                         if figure_type == 'rectangle':
                             coords_min = domain_dict[figure_type]['coords_min']
                             coords_max = domain_dict[figure_type]['coords_max']
-                            geom_figure['name'] = figure_type
-                            geom_figure['coords'] = (coords_min, coords_max)
+                            shape = Rectangle(coords_min,coords_max)
                         elif figure_type == 'circle':
                             center = domain_dict[figure_type]['center']
                             radius = domain_dict[figure_type]['radius']
-                            geom_figure['name'] = figure_type
-                            geom_figure['coords'] = (*center, radius)
+                            shape = Circle(center, radius)
 
-                        grid = csg_domain_difference(grid, geom_figure)
+                        grid = csg_difference(grid, shape).detach().clone()
         else:
             grid = np.meshgrid(*var_lst, indexing='ij')
             grid = check_device(grid)
@@ -268,7 +265,8 @@ class Conditions():
             var_lst = []
 
             if list(bnd.keys())[0] == 'circle':
-                result = csg_boundary_circle(grid, bnd['circle'])
+                shape = Circle(bnd['circle']['center'],bnd['circle']['radius'])
+                result = csg_boundary(grid, shape)
                 return result
 
             for var in variable_dict.keys():

@@ -1,129 +1,98 @@
 """ Module for construct a domain with complex or irregular geometry"""
-
 import torch
+from abc import ABC, abstractmethod
 
+class Shape(ABC):
+    @abstractmethod
+    def contains(self, pts: torch.Tensor) -> torch.BoolTensor:
+        """
+        Returns a mask (N,) indicating which pts are inside the shape.
+        """
+        ...
 
-def is_inside_circle(coord, circ_geom):
+    @abstractmethod
+    def boundary(self, pts: torch.Tensor, rtol: float = 1e-4, atol: float = 0.0) -> torch.BoolTensor:
+        """
+        Returns a mask (N,) indicating which pts lie on the boundary of the shape.
+        """
+        ...
+
+class Rectangle(Shape):
+    def __init__(self, lower, upper, dims=None):
+        """
+        lower: sequence of lower bounds for each spatial dimension
+        upper: sequence of upper bounds for each spatial dimension
+        dims: indices of dimensions in the grid to apply the rectangle (default first len(lower))
+        """
+        self.lower = torch.as_tensor(lower, dtype=torch.float32)
+        self.upper = torch.as_tensor(upper, dtype=torch.float32)
+        self.dims = dims if dims is not None else list(range(self.lower.numel()))
+
+    def _select(self, pts: torch.Tensor) -> torch.Tensor:
+        return pts[:, self.dims]
+
+    def contains(self, pts: torch.Tensor) -> torch.BoolTensor:
+        sub = self._select(pts)
+        return ((sub >= self.lower) & (sub <= self.upper)).all(dim=1)
+
+    def boundary(self, pts: torch.Tensor, rtol: float = 1e-4, atol: float = 0.0) -> torch.BoolTensor:
+        sub = self._select(pts)
+        inside_or_bound = self.contains(pts)
+        on_lower = torch.isclose(sub, self.lower.unsqueeze(0), rtol=rtol, atol=atol).any(dim=1)
+        on_upper = torch.isclose(sub, self.upper.unsqueeze(0), rtol=rtol, atol=atol).any(dim=1)
+        return inside_or_bound & (on_lower | on_upper)
+
+class Circle(Shape):
+    def __init__(self, center, radius, dims=None):
+        """
+        center: sequence of center coordinates for each spatial dimension
+        radius: scalar radius
+        dims: indices of dimensions in the grid to apply the circle (default first len(center))
+        """
+        self.center = torch.as_tensor(center, dtype=torch.float32)
+        self.radius_sq = float(radius) ** 2
+        self.dims = dims if dims is not None else list(range(self.center.numel()))
+
+    def _select(self, pts: torch.Tensor) -> torch.Tensor:
+        return pts[:, self.dims]
+
+    def contains(self, pts: torch.Tensor) -> torch.BoolTensor:
+        sub = self._select(pts)
+        sqd = ((sub - self.center) ** 2).sum(dim=1)
+        return sqd <= self.radius_sq
+
+    def boundary(self, pts: torch.Tensor, rtol: float = 1e-4, atol: float = 0.0) -> torch.BoolTensor:
+        sub = self._select(pts)
+        sqd = ((sub - self.center) ** 2).sum(dim=1)
+        return torch.isclose(sqd, torch.tensor(self.radius_sq, dtype=pts.dtype), rtol=rtol, atol=atol)
+
+# CSG operations
+
+def csg_difference(grid: torch.Tensor, shape: Shape) -> torch.Tensor:
     """
-    Checks if a point is inside a circle.
+    Returns points of `grid` outside the given `shape`.
 
     Args:
-        coord (torch.Tensor): coordinates of the point.
-        circ_geom (list or tuple): geometry of the circle,
-            specified as a list/tuple [center_x, center_y, ..., radius].
-
-    Returns:
-        bool: True if the point is inside the circle, False otherwise.
+        grid: (N, D) tensor of coordinates.
+        shape: a Shape instance.
     """
-
-    center = torch.tensor(circ_geom[0: -1], dtype=torch.float32)
-    radius = torch.tensor(circ_geom[-1], dtype=torch.float32)
-
-    num_dim = center.shape[0]
-
-    return torch.sum(torch.tensor([(coord[i] - center[i]) ** 2 for i in range(num_dim)])) < radius ** 2
+    mask_outside = ~shape.contains(grid)
+    return grid[mask_outside]
 
 
-def is_on_circle_boundary(coord, circ_geom):
+def csg_boundary(grid: torch.Tensor, shape: Shape, rtol: float = 1e-4, atol: float = 0.0) -> torch.Tensor:
     """
-    Checks if a point lies on the boundary of a circle.
+    Returns points of `grid` that lie on the boundary of the given `shape`.
 
     Args:
-        coord (torch.Tensor): coordinates of the point.
-        circ_geom (list or tuple): geometry of the circle,
-            specified as a list/tuple [center_x, center_y, ..., radius].
-
-    Returns:
-        bool: True if the point is on the circle boundary, False otherwise.
+        grid: (N, D) tensor of coordinates.
+        shape: a Shape instance.
+        rtol: relative tolerance for boundary detection.
+        atol: absolute tolerance for boundary detection.
     """
-
-    center = torch.tensor(circ_geom[0], dtype=torch.float32)
-    radius = torch.tensor(circ_geom[-1], dtype=torch.float32)
-
-    num_dim = center.shape[0]
-
-    return torch.isclose(
-        torch.sum(torch.tensor([(coord[i] - center[i]) ** 2 for i in range(num_dim)])),
-        radius ** 2,
-        rtol=1e-4
-    )
+    mask_bnd = shape.boundary(grid, rtol=rtol, atol=atol)
+    return grid[mask_bnd]
 
 
-def is_inside_rectangle(coord, rect_geom):
-    """
-    Checks if a point is inside a rectangle.
-
-    Args:
-        coord (torch.Tensor): coordinates of the point.
-        rect_geom (list or tuple): geometry of the rectangle,
-            specified as [lower_corner, upper_corner], where
-            lower_corner and upper_corner are lists/tuples of coordinates.
-
-    Returns:
-        bool: True if the point is inside the rectangle, False otherwise.
-    """
-
-    in_rec = []
-    for i in range(len(coord)):
-        in_rec.append(rect_geom[0][i] <= coord[i] <= rect_geom[1][i])
-
-    return all(in_rec)
-
-
-def csg_domain_difference(grid, geom_figure):
-    """
-    Constructs a grid by excluding a specified geometric region.
-
-    Args:
-        grid (torch.Tensor): coordinates of the original grid as a list of points.
-        geom_figure (dict): geometry of the figure to exclude.
-            The dictionary should include:
-                - 'name': type of the figure.
-                - 'coords': coordinates defining the geometry.
-
-    Returns:
-        torch.Tensor: grid excluding the specified geometric region.
-    """
-
-    csg_grid = []
-
-    for point in grid:
-        if geom_figure['name'] == 'rectangle':
-            if not is_inside_rectangle(point, geom_figure['coords']):
-                csg_grid.append([float(p) for p in point])
-        elif geom_figure['name'] == 'circle':
-            if not is_inside_circle(point, geom_figure['coords']):
-                csg_grid.append([float(p) for p in point])
-
-    csg_grid = torch.tensor(csg_grid, dtype=torch.float32)
-
-    return csg_grid
-
-
-def csg_boundary_circle(grid, geom_figure):
-    """
-    Extracts points that lie on the boundary of a circle.
-
-    Args:
-        grid (torch.Tensor): coordinates of the original grid as a list of points.
-        geom_figure (dict): geometry of the circle.
-            The dictionary should include:
-                - 'center': center of the circle as a list/tuple of coordinates.
-                - 'radius': radius of the circle.
-
-    Returns:
-        torch.Tensor: points that lie on the circle boundary.
-    """
-
-    csg_bnd = []
-
-    center = geom_figure['center']
-    radius = geom_figure['radius']
-
-    for point in grid:
-        if is_on_circle_boundary(point, (center, radius)):
-            csg_bnd.append([float(p) for p in point])
-
-    return torch.tensor(csg_bnd, dtype=torch.float32)
 
 
