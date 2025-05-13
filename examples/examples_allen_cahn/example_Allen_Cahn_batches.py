@@ -4,7 +4,8 @@ import sys
 import os
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
@@ -102,9 +103,7 @@ model = Model(net, domain, equation, boundaries, batch_size=32)
 
 model.compile('autograd', lambda_operator=1, lambda_bound=100, tol=10)
 
-img_dir = os.path.join(os.path.dirname( __file__ ), 'AC_eq_img')
-
-cb_cache = cache.Cache(cache_verbose=False, model_randomize_parameter=1e-5)
+img_dir = os.path.join(os.path.dirname( __file__ ), 'AC_eq_batches_img')
 
 cb_es = early_stopping.EarlyStopping(eps=1e-7,
                                      loss_window=100,
@@ -118,4 +117,4 @@ cb_plots = plot.Plots(save_every=1000, print_every=None, img_dir=img_dir)
 
 optimizer = Optimizer('Adam', {'lr': 1e-3}, gamma=0.9, decay_every=1000)
 
-model.train(optimizer, 1e5, save_model=True, callbacks=[cb_cache, cb_es, cb_plots])
+model.train(optimizer, 1e5, save_model=True, callbacks=[cb_es, cb_plots])
