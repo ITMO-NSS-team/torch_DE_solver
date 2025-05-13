@@ -12,7 +12,8 @@ import time
 
 torch.manual_seed(42)
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../examples_heat')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
@@ -23,7 +24,8 @@ from tedeous.utils import exact_solution_data
 
 solver_device('cuda')
 
-datapath = "../PINNacle_data/heat_longtime.npy"
+data_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../PINNacle_data/heat_longtime.npy"))
+
 
 m1, m2, k = 4, 2, 1
 
@@ -134,7 +136,7 @@ def heat_2d_long_time_experiment(grid_res):
     t_dim_flag = 't' in list(domain.variable_dict.keys())
 
     grid_params = domain.build('NN').to('cuda')
-    exact = exact_solution_data(grid_params, datapath, pde_dim_in, pde_dim_out,
+    exact = exact_solution_data(grid_params, data_file, pde_dim_in, pde_dim_out,
                                 t_dim_flag=t_dim_flag).reshape(-1, 1)
 
     model_layers = [pde_dim_in, neurons, neurons, neurons, neurons, neurons, pde_dim_out]
@@ -176,7 +178,7 @@ def heat_2d_long_time_experiment(grid_res):
     grid = domain.build('NN').to('cuda')
     net = net.to('cuda')
 
-    exact = exact_solution_data(grid, datapath, pde_dim_in, pde_dim_out, t_dim_flag=t_dim_flag).reshape(-1, 1)
+    exact = exact_solution_data(grid, data_file, pde_dim_in, pde_dim_out, t_dim_flag=t_dim_flag).reshape(-1, 1)
     net_predicted = net(grid)
 
     error_rmse = torch.sqrt(torch.mean((exact - net_predicted) ** 2))

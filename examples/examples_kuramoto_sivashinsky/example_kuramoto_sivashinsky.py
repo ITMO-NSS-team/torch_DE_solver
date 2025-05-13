@@ -11,7 +11,8 @@ import sys
 import time
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../examples_kuramoto_sivashinsky')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
@@ -24,7 +25,7 @@ from tedeous.utils import exact_solution_data
 
 solver_device('gpu')
 
-datapath = "../PINNacle_data/Kuramoto_Sivashinsky.npy"
+data_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../PINNacle_data/Kuramoto_Sivashinsky.npy"))
 
 alpha = 100 / 16
 beta = 100 / 16**2
@@ -138,7 +139,7 @@ def kuramoto_sivashinsky_experiment(grid_res):
     grid = domain.build('NN').to('cuda')
     net = net.to('cuda')
 
-    exact = exact_solution_data(grid, datapath, pde_dim_in, pde_dim_out).reshape(-1, 1)
+    exact = exact_solution_data(grid, data_file, pde_dim_in, pde_dim_out).reshape(-1, 1)
     net_predicted = net(grid)
 
     error_rmse = torch.sqrt(torch.mean((exact - net_predicted) ** 2))

@@ -5,7 +5,8 @@ import scipy
 
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
@@ -17,7 +18,7 @@ from tedeous.device import solver_device, check_device
 def exact_solution(grid):
     grid = grid.to('cpu').detach()
     test_data = scipy.io.loadmat(os.path.abspath(
-        os.path.join(os.path.dirname( __file__ ), 'wolfram_sln/buckley_exact.mat')))
+        os.path.join(os.path.dirname( __file__ ), '../wolfram_sln/buckley_exact.mat')))
     u = torch.from_numpy(test_data['u']).reshape(-1, 1)
 
     # grid_test
@@ -111,7 +112,7 @@ def experiment(grid_res, mode):
 
     model.compile(mode, lambda_operator=1, lambda_bound=10)
 
-    img_dir=os.path.join(os.path.dirname( __file__ ), 'Buckley_img')
+    img_dir=os.path.join(os.path.dirname( __file__ ), 'Buckley_Adam_NGD_img')
 
 
     cb_es = early_stopping.EarlyStopping(eps=1e-6,
@@ -124,7 +125,9 @@ def experiment(grid_res, mode):
 
     cb_plots = plot.Plots(save_every=1000, print_every=None, img_dir=img_dir)
 
-    # model.train(optimizer, 10000, save_model=False, callbacks=[cb_es, cb_plots])
+    optimizer = Optimizer('Adam', {'lr': 1e-3})
+
+    model.train(optimizer, 10000, save_model=False, callbacks=[cb_es, cb_plots])
 
     grid = domain.build(mode)
 
@@ -140,17 +143,21 @@ def experiment(grid_res, mode):
 
     #################
 
+    model = Model(net, domain, equation, boundaries)
+
+    model.compile(mode, lambda_operator=1, lambda_bound=10)
+
     optimizer = Optimizer('NGD', {'grid_steps_number': 20})
 
     cb_plots = plot.Plots(save_every=100, print_every=None, img_dir=img_dir)
 
-    model.train(optimizer, 3000, info_string_every=100, save_model=False, callbacks=[cb_plots])
+    model.train(optimizer, 3000, info_string_every=1, save_model=False, callbacks=[cb_plots])
 
     u_pred = check_device(net(grid)).reshape(-1)
 
     error_rmse = torch.sqrt(torch.sum((u_exact - u_pred)**2)) / torch.sqrt(torch.sum(u_exact**2))
 
-    print('RMSE_pso= ', error_rmse.item())
+    print('RMSE_NGD= ', error_rmse.item())
 
     return net
 

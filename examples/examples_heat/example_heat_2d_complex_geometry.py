@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon May 31 12:33:44 2021
-
-@author: user
-"""
 import torch
 import numpy as np
 import os
@@ -11,7 +5,8 @@ import sys
 import time
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../examples_heat')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
@@ -22,8 +17,7 @@ from tedeous.utils import exact_solution_data
 
 solver_device('gpu')
 
-datapath = "../PINNacle_data/heat_complex.npy"
-
+data_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../PINNacle_data/heat_complex.npy"))
 
 def heat_2d_complex_geometry_experiment(grid_res):
     exp_dict_list = []
@@ -216,7 +210,7 @@ def heat_2d_complex_geometry_experiment(grid_res):
                                          no_improvement_patience=1000,
                                          patience=5,
                                          randomize_parameter=1e-6,
-                                         info_string_every=5)
+                                         info_string_every=1)
 
     cb_plots = plot.Plots(save_every=100,
                           print_every=None,
@@ -240,7 +234,7 @@ def heat_2d_complex_geometry_experiment(grid_res):
     grid = domain.build('NN').to('cuda')
     net = net.to('cuda')
 
-    exact = exact_solution_data(grid, datapath, pde_dim_in, pde_dim_out, t_dim_flag=True).reshape(-1, 1)
+    exact = exact_solution_data(grid, data_file, pde_dim_in, pde_dim_out, t_dim_flag=True).reshape(-1, 1)
     net_predicted = net(grid)
 
     error_rmse = torch.sqrt(torch.mean((exact - net_predicted) ** 2))

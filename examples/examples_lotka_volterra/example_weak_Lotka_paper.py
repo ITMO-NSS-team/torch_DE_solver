@@ -19,7 +19,8 @@ import os
 import sys
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../examples_lotka_volterra')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
@@ -27,7 +28,7 @@ from tedeous.callbacks import early_stopping, plot, cache
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 
-solver_device('cpu')
+solver_device('gpu')
 
 alpha = 20.
 beta = 20.

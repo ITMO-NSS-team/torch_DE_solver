@@ -10,7 +10,8 @@ import sys
 import time
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../examples_PINNacle')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
@@ -23,9 +24,11 @@ from tedeous.utils import init_data
 
 solver_device('gpu')
 
-datapath = "../PINNacle_data/burgers2d_0.npy"
-data_init_u = "../PINNacle_data/burgers2d_init_u_0.npy"
-data_init_v = "../PINNacle_data/burgers2d_init_v_0.npy"
+data_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../PINNacle_data/burgers2d_0.npy"))
+
+data_init_u_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../PINNacle_data/burgers2d_init_u_0.npy"))
+
+data_init_v_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../PINNacle_data/burgers2d_init_v_0.npy"))
 
 mu = 0.001
 
@@ -90,8 +93,8 @@ def burgers_2d_coupled_experiment(grid_res):
 
     # With use IC data
 
-    init_u_data = lambda grid: init_data(grid[:, :2], data_init_u)
-    init_v_data = lambda grid: init_data(grid[:, :2], data_init_v)
+    init_u_data = lambda grid: init_data(grid[:, :2], data_init_u_file)
+    init_v_data = lambda grid: init_data(grid[:, :2], data_init_v_file)
 
     # u(x, y, 0)
     boundaries.dirichlet({'x': [0, L], 'y': [0, L], 't': 0}, value=init_u_data, var=0)
@@ -248,7 +251,7 @@ def burgers_2d_coupled_experiment(grid_res):
     net = net.to('cuda')
 
     predicted_u, predicted_v = net(grid)[:, 0], net(grid)[:, 1]
-    exact_u, exact_v = exact_solution_data(grid, datapath, pde_dim_in, pde_dim_out, t_dim_flag=True)
+    exact_u, exact_v = exact_solution_data(grid, data_file, pde_dim_in, pde_dim_out, t_dim_flag=True)
 
     error_rmse_u = torch.sqrt(torch.mean((exact_u - predicted_u) ** 2))
     error_rmse_v = torch.sqrt(torch.mean((exact_v - predicted_v) ** 2))

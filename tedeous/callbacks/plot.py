@@ -83,9 +83,11 @@ class Plots(Callback):
 
         if nvars_model is None:
             try:
-                return self.net[-1].out_features
+                nvars_model = self.net(self.grid).shape[-1] 
             except:
-                return self.net.width_out[-1]
+                nvars_model = self.net.width_out[-1]
+
+        return nvars_model 
 
     def filter_grid(self, fixed_values: List[float]) -> np.ndarray:
         """ Filters a grid of points on fixed axes.
@@ -242,7 +244,6 @@ class Plots(Callback):
         if print_flag or save_flag:
             self.net = self.model.net
             self.grid = self.model.solution_cls.grid
-
             self.nvars_model = self._init_nvars_model()
             nparams = self.grid.shape[0] if self.model.mode == 'mat' else self.grid.shape[1]
 

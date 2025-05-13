@@ -10,7 +10,8 @@ import os
 import sys
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../examples_heat')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
@@ -19,9 +20,9 @@ from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
 import time
 
-solver_device('cpu')
+solver_device('gpu')
 
-datapath = '../PINNacle_data/heatinv_points.npy'
+data_file = os.path.abspath(os.path.join(os.path.dirname(__file__), '../PINNacle_data/heatinv_points.npy'))
 
 
 # Function u(x, y, t)
@@ -67,7 +68,7 @@ x = domain.variable_dict['x']
 y = domain.variable_dict['y']
 t = domain.variable_dict['t']
 
-data = np.load(os.path.abspath(os.path.join(os.path.dirname(__file__), datapath)))
+data = np.load(data_file)
 
 x_data = torch.tensor(data[:, 0]).reshape(-1)
 y_data = torch.tensor(data[:, 1]).reshape(-1)
@@ -76,7 +77,7 @@ t_data = torch.tensor(data[:, 2]).reshape(-1)
 boundaries = Conditions()
 
 data_grid = torch.stack([x_data, y_data, t_data], dim=1)
-u_bnd_val = u_func(data_grid).reshape(-1, 1) + torch.normal(0, 0.1, size=(2500, 1))
+u_bnd_val = u_func(data_grid).reshape(-1, 1) + torch.normal(0, 0.1, size=(2500, 1)).to(data_grid.device)
 
 ind_bnd = np.random.choice(len(data_grid), N_samples, replace=False)
 

@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon May 31 12:33:44 2021
-
-@author: user
-"""
 import torch
 import numpy as np
 import time
@@ -11,7 +5,8 @@ import os
 import sys
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../examples_korteweg_de_vries')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
@@ -189,7 +184,7 @@ for grid_res in [30, 50, 100]:
                                              info_string_every=1000,
                                              randomize_parameter=1e-6)
 
-        cb_plots = plot.Plots(save_every=1000, print_every=50, img_dir=img_dir)
+        cb_plots = plot.Plots(save_every=1000, print_every=None, img_dir=img_dir)
 
         optimizer = Optimizer('Adam', {'lr': 1e-4})
 
