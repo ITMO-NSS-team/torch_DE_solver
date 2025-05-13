@@ -5,7 +5,8 @@ import scipy
 
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
@@ -17,7 +18,7 @@ from tedeous.device import solver_device, check_device
 def exact_solution(grid):
     grid = grid.to('cpu').detach()
     test_data = scipy.io.loadmat(os.path.abspath(
-        os.path.join(os.path.dirname( __file__ ), 'wolfram_sln/buckley_exact.mat')))
+        os.path.join(os.path.dirname( __file__ ), '../wolfram_sln/buckley_exact.mat')))
     u = torch.from_numpy(test_data['u']).reshape(-1, 1)
 
     # grid_test
@@ -111,7 +112,7 @@ def experiment(grid_res, mode):
 
     model.compile(mode, lambda_operator=1, lambda_bound=10)
 
-    img_dir=os.path.join(os.path.dirname( __file__ ), 'Buckley_img')
+    img_dir=os.path.join(os.path.dirname( __file__ ), 'Buckley_Adam_PSO_img')
 
 
     cb_es = early_stopping.EarlyStopping(eps=1e-6,
