@@ -11,7 +11,8 @@ import time
 import numpy as np
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../examples_burgers')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
@@ -23,7 +24,7 @@ from tedeous.utils import exact_solution_data
 
 solver_device('gpu')
 
-datapath = "../PINNacle_data/burgers1d.npy"
+data_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../PINNacle_data/burgers1d.npy"))
 
 mu = 0.01 / np.pi
 
@@ -108,7 +109,7 @@ def burgers_1d_experiment(grid_res):
 
     cb_cache = cache.Cache(cache_verbose=False, model_randomize_parameter=1e-5)
 
-    cb_es = early_stopping.EarlyStopping(eps=1e-6,
+    cb_es = early_stopping.EarlyStopping(eps=1e-5,
                                          randomize_parameter=1e-5,
                                          info_string_every=50)
 
@@ -129,7 +130,7 @@ def burgers_1d_experiment(grid_res):
     grid = domain.build('NN').to('cuda')
     net = net.to('cuda')
 
-    exact = exact_solution_data(grid, datapath, pde_dim_in, pde_dim_out, t_dim_flag=True).reshape(-1, 1)
+    exact = exact_solution_data(grid, data_file, pde_dim_in, pde_dim_out, t_dim_flag=True).reshape(-1, 1)
     net_predicted = net(grid)
 
     error_rmse = torch.sqrt(torch.mean((exact - net_predicted) ** 2))
