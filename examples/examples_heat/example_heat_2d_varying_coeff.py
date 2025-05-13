@@ -12,7 +12,8 @@ from scipy import interpolate
 import time
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../examples_heat')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
@@ -23,8 +24,11 @@ from tedeous.utils import exact_solution_data
 
 solver_device('gpu')
 
-datapath = "../PINNacle_data/heat_darcy.npy"
-heat_2d_coef = np.load("../PINNacle_data/heat_2d_coef_256.npy")
+data_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../PINNacle_data/heat_darcy.npy"))
+heat_2d_coef_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../PINNacle_data/heat_2d_coef_256.npy"))
+
+
+heat_2d_coef = np.load(heat_2d_coef_file)
 
 A = 200
 m1, m2, m3 = 1, 5, 1
@@ -175,7 +179,7 @@ def heat_2d_varying_coeff_experiment(grid_res):
     grid = domain.build('NN').to('cuda')
     net = net.to('cuda')
 
-    exact = exact_solution_data(grid, datapath, pde_dim_in, pde_dim_out, t_dim_flag=True).reshape(-1, 1)
+    exact = exact_solution_data(grid, data_file, pde_dim_in, pde_dim_out, t_dim_flag=True).reshape(-1, 1)
     net_predicted = net(grid)
 
     error_rmse = torch.sqrt(torch.mean((exact - net_predicted) ** 2))
