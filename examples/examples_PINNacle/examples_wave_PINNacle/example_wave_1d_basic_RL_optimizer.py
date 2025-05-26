@@ -354,7 +354,7 @@ def wave_1d_basic_experiment(grid_res):
     model.train(optimizer,
                 5e5,
                 save_model=True,
-                callbacks=[cb_es, cb_plots, cb_cache],
+                callbacks=[cb_es, cb_plots],
                 rl_agent_params=rl_agent_params,
                 models_concat_flag=False,
                 model_name='rl_optimization_agent',

@@ -266,8 +266,9 @@ class Model():
                 if np.isnan(loss) or loss == np.inf or loss > 1000:
                     print(f'[{datetime.datetime.now()}] Step = {self.t}, loss is nan. Breaking early.')
                     self.rl_penalty = -1
-                    self.net = prev_model
+                    self.net = copy.deepcopy(prev_model)
                     self.solution_cls._model_change(self.net)
+                    callbacks.set_model(self)
                     break
 
                 if rl_agent_params:
@@ -382,7 +383,6 @@ class Model():
 
             while rl_agent_params['n_trajectories'] - idx_traj > 0:
                 self.net.apply(self.reinit_weights)
-                self.net = self.solution_cls.model
                 self.solution_cls._model_change(self.net)
                 self.t = 1
                 
@@ -544,6 +544,9 @@ class Model():
                     if done == 1:
                         break
                     elif done == 0:
+                        if i == 20:
+                            self.rl_penalty = 0
+                            break
                         continue
                     elif done == -1:
                         self.rl_penalty = 0

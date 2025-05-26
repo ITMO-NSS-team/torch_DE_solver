@@ -570,7 +570,9 @@ class PlotLossSurface:
         grid_losses, grid_xx, grid_yy, rec_grid_models = \
             self.get_coordinates_and_losses_of_surface(grid, domain, equation, boundaries, PINN_layers)
         
+         
         for loss_type in self.loss_types:
+            # norm_losses = (grid_losses[loss_type] - grid_losses[loss_type].mean()) / (grid_losses[loss_type].std() + 1e-8)
             raw_state = {
                 'grid_losses': grid_losses[loss_type],
                 'grid_xx': grid_xx,
