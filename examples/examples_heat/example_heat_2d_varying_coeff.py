@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon May 31 12:33:44 2021
-
-@author: user
-"""
 import torch
 import numpy as np
 import os
@@ -27,7 +21,6 @@ solver_device('gpu')
 data_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../PINNacle_data/heat_darcy.npy"))
 heat_2d_coef_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../PINNacle_data/heat_2d_coef_256.npy"))
 
-
 heat_2d_coef = np.load(heat_2d_coef_file)
 
 A = 200
@@ -36,7 +29,7 @@ m1, m2, m3 = 1, 5, 1
 
 def func(grid):
     x, y, t = grid[:, 0], grid[:, 1], grid[:, 2]
-    sln = A * torch.sin(np.pi * m1 * x) * torch.sin(np.pi * m2 * y) * torch.exp(np.pi * m3 * t)
+    sln = A * torch.sin(np.pi * m1 * x) * torch.sin(np.pi * m2 * y) * torch.sin(np.pi * m3 * t)
     return sln
 
 
@@ -70,18 +63,29 @@ def heat_2d_varying_coeff_experiment(grid_res):
 
     # Initial condition: ###############################################################################################
 
-    # u(x, y, 0)
+    # u(x, y, 0) = 0
     boundaries.dirichlet({'x': [x_min, x_max], 'y': [y_min, y_max], 't': 0}, value=0)
+
+    # u_t(x, y, 0) = 0
+    bop = {
+        'du/dt':
+            {
+                'coeff': 1,
+                'term': [2],
+                'pow': 1
+            }
+    }
+    boundaries.operator({'x': [x_min, x_max], 'y': [y_min, y_max], 't': 0}, operator=bop, value=0)
 
     # Boundary conditions: #############################################################################################
 
-    # u(x_min, y, t)
+    # u(x_min, y, t) = 0
     boundaries.dirichlet({'x': x_min, 'y': [y_min, y_max], 't': [0, t_max]}, value=0)
-    # u(x, y_min, t)
+    # u(x, y_min, t) = 0
     boundaries.dirichlet({'x': [x_min, x_max], 'y': y_min, 't': [0, t_max]}, value=0)
-    # u(x_max, y, t)
+    # u(x_max, y, t) = 0
     boundaries.dirichlet({'x': x_max, 'y': [y_min, y_max], 't': [0, t_max]}, value=0)
-    # u(x, x_min, t)
+    # u(x, x_min, t) = 0
     boundaries.dirichlet({'x': [x_min, x_max], 'y': y_max, 't': [0, t_max]}, value=0)
 
     equation = Equation()
@@ -168,7 +172,7 @@ def heat_2d_varying_coeff_experiment(grid_res):
                           img_rows=2,
                           img_cols=2)
 
-    optimizer = Optimizer('Adam', {'lr': 1e-3})
+    optimizer = Optimizer('Adam', {'lr': 1e-4})
 
     callbacks = [cb_cache, cb_es, cb_plots]
 
