@@ -125,21 +125,21 @@ class Model():
         self.weak_form = weak_form
         self.removed_domains = removed_domains
 
-        grid = self.domain.build(mode=mode, removed_domains=removed_domains)
-        dtype = grid.dtype
+        self.grid = self.domain.build(mode=mode, removed_domains=removed_domains)
+        dtype = self.grid.dtype
         self.net.to(dtype)
         variable_dict = self.domain.variable_dict
         operator = self.equation.equation_lst
         bconds = self.conditions.build(variable_dict)
 
-        self.equation_cls = Operator_bcond_preproc(grid, operator, bconds, h=h, inner_order=inner_order,
+        self.equation_cls = Operator_bcond_preproc(self.grid, operator, bconds, h=h, inner_order=inner_order,
                                                    boundary_order=boundary_order).set_strategy(mode)
 
         if self.batch_size != None:
-            if len(grid) < self.batch_size:
+            if len(self.grid) < self.batch_size:
                 self.batch_size = None
 
-        self.solution_cls = Solution(grid, self.equation_cls, self.net, mode, weak_form,
+        self.solution_cls = Solution(self.grid, self.equation_cls, self.net, mode, weak_form,
                                      lambda_operator, lambda_bound, tol, derivative_points,
                                      batch_size=self.batch_size)
 
@@ -221,7 +221,7 @@ class Model():
 
         print('[{}] initial (min) loss is {}'.format(datetime.datetime.now(), self.min_loss.item()))
 
-        def execute_training_phase(epochs, reuse_nncg_flag=False, n_save_models=1, stuck_threshold=50):
+        def execute_training_phase(epochs, new_graph_flag=None, n_save_models=1, stuck_threshold=50):
             if not (models_concat_flag and rl_agent_params):
                 self.saved_models = []
 
@@ -235,13 +235,21 @@ class Model():
                 # it updates several time, which casuses instability
 
                 if optimizer.optimizer == 'NNCG' and ((self.t - 1) % optimizer.params['precond_update_frequency'] == 0):
-                    if not reuse_nncg_flag:
-                        grads = self.optimizer.gradient(self.cur_loss)
-                        grads = torch.where(grads != grads, torch.zeros_like(grads), grads)
-                        print('here t={} and freq={}'.format(self.t - 1, optimizer.params['precond_update_frequency']))
-                        self.optimizer.update_preconditioner(grads)
+                    if new_graph_flag:
+                        with torch.autocast(
+                                device_type=device_type(),
+                                dtype=self.grid.dtype,
+                                enabled=mixed_precision
+                        ):
+                            loss, loss_normalized = self.solution_cls.evaluate()
+                        grads = self.optimizer.gradient(loss)
+                        new_graph_flag = None
                     else:
-                        print('here t={} and freq={}'.format(self.t - 1, optimizer.params['precond_update_frequency']))
+                        grads = self.optimizer.gradient(self.cur_loss)
+
+                    grads = torch.where(grads != grads, torch.zeros_like(grads), grads)
+                    print('here t={} and freq={}'.format(self.t - 1, optimizer.params['precond_update_frequency']))
+                    self.optimizer.update_preconditioner(grads)
 
                 iter_count = 1 if self.batch_size is None else self.solution_cls.operator.n_batches
                 for _ in range(iter_count):  # if batch mod then iter until end of batches else only once
@@ -368,12 +376,9 @@ class Model():
                         'epochs': optimizers['epochs'][i_epochs]
                     }
 
-                    reuse_nncg_flag = action["type"] == 'NNCG' if i > 0 else False
-
                     optimizer = Optimizer(action['type'], action['params'])
                     self.optimizer = optimizer.optimizer_choice(self.mode, self.net)
-                    closure = Closure(mixed_precision, self, reuse_nncg_flag=reuse_nncg_flag).get_closure(
-                        optimizer.optimizer)
+                    closure = Closure(mixed_precision, self).get_closure(optimizer.optimizer)
                     self.t = 1
 
                     print('\n===========================================================================\n' +
@@ -384,7 +389,7 @@ class Model():
 
                     loss, solver_models = execute_training_phase(
                         action["epochs"],
-                        reuse_nncg_flag=reuse_nncg_flag,
+                        new_graph_flag=i,
                         n_save_models=rl_agent_params['n_save_models'],
                         stuck_threshold=rl_agent_params['stuck_threshold']
                     )
@@ -481,40 +486,20 @@ class Model():
 
             self.net = rl_agent.model
 
-        elif isinstance(optimizer, list) and not rl_agent_params:
+        if isinstance(optimizer, list):
             optimizers_chain = optimizer.copy()
-            for optimizer in optimizers_chain:
-                opt_name = optimizer['name']
-                opt_params = optimizer['params']
-                opt_epochs = optimizer['epochs']
+            for i_opt in range(len(optimizers_chain)):
+                opt_name = optimizers_chain[i_opt]['name']
+                opt_params = optimizers_chain[i_opt]['params']
+                opt_epochs = optimizers_chain[i_opt]['epochs']
                 optimizer = Optimizer(opt_name, opt_params)
+
                 self.optimizer = optimizer.optimizer_choice(self.mode, self.net)
-
-                reuse_nncg_flag = opt_name == 'NNCG'
-
-                closure = Closure(mixed_precision, self, reuse_nncg_flag=reuse_nncg_flag).get_closure(
-                    optimizer.optimizer)
+                closure = Closure(mixed_precision, self).get_closure(optimizer.optimizer)
                 self.t = 1
 
                 print(f'\n[{datetime.datetime.now()}] Using optimizer: {opt_name} for {opt_epochs} epochs.')
-                execute_training_phase(opt_epochs, reuse_nncg_flag=reuse_nncg_flag)
-                print(f'[{datetime.datetime.now()}] Finished optimizer {opt_name}.')
-
-        elif isinstance(optimizer, dict) and not rl_agent_params:
-            optimizers_chain = optimizer.copy()
-            for opt_name, opt_params in optimizers_chain.items():
-                opt_param = opt_params[0]
-                opt_epochs = opt_params[1]
-                optimizer = Optimizer(opt_name, opt_param)
-                self.optimizer = optimizer.optimizer_choice(self.mode, self.net)
-
-                reuse_nncg_flag = opt_name == 'NNCG'
-                closure = Closure(mixed_precision, self, reuse_nncg_flag=reuse_nncg_flag).get_closure(
-                    optimizer.optimizer)
-                self.t = 1
-
-                print(f'\n[{datetime.datetime.now()}] Using optimizer: {opt_name} for {opt_epochs} epochs.')
-                execute_training_phase(opt_epochs, reuse_nncg_flag=reuse_nncg_flag)
+                execute_training_phase(opt_epochs, new_graph_flag=i_opt)
                 print(f'[{datetime.datetime.now()}] Finished optimizer {opt_name}.')
 
         elif isinstance(optimizer, Optimizer):
