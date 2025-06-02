@@ -5,12 +5,11 @@ from tedeous.device import device_type
 class Closure():
     def __init__(self,
                  mixed_precision: bool,
-                 model,
-                 reuse_nncg_flag: bool = False):
+                 model
+                 ):
 
         self.mixed_precision = mixed_precision
         self.set_model(model)
-        self.reuse_nncg_flag = reuse_nncg_flag
         self.optimizer = self.model.optimizer
         self.normalized_loss_stop = self.model.normalized_loss_stop
         self.device = device_type()
@@ -126,11 +125,6 @@ class Closure():
         # if self.optimizer.use_grad:
         grads = self.optimizer.gradient(loss)
         grads = torch.where(grads != grads, torch.zeros_like(grads), grads)
-
-        # This fellow moved to model.py since it called several times a row
-        if ((self.model.t - 1) % self.optimizer.precond_update_frequency == 0) and self.reuse_nncg_flag:
-            print('here t={} and freq={}'.format(self.model.t - 1, self.optimizer.precond_update_frequency))
-            self.optimizer.update_preconditioner(grads)
 
         self.model.cur_loss = loss_normalized if self.normalized_loss_stop else loss
 
