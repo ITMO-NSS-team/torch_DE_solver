@@ -188,6 +188,7 @@ class Model():
                         ):
                             loss, loss_normalized = self.solution_cls.evaluate()
                         grads = self.optimizer.gradient(loss)
+                        new_graph_flag = None
                     else:
                         grads = self.optimizer.gradient(self.cur_loss)
 
@@ -237,3 +238,4 @@ class Model():
         callbacks.on_train_end()
 
         self._model_save(save_model, model_name)
+        
