@@ -220,8 +220,7 @@ class Model():
 
         print('[{}] initial (min) loss is {}'.format(datetime.datetime.now(), self.min_loss.item()))
 
-        def execute_training_phase(epochs, new_graph_flag=None, n_save_models=1, stuck_threshold=50,
-                                   min_loss_change=1e-3, min_grad_norm=1e-4):
+        def execute_training_phase(epochs, new_graph_flag=None, n_save_models=1, stuck_threshold=50):
             if not (models_concat_flag and rl_agent_params):
                 self.saved_models = []
 
@@ -288,37 +287,14 @@ class Model():
             if rl_agent_params:
                 current_model = copy.deepcopy(self.net)
                 self.saved_models.append(current_model)
-                # self.prev_to_current_optimizer_models.append(current_model)
-                # indices_prev_to_current_models = np.linspace(0, len(self.prev_to_current_optimizer_models) - 1, 10,
-                #                                              dtype=int)
-                # self.prev_to_current_optimizer_models = [self.prev_to_current_optimizer_models[i] for i in
-                #                                          indices_prev_to_current_models]
-                #
-                # loss_value = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
-                # loss_history.append(loss_value)
-
-                # if len(self.saved_models) >= n_save_models:
-                #     indices_saved_models = np.linspace(0, len(self.saved_models) - 1, 10, dtype=int)
-                #     self.saved_models = [self.saved_models[i] for i in indices_saved_models]
-                # else:
-                #     print("Using prev optimizer models")
-                #     self.saved_models = self.prev_to_current_optimizer_models
 
                 loss_history = loss_history[-stuck_threshold:]
-                delta_loss = max(loss_history) - min(loss_history)
 
-                if optimizer.optimizer in ('PSO', 'CSO'):
-                    grad_norm = torch.norm(torch.mean(self.optimizer.grads_swarm, dim=0)).item()
-                    # grad_norm = torch.norm(self.optimizer.gradient(self.cur_loss)).item()  # здесь ошибка
-                else:
-                    grad_norm = 0.
-                    for param in self.net.parameters():
-                        if param.grad is not None:
-                            grad_norm += param.grad.norm().item()
-
-                if delta_loss < min_loss_change or grad_norm < min_grad_norm:
-                    print(f"\nLocal min!!!\nDelta loss: {delta_loss}, grad norm: {grad_norm}")
+                if self.stop_training:
+                    print(f"\nLocal min!!!")
                     self.rl_penalty = -1
+                    callbacks.callbacks[0]._stop_dings = 0
+                    self.stop_training = False
 
                 if loss_history[-1] == np.nan:
                     self.rl_penalty = -1
