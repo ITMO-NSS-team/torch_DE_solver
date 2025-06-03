@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Mar 30 13:25:13 2022
-
-@author: user
-"""
 import numpy as np
 import torch
 import sys
