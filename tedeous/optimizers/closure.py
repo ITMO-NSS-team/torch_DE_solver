@@ -126,6 +126,11 @@ class Closure():
         grads = self.optimizer.gradient(loss)
         grads = torch.where(grads != grads, torch.zeros_like(grads), grads)
 
+        # this fellow moved to model.py since it called several times a row
+        # if (self.model.t-1) % self.optimizer.precond_update_frequency == 0:
+        #        print('here t={} and freq={}'.format(self.model.t-1,self.optimizer.precond_update_frequency))
+        #        self.optimizer.update_preconditioner(grads)
+
         self.model.cur_loss = loss_normalized if self.normalized_loss_stop else loss
 
         return loss, grads
