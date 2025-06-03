@@ -136,7 +136,7 @@ class CachePreprocessing:
             file = files[i]
             
             try:
-                checkpoint = torch.load(file)
+                checkpoint = torch.load(file, weights_only=False)
             except Exception:
                 if cache_verbose:
                     print('Error loading file {}'.format(file))

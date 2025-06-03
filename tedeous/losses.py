@@ -11,6 +11,7 @@ class Losses():
     """
     Class which contains all losses.
     """
+
     def __init__(self,
                  mode: str,
                  weak_form: Union[None, list],
@@ -35,12 +36,14 @@ class Losses():
         # is None + fix causal_loss operator crutch (line 76).
 
     def _loss_op(self,
-                operator: torch.Tensor,
-                lambda_op: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+                 operator: torch.Tensor,
+                 forcing_function: torch.Tensor,
+                 lambda_op: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """ Operator term in loss calc-n.
 
         Args:
             operator (torch.Tensor): operator calc-n result.
+            forcing_function (torch.Tensor): represents everything on the right-hand side of equation.
             For more details to eval module -> operator_compute().
 
             lambda_op (torch.Tensor): regularization parameter for operator term in loss.
@@ -52,16 +55,15 @@ class Losses():
         if self.weak_form is not None and self.weak_form != []:
             op = operator
         else:
-            op = torch.mean(operator**2, 0)
+            op = torch.mean((operator - forcing_function) ** 2, 0)
 
         loss_operator = op @ lambda_op.T
         return loss_operator, op
 
-
     def _loss_bcs(self,
-                 bval: torch.Tensor,
-                 true_bval: torch.Tensor,
-                 lambda_bound: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+                  bval: torch.Tensor,
+                  true_bval: torch.Tensor,
+                  lambda_bound: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """ Computes boundary loss for corresponding type.
 
         Args:
@@ -74,19 +76,20 @@ class Losses():
             bval_diff (torch.Tensor): MSE of all boundary con-s.
         """
 
-        bval_diff = torch.mean((bval - true_bval)**2, 0)
+        bval_diff = torch.mean((bval - true_bval) ** 2, 0)
 
         loss_bnd = bval_diff @ lambda_bound.T
         return loss_bnd, bval_diff
 
-
     def _default_loss(self,
-                     operator: torch.Tensor,
-                     bval: torch.Tensor,
-                     true_bval: torch.Tensor,
-                     lambda_op: torch.Tensor,
-                     lambda_bound: torch.Tensor,
-                     save_graph: bool = True) -> Tuple[torch.Tensor, torch.Tensor]:
+                      operator: torch.Tensor,
+                      bval: torch.Tensor,
+                      true_bval: torch.Tensor,
+                      lambda_op: torch.Tensor,
+                      lambda_bound: torch.Tensor,
+                      save_graph: bool = True,
+                      forcing_function: torch.Tensor = None,
+                      ) -> Tuple[torch.Tensor, torch.Tensor]:
         """ Compute l2 loss.
 
         Args:
@@ -97,6 +100,7 @@ class Losses():
             lambda_op (torch.Tensor): regularization parameter for operator term in loss.
             lambda_bound (torch.Tensor): regularization parameter for boundary term in loss.
             save_graph (bool, optional): saving computational graph. Defaults to True.
+            forcing_function (torch.Tensor): represents everything on the right-hand side of equation. Defaults to None.
 
         Returns:
             loss (torch.Tensor): loss.
@@ -106,7 +110,10 @@ class Losses():
         if bval is None:
             return torch.sum(torch.mean((operator) ** 2, 0))
 
-        loss_oper, op = self._loss_op(operator, lambda_op)
+        if forcing_function is None:
+            forcing_function = torch.zeros(operator.shape)
+
+        loss_oper, op = self._loss_op(operator, forcing_function, lambda_op)
         dtype = op.dtype
         loss_bnd, bval_diff = self._loss_bcs(bval, true_bval, lambda_bound)
         loss = loss_oper + loss_bnd
@@ -115,8 +122,8 @@ class Losses():
         lambda_bound_normalized = lambda_prepare(bval, 1).to(dtype)
 
         with torch.no_grad():
-            loss_normalized = op @ lambda_op_normalized.T +\
-                        bval_diff @ lambda_bound_normalized.T
+            loss_normalized = op @ lambda_op_normalized.T + \
+                              bval_diff @ lambda_bound_normalized.T
 
         # TODO make decorator and apply it for all losses.
         if not save_graph:
@@ -128,11 +135,11 @@ class Losses():
         return loss, loss_normalized
 
     def _causal_loss(self,
-                    operator: torch.Tensor,
-                    bval: torch.Tensor,
-                    true_bval: torch.Tensor,
-                    lambda_op: torch.Tensor,
-                    lambda_bound: torch.Tensor)-> Tuple[torch.Tensor, torch.Tensor]:
+                     operator: torch.Tensor,
+                     bval: torch.Tensor,
+                     true_bval: torch.Tensor,
+                     lambda_op: torch.Tensor,
+                     lambda_bound: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """ Computes causal loss, which is calculated with weights matrix:
         W = exp(-tol*(Loss_i)) where Loss_i is sum of the L2 loss from 0
         to t_i moment of time. This loss function should be used when one
@@ -150,13 +157,13 @@ class Losses():
             loss (torch.Tensor): loss.
             loss_normalized (torch.Tensor): loss, where regularization parameters are 1.
         """
-        if self.n_t_operation is not None: # calculate if batch mod
+        if self.n_t_operation is not None:  # calculate if batch mod
             self.n_t = self.n_t_operation(operator)
         try:
-            res = torch.sum(operator**2, dim=1).reshape(self.n_t, -1)
-        except: # if n_t_operation calculate bad n_t then change n_t to batch size
+            res = torch.sum(operator ** 2, dim=1).reshape(self.n_t, -1)
+        except:  # if n_t_operation calculate bad n_t then change n_t to batch size
             self.n_t = operator.size()[0]
-            res = torch.sum(operator**2, dim=1).reshape(self.n_t, -1)
+            res = torch.sum(operator ** 2, dim=1).reshape(self.n_t, -1)
         m = torch.triu(torch.ones((self.n_t, self.n_t), dtype=res.dtype), diagonal=1).T
         with torch.no_grad():
             w = torch.exp(- self.tol * (m @ res))
@@ -169,17 +176,18 @@ class Losses():
 
         lambda_bound_normalized = lambda_prepare(bval, 1)
         with torch.no_grad():
-            loss_normalized = loss_oper +\
-                        lambda_bound_normalized @ bval_diff
+            loss_normalized = loss_oper + \
+                              lambda_bound_normalized @ bval_diff
 
         return loss, loss_normalized
 
     def _weak_loss(self,
-                  operator: torch.Tensor,
-                  bval: torch.Tensor,
-                  true_bval: torch.Tensor,
-                  lambda_op: torch.Tensor,
-                  lambda_bound: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+                   operator: torch.Tensor,
+                   bval: torch.Tensor,
+                   true_bval: torch.Tensor,
+                   lambda_op: torch.Tensor,
+                   lambda_bound: torch.Tensor,
+                   forcing_function: torch.Tensor = None) -> Tuple[torch.Tensor, torch.Tensor]:
         """ Weak solution of O/PDE problem.
 
         Args:
@@ -189,6 +197,7 @@ class Losses():
             true_bval (torch.Tensor): true values of boundary conditions.
             lambda_op (torch.Tensor): regularization parameter for operator term in loss.
             lambda_bound (torch.Tensor): regularization parameter for boundary term in loss.
+            forcing_function (torch.Tensor): represents everything on the right-hand side of equation. Defaults to None.
 
         Returns:
             loss (torch.Tensor): loss.
@@ -198,17 +207,23 @@ class Losses():
         if bval is None:
             return sum(operator)
 
-        loss_oper, op = self._loss_op(operator, lambda_op)
+        if forcing_function is None:
+            forcing_function = torch.zeros(operator.shape)
+
+        loss_oper, op = self._loss_op(operator, forcing_function, lambda_op)
 
         loss_bnd, bval_diff = self._loss_bcs(bval, true_bval, lambda_bound)
         loss = loss_oper + loss_bnd
 
-        lambda_op_normalized = lambda_prepare(operator, 1)
-        lambda_bound_normalized = lambda_prepare(bval, 1)
+        op_dtype = op.dtype
+        bval_dtype = bval_diff.dtype
+
+        lambda_op_normalized = lambda_prepare(operator, 1, dtype=op_dtype)
+        lambda_bound_normalized = lambda_prepare(bval, 1, dtype=bval_dtype)
 
         with torch.no_grad():
-            loss_normalized = op @ lambda_op_normalized.T +\
-                        bval_diff @ lambda_bound_normalized.T
+            loss_normalized = op @ lambda_op_normalized.T + \
+                              bval_diff @ lambda_bound_normalized.T
 
         return loss, loss_normalized
 
