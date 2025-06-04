@@ -11,7 +11,7 @@ mu = 0.01 / np.pi
 # model = torch.load('model.pth', map_location=torch.device('cpu'))
 solver_device('gpu')
 
-
+current_file_folder = os.path.abspath(os.path.dirname(__file__))
 # Burgers equation problem describtion
 
 def u(grid):
@@ -128,7 +128,9 @@ def generate_key_lists(base_folder):
 
 
 if __name__ == '__main__':
-    path_to_trajectories = "landscape_visualization/trajectories/burgers/adam_5_starts"  # Replace with the path to your folder with  models in it
+
+    path_to_trajectories = os.path.join(current_file_folder, "trajectories", "burgers", "adam_5_starts")
+    path_to_model = os.path.join(current_file_folder, "saved_models", "PINN_burgers_adam_5_starts", "model.pt") # Replace with the path to your folder with  models in it if you needed it
     key_models, key_modelnames = generate_key_lists(path_to_trajectories)
 
     model_layers = [2, 32, 32, 1]  # PINN layers
@@ -145,7 +147,7 @@ if __name__ == '__main__':
             15
         ],
         "batch_size": 32,
-        "path_to_plot_model": "../landscape_visualization_origin/saved_models/PINN_burgers_adam_5_starts/model.pt", # Replace with the path to your model. path like path_to_folder + model.pt
+        "path_to_plot_model": path_to_model, # Replace with the path to your model if you needed it. path like path_to_folder + model.pt
         "num_models": None,
         "from_last": False,
         "prefix": "model-",

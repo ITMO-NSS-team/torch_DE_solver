@@ -9,6 +9,8 @@ from scipy.integrate import quad
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname('AAAI_expetiments'))))
 
+current_file = os.path.abspath(os.path.dirname(__file__))
+
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
 from tedeous.callbacks import early_stopping, save_model
@@ -125,7 +127,7 @@ def burgers1d_problem_formulation(grid_res):
     return grid, domain, equation, boundaries
 
 
-def experiment_data_amount_burgers_1d_adam_lbfgs_nncg(grid_res, iter, exp_name='burgers1d_adam_5_starts',
+def experiment_data_amount_burgers_1d_adam(grid_res, iter, exp_name='burgers1d_adam_5_starts',
                                                       save_plot=True):
     solver_device('cuda')
     exp_dict_list = []
@@ -156,7 +158,7 @@ def experiment_data_amount_burgers_1d_adam_lbfgs_nncg(grid_res, iter, exp_name='
     optim = Optimizer('Adam', {'lr': 1e-3})
 
     start = time.time()
-    path_to_folder = r"landscape_visualization_origin\trajectories\burgers\adam_5_starts\adam_{iter}".format(iter=iter)
+    path_to_folder = os.path.join(current_file, "trajectories", "burgers", "adam_5_starts", f"adam_{iter}".format(iter))
     os.makedirs(path_to_folder, exist_ok=True)
     cb_sm = save_model.SaveModel(path_to_folder, every_step=500)
     model.train(optim, 5e3, save_model=False, callbacks=[cb_es, cb_sm], info_string_every=500)
@@ -187,98 +189,15 @@ def experiment_data_amount_burgers_1d_adam_lbfgs_nncg(grid_res, iter, exp_name='
     print('Time taken {}= {}'.format(grid_res, end - start))
     print('RMSE_adam {}= {}'.format(grid_res, error_adam_test))
 
-    ########
-
-    cb_es = early_stopping.EarlyStopping(eps=1e-6,
-                                         loss_window=100,
-                                         no_improvement_patience=200,
-                                         patience=2,
-                                         randomize_parameter=1e-5,
-                                         verbose=False)
-
-    optim = Optimizer('LBFGS', {'history_size': 100,
-                                "line_search_fn": 'strong_wolfe'})
-
-    start = time.time()
-    model.train(optim, 50, save_model=False, model_name=r"LBFGS_NNCG\LBFGS_model-{}", callbacks=[cb_es],
-                info_string_every=10)
-    end = time.time()
-    time_LBFGS = end - start
-
-    error_LBFGS_train = torch.sqrt(torch.mean((u_exact_train - net(grid).reshape(-1)) ** 2))
-
-    error_LBFGS_test = torch.sqrt(torch.mean((u_exact_test - net(grid_test).reshape(-1)) ** 2))
-
-    loss_LBFGS = model.solution_cls.evaluate()[0].detach().cpu().numpy()
-
-    lu_f = model.solution_cls.operator.operator_compute()
-
-    grid = domain.build('autograd')
-
-    lu_f, gr = integration(lu_f, grid)
-
-    lu_f_LBFGS, _ = integration(lu_f, gr)
-
-    print('Time taken {}= {}'.format(grid_res, end - start))
-    print('RMSE_LBFGS{}= {}'.format(grid_res, error_LBFGS_test))
-
-    # ########
-    #
-    # cb_es = early_stopping.EarlyStopping(eps=1e-6,
-    #                                      loss_window=100,
-    #                                      no_improvement_patience=200,
-    #                                      patience=2,
-    #                                      randomize_parameter=1e-5,
-    #                                      verbose=False)
-    #
-    # optim = Optimizer('NNCG', {'mu': 5e-4,
-    #                            "rank": 30,
-    #                            'line_search_fn': "armijo",
-    #                            'verbose': False})
-    #
-    # start = time.time()
-    # model.train(optim, 10, save_model=False, model_name=r"LBFGS_NNCG\NNCG_model-{}", callbacks=[cb_es],
-    #             info_string_every=1)
-    # end = time.time()
-    # time_NNCG = end - start
-    #
-    # error_NNCG_train = torch.sqrt(torch.mean((u_exact_train - net(grid).reshape(-1)) ** 2))
-    #
-    # error_NNCG_test = torch.sqrt(torch.mean((u_exact_test - net(grid_test).reshape(-1)) ** 2))
-    #
-    # loss_NNCG = model.solution_cls.evaluate()[0].detach().cpu().numpy()
-    #
-    # lu_f = model.solution_cls.operator.operator_compute()
-    #
-    # grid = domain.build('autograd')
-    #
-    # lu_f, gr = integration(lu_f, grid)
-    #
-    # lu_f_NNCG, _ = integration(lu_f, gr)
-    #
-    # ###############
 
     exp_dict = {'grid_res': grid_res,
                 'error_adam_train': error_adam_train.item(),
                 'error_adam_test': error_adam_test.item(),
-                'error_LBFGS_train': error_LBFGS_train.item(),
-                'error_LBFGS_test': error_LBFGS_test.item(),
-                #   'error_NNCG_train': error_NNCG_train.item(),
-                #   'error_NNCG_test': error_NNCG_test.item(),
                 'loss_adam': loss_adam.item(),
-                'loss_LBFGS': loss_LBFGS.item(),
-                #   'loss_NNCG': loss_NNCG.item(),
                 "lu_f_adam": lu_f_adam.item(),
-                "lu_f_LBFGS": lu_f_LBFGS.item(),
-                #   "lu_f_NNCG": lu_f_NNCG.item(),
                 'time_adam': time_adam,
-                'time_LBFGS': time_LBFGS,
-                #   'time_NNCG': time_NNCG,
                 'type': exp_name}
-
-    # print('Time taken {}= {}'.format(grid_res, end - start))
-    # print('RMSE_NNCG {}= {}'.format(grid_res, error_NNCG_test))
-
+    
     exp_dict_list.append(exp_dict)
 
     return exp_dict_list
@@ -292,23 +211,7 @@ os.makedirs(save_dir, exist_ok=True)
 
 for grid_res in range(80, 81, 10):
     for i in range(nruns):
-        exp_dict_list.append(experiment_data_amount_burgers_1d_adam_lbfgs_nncg(grid_res, i))
+        exp_dict_list.append(experiment_data_amount_burgers_1d_adam(grid_res, i))
         exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
         df = pd.DataFrame(exp_dict_list_flatten)
         df.to_csv('..//examples\\AAAI_expetiments\\results\\burgers_1d_adam_save_model_traj_{}.csv'.format(grid_res))
-
-# if __name__ == '__main__':
-#
-#     if not os.path.isdir('../examples\\AAAI_expetiments\\results'):
-#         os.mkdir('../examples\\AAAI_expetiments\\results')
-#
-#     exp_dict_list = []
-#
-#     nruns = 5
-#
-#     for grid_res in range(80, 81, 10):
-#         for i in range(nruns):
-#             exp_dict_list.append(experiment_data_amount_burgers_1d_adam_lbfgs_nncg(grid_res, i))
-#             exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-#             df = pd.DataFrame(exp_dict_list_flatten)
-#             df.to_csv('..//examples\\AAAI_expetiments\\results\\burgers_1d_adam_save_model_traj_{}.csv'.format(grid_res))
