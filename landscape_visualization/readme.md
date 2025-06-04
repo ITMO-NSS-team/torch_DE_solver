@@ -69,3 +69,80 @@ Uses the trained autoencoder to project and visualize the loss landscape.
 * Trajectory: files named `model-*.pt`, representing models saved during NN-based PDE solving
 
 ---
+
+## ⚡ Save Loss Surface data
+
+If you want to **generate a loss surface structure** without rendering visualizations,  
+you can directly use the function:
+
+```python
+save_equation_loss_surface(...)
+```
+
+from:
+
+```
+landscape_visualization/_aux/plot_loss_surface.py
+```
+
+### Example usage:
+
+```python
+from landscape_visualization._aux.plot_loss_surface import PlotLossSurface
+
+plotter = PlotLossSurface(...)
+loss_structure = plotter.save_equation_loss_surface(
+    u_exact_test, grid_test, grid, domain, equation, boundaries, model_layers
+)
+```
+
+**Returns a dictionary like:**  
+```python
+{
+    "loss_total": grid_losses_array,
+    ...
+}
+```
+
+---
+
+## 🧠 Direct Model Usage
+
+In addition to reading models from disk (`.pt` files in trajectory folders),  
+the visualizator also supports **passing models directly** as `torch.nn.Module` instances.
+
+This is especially useful when:
+
+- You want to generate the loss landscape from models **in memory**
+- You’re using a **custom training loop** or generating models dynamically
+- You want to avoid saving to disk for speed or space reasons
+
+### How to use:
+
+When calling the `VisualizationModel.train(...)` method, you can pass a list of models via `solver_models`.
+
+```python
+from landscape_visualization._aux.visualization_model import VisualizationModel
+
+model = VisualizationModel(...)
+
+# List of torch.nn.Sequential or other compatible models
+models = [trained_model_1, trained_model_2, ..., trained_model_N]
+
+model.train(
+    optimizer=...,
+    epochs=...,
+    every_epoch=...,
+    batch_size=...,
+    resume=False,
+    solver_models=models  # Pass models directly here
+)
+```
+
+### Notes:
+
+- This bypasses loading models from disk.
+- Internally, `model.state_dict()` is extracted from each model and used for training the autoencoder.
+- The loss computation, latent encoding, and plotting logic remain the same.
+
+---
