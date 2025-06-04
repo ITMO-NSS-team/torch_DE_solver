@@ -1,6 +1,6 @@
 """module for working with inerface for initialize grid, conditions and equation"""
 
-from typing import List, Union
+from typing import List, Union, Dict
 import torch
 import numpy as np
 import sys
@@ -8,6 +8,7 @@ import os
 
 from tedeous.device import check_device
 from tedeous.input_preprocessing import EquationMixin
+from tedeous.data_CSG import csg_difference, csg_boundary, Circle, Rectangle
 
 
 def tensor_dtype(dtype: str):
@@ -32,10 +33,11 @@ def tensor_dtype(dtype: str):
 class Domain():
     """class for grid building
     """
+
     def __init__(self, type='uniform'):
         self.type = type
         self.variable_dict = {}
-    
+
     def variable(
             self,
             variable_name: str,
@@ -63,8 +65,10 @@ class Domain():
                 start, end = variable_set
                 variable_tensor = torch.linspace(start, end, n_points, dtype=dtype)
                 self.variable_dict[variable_name] = variable_tensor
-    
-    def build(self, mode: str) -> torch.Tensor:
+
+    def build(self,
+              mode: str,
+              removed_domains: list = None) -> torch.Tensor:
         """ building the grid for algorithm
 
         Args:
@@ -75,21 +79,38 @@ class Domain():
         """
         var_lst = list(self.variable_dict.values())
         var_lst = [i.cpu() for i in var_lst]
+
         if mode in ('autograd', 'NN'):
             if len(self.variable_dict) == 1:
                 grid = check_device(var_lst[0].reshape(-1, 1))
             else:
                 grid = check_device(torch.cartesian_prod(*var_lst))
+
+                if removed_domains is not None:
+                    for domain_dict in removed_domains:
+                        figure_type = list(domain_dict.keys())[0]
+                        if figure_type == 'rectangle':
+                            coords_min = domain_dict[figure_type]['coords_min']
+                            coords_max = domain_dict[figure_type]['coords_max']
+                            shape = Rectangle(coords_min,coords_max)
+                        elif figure_type == 'circle':
+                            center = domain_dict[figure_type]['center']
+                            radius = domain_dict[figure_type]['radius']
+                            shape = Circle(center, radius)
+
+                        grid = csg_difference(grid, shape).detach().clone()
         else:
             grid = np.meshgrid(*var_lst, indexing='ij')
-            grid = check_device(torch.tensor(np.array(grid)))
+            grid = check_device(grid)
 
+        grid = check_device(grid)
         return grid
 
 
 class Conditions():
     """class for adding the conditions: initial, boundary, and data.
     """
+
     def __init__(self):
         self.conditions_lst = []
 
@@ -173,12 +194,33 @@ class Conditions():
                                         'var': var,
                                         'type': 'periodic'})
 
+    def robin(self,
+              bnd: Union[torch.Tensor, dict],
+              value: Union[callable, torch.Tensor, float],
+              operator: Dict = None,
+              var: int = 0):
+        """Determine Robin boundary condition.
+
+        Args:
+            bnd: Boundary points (torch.Tensor or dict).
+            value: Right-hand side value (callable, Tensor, or float).
+            operator: operator dict. Defaults to None.
+            var: Variable index for systems of equations (default: 0).
+        """
+
+        operator = EquationMixin.equation_unify(operator)
+        self.conditions_lst.append({'bnd': bnd,
+                                    'bop': operator,
+                                    'bval': value,
+                                    'var': var,
+                                    'type': 'robin'})
+
     def data(
-        self,
-        bnd: Union[torch.Tensor, dict],
-        operator: Union[dict, None],
-        value: torch.Tensor,
-        var: int = 0):
+            self,
+            bnd: Union[torch.Tensor, dict],
+            operator: Union[dict, None],
+            value: torch.Tensor,
+            var: int = 0):
         """ conditions for available solution data
 
         Args:
@@ -214,10 +256,19 @@ class Conditions():
 
         dtype = variable_dict[list(variable_dict.keys())[0]].dtype
 
+        coords = [variable_dict[var] for var in variable_dict.keys()]
+        grid = torch.cartesian_prod(*coords)
+
         if isinstance(bnd, torch.Tensor):
             bnd_grid = bnd.to(dtype)
         else:
             var_lst = []
+
+            if list(bnd.keys())[0] == 'circle':
+                shape = Circle(bnd['circle']['center'],bnd['circle']['radius'])
+                result = csg_boundary(grid, shape)
+                return result
+
             for var in variable_dict.keys():
                 if isinstance(bnd[var], torch.Tensor):
                     var_lst.append(check_device(bnd[var]).to(dtype))
@@ -250,7 +301,7 @@ class Conditions():
         try:
             dtype = variable_dict[list(variable_dict.keys())[0]].dtype
         except:
-            dtype = variable_dict[list(variable_dict.keys())[0]][0].dtype # if periodic
+            dtype = variable_dict[list(variable_dict.keys())[0]][0].dtype  # if periodic
 
         for cond in self.conditions_lst:
             if cond['type'] == 'periodic':
@@ -260,12 +311,12 @@ class Conditions():
                 cond['bnd'] = cond_lst
             else:
                 cond['bnd'] = self._bnd_grid(cond['bnd'], variable_dict, dtype)
-            
+
             if isinstance(cond['bval'], torch.Tensor):
                 cond['bval'] = check_device(cond['bval']).to(dtype)
             elif isinstance(cond['bval'], (float, int)):
                 cond['bval'] = check_device(
-                    torch.ones_like(cond['bnd'][:,0])*cond['bval']).to(dtype)
+                    torch.ones_like(cond['bnd'][:, 0]) * cond['bval']).to(dtype)
             elif callable(cond['bval']):
                 cond['bval'] = check_device(cond['bval'](cond['bnd'])).to(dtype)
 
@@ -275,9 +326,10 @@ class Conditions():
 class Equation():
     """class for adding eqution.
     """
+
     def __init__(self):
         self.equation_lst = []
-    
+
     def add(self, eq: dict):
         """ add equation
 
@@ -285,3 +337,5 @@ class Equation():
             eq (dict): equation in operator form.
         """
         self.equation_lst.append(eq)
+
+

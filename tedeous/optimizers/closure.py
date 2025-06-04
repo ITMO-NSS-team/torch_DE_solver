@@ -1,11 +1,12 @@
 import torch
-from typing import Any
 from tedeous.device import device_type
+
 
 class Closure():
     def __init__(self,
-        mixed_precision: bool,
-        model):
+                 mixed_precision: bool,
+                 model
+                 ):
 
         self.mixed_precision = mixed_precision
         self.set_model(model)
@@ -16,7 +17,6 @@ class Closure():
         self.dtype = torch.float16 if self.device == 'cuda' else torch.bfloat16
         if self.mixed_precision:
             self._amp_mixed()
-
 
     def set_model(self, model):
         self._model = model
@@ -45,7 +45,6 @@ class Closure():
             print(f'Mixed precision enabled. The device is {self.device}')
         if self.optimizer.__class__.__name__ == "LBFGS":
             raise NotImplementedError("AMP and the LBFGS optimizer are not compatible.")
-        
 
     def _closure(self):
         self.optimizer.zero_grad()
@@ -89,13 +88,13 @@ class Closure():
             grads_swarm.append(grads.reshape(1, -1))
 
         losses = torch.stack(loss_swarm).reshape(-1)
-        
+
         gradients = torch.vstack(grads_swarm)
 
         self.model.cur_loss = min(loss_swarm)
 
         return losses, gradients
-    
+
     def _closure_ngd(self):
         self.optimizer.zero_grad()
         with torch.autocast(device_type=self.device,
@@ -123,25 +122,18 @@ class Closure():
                             enabled=self.mixed_precision):
             loss, loss_normalized = self.model.solution_cls.evaluate()
 
-        
-
-
-
         # if self.optimizer.use_grad:
         grads = self.optimizer.gradient(loss)
         grads = torch.where(grads != grads, torch.zeros_like(grads), grads)
 
-        #this fellow moved to model.py since it called several times a row
-        #if (self.model.t-1) % self.optimizer.precond_update_frequency == 0: 
+        # this fellow moved to model.py since it called several times a row
+        # if (self.model.t-1) % self.optimizer.precond_update_frequency == 0:
         #        print('here t={} and freq={}'.format(self.model.t-1,self.optimizer.precond_update_frequency))
         #        self.optimizer.update_preconditioner(grads)
-
 
         self.model.cur_loss = loss_normalized if self.normalized_loss_stop else loss
 
         return loss, grads
-
-
 
     def get_closure(self, _type: str):
         if _type in ('PSO', 'CSO'):
@@ -149,6 +141,6 @@ class Closure():
         elif _type == 'NGD':
             return self._closure_ngd
         elif _type == 'NNCG':
-            return self._closure_nncg 
+            return self._closure_nncg
         else:
             return self._closure

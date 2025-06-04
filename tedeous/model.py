@@ -1,28 +1,35 @@
 import torch
-from typing import Union, List, Any
+import numpy as np
+import torch.nn.init as init
+import torch.nn as nn
+from typing import Union, List
 import tempfile
 import os
+import datetime
+import copy
+import itertools
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.input_preprocessing import Operator_bcond_preproc
 from tedeous.callbacks.callback_list import CallbackList
 from tedeous.solution import Solution
 from tedeous.optimizers.optimizer import Optimizer
-from tedeous.utils import save_model_nn, save_model_mat
+from tedeous.utils import save_model_nn, save_model_mat, exact_solution_data
 from tedeous.optimizers.closure import Closure
 from tedeous.device import device_type
-import datetime
 
 
 class Model():
     """class for preprocessing"""
+
     def __init__(
             self,
             net: Union[torch.nn.Module, torch.Tensor],
             domain: Domain,
             equation: Equation,
             conditions: Conditions,
-            batch_size: int = None):
+            batch_size: int = None
+    ):
         """
         Args:
             net (Union[torch.nn.Module, torch.Tensor]): neural network or torch.Tensor for mode *mat*
@@ -57,7 +64,8 @@ class Model():
             boundary_order: str = '2',
             derivative_points: int = 2,
             weak_form: List[callable] = None,
-            tol: float = 0):
+            tol: float = 0,
+            removed_domains: list = None):
         """ Compile model for training process.
 
         Args:
@@ -76,15 +84,18 @@ class Model():
             if derivative_points=2 the central scheme are used. Defaults to 2.
             weak_form (List[callable], optional): basis function for weak loss. Defaults to None.
             tol (float, optional): tolerance for causual loss. Defaults to 0.
+            removed_domains (list): domains to be removed from the grid. Defaults to None.
         """
         self.mode = mode
         self.lambda_bound = lambda_bound
         self.lambda_operator = lambda_operator
         self.normalized_loss_stop = normalized_loss_stop
         self.weak_form = weak_form
+        self.removed_domains = removed_domains
 
-        grid = self.domain.build(mode=mode)
+        grid = self.domain.build(mode=mode, removed_domains=removed_domains)
         dtype = grid.dtype
+
         self.net.to(dtype)
         variable_dict = self.domain.variable_dict
         operator = self.equation.equation_lst
@@ -94,19 +105,17 @@ class Model():
                                                    boundary_order=boundary_order).set_strategy(mode)
 
         if self.batch_size != None:
-            if len(grid)<self.batch_size:
-                self.batch_size=None
-
+            if len(grid) < self.batch_size:
+                self.batch_size = None
 
         self.solution_cls = Solution(grid, self.equation_cls, self.net, mode, weak_form,
                                      lambda_operator, lambda_bound, tol, derivative_points,
                                      batch_size=self.batch_size)
 
-
     def _model_save(
-        self,
-        save_model: bool,
-        model_name: str):
+            self,
+            save_model: bool,
+            model_name: str):
         """ Model saving.
 
         Args:
@@ -116,9 +125,9 @@ class Model():
         if save_model:
             if self.mode == 'mat':
                 save_model_mat(self._save_dir,
-                                model=self.net,
-                                domain=self.domain,
-                                name=model_name)
+                               model=self.net,
+                               domain=self.domain,
+                               name=model_name)
             else:
                 save_model_nn(self._save_dir, model=self.net, name=model_name)
 
@@ -167,7 +176,7 @@ class Model():
             self.optimizer.zero_grad()
 
             #this fellow should be in NNCG closure, but since it calls closure many times, it updates several time, which casuses instability
-            if optimizer.optimizer == 'NNCG' and ((self.t-1) % optimizer.params['precond_update_frequency'] == 0): 
+            if optimizer.optimizer == 'NNCG' and ((self.t-1) % optimizer.params['precond_update_frequency'] == 0):
                 grads = self.optimizer.gradient(self.cur_loss)
                 grads = torch.where(grads != grads, torch.zeros_like(grads), grads)
                 self.optimizer.update_preconditioner(grads)
@@ -193,6 +202,3 @@ class Model():
         callbacks.on_train_end()
 
         self._model_save(save_model, model_name)
-
-
-        
