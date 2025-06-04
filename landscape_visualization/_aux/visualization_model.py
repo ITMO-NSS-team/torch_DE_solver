@@ -105,7 +105,7 @@ class VisualizationModel:
 
             # Convert args to JSON format
             args_dict = vars(self)  # Convert Namespace object to dictionary
-            json_str = json.dumps(args_dict, indent=4)  # Convert dictionary to JSON string
+            json_str = json.dumps(args_dict, indent=4, default=str)  # Convert dictionary to JSON string
             # Save JSON to file
             with open(os.path.join(self.path_to_plot_model_directory, 'args.json'), 'w') as f:
                 f.write(json_str)

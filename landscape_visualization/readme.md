@@ -8,7 +8,27 @@ This module provides an interface for:
 
 ## 🚀 Quick Start
 
-### 1. Train the Autoencoder
+### 1. 💾 Generate Trajectories
+
+```bash
+python burgers_1d_save_model_trejectories.py
+```
+
+This script solves the 1D Burgers' equation multiple times using TEDEouS with Adam optimizer and saves model trajectories.
+
+**Outputs:**
+
+* Trajectory folders:
+  * `trajectories/burgers/adam_5_starts/adam_0/`, ..., `adam_4/`
+  * each containing saved `.pt` models during training
+* Result metrics:
+  * `results/burgers_1d_adam_save_model_traj_80.csv` — contains RMSE, loss, and training time for each run
+
+Use this script **before training the autoencoder** to ensure the trajectory data exists.
+
+---
+
+### 2. Train the Autoencoder
 
 ```bash
 python train_burgers.py
@@ -25,7 +45,7 @@ Trains the autoencoder on a pre-saved trajectory of solver models.
 
 ---
 
-### 2. Plot the Loss Landscape
+### 3. Plot the Loss Landscape
 
 ```bash
 python plot_burgers.py
