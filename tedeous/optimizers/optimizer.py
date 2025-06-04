@@ -6,6 +6,7 @@ from tedeous.optimizers.ngd import NGD
 from tedeous.optimizers.CSO import CSO
 from tedeous.optimizers.nys_newton_cg import NysNewtonCG
 from torch.optim.lr_scheduler import ExponentialLR, CosineAnnealingWarmRestarts
+from torch.optim.lr_scheduler import ExponentialLR, CosineAnnealingWarmRestarts
 
 
 class Optimizer():
@@ -20,6 +21,7 @@ class Optimizer():
         self.params = params
         self.gamma = gamma
         self.decay_every = decay_every
+        self.cosine_scheduler_patience = cosine_scheduler_patience
         self.cosine_scheduler_patience = cosine_scheduler_patience
 
     def optimizer_choice(
@@ -41,8 +43,12 @@ class Optimizer():
 
         torch_optim = None
 
+        torch_optim = None
+
         if self.optimizer == 'Adam':
             torch_optim = torch.optim.Adam
+        if self.optimizer == 'AdamW':
+            torch_optim = torch.optim.AdamW
         if self.optimizer == 'AdamW':
             torch_optim = torch.optim.AdamW
         elif self.optimizer == 'SGD':
@@ -59,6 +65,8 @@ class Optimizer():
             torch_optim = CSO
         elif self.optimizer == 'RMSprop':
             torch_optim = torch.optim.RMSprop
+        elif self.optimizer == 'RMSprop':
+            torch_optim = torch.optim.RMSprop
 
         if mode in ('NN', 'autograd'):
             optimizer = torch_optim(model.parameters(), **self.params)
@@ -67,6 +75,9 @@ class Optimizer():
         
         if self.gamma is not None:
             self.scheduler = ExponentialLR(optimizer, gamma=self.gamma)
+
+        if self.cosine_scheduler_patience is not None:
+            self.scheduler = CosineAnnealingWarmRestarts(optimizer, self.cosine_scheduler_patience)
 
         if self.cosine_scheduler_patience is not None:
             self.scheduler = CosineAnnealingWarmRestarts(optimizer, self.cosine_scheduler_patience)
