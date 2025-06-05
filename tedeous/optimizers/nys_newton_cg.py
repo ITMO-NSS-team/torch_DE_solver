@@ -7,6 +7,39 @@ from functools import reduce
 from torch.nn.utils import parameters_to_vector
 
 
+def randomized_svd(A, k, n_iter=2):
+    """
+    Randomized SVD - more stable than full SVD for ill-conditioned matrices
+    Returns top-k singular values and vectors
+    """
+    m, n = A.shape
+    k = min(k, min(m, n))  # Ensure k is valid
+        
+    # Random matrix for range finding
+    Omega = torch.randn(n, k + 5, device=A.device, dtype=A.dtype)  # Slight oversampling
+        
+    # Power iteration for better approximation
+    Y = A @ Omega
+    for _ in range(n_iter):
+        Y = A @ (A.T @ Y)
+        
+    # QR decomposition
+    Q, _ = torch.linalg.qr(Y)
+    Q = Q[:, :k+5]  # Take only what we need
+        
+    # Project matrix
+    B_small = Q.T @ A
+        
+    # SVD of smaller matrix (much more stable)
+    _, S_small, VT_small = torch.linalg.svd(B_small, full_matrices=False)
+        
+    # Reconstruct
+    S = S_small[:k]
+    UT = VT_small[:k, :]
+        
+    return S, UT
+
+
 def _armijo(f, x, gx, dx, t, alpha=0.1, beta=0.5):
     """Line search to find a step size that satisfies the Armijo condition."""
     f0 = f(x, 0, dx)
@@ -24,41 +57,138 @@ def _apply_nys_precond_inv(U, S_mu_inv, mu, lambd_r, x):
     return z
 
 
-def _nystrom_pcg(hess, b, x, mu, U, S, r, tol, max_iters):
-    """Solves a positive-definite linear system using NyströmPCG.
-
-    `Frangella et al. Randomized Nyström Preconditioning. 
-    SIAM Journal on Matrix Analysis and Applications, 2023.
-    <https://epubs.siam.org/doi/10.1137/21M1466244>`"""
+def _nystrom_pcg(hess, b, x, mu, U, S, r, tol, max_iters, verbose = False):
+    """Solves a positive-definite linear system using NyströmPCG with numerical stability fixes."""
     lambd_r = S[r - 1]
     S_mu_inv = (S + mu) ** (-1)
+    
+    # Fix 1: Add numerical stability checks
+    if torch.isnan(x).any(): 
+        if verbose: print('x is nan - resetting to zero')
+        x = torch.zeros_like(x)
+    if torch.isnan(b).any(): 
+        if verbose: print('b is nan')
+        return x
+    
+    # Fix 2: Check condition number and adjust mu if needed
+    condition_estimate = S[0] / (S[-1] + mu) if len(S) > 0 else 1.0
+    if condition_estimate > 1e12:
+        mu_adjusted = mu * 10
+        if verbose: print(f'Poor conditioning detected (cond~{condition_estimate:.2e}), increasing mu from {mu} to {mu_adjusted}')
+        S_mu_inv = (S + mu_adjusted) ** (-1)
+        mu = mu_adjusted
+    
+    hess_x = hess(x)
+    if torch.isnan(hess_x).any(): 
+        if verbose: print('hess(x) is nan')
+        return x
+        
+    resid = b - (hess_x + mu * x)
+    if torch.isnan(resid).any(): 
+        if verbose: print('resid is nan')
+        return x
+    
+    # Fix 3: Check initial residual norm
+    initial_resid_norm = torch.norm(resid)
+    if initial_resid_norm > 1e6:
+        if verbose: print(f'Warning: Large initial residual norm {initial_resid_norm:.2e}')
+        # Scale down the problem
+        scale_factor = 1e6 / initial_resid_norm
+        b = b * scale_factor
+        resid = resid * scale_factor
+        if verbose: print(f'Scaling problem by {scale_factor:.2e}')
 
-    resid = b - (hess(x) + mu * x)
     with torch.no_grad():
         z = _apply_nys_precond_inv(U, S_mu_inv, mu, lambd_r, resid)
         p = z.clone()
-
+    
     i = 0
-
+    prev_resid_norm = torch.norm(resid)
+    stagnation_count = 0
+    
     while torch.norm(resid) > tol and i < max_iters:
         v = hess(p) + mu * p
+        
+        # Fix 4: Check for NaN in critical vectors
+        if torch.isnan(p).any():
+            if verbose: print(f'p is NaN at iteration {i}')
+            break
+        if torch.isnan(v).any():
+            if verbose: print(f'v is NaN at iteration {i}')
+            break
+            
         with torch.no_grad():
-            alpha = torch.dot(resid, z) / torch.dot(p, v)
-            x += alpha * p
-
-            rTz = torch.dot(resid, z)
-            resid -= alpha * v
+            # Fix 5: Check denominator before division
+            pv_dot = torch.dot(p, v)
+            rz_dot = torch.dot(resid, z)
+            
+            if torch.isnan(pv_dot) or torch.abs(pv_dot) < 1e-16:
+                if verbose: print(f'Bad denominator: pv_dot = {pv_dot}, breaking PCG')
+                break
+            if torch.isnan(rz_dot):
+                if verbose: print(f'Bad numerator: rz_dot = {rz_dot}, breaking PCG')
+                break
+                
+            alpha = rz_dot / pv_dot
+            
+            # Fix 6: Clamp alpha to reasonable range
+            if torch.abs(alpha) > 1e6:
+                if verbose: print(f'Large alpha detected: {alpha:.2e}, clamping')
+                alpha = torch.sign(alpha) * 1e6
+            
+            x_new = x + alpha * p
+            
+            # Fix 7: Check for NaN in updated x
+            if torch.isnan(x_new).any():
+                if verbose: print(f'x becomes NaN at iteration {i}, alpha = {alpha:.2e}')
+                if verbose: print(f'rz_dot = {rz_dot:.2e}, pv_dot = {pv_dot:.2e}')
+                break
+            
+            x = x_new
+            rTz = rz_dot
+            resid_new = resid - alpha * v
+            
+            # Fix 8: Check for residual growth/stagnation
+            current_resid_norm = torch.norm(resid_new)
+            if current_resid_norm > 2 * prev_resid_norm:
+                #print(f'Residual growing: {prev_resid_norm:.2e} -> {current_resid_norm:.2e}')
+                stagnation_count += 1
+                if stagnation_count > 3:
+                    if verbose: print('Too many residual growth steps, breaking')
+                    break
+            elif abs(current_resid_norm - prev_resid_norm) / prev_resid_norm < 1e-10:
+                stagnation_count += 1
+                if stagnation_count > 5:
+                    if verbose: print('PCG stagnating, breaking')
+                    break
+            else:
+                stagnation_count = 0
+                
+            resid = resid_new
+            prev_resid_norm = current_resid_norm
+            
             z = _apply_nys_precond_inv(U, S_mu_inv, mu, lambd_r, resid)
+            
+            # Fix 9: Check z for NaN
+            if torch.isnan(z).any():
+                if verbose: print(f'z becomes NaN at iteration {i}')
+                break
+                
             beta = torch.dot(resid, z) / rTz
-
+            
+            # Fix 10: Clamp beta
+            if torch.abs(beta) > 1e6:
+                if verbose: print(f'Large beta detected: {beta:.2e}, clamping')
+                beta = torch.sign(beta) * 1e6
+                
             p = z + beta * p
-
+            
         i += 1
-
-    if torch.norm(resid) > tol:
-        print(
-            f"Warning: PCG did not converge to tolerance. Tolerance was {tol} but norm of residual is {torch.norm(resid)}")
-
+    
+    final_resid_norm = torch.norm(resid)
+    if final_resid_norm > tol:
+        print(f"Warning: PCG did not converge. Tolerance: {tol}, Final residual: {final_resid_norm:.2e}, Iterations: {i}")
+    
     return x
 
 
@@ -180,7 +310,7 @@ class NysNewtonCG(Optimizer):
 
             # Calculate the Newton direction
             d = _nystrom_pcg(hvp_temp, g, self.old_dir,
-                             self.mu, self.U, self.S, self.rank, self.cg_tol, self.cg_max_iters)
+                             self.mu, self.U, self.S, self.rank, self.cg_tol, self.cg_max_iters, verbose = self.verbose)
 
             # Store the previous direction for warm starting PCG
             self.old_dir = d
@@ -273,7 +403,9 @@ class NysNewtonCG(Optimizer):
                 'cpu'), upper=False, left=True).to(C.device)
 
         # B = V * S * U^T b/c we have been using transposed sketch
-        _, S, UT = torch.linalg.svd(B, full_matrices=False)
+        #_, S, UT = torch.linalg.svd(B, full_matrices=False)
+        S, UT = randomized_svd(B, self.rank,n_iter = 2)
+
         self.U = UT.t()
         self.S = torch.max(torch.square(S) - shift, torch.tensor(0.0))
 
