@@ -50,11 +50,6 @@ def plot_losses(df, every_epoch, file_path):
     # Save plot to PNG file with 300 dpi
     plt.savefig(os.path.join(file_path, 'losses.pdf'), dpi=300)
 
-    # # Show plot
-    # plt.show()
-
-    # plt.close()
-    # plt.close(fig)
 
 
 ####### Model stuff ####
@@ -268,8 +263,6 @@ def get_density_CKA(matrix):
     HKH = centered_kernel_matrix(matrix)
     # HKH: n x n
 
-    # norms = np.sqrt(np.diag(HKH))
-    # norms = np.sqrt(np.clip(np.diag(HKH), a_min=0, a_max=None))
     norms = np.sqrt(np.abs(np.diag(HKH)))
     # norms: n
 

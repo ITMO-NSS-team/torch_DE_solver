@@ -5,7 +5,6 @@ from tedeous.optimizers.optimizer import Optimizer
 from landscape_visualization._aux.visualization_model import VisualizationModel
 from landscape_visualization._aux.early_stopping_plot import EarlyStopping
 
-# print(torch.cuda.is_available())
 
 if __name__ == '__main__':
 
