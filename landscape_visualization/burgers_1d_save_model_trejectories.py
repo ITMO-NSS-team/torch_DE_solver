@@ -7,8 +7,6 @@ import torch
 from scipy.integrate import quad
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname('AAAI_expetiments'))))
-
 current_file = os.path.abspath(os.path.dirname(__file__))
 
 from tedeous.data import Domain, Conditions, Equation
