@@ -42,7 +42,6 @@ def plot_losses(df, every_epoch, file_path):
 
     # Set log scale on y-axis
     plt.yscale('log')
-    # plt.ylim(bottom=0.1)
 
     # Set legend
     ax.legend()
@@ -103,7 +102,6 @@ def get_files(file_path, num_models=None, prefix="", from_last=False, every_nth=
             f_temp = sorted(f_temp, key=extract_number)
 
             len_f_temp_original = len(f_temp)
-            # print(dirpath, 'has', len_f_temp_original, 'files')
 
             if every_nth > 1 and len_f_temp_original > 0:
                 f_temp_last = f_temp[-1]
@@ -117,7 +115,6 @@ def get_files(file_path, num_models=None, prefix="", from_last=False, every_nth=
 
     directory = os.path.join(file_path)
     files = get_all_files(directory)
-    # print(files)
     pt_files = [file for file in files if file.endswith(".pt")]
     print(len(pt_files), 'files included.')
     if num_models is not None:

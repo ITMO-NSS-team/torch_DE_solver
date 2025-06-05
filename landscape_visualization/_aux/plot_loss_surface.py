@@ -199,11 +199,7 @@ class PlotLossSurface:
             loss_dict = loss_compute.evaluate(save_graph=False)
             for loss_type in self.loss_types:
                 losses_dict[loss_type].append(loss_dict[loss_type])
-        #     # loss = self.get_errors(model_repopulated, self.loss_type, self.loss_dict).detach()
 
-        #   losses.append(loss)
-
-        # return torch.stack(losses)
         for loss_type in self.loss_types:
                 losses_dict[loss_type] = torch.stack(losses_dict[loss_type])
         
@@ -350,11 +346,6 @@ class PlotLossSurface:
             x_recon_unnormalized = x_recon * transform.std.to(self.device) + transform.mean.to(self.device)
             d = (data_unnormalized - x_recon_unnormalized).pow(2).sum().sqrt()
             ds.append(d)
-
-            # def model_hash(model):
-            #     state_dict = model.state_dict()
-            #     state_bytes = str(state_dict).encode()
-            #     return hashlib.md5(state_bytes).hexdigest()[:8]  # Обрезаем до 8 символов
 
             row = {
                 'index': batch_idx,

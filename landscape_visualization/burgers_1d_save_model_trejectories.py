@@ -139,7 +139,6 @@ def experiment_data_amount_burgers_1d_adam(grid_res, iter, exp_name='burgers1d_a
         torch.nn.Tanh(),
         torch.nn.Linear(32, 1)
     )
-    # net = torch.load(r'test\data\trajectories\burgers\adam_LBFGS_NNCG_general_v2\adam_model-0.pt')
 
     model = Model(net, domain, equation, boundaries)
 
