@@ -206,12 +206,7 @@ def experiment_data_amount_burgers_1d_adam(grid_res, iter, exp_name='burgers1d_a
 exp_dict_list = []
 nruns = 5
 
-save_dir = os.path.abspath(r'..\examples\AAAI_expetiments\results')
-os.makedirs(save_dir, exist_ok=True)
-
 for grid_res in range(80, 81, 10):
     for i in range(nruns):
         exp_dict_list.append(experiment_data_amount_burgers_1d_adam(grid_res, i))
         exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
-        df = pd.DataFrame(exp_dict_list_flatten)
-        df.to_csv('..//examples\\AAAI_expetiments\\results\\burgers_1d_adam_save_model_traj_{}.csv'.format(grid_res))
