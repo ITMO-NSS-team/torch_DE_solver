@@ -146,3 +146,5 @@ img/
 docs/img/*
 !docs/img/*.png
 .pylintrc
+saved_models/
+trajectories/
