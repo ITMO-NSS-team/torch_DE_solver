@@ -159,6 +159,10 @@ class NysNewtonCG(Optimizer):
             with torch.enable_grad():
                 loss, grad_tuple = closure()
 
+        if self.n_iters % self.precond_update_frequency == 0:
+            print('here t={} and freq={}'.format(self.n_iters, self.precond_update_frequency))
+            self.update_preconditioner(grad_tuple)
+
         g = torch.cat([grad.view(-1) for grad in grad_tuple if grad is not None])
 
         # One step update
