@@ -122,7 +122,6 @@ class Closure():
                             enabled=self.mixed_precision):
             loss, loss_normalized = self.model.solution_cls.evaluate()
 
-        # if self.optimizer.use_grad:
         grads = self.optimizer.gradient(loss)
         grads = torch.where(grads != grads, torch.zeros_like(grads), grads)
 
