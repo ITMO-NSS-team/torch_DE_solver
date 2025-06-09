@@ -233,26 +233,6 @@ class Model():
                 if rl_agent_params:
                     callbacks.callbacks[0]._stop_dings = 0
 
-                # this fellow should be in NNCG closure, but since it calls closure many times,
-                # it updates several time, which casuses instability
-
-                if optimizer.optimizer == 'NNCG' and ((self.t - 1) % optimizer.params['precond_update_frequency'] == 0):
-                    if new_graph_flag:
-                        with torch.autocast(
-                                device_type=device_type(),
-                                dtype=self.grid.dtype,
-                                enabled=mixed_precision
-                        ):
-                            loss, loss_normalized = self.solution_cls.evaluate()
-                        grads = self.optimizer.gradient(loss)
-                        new_graph_flag = None
-                    else:
-                        grads = self.optimizer.gradient(self.cur_loss)
-
-                    grads = torch.where(grads != grads, torch.zeros_like(grads), grads)
-                    print('here t={} and freq={}'.format(self.t - 1, optimizer.params['precond_update_frequency']))
-                    self.optimizer.update_preconditioner(grads)
-
                 iter_count = 1 if self.batch_size is None else self.solution_cls.operator.n_batches
                 for _ in range(iter_count):  # if batch mod then iter until end of batches else only once
                     if device_type() == 'cuda' and mixed_precision:
