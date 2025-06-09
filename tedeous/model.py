@@ -220,7 +220,7 @@ class Model():
 
         print('[{}] initial (min) loss is {}'.format(datetime.datetime.now(), self.min_loss.item()))
 
-        def execute_training_phase(epochs, new_graph_flag=None, n_save_models=1, stuck_threshold=50):
+        def execute_training_phase(epochs, n_save_models=1, stuck_threshold=50):
             if not (models_concat_flag and rl_agent_params):
                 self.saved_models = []
 
@@ -372,11 +372,8 @@ class Model():
 
                     loss, solver_models = execute_training_phase(
                         action["epochs"],
-                        new_graph_flag=i,
                         n_save_models=rl_agent_params['n_save_models'],
-                        stuck_threshold=rl_agent_params['stuck_threshold'],
-                        min_loss_change=rl_agent_params['min_loss_change'],
-                        min_grad_norm=rl_agent_params['min_grad_norm']
+                        stuck_threshold=rl_agent_params['stuck_threshold']
                     )
 
                     if loss != loss:
@@ -484,7 +481,7 @@ class Model():
                 self.t = 1
 
                 print(f'\n[{datetime.datetime.now()}] Using optimizer: {opt_name} for {opt_epochs} epochs.')
-                execute_training_phase(opt_epochs, new_graph_flag=i_opt)
+                execute_training_phase(opt_epochs)
                 print(f'[{datetime.datetime.now()}] Finished optimizer {opt_name}.')
 
         elif isinstance(optimizer, Optimizer):
