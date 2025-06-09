@@ -1,11 +1,11 @@
 """The code is a copy from https://github.com/pratikrathore8/opt_for_pinns"""
 
-
 import torch
 from torch.optim import Optimizer
 from torch.func import vmap
 from functools import reduce
 from torch.nn.utils import parameters_to_vector
+
 
 def _armijo(f, x, gx, dx, t, alpha=0.1, beta=0.5):
     """Line search to find a step size that satisfies the Armijo condition."""
@@ -16,11 +16,13 @@ def _armijo(f, x, gx, dx, t, alpha=0.1, beta=0.5):
         f1 = f(x, t, dx)
     return t
 
+
 def _apply_nys_precond_inv(U, S_mu_inv, mu, lambd_r, x):
     """Applies the inverse of the Nystrom approximation of the Hessian to a vector."""
     z = U.T @ x
     z = (lambd_r + mu) * (U @ (S_mu_inv * z)) + (x - U @ z)
     return z
+
 
 def _nystrom_pcg(hess, b, x, mu, U, S, r, tol, max_iters):
     """Solves a positive-definite linear system using NyströmPCG.
@@ -54,9 +56,11 @@ def _nystrom_pcg(hess, b, x, mu, U, S, r, tol, max_iters):
         i += 1
 
     if torch.norm(resid) > tol:
-        print(f"Warning: PCG did not converge to tolerance. Tolerance was {tol} but norm of residual is {torch.norm(resid)}")
+        print(
+            f"Warning: PCG did not converge to tolerance. Tolerance was {tol} but norm of residual is {torch.norm(resid)}")
 
     return x
+
 
 class NysNewtonCG(Optimizer):
     """Implementation of NysNewtonCG, a damped Newton-CG method that uses Nyström preconditioning.
@@ -92,19 +96,23 @@ class NysNewtonCG(Optimizer):
         verbose (bool, optional): verbosity (default: False)
     
     """
+
     def __init__(self, params, lr=1.0, rank=10, mu=1e-4, chunk_size=1,
-                 cg_tol=1e-16, cg_max_iters=1000, line_search_fn=None, verbose=False,precond_update_frequency=20,eigencdecomp_shift_attepmt_count=20):
+                 cg_tol=1e-16, cg_max_iters=1000, line_search_fn=None, verbose=False, precond_update_frequency=20,
+                 eigencdecomp_shift_attepmt_count=20):
 
         defaults = dict(lr=lr, rank=rank, chunk_size=chunk_size, mu=mu, cg_tol=cg_tol,
-                        cg_max_iters=cg_max_iters, line_search_fn=line_search_fn, precond_update_frequency=precond_update_frequency,eigencdecomp_shift_attepmt_count=eigencdecomp_shift_attepmt_count)
+                        cg_max_iters=cg_max_iters, line_search_fn=line_search_fn,
+                        precond_update_frequency=precond_update_frequency,
+                        eigencdecomp_shift_attepmt_count=eigencdecomp_shift_attepmt_count)
         self.rank = rank
         self.mu = mu
         self.chunk_size = chunk_size
         self.cg_tol = cg_tol
         self.cg_max_iters = cg_max_iters
         self.line_search_fn = line_search_fn
-        self.precond_update_frequency=precond_update_frequency
-        self.eigencdecomp_shift_attepmt_count=eigencdecomp_shift_attepmt_count
+        self.precond_update_frequency = precond_update_frequency
+        self.eigencdecomp_shift_attepmt_count = eigencdecomp_shift_attepmt_count
 
         self.verbose = verbose
         self.U = None
@@ -122,7 +130,6 @@ class NysNewtonCG(Optimizer):
         self._params = self.param_groups[0]['params']
         self._params_list = list(self._params)
         self._numel_cache = None
-    
 
     def gradient(self, loss: torch.Tensor) -> torch.Tensor:
         """ Calculation of loss gradient by model parameters (NN, autograd)
@@ -139,7 +146,6 @@ class NysNewtonCG(Optimizer):
         grads = parameters_to_vector(dl_dparam)
 
         return grads
-
 
     def step(self, closure=None):
         """Perform a single optimization step.
@@ -158,6 +164,10 @@ class NysNewtonCG(Optimizer):
         if closure is not None:
             with torch.enable_grad():
                 loss, grad_tuple = closure()
+
+        if self.n_iters % self.precond_update_frequency == 0:
+            print('here t={} and freq={}'.format(self.n_iters, self.precond_update_frequency))
+            self.update_preconditioner(grad_tuple)
 
         g = torch.cat([grad.view(-1) for grad in grad_tuple if grad is not None])
 
@@ -197,7 +207,7 @@ class NysNewtonCG(Optimizer):
             ls = 0
             for p in group['params']:
                 np = torch.numel(p)
-                dp = d[ls:ls+np].view(p.shape)
+                dp = d[ls:ls + np].view(p.shape)
                 ls += np
                 p.data.add_(-dp, alpha=t)
 
@@ -215,7 +225,7 @@ class NysNewtonCG(Optimizer):
 
         # Flatten and concatenate the gradients
         gradsH = torch.cat([gradient.view(-1)
-                           for gradient in grad_tuple if gradient is not None])
+                            for gradient in grad_tuple if gradient is not None])
 
         # Generate test matrix (NOTE: This is transposed test matrix)
         p = gradsH.shape[0]
@@ -237,8 +247,8 @@ class NysNewtonCG(Optimizer):
         try:
             C = torch.linalg.cholesky(choleskytarget)
         except:
-            shift_attempt_count=0
-            while shift_attempt_count<self.eigencdecomp_shift_attepmt_count:
+            shift_attempt_count = 0
+            while shift_attempt_count < self.eigencdecomp_shift_attepmt_count:
                 # eigendecomposition, eigenvalues and eigenvector matrix
                 eigs, eigvectors = torch.linalg.eigh(choleskytarget)
                 shift = shift + torch.abs(torch.min(eigs))
@@ -250,8 +260,8 @@ class NysNewtonCG(Optimizer):
                         torch.mm(eigvectors, torch.mm(torch.diag(eigs), eigvectors.T)))
                     break
                 except:
-                    shift_attempt_count+=1
-                
+                    shift_attempt_count += 1
+
         try:
             B = torch.linalg.solve_triangular(
                 C, Y_shifted, upper=False, left=True)
@@ -259,7 +269,7 @@ class NysNewtonCG(Optimizer):
         except:
             B = torch.linalg.solve_triangular(C.to('cpu'), Y_shifted.to(
                 'cpu'), upper=False, left=True).to(C.device)
-            
+
         # B = V * S * U^T b/c we have been using transposed sketch
         _, S, UT = torch.linalg.svd(B, full_matrices=False)
         self.U = UT.t()
