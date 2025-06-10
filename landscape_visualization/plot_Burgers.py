@@ -1,10 +1,15 @@
+import os,sys
 import torch
 import numpy as np
 from scipy.integrate import quad
+
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(project_root)
+
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.device import solver_device
 from landscape_visualization._aux.plot_loss_surface import PlotLossSurface
-import os
+
 
 mu = 0.01 / np.pi
 
