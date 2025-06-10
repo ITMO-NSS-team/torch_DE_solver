@@ -1,5 +1,8 @@
 import torch.cuda
-import os
+import os,sys
+
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(project_root)
 
 from tedeous.optimizers.optimizer import Optimizer
 from landscape_visualization._aux.visualization_model import VisualizationModel
