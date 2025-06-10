@@ -7,6 +7,8 @@ import torch
 from scipy.integrate import quad
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(project_root)
 current_file = os.path.abspath(os.path.dirname(__file__))
 
 from tedeous.data import Domain, Conditions, Equation
@@ -149,8 +151,7 @@ def experiment_data_amount_burgers_1d_adam(grid_res, iter, exp_name='burgers1d_a
                                          no_improvement_patience=100,
                                          patience=2,
                                          randomize_parameter=1e-5,
-                                         verbose=False,
-                                         info_string_every=10)
+                                         info_string_every=500)
 
     optim = Optimizer('Adam', {'lr': 1e-3})
 
@@ -158,7 +159,7 @@ def experiment_data_amount_burgers_1d_adam(grid_res, iter, exp_name='burgers1d_a
     path_to_folder = os.path.join(current_file, "trajectories", "burgers", "adam_5_starts", f"adam_{iter}".format(iter))
     os.makedirs(path_to_folder, exist_ok=True)
     cb_sm = save_model.SaveModel(path_to_folder, every_step=500)
-    model.train(optim, 5e3, save_model=False, callbacks=[cb_es, cb_sm], info_string_every=500)
+    model.train(optim, 5e3, save_model=False, callbacks=[cb_es, cb_sm])
     end = time.time()
 
     time_adam = end - start
