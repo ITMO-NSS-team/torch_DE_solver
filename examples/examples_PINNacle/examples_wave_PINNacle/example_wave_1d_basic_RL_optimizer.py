@@ -10,7 +10,7 @@ import numpy as np
 import os
 import sys
 import time
-# torch.manual_seed(42)
+torch.manual_seed(42)
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -243,20 +243,19 @@ def wave_1d_basic_experiment(grid_res):
         },
         'LBFGS':{
             'lr':[1, 5e-1, 1e-1],
-            "history_size": [10, 50, 100],
-            'epochs':[100, 500]
+            'epochs':[100, 500, 1000]
         },
         'PSO':{
             'lr':[5e-3, 1e-3, 1e-4],
-            'epochs':[100, 500]
+            'epochs':[100, 500, 1000]
         },
-        # 'NNCG':{
-        #     # 'lr':[1, 5e-1, 1e-1, 5e-2, 1e-2],
-        #     'lr':[1, 5e-1],
-        #     'epochs':[50, 51, 52],
-        #     'precond_update_frequency':[10, 15, 20]
-        # }
+        'NNCG':{
+            'lr':[1, 5e-1, 1e-1],
+            "precond_update_frequency": [5, 10],
+            'epochs':[6, 11, 21]
+        }
     }
+
 
     # optimizer = Optimizer('Adam', {'lr': 1e-4})
 
@@ -338,7 +337,7 @@ def wave_1d_basic_experiment(grid_res):
         "min_loss_change": 1e-4,
         "min_grad_norm": 1e-5,
         "rl_buffer_size": 4,
-        "rl_batch_size": 32,
+        "rl_batch_size": 8,#16
         "rl_reward_method": "absolute",
         "exact_solution": exact_func,
         "reward_operator_coeff": 1,

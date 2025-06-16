@@ -10,16 +10,18 @@ from copy import copy
 import wandb
 import matplotlib.pyplot as plt
 from collections import defaultdict
+from math import ceil
+import statistics
 
 
-GAMMA = 0.99
+GAMMA = 0.2
 EPS_START = 0.9
 EPS_END = 0.05
 EPS_DECAY = 1000
 TAU = 0.005
 
 Transition = namedtuple('Transition',
-                        ('state', 'next_state', 'action', 'reward', 'done'))
+                        ('state', 'next_state', 'action', 'reward', 'done', 'model_reward', 'grad_i'))
 
 
 class ReplayBuffer:
@@ -49,16 +51,23 @@ class DQN_optim(nn.Module):
 
         self.fc1 = nn.Linear(6 * 6 * 32, 256)  # n_observation instead 6 * 6
         self.relu3 = nn.ReLU()
-        self.fc_optim_class = nn.Linear(256, optim_n)
+        self.fc2 = nn.Linear(256, 128)
+        self.fc3 = nn.Linear(128, 64)
+
+        self.fc_optim_class = nn.Linear(64, optim_n)
+        # self.fc4 = nn.Linear(80, optim_n)
 
         self.softmax = nn.Softmax()
+        self.relu = nn.ReLU()
 
     def forward(self, x):
         x = self.pool1(self.relu1(self.conv1(x)))
         x = self.pool2(self.relu2(self.conv2(x)))
-        x = x.view(-1, 6 * 6 * 32)
-        x = self.relu3(self.fc1(x))
-        x_optim = self.softmax(self.fc_optim_class(x))
+        x_optim = x.view(-1, 6 * 6 * 32)
+        x = self.relu(self.fc1(x_optim))
+        x = self.relu(self.fc2(x))
+        x = self.relu(self.fc3(x))
+        x = self.softmax(self.fc_optim_class(x))
         return x_optim, x
     
 class DQN_params(nn.Module):
@@ -66,15 +75,15 @@ class DQN_params(nn.Module):
         super(DQN_params, self).__init__()
         self.optimizer_dict = optimizer_dict
         layers_ar = []
-        self.fc_liner = lambda param_var: nn.Linear(256, len(param_var))
+        fc_liner = lambda param_var: (nn.Linear(6 * 6 * 32, 256), nn.Linear(256, 128), nn.Linear(128, 64),  nn.Linear(64, len(param_var)))
         self.fc_param_by_opt = defaultdict(defaultdict)
         for opt_name in self.optimizer_dict.keys():
             for param_name in self.optimizer_dict[opt_name].keys():
                 param_var = self.optimizer_dict[opt_name][param_name]
                 # self.fc_param_by_opt[opt_name][param_name] = nn.Linear(128, len(param_var))
-                linear_layer = self.fc_liner(param_var)
+                linear_layer = fc_liner(param_var)
                 self.fc_param_by_opt[opt_name][param_name] = linear_layer
-                layers_ar.append(linear_layer)
+                layers_ar += list(linear_layer)
         self.linears = nn.ModuleList(layers_ar)
             
         self.softmax = nn.Softmax()
@@ -85,7 +94,10 @@ class DQN_params(nn.Module):
             x_params = {}
             for param in self.fc_param_by_opt[optim_name].keys():
                 param_liner = self.fc_param_by_opt[optim_name][param]
-                x_params[param] = self.softmax(param_liner(x[i]))
+                x_ = x[i]
+                for fc_lin in param_liner:
+                    x_ = fc_lin(x_)
+                x_params[param] = self.softmax(x_)
             x_params_ar.append(x_params)
         return x_params_ar
 
@@ -159,11 +171,12 @@ class DQNAgent:
         uniq_params = list(set([x for xs in optimizer_dict.values() for x in xs]))
         self.i2params = {k: v for v, k in enumerate(uniq_params)}
         self.huberloss = nn.HuberLoss()
+        self.opt_step = 0
 
         self.device = device
 
-        self.model_optim = DQN_optim(len(self.i2opt)).to(self.device)
-        self.model_params = DQN_params(self.optimizer_dict).to(self.device)
+        self.model_optim = DQN_optim(len(self.i2opt)).to(device)
+        self.model_params = DQN_params(self.optimizer_dict).to(device)
 
         self.reinit_target()
 
@@ -199,7 +212,9 @@ class DQNAgent:
             next_state=detach_item(transition.next_state),
             action=detach_item(transition.action),
             reward=detach_item(transition.reward),
-            done=detach_item(transition.done)
+            done=detach_item(transition.done),
+            model_reward=detach_item(transition.model_reward),
+            grad_i=detach_item(transition.grad_i)
         )
 
     def deepcopy_replay_buffer_without_graph(self, buffer):
@@ -211,6 +226,7 @@ class DQNAgent:
     def optim_(self):
         loss_arr_optim_class = []
         loss_arr_param = []
+        model_reward_i_ar = []
         # self.replay_buffer_copy = deepcopy(self.replay_buffer)
         self.replay_buffer_copy = self.deepcopy_replay_buffer_without_graph(self.replay_buffer)
 
@@ -222,7 +238,9 @@ class DQNAgent:
                         all(torch.equal(t1.next_state[k], t2[1][k]) for k in t1.next_state) and
                         t1.action == t2[2] and
                         torch.equal(t1.reward, t2[3]) and
-                        t1.done == t2[4]
+                        t1.done == t2[4] and
+                        t1.model_reward == t2[5] and
+                        t1.grad_i == t2[6]
                 )
 
             self.replay_buffer_copy.memory = deque(
@@ -231,18 +249,20 @@ class DQNAgent:
                 )
             )
 
-            state, next_state, action, reward, done = zip(*buff_test)
+            state, next_state, action, reward, done, model_reward, grad_i = zip(*buff_test)
 
             # state = {'loss_total': tensor([...]), 'loss_oper': tensor([...]), 'loss_bnd': tensor([...])}
-            state = [torch.stack((elem['loss_oper'], elem['loss_bnd']), dim=0) for elem in state]
-            next_state = [torch.stack((elem['loss_oper'], elem['loss_bnd']), dim=0) for elem in next_state]
+            state = [torch.cat((elem['loss_oper'], elem['loss_bnd']), 0) for elem in state]
+            next_state = [torch.cat((elem['loss_oper'], elem['loss_bnd']), 0) for elem in next_state]
             state = torch.stack(state, dim=0).reshape(-1, 2, 26, 26).to(self.device)
             next_state = torch.stack(next_state, dim=0).reshape(-1, 2, 26, 26).to(self.device)
             reward = torch.FloatTensor(reward).to(self.device)
             done = torch.IntTensor(done).to(self.device)
+            model_reward = torch.FloatTensor(model_reward).to(self.device)
+            grad_i = torch.IntTensor(grad_i).to(self.device)
 
-            target_optim, liner_out_target = self.target_model_optim(next_state)
-            model_optim, liner_out_model = self.model_optim(state)
+            liner_out_target, target_optim = self.target_model_optim(next_state)
+            liner_out_model, model_optim = self.model_optim(state)
             
             targets = lambda reward, done, target_res: \
                     reward + (1 - done) * GAMMA * torch.max(target_res, dim=1).values
@@ -252,7 +272,7 @@ class DQNAgent:
             q_values_optim = targets(reward, done, target_optim)
             targets_optim = q_values(model_optim, list(zip(*action))[0])
             loss = self.huberloss(input=q_values_optim, target=targets_optim)
-            loss_arr_optim_class.append(loss)
+            loss_arr_optim_class.append(float(loss))
 
             self.optimizer_opt.zero_grad()
             loss.backward()
@@ -281,13 +301,16 @@ class DQNAgent:
             targets_optim = torch.stack(targets_optim_ar)
 
             loss = self.huberloss(input=q_values_optim, target=targets_optim)
-            loss_arr_param.append(loss)
+            loss_arr_param.append(float(loss))
             # loss = loss.type(torch.DoubleTensor)
             # loss = torch.mean(loss)
 
             self.optimizer_params.zero_grad()
             loss.backward()
             self.optimizer_params.step()
+
+            model_reward_i_ar += model_reward[(grad_i == self.opt_step).nonzero()].reshape(-1).tolist()
+            
             print("\nRL optimization is complete!\n")
 
         mean_batch_loss_optim_class = 0
@@ -299,8 +322,22 @@ class DQNAgent:
             for el in loss_arr_param:
                 mean_batch_loss_param += el
             mean_batch_loss_param = mean_batch_loss_param / len(loss_arr_param)
-        wandb.log({"mean_batch_loss_optim_class": mean_batch_loss_optim_class,\
-                "mean_batch_loss_param": mean_batch_loss_param, "steps_done": self.steps_done})
+        self.opt_step += 1
+        if model_reward_i_ar == []: model_reward_i_ar = [0]
+        bad_action = [el for el in model_reward_i_ar if el <= 0]
+
+        wandb.log({
+            "optim_batch_loss_mean": statistics.mean(loss_arr_optim_class),\
+            "optim_batch_loss_median": statistics.median(loss_arr_optim_class), \
+            "param_batch_loss_mean": statistics.mean(loss_arr_param), \
+            "param_batch_loss_median": statistics.median(loss_arr_param), \
+            "steps_done": self.steps_done, \
+            "model_reward_mean": statistics.mean(model_reward_i_ar), \
+            "model_reward_median": statistics.median(model_reward_i_ar), \
+            "bad_action_procent": len(bad_action)/len(model_reward_i_ar),\
+            "count_good_end": torch.sum(reward[(done == 1).nonzero()] > 0), \
+            "count_bad_end": torch.sum(reward[(done == 1).nonzero()] < 0),
+            })
 
         # self.replay_buffer.memory = deque(filter(lambda x: x not in set(buff_test), self.replay_buffer.memory),
         #                                   maxlen=self.replay_buffer.memory.maxlen)
@@ -343,7 +380,7 @@ class DQNAgent:
     def select_action(self, state):
         with torch.no_grad():
             # state = state['loss_total'].to(self.device)
-            state = torch.stack((state['loss_oper'], state['loss_bnd']), dim=0)
+            state = torch.cat((state['loss_oper'], state['loss_bnd']), 0)
             sample = random.random()
             eps_threshold = EPS_END + (EPS_START - EPS_END) * \
                             math.exp(-1. * self.steps_done / EPS_DECAY)
@@ -353,10 +390,10 @@ class DQNAgent:
                     # t.max(1) will return the largest column value of each row.
                     # second column on max result is index of where max element was
                     # found, so we pick action with the larger expected reward.
-                    state = state.reshape((-1, 26, 26))
+                    state = state.reshape((1, -1, 26, 26))
                     # x_optim, x_loss, x_epochs = self.model(state)
                     # x_optim, x_loss, x_epochs = torch.argmax(x_optim), torch.argmax(x_loss), torch.argmax(x_epochs)
-                    x, liner_out = self.model_optim(state)
+                    liner_out, x = self.model_optim(state)
                     optim_class = int(torch.argmax(x))
                     optim_class_name = self.i2opt[optim_class]
                     param_class = {}
@@ -367,15 +404,44 @@ class DQNAgent:
             else:
                 optim_class, epochs_class, param_class = self.get_random_action()
             action = self.post_proc_model(int(optim_class), epochs_class, param_class)
-            return action, (int(optim_class), epochs_class, param_class)
+            return action, (int(optim_class), epochs_class, param_class), sample > eps_threshold
 
     def push_memory(self, rl_params):
         # self.replay_buffer.memory += (rl_params,)
         self.replay_buffer.push(*rl_params)
 
-    def render_Q_function(self):
-        x = nn.Sigmoid()(torch.sum(self.model.fc_last.weight, dim=1))
-        x = x.detach().numpy() 
+    def render_Q_function(self):            
+        
+        get_weights = lambda model_lair: nn.Sigmoid()(torch.sum(model_lair.weight, dim=1)).detach().numpy() 
+        optim_weights = get_weights(self.model_optim.fc_optim_class)
+
         plt.figure(figsize=(10, 6))
-        plt.bar([i for i in range(len(x))],x,align='center')
-        plt.savefig(f'q_function_steps_{self.opt_count_out}.png')
+        plt.title('Optimizers')
+        x = [i for i in range(len(optim_weights))]
+        plt.bar(x, optim_weights, align='center')
+        labes_optim = [self.i2opt[i] for i in range(len(self.i2opt))]
+        plt.xticks(x, labes_optim)
+        plt.savefig(f'Optimizers_{self.opt_count_out}.png')
+
+        for optim_name in self.model_params.fc_param_by_opt:
+            n_params = len(self.model_params.fc_param_by_opt[optim_name])
+            n_rows = ceil(n_params/2)
+            fig, axes = plt.subplots(nrows=n_rows, ncols=2, figsize=(10, 6))
+            fig.suptitle(f'{optim_name}_params')
+            i_subplot = 0
+            for param_name in self.model_params.fc_param_by_opt[optim_name]:
+                fc_ = self.model_params.fc_param_by_opt[optim_name][param_name]
+                if type(fc_) == list or type(fc_) == tuple:
+                    fc_ = fc_[-1]
+                weights = get_weights(fc_)
+                x = [i for i in range(len(weights))]
+                labes_optim = [str(el) for el in self.optimizer_dict[optim_name][param_name]]
+                if n_rows > 1:
+                    i_subplot_cord = (ceil(i_subplot/2), i_subplot%2)
+                else:
+                    i_subplot_cord = i_subplot
+                axes[i_subplot_cord].bar(x, weights, align='center')
+                axes[i_subplot_cord].set_xticks(x, labes_optim)
+                axes[i_subplot_cord].set_title(param_name)
+                i_subplot += 1
+            fig.savefig(f'{optim_name}_params_{self.opt_count_out}.png')

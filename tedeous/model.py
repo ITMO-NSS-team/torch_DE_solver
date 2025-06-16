@@ -230,9 +230,6 @@ class Model():
                 callbacks.on_epoch_begin()
                 self.optimizer.zero_grad()
 
-                if rl_agent_params:
-                    callbacks.callbacks[0]._stop_dings = 0
-
                 iter_count = 1 if self.batch_size is None else self.solution_cls.operator.n_batches
                 for _ in range(iter_count):  # if batch mod then iter until end of batches else only once
                     if device_type() == 'cuda' and mixed_precision:
@@ -301,6 +298,7 @@ class Model():
 
             rl_agent = DQNAgent(n_observation,
                                 n_action,
+                                optimizer_dict=optimizer,
                                 memory_size=rl_agent_params["rl_buffer_size"],
                                 device=device_type(),
                                 batch_size=rl_agent_params["rl_batch_size"])
@@ -317,6 +315,10 @@ class Model():
 
             done = None
             idx_traj = 0
+            n_steps = 0
+            n_steps_max = 1512
+            bufer_start_i = 128#128
+            rl_batch_size = 16
 
             grid = self.domain.build('NN').to(device_type())
             variable_dict = self.domain.variable_dict
@@ -324,17 +326,22 @@ class Model():
 
             # make_legend(tupe_dqn_class, optimizers)
 
-            while rl_agent_params['n_trajectories'] - idx_traj > 0:
+            # while rl_agent_params['n_trajectories'] - idx_traj > 0:
+            while n_steps < n_steps_max:
+                # self.net = self.solution_cls.model
+                # for m in self.net.modules():
+                #     if isinstance(m, torch.nn.Linear):
+                #         torch.nn.init.xavier_normal_(m.weight)
+                #         torch.nn.init.zeros_(m.bias)
+                self.net.apply(self.reinit_weights)
                 self.net = self.solution_cls.model
-                for m in self.net.modules():
-                    if isinstance(m, torch.nn.Linear):
-                        torch.nn.init.xavier_normal_(m.weight)
-                        torch.nn.init.zeros_(m.bias)
+                self.solution_cls._model_change(self.net)
                 self.t = 1
 
                 # state = torch init -> AE_model
                 total_reward = 0
                 optimizers_history = []
+                prev_reward = -1
                 state = {"loss_total": torch.zeros(state_shape),
                          "loss_oper": torch.zeros(state_shape),
                          "loss_bnd": torch.zeros(state_shape)}
@@ -347,7 +354,8 @@ class Model():
 
                 for i in itertools.count():
                     # state = torch.stack((state['loss_oper'], state['loss_bnd']), dim=0)
-                    action, action_raw = rl_agent.select_action(state)
+                    n_steps += 1
+                    action, action_raw, is_model = rl_agent.select_action(state)
                     action_raw[2]['epochs'] = action_raw[1]
                     action_raw = (action_raw[0], action_raw[2])
                     # action_raw = tupe_dqn_class[dqn_class]
@@ -424,25 +432,49 @@ class Model():
                     # input weights (for generate state) and loss (for calculate reward) to step method
                     # first getting current models and current losses
                     next_state, reward, done, _ = env.step()
+                    
+                    if abs(reward) < 0.85:
+                        done=1 
+
+                    opt_model_i = -1
+                    reward_model_i = -1
+                    if prev_reward == -1:
+                        reward_model_i = 1/reward * -1
+                        # opt_model_i = rl_agent.opt_step
+                        # pass
+                    elif is_model and prev_reward != -1:
+                        opt_model_i = rl_agent.opt_step
+                        reward_model_i = reward - prev_reward
+                    else:
+                        # pass
+                        reward_model_i = reward - prev_reward
+                    prev_reward = reward
+                    reward_model_i_raw = reward_model_i
+                    reward_model_i -= 0.01 * i
 
                     if done == 1:
-                        reward += 100
+                        reward_model_i += torch.tensor(100, dtype=torch.int8)
                     elif done == 0:
-                        reward -= 0.01 * i
+                        # reward -= 0.01 * i
+                        pass
                     elif done == -1:
-                        reward = torch.tensor(-100, dtype=torch.int8)
+                        reward_model_i += torch.tensor(100, dtype=torch.int8)
 
                     # if i != 0:
                     #     rl_agent.push_memory((state, next_state, action_raw, reward))
                     # else:
                     #     rl_agent.steps_done -= 1
-                    rl_agent.push_memory((state, next_state, action_raw, reward, abs(done)))
+                    rl_agent.push_memory((state, next_state, action_raw, reward_model_i, \
+                                          abs(done), float(reward_model_i_raw), opt_model_i))
                     # for _ in range(32):
                     #     rl_agent.push_memory((state, next_state, dqn_class, reward))
 
-                    if rl_agent.replay_buffer.__len__() % rl_agent_params["rl_batch_size"] == 0:
+                    if rl_agent.replay_buffer.__len__() >= bufer_start_i and \
+                    rl_agent.replay_buffer.__len__() % rl_batch_size == 0:
+                    # rl_agent.replay_buffer.__len__() % rl_agent_params["rl_batch_size"] == 0:
                         rl_agent.optim_()
-                        # rl_agent.render_Q_function()
+                        rl_agent.render_Q_function()
+                        done = -1
 
                     state = next_state
                     total_reward += reward
