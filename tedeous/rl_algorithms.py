@@ -49,8 +49,9 @@ class DQN_optim(nn.Module):
         self.relu2 = nn.ReLU()
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        self.fc1 = nn.Linear(6 * 6 * 32, 256)  # n_observation instead 6 * 6
+        self.fc1 = nn.Linear(6 * 6 * 32, 512)  # n_observation instead 6 * 6
         self.relu3 = nn.ReLU()
+        self.fc2 = nn.Linear(512, 256)  # n_observation instead 6 * 6
         self.fc_optim_class = nn.Linear(256, optim_n)
 
         self.softmax = nn.Softmax()
@@ -60,6 +61,7 @@ class DQN_optim(nn.Module):
         x = self.pool2(self.relu2(self.conv2(x)))
         x = x.view(-1, 6 * 6 * 32)
         x = self.relu3(self.fc1(x))
+        x = self.relu3(self.fc2(x))
         x_optim = self.softmax(self.fc_optim_class(x))
         return x_optim, x
     
