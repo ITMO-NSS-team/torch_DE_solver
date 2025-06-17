@@ -229,6 +229,7 @@ class Model():
             while self.t < epochs and not self.stop_training:
                 callbacks.on_epoch_begin()
                 self.optimizer.zero_grad()
+                prev_model = copy.deepcopy(self.net)
 
                 iter_count = 1 if self.batch_size is None else self.solution_cls.operator.n_batches
                 for _ in range(iter_count):  # if batch mod then iter until end of batches else only once
@@ -241,12 +242,20 @@ class Model():
                     if optimizer.gamma is not None and self.t % optimizer.decay_every == 0:
                         optimizer.sheduler.step()
 
+                loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
+
+                if np.isnan(loss) or loss == np.inf or loss > 1000:
+                    print(f'[{datetime.datetime.now()}] Step = {self.t}, loss is nan. Breaking early.')
+                    self.rl_penalty = -1
+                    self.net = copy.deepcopy(prev_model)
+                    self.solution_cls._model_change(self.net)
+                    break
+
                 if rl_agent_params:
                     current_model = copy.deepcopy(self.net)
                     self.saved_models.append(current_model)
                     # self.prev_to_current_optimizer_models.append(current_model)
 
-                loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
                 loss_history.append(loss)
 
                 callbacks.on_epoch_end()
@@ -318,7 +327,7 @@ class Model():
             n_steps = 0
             n_steps_max = 1512
             bufer_start_i = 128#128
-            rl_batch_size = 16
+            n_steps_for_optim = 16 # n steps optimize
 
             grid = self.domain.build('NN').to(device_type())
             variable_dict = self.domain.variable_dict
@@ -334,11 +343,13 @@ class Model():
                 #         torch.nn.init.xavier_normal_(m.weight)
                 #         torch.nn.init.zeros_(m.bias)
                 self.net.apply(self.reinit_weights)
-                self.net = self.solution_cls.model
+                #self.net = self.solution_cls.model
                 self.solution_cls._model_change(self.net)
                 self.t = 1
+                callbacks.set_model(self)
 
                 # state = torch init -> AE_model
+                callbacks.callbacks[0]._stop_dings = 0
                 total_reward = 0
                 optimizers_history = []
                 prev_reward = -1
@@ -433,9 +444,6 @@ class Model():
                     # first getting current models and current losses
                     next_state, reward, done, _ = env.step()
                     
-                    if abs(reward) < 0.85:
-                        done=1 
-
                     opt_model_i = -1
                     reward_model_i = -1
                     if prev_reward == -1:
@@ -470,7 +478,7 @@ class Model():
                     #     rl_agent.push_memory((state, next_state, dqn_class, reward))
 
                     if rl_agent.replay_buffer.__len__() >= bufer_start_i and \
-                    rl_agent.replay_buffer.__len__() % rl_batch_size == 0:
+                    rl_agent.replay_buffer.__len__() % n_steps_for_optim == 0:
                     # rl_agent.replay_buffer.__len__() % rl_agent_params["rl_batch_size"] == 0:
                         rl_agent.optim_()
                         rl_agent.render_Q_function()

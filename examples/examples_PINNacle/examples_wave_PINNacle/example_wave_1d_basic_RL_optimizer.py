@@ -337,7 +337,7 @@ def wave_1d_basic_experiment(grid_res):
         "min_loss_change": 1e-4,
         "min_grad_norm": 1e-5,
         "rl_buffer_size": 4,
-        "rl_batch_size": 8,#16
+        "rl_batch_size": 8,#16  баттч сайз для RL агента
         "rl_reward_method": "absolute",
         "exact_solution": exact_func,
         "reward_operator_coeff": 1,
