@@ -222,6 +222,7 @@ def experiment_data_amount_LV_adam_lbfgs_nncg(grid_res,exp_name='LV_adam_lbfgs_n
                                         no_improvement_patience=500,
                                         patience=3,
                                         randomize_parameter=1e-5,
+                                        verbose = False,
                                         info_string_every=500)
 
     optim = Optimizer('Adam', {'lr': 1e-3})
@@ -260,7 +261,7 @@ def experiment_data_amount_LV_adam_lbfgs_nncg(grid_res,exp_name='LV_adam_lbfgs_n
                                         no_improvement_patience=100,
                                         patience=2,
                                         randomize_parameter=1e-5,
-                                        verbose=False,
+                                        verbose = False,
                                         info_string_every=100)
 
     optim = Optimizer('LBFGS', {'history_size': 100,
@@ -289,7 +290,7 @@ def experiment_data_amount_LV_adam_lbfgs_nncg(grid_res,exp_name='LV_adam_lbfgs_n
                                         no_improvement_patience=100,
                                         patience=2,
                                         randomize_parameter=1e-5,
-                                        verbose=False,
+                                        verbose = False,
                                         info_string_every=1)
 
     optim = Optimizer('NNCG', {'mu': 1e-1,
@@ -303,8 +304,9 @@ def experiment_data_amount_LV_adam_lbfgs_nncg(grid_res,exp_name='LV_adam_lbfgs_n
                                'verbose': False})
 
     start = time.time()
-    model.train(optim, 100, save_model=False, callbacks=[cb_es],info_string_every=1)
+    model.train(optim, 100, save_model=False, callbacks=[cb_es])
     end = time.time()
+
     time_NNCG = end - start
 
     error_train_NNCG = torch.sqrt(torch.mean((u_exact_train - net(grid))** 2, dim=0))

@@ -188,7 +188,7 @@ class Model():
             self.t += 1
             if info_string_every is not None:
                 if self.t % info_string_every == 0:
-                    print('This parameter is obstolete, please use callbacks')
+                    print('This parameter info_string_every in train is obstolete, please use callbacks')
 
         callbacks.on_train_end()
 
