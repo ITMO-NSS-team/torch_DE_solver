@@ -43,6 +43,8 @@ class Optimizer():
 
         if self.optimizer == 'Adam':
             torch_optim = torch.optim.Adam
+        if self.optimizer == 'AdamW':
+            torch_optim = torch.optim.AdamW
         elif self.optimizer == 'SGD':
             torch_optim = torch.optim.SGD
         elif self.optimizer == 'LBFGS':
@@ -68,6 +70,5 @@ class Optimizer():
 
         if self.cosine_scheduler_patience is not None:
             self.scheduler = CosineAnnealingWarmRestarts(optimizer, self.cosine_scheduler_patience)
-
         return optimizer
 
