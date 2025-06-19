@@ -299,6 +299,7 @@ def experiment_data_amount_LV_adam_lbfgs_nncg(grid_res,exp_name='LV_adam_lbfgs_n
                                "precond_update_frequency": 20,
                                "eigencdecomp_shift_attepmt_count":10,
                                #'cg_max_iters':1000,
+                               "chunk_size": 8,
                                'verbose': False})
 
     start = time.time()

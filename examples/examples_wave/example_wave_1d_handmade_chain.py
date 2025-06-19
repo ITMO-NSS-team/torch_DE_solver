@@ -217,6 +217,7 @@ def experiment_data_amount_wave_1d_pso_adam_lbfgs_nncg(grid_res, exp_name='wave_
         "precond_update_frequency": 5,
         "eigencdecomp_shift_attepmt_count": 10,
         'cg_max_iters': 1000,
+        "chunk_size":8,
         "verbose": False
         }
     )
