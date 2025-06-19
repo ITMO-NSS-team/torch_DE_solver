@@ -111,7 +111,7 @@ class EarlyStopping(Callback):
             print('[{}] Absolute value of loss is lower than threshold'.format(
                                                         datetime.datetime.now()))
 
-        if self._check is not None or self.t % self.info_string_every == 0:
+        if self._check is not None:
             try:
                 self._line
             except:
@@ -120,6 +120,18 @@ class EarlyStopping(Callback):
             info = '[{}] Step = {} loss = {:.6f} normalized loss line= {:.6f}x+{:.6f}. There was {} stop dings already.'.format(
                     datetime.datetime.now(), self.t, loss, self._line[0] / loss, self._line[1] / loss, self._stop_dings)
             print(info)
+
+    def info_print(self):
+        """ print info string every user-defined step
+        """
+        try:
+            self._line
+        except:
+            self._line_create()
+        loss = self.model.cur_loss.item() if isinstance(self.model.cur_loss, torch.Tensor) else self.mdoel.cur_loss
+        info = '[{}] Step = {} loss = {:.6f} normalized loss line= {:.6f}x+{:.6f}. There was {} stop dings already.'.format(
+                datetime.datetime.now(), self.t, loss, self._line[0] / loss, self._line[1] / loss, self._stop_dings)
+        print(info)
 
     def on_epoch_end(self, logs=None):
         self._window_check()
@@ -131,6 +143,9 @@ class EarlyStopping(Callback):
             if self.save_best:
                 self.best_model=self.model.net
             self._t_imp_start = self.t
+
+        if self.t % self.info_string_every == 0:
+            self.info_print()
 
         if self.verbose:
             self.verbose_print()
