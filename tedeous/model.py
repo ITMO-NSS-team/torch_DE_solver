@@ -260,11 +260,11 @@ class Model():
                         self.optimizer.step(closure)
                     if optimizer.gamma is not None and self.t % optimizer.decay_every == 0:
                         optimizer.sheduler.step()
-                
-                loss = self.cur_loss.item() if isinstance(self.cur_loss, torch.Tensor) else self.cur_loss
 
-                if np.isnan(loss) or loss == np.inf or loss > 1000:
-                    print(f'[{datetime.datetime.now()}] Step = {self.t}, loss is nan. Breaking early.')
+                loss = float(self.cur_loss.item()) if isinstance(self.cur_loss, torch.Tensor) else float(self.cur_loss)
+
+                if not np.isfinite(loss) or loss > 1e3:
+                    print(f'[{datetime.datetime.now()}] Step = {self.t}, loss is not finite or too large: {loss}. Breaking early.')
                     self.rl_penalty = -1
                     self.net = copy.deepcopy(prev_model)
                     self.solution_cls._model_change(self.net)
@@ -331,8 +331,8 @@ class Model():
                     callbacks.callbacks[0]._stop_dings = 0
                     self.stop_training = False
 
-                if loss_history[-1] == np.nan:
-                    self.rl_penalty = -1
+                # if loss_history[-1] == np.nan:
+                #     self.rl_penalty = -1
 
                 indices_saved_models = np.linspace(0, len(self.saved_models) - 1, n_save_models, dtype=int)
                 self.saved_models = [self.saved_models[i] for i in indices_saved_models]
@@ -358,6 +358,8 @@ class Model():
                                 n_action,
                                 optimizer_dict=optimizer,
                                 memory_size=rl_agent_params["rl_buffer_size"],
+                                gamma=rl_agent_params["gamma"],
+                                lr=rl_agent_params["lr"],
                                 device=device_type(),
                                 batch_size=rl_agent_params["rl_batch_size"])
 
@@ -497,7 +499,7 @@ class Model():
                     elif done == 0:
                         reward -= 0.01 * i
                     elif done == -1:
-                        reward = torch.tensor(-100, dtype=torch.int8)
+                        reward_model_i -= torch.tensor(100, dtype=torch.int8)
 
                     # if i != 0:
                     #     rl_agent.push_memory((state, next_state, action_raw, reward))
@@ -506,32 +508,16 @@ class Model():
                     rl_agent.push_memory((state, next_state, action_raw, reward, abs(done)))
                     # for _ in range(32):
                     #     rl_agent.push_memory((state, next_state, dqn_class, reward))
-                    try:
-                        # Сохраняем entry локально
-                        file_path = os.path.join(output_dir, f'transitions_{rl_agent.steps_done}.pt')
-                        entry = {
-                            'state': state,
-                            'next_state': next_state,
-                            'action': action_raw,
-                            'reward': float(reward),
-                            'done': abs(done)
-                        }
-                        torch.save(entry, file_path)
 
-                        # Логируем тот же файл в W&B
-                        artifact = wandb.Artifact(f"transitions_step_{rl_agent.steps_done}", type="transition")
-                        artifact.add_file(file_path, name=f"entry_step_{rl_agent.steps_done}.pt")
-                        wandb.log_artifact(artifact)
-
-                    except Exception as e:
-                        print(e)
-
-                    if rl_agent.replay_buffer.__len__() % rl_agent_params["rl_batch_size"] == 0:
+                    if rl_agent.replay_buffer.__len__() >= bufer_start_i and \
+                    rl_agent.replay_buffer.__len__() % n_steps_for_optim == 0:
+                    # rl_agent.replay_buffer.__len__() % rl_agent_params["rl_batch_size"] == 0:
+                        print(f'\n[{datetime.datetime.now()}] RL agent optimization step {rl_agent.opt_step + 1}.')
                         rl_agent.optim_()
                         # rl_agent.render_Q_function()
 
                     state = next_state
-                    total_reward += reward
+                    total_reward += reward_model_i
 
                     print(f'\nCurrent reward after {action["type"]} optimizer: {reward}.\n'
                           f'Total reward after using {", ".join(optimizers_history)} '
@@ -547,7 +533,6 @@ class Model():
                         if i == 20:
                             self.rl_penalty = 0
                             break
-                        continue
                     elif done == -1:
                         self.rl_penalty = 0
                         break
