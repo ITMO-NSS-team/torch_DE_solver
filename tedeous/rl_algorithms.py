@@ -12,8 +12,10 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 from math import ceil
 import statistics
-from DQN_classes import DQN_optim, DQN_params
+from tedeous.DQN_classes import DQN_optim, DQN_params
 
+
+import tempfile
 
 
 GAMMA = 0.95
@@ -23,7 +25,7 @@ EPS_DECAY = 2000
 TAU = 0.01
 
 Transition = namedtuple('Transition',
-                        ('state', 'next_state', 'action', 'reward', 'done', 'model_reward', 'grad_i'))
+                        ('state', 'next_state', 'action', 'reward', 'done', 'model_reward', 'opt_model_i'))
 
 
 class ReplayBuffer:
@@ -155,7 +157,7 @@ class ReplayBuffer:
 
 class DQNAgent:
     def __init__(self, n_observation=None, n_action=None, optimizer_dict=None, lr=1e-3, gamma=0.95, epsilon=1.0,
-                 epsilon_decay=0.995, epsilon_min=0.01, memory_size=10000, batch_size=128, device='cpu'):
+                 epsilon_decay=0.995, epsilon_min=0.01, memory_size=10000, batch_size=128, n_transitions_reinit = 2000, device='cpu'):
         self.n_observation = n_observation
         self.n_action = n_action
         self.gamma = gamma
@@ -165,7 +167,7 @@ class DQNAgent:
         self.batch_size = batch_size
         self.replay_buffer = ReplayBuffer(memory_size)
         self.replay_buffer_copy = None
-        self.n_transitions_reinit = 1000
+        self.n_transitions_reinit = n_transitions_reinit
         self.steps_done = 0
         self.opt_count = 0
         self.opt_count_out = 0
@@ -220,7 +222,7 @@ class DQNAgent:
             reward=detach_item(transition.reward),
             done=detach_item(transition.done),
             model_reward=detach_item(transition.model_reward),
-            grad_i=detach_item(transition.grad_i)
+            opt_model_i=detach_item(transition.opt_model_i)
         )
 
     def deepcopy_replay_buffer_without_graph(self, buffer):
@@ -233,6 +235,8 @@ class DQNAgent:
         loss_arr_optim_class = []
         loss_arr_param = []
         model_reward_i_ar = []
+        all_rewards = []
+        all_dones = []
         # self.replay_buffer_copy = deepcopy(self.replay_buffer)
         self.replay_buffer_copy = self.deepcopy_replay_buffer_without_graph(self.replay_buffer)
 
@@ -248,7 +252,7 @@ class DQNAgent:
                 torch.equal(t1.reward, t2.reward) and
                 t1.done          == t2.done and
                 t1.model_reward  == t2.model_reward and
-                t1.grad_i        == t2.grad_i
+                t1.opt_model_i        == t2.opt_model_i
             )
 
             self.replay_buffer_copy.memory = deque(
@@ -257,7 +261,7 @@ class DQNAgent:
                 )
             )
 
-            state, next_state, action, reward, done, model_reward, grad_i = zip(*buff_test)
+            state, next_state, action, reward, done, model_reward, opt_model_i = zip(*buff_test)
 
             # state = {'loss_total': tensor([...]), 'loss_oper': tensor([...]), 'loss_bnd': tensor([...])}
             state = [torch.cat((elem['loss_oper'], elem['loss_bnd']), 0) for elem in state]
@@ -265,20 +269,15 @@ class DQNAgent:
             state = torch.stack(state, dim=0).reshape(-1, 2, 26, 26).to(self.device)
             next_state = torch.stack(next_state, dim=0).reshape(-1, 2, 26, 26).to(self.device)
             reward = torch.FloatTensor(reward).to(self.device)
-            done = torch.IntTensor(done).to(self.device)
-            model_reward = torch.FloatTensor(model_reward).to(self.device)
-            grad_i = torch.IntTensor(grad_i).to(self.device)
-
-            liner_out_target, target_optim = self.target_model_optim(next_state)
-            liner_out_model, model_optim = self.model_optim(state)
-
-            liner_out_target, target_optim = self.target_model_optim(next_state)
-            liner_out_model, model_optim = self.model_optim(state)
-
             done = torch.tensor(done, dtype=torch.int32, device=self.device)
+            model_reward = torch.FloatTensor(model_reward).to(self.device)
+            opt_model_i = torch.IntTensor(opt_model_i).to(self.device)
+
+            liner_out_target, target_optim = self.target_model_optim(next_state)
+            liner_out_model, model_optim = self.model_optim(state)
 
             targets = lambda reward, done, target_res: \
-                    reward + (1 - done) * self.gamma * torch.max(target_res, dim=1).values
+                    reward + (1 - abs(done)) * self.gamma * torch.max(target_res, dim=1).values
             q_values = lambda model_res, action_: \
                     model_res[torch.arange(self.batch_size), action_]
             
@@ -343,7 +342,10 @@ class DQNAgent:
             print(f"Loss for optim: {loss_opt}")
             print(f"Loss for both: {loss_opt + loss_param}")
 
-            model_reward_i_ar += model_reward[(grad_i == self.opt_step).nonzero()].reshape(-1).tolist()
+            all_rewards.append(reward.detach().cpu())
+            all_dones.append(done.detach().cpu())
+
+            model_reward_i_ar += model_reward[(opt_model_i == self.opt_step).nonzero()].reshape(-1).tolist()
             
             print("\nRL optimization is complete!\n")
             transition_counter += self.batch_size  # <--- прибавляем размер батча
@@ -353,34 +355,62 @@ class DQNAgent:
                 print("REINIT TARGET")
                 self.reinit_target()
                 transition_counter = 0  # сбрасываем счётчик
+        reward_tensor = torch.cat(all_rewards)
+        done_tensor = torch.cat(all_dones)
 
-        mean_batch_loss_optim_class = 0
-        for el in loss_arr_optim_class:
-            mean_batch_loss_optim_class += el
-        mean_batch_loss_optim_class = mean_batch_loss_optim_class / len(loss_arr_optim_class)
-        if loss_arr_param != []:
-            mean_batch_loss_param = 0
-            for el in loss_arr_param:
-                mean_batch_loss_param += el
-            mean_batch_loss_param = mean_batch_loss_param / len(loss_arr_param)
+        # Подсчёт: хорошее завершение — done == 1 и reward > 0
+        count_good_end = torch.sum((done_tensor == 1) & (reward_tensor > 0)).item()
+
+        # Подсчёт: плохое завершение — done == -1 и reward < 0
+        count_bad_end = torch.sum((done_tensor == -1) & (reward_tensor < 0)).item()
+
+        print(f"Count of good ends: {count_good_end}")
+        print(f"Count of bad ends: {count_bad_end}")
+        # mean_batch_loss_optim_class = 0
+        # for el in loss_arr_optim_class:
+        #     mean_batch_loss_optim_class += el
+        # mean_batch_loss_optim_class = mean_batch_loss_optim_class / len(loss_arr_optim_class)
+        # if loss_arr_param != []:
+        #     mean_batch_loss_param = 0
+        #     for el in loss_arr_param:
+        #         mean_batch_loss_param += el
+        #     mean_batch_loss_param = mean_batch_loss_param / len(loss_arr_param)
         self.opt_step += 1
         if model_reward_i_ar == []: model_reward_i_ar = [0]
         bad_action = [el for el in model_reward_i_ar if el <= 0]
-        print(f"Mean batch loss optim class: {mean_batch_loss_optim_class}")
-        print(f"Mean batch loss param: {mean_batch_loss_param}")
+        
+        optim_batch_loss_mean = statistics.mean(loss_arr_optim_class)
+        param_batch_loss_mean = statistics.mean(loss_arr_param) 
+
+        print(f"Mean batch loss optim class: {optim_batch_loss_mean}")
+        print(f"Mean batch loss param: {param_batch_loss_mean}")
 
         wandb.log({
-            "optim_batch_loss_mean": statistics.mean(loss_arr_optim_class),\
+            "optim_batch_loss_mean": optim_batch_loss_mean,\
             "optim_batch_loss_median": statistics.median(loss_arr_optim_class), \
-            "param_batch_loss_mean": statistics.mean(loss_arr_param), \
+            "param_batch_loss_mean": param_batch_loss_mean, \
             "param_batch_loss_median": statistics.median(loss_arr_param), \
             "steps_done": self.steps_done, \
-            "model_reward_mean": statistics.mean(model_reward_i_ar), \
-            "model_reward_median": statistics.median(model_reward_i_ar), \
+            "all_rewards_mean": statistics.mean(reward_tensor.tolist()), \
+            "agent_reward_mean": statistics.mean(model_reward_i_ar), \
+            "agent_reward_median": statistics.median(model_reward_i_ar), \
             "bad_action_procent": len(bad_action)/len(model_reward_i_ar),\
-            "count_good_end": torch.sum(reward[(done == 1).nonzero()] > 0), \
-            "count_bad_end": torch.sum(reward[(done == 1).nonzero()] < 0),
+            "count_good_end": count_good_end, \
+            "count_bad_end": count_bad_end,
             })
+         # Временный файл для model_optim
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pt") as tmp_optim:
+            torch.save(self.model_optim.state_dict(), tmp_optim.name)
+            optim_path = tmp_optim.name
+
+        # Временный файл для model_params
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pt") as tmp_params:
+            torch.save(self.model_params.state_dict(), tmp_params.name)
+            params_path = tmp_params.name
+        artifact = wandb.Artifact(f"model_step_{self.steps_done}", type="model")
+        artifact.add_file(optim_path, name=f"model_optim_step_{self.steps_done}.pt")
+        artifact.add_file(params_path, name=f"model_params_step_{self.steps_done}.pt")
+        wandb.log_artifact(artifact)
 
         # self.replay_buffer.memory = deque(filter(lambda x: x not in set(buff_test), self.replay_buffer.memory),
         #                                   maxlen=self.replay_buffer.memory.maxlen)

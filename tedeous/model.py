@@ -293,7 +293,8 @@ class Model():
 
                 indices_saved_models = np.linspace(0, len(self.saved_models) - 1, n_save_models, dtype=int)
                 self.saved_models = [self.saved_models[i] for i in indices_saved_models]
-
+                if not loss_history:
+                    return None, self.saved_models
                 return loss_history[-1], self.saved_models
 
         if rl_agent_params:
@@ -344,7 +345,7 @@ class Model():
             # tupe_dqn_class = get_tup_actions(optimizers)
             # make_legend(tupe_dqn_class, optimizers)
 
-            while rl_agent_params['n_trajectories'] - idx_traj > 0:
+            while n_steps < n_steps_max:
                 self.net.apply(self.reinit_weights)
                 self.solution_cls._model_change(self.net)
                 self.t = 1
@@ -465,23 +466,22 @@ class Model():
                         reward_model_i = reward - prev_reward
                     prev_reward = reward
                     reward_model_i_raw = reward_model_i
-                    reward_model_i -= 0.01 * i
+                    reward_model_i -= 0.05 * i
 
                     if done == 1:
-                        reward += torch.tensor(100, dtype=torch.int8)
+                        reward += 3
                     elif done == 0:
                         # reward -= 0.01 * i
                         pass
                     elif done == -1:
-                        reward_model_i -= torch.tensor(100, dtype=torch.int8)
-                        reward_model_i -= torch.tensor(100, dtype=torch.int8)
+                        reward_model_i -= reward
 
                     # if i != 0:
                     #     rl_agent.push_memory((state, next_state, action_raw, reward))
                     # else:
                     #     rl_agent.steps_done -= 1
                     rl_agent.push_memory((state, next_state, action_raw, reward_model_i, \
-                                          abs(done), float(reward_model_i_raw), opt_model_i))
+                                          done, float(reward_model_i_raw), opt_model_i))
                     # for _ in range(32):
                     #     rl_agent.push_memory((state, next_state, dqn_class, reward))
 
@@ -497,6 +497,7 @@ class Model():
                     total_reward += reward_model_i
 
                     print(f'\nCurrent reward after {action["type"]} optimizer: {reward}.\n'
+                          f'Reward after taking prev reward and penalty: {reward_model_i}\n'
                           f'Total reward after using {", ".join(optimizers_history)} '
                           f'{"optimizers" if len(optimizers_history) > 1 else "optimizer"}: {total_reward}.\n'
                           f'\ndone = {done}')
@@ -508,8 +509,7 @@ class Model():
                         break
                     elif done == 0:
                         if i == 20:
-                            self.rl_penalty = 0
-                            break
+                            self.rl_penalty = -1
                     elif done == -1:
                         self.rl_penalty = 0
                         break
