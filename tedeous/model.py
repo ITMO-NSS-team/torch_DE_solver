@@ -452,35 +452,37 @@ class Model():
                     # first getting current models and current losses
                     next_state, reward, done, _ = env.step()
                     
+                    reward_scalar = reward.item()  # предполагаем, что reward — скаляр
+
                     opt_model_i = -1
                     reward_model_i = -1
                     if prev_reward == -1:
-                        reward_model_i = 1/reward * -1
+                        reward_model_i = reward_scalar 
                         # opt_model_i = rl_agent.opt_step
                         # pass
                     elif is_model and prev_reward != -1:
                         opt_model_i = rl_agent.opt_step
-                        reward_model_i = reward - prev_reward
+                        reward_model_i = reward_scalar - prev_reward
                     else:
                         # pass
-                        reward_model_i = reward - prev_reward
-                    prev_reward = reward
+                        reward_model_i = reward_scalar - prev_reward
+                    prev_reward = reward_scalar
                     reward_model_i_raw = reward_model_i
                     reward_model_i -= 0.05 * i
 
                     if done == 1:
-                        reward += 3
+                        reward_model_i += 3 # поменяли на меньшую награду
                     elif done == 0:
                         # reward -= 0.01 * i
                         pass
                     elif done == -1:
-                        reward_model_i -= reward
+                        reward_model_i = reward_scalar
 
                     # if i != 0:
                     #     rl_agent.push_memory((state, next_state, action_raw, reward))
                     # else:
                     #     rl_agent.steps_done -= 1
-                    rl_agent.push_memory((state, next_state, action_raw, reward_model_i, \
+                    rl_agent.push_memory((state, next_state, action_raw, float(reward_model_i), \
                                           done, float(reward_model_i_raw), opt_model_i))
                     # for _ in range(32):
                     #     rl_agent.push_memory((state, next_state, dqn_class, reward))

@@ -7,12 +7,13 @@ import random
 from collections import deque, namedtuple
 import math
 from copy import copy
-import wandb
+# import wandb
 import matplotlib.pyplot as plt
 from collections import defaultdict
 from math import ceil
 import statistics
 from tedeous.DQN_classes import DQN_optim, DQN_params
+from comet_ml.integration.pytorch import watch
 
 
 import tempfile
@@ -157,7 +158,7 @@ class ReplayBuffer:
 
 class DQNAgent:
     def __init__(self, n_observation=None, n_action=None, optimizer_dict=None, lr=1e-3, gamma=0.95, epsilon=1.0,
-                 epsilon_decay=0.995, epsilon_min=0.01, memory_size=10000, batch_size=128, n_transitions_reinit = 2000, device='cpu'):
+                 epsilon_decay=0.995, epsilon_min=0.01, memory_size=10000, batch_size=128, n_transitions_reinit = 2000, device='cpu', exp=None):
         self.n_observation = n_observation
         self.n_action = n_action
         self.gamma = gamma
@@ -180,9 +181,12 @@ class DQNAgent:
         self.opt_step = 0
 
         self.device = device
+        self.exp = exp
 
         self.model_optim = DQN_optim(len(self.i2opt)).to(device)
         self.model_params = DQN_params(self.optimizer_dict).to(device)
+        watch(self.model_optim, log_step_interval = 200)
+        watch(self.model_params, log_step_interval = 200)
 
         self.reinit_target()
 
@@ -249,7 +253,7 @@ class DQNAgent:
                 all(torch.equal(t1.state[k],      t2.state[k])      for k in t1.state) and
                 all(torch.equal(t1.next_state[k], t2.next_state[k]) for k in t1.next_state) and
                 t1.action        == t2.action and
-                torch.equal(t1.reward, t2.reward) and
+                t1.reward        == t2.reward and
                 t1.done          == t2.done and
                 t1.model_reward  == t2.model_reward and
                 t1.opt_model_i        == t2.opt_model_i
@@ -385,20 +389,21 @@ class DQNAgent:
         print(f"Mean batch loss optim class: {optim_batch_loss_mean}")
         print(f"Mean batch loss param: {param_batch_loss_mean}")
 
-        wandb.log({
-            "optim_batch_loss_mean": optim_batch_loss_mean,\
-            "optim_batch_loss_median": statistics.median(loss_arr_optim_class), \
-            "param_batch_loss_mean": param_batch_loss_mean, \
-            "param_batch_loss_median": statistics.median(loss_arr_param), \
-            "steps_done": self.steps_done, \
-            "all_rewards_mean": statistics.mean(reward_tensor.tolist()), \
-            "agent_reward_mean": statistics.mean(model_reward_i_ar), \
-            "agent_reward_median": statistics.median(model_reward_i_ar), \
-            "bad_action_procent": len(bad_action)/len(model_reward_i_ar),\
-            "count_good_end": count_good_end, \
-            "count_bad_end": count_bad_end,
-            })
-         # Временный файл для model_optim
+        self.exp.log_metric("optim_batch_loss_mean", optim_batch_loss_mean, step=self.steps_done)
+        self.exp.log_metric("optim_batch_loss_median", statistics.median(loss_arr_optim_class), step=self.steps_done)
+        self.exp.log_metric("param_batch_loss_mean", param_batch_loss_mean, step=self.steps_done)
+        self.exp.log_metric("param_batch_loss_median", statistics.median(loss_arr_param), step=self.steps_done)
+        self.exp.log_metric("steps_done", self.steps_done, step=self.steps_done)
+        self.exp.log_metric("all_rewards_mean", statistics.mean(reward_tensor.tolist()), step=self.steps_done)
+        self.exp.log_metric("agent_reward_mean", statistics.mean(model_reward_i_ar), step=self.steps_done)
+        self.exp.log_metric("agent_reward_median", statistics.median(model_reward_i_ar), step=self.steps_done)
+        self.exp.log_metric("bad_action_procent", len(bad_action)/len(model_reward_i_ar), step=self.steps_done)
+        self.exp.log_metric("count_good_end", count_good_end, step=self.steps_done)
+        self.exp.log_metric("count_bad_end", count_bad_end, step=self.steps_done)
+
+
+
+         # Сохраняем модель во временные файлы
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pt") as tmp_optim:
             torch.save(self.model_optim.state_dict(), tmp_optim.name)
             optim_path = tmp_optim.name
@@ -407,10 +412,6 @@ class DQNAgent:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pt") as tmp_params:
             torch.save(self.model_params.state_dict(), tmp_params.name)
             params_path = tmp_params.name
-        artifact = wandb.Artifact(f"model_step_{self.steps_done}", type="model")
-        artifact.add_file(optim_path, name=f"model_optim_step_{self.steps_done}.pt")
-        artifact.add_file(params_path, name=f"model_params_step_{self.steps_done}.pt")
-        wandb.log_artifact(artifact)
 
         # self.replay_buffer.memory = deque(filter(lambda x: x not in set(buff_test), self.replay_buffer.memory),
         #                                   maxlen=self.replay_buffer.memory.maxlen)
