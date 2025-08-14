@@ -18,7 +18,7 @@ from tedeous.utils import exact_solution_data
 
 solver_device('cpu')
 
-data_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../PINNacle_data/burgers1d.npy"))
+data_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../PINNacle_data/burgers1d.npy"))
 
 mu = 0.01 / np.pi
 
