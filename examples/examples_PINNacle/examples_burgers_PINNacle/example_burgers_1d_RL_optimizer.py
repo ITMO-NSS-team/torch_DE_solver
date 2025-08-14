@@ -1,18 +1,12 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon May 31 12:33:44 2021
-
-@author: user
-"""
-
 import torch
-import numpy as np
 import os
 import sys
 import time
-torch.manual_seed(42)
+import numpy as np
+
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(project_root)
 
 from tedeous.data import Domain, Conditions, Equation
 from tedeous.model import Model
@@ -20,116 +14,81 @@ from tedeous.model import Model
 from tedeous.callbacks import early_stopping, plot, cache
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
-from tedeous.models import mat_model
-import wandb
+from tedeous.utils import exact_solution_data
 
-wandb.login(key='ae56768e03b6f06ca029c7b1e40fd300c2769a6d')
+solver_device('cpu')
 
-run = wandb.init(
-    # Set the wandb entity where your project will be logged (generally your team name).
-    # Set the wandb project where this run will be logged.
-    project="rlpinn",
-    # Track hyperparameters and run metadata.
-    config={
-        "param": "v_1",
-        "reward_function": "v_1",
-        "buffer_size": 2000,
-        "batch_size": 32,
-        "type_buffer": "partly_minus_butch_size",
-        "description": ""
-    },
-)
+data_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../PINNacle_data/burgers1d.npy"))
+
+mu = 0.01 / np.pi
 
 
-base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-print(base_dir)
-datapath = os.path.join(base_dir, 'PINNacle_data', 'wave_darcy.npy')
-
-solver_device('cuda')
-# solver_device('cpu')
-# torch.set_default_device("cpu")
-# torch.set_default_device('mps:0')
-
-
-def exact_func(grid, a=4):
-    x, t = grid[:, 0], grid[:, 1]
-    sln = torch.sin(np.pi * x) * torch.cos(2 * np.pi * t) + \
-          0.5 * torch.sin(a * np.pi * x) * torch.cos(2 * a * np.pi * t)
-    return sln
-
-
-def wave_1d_basic_experiment(grid_res):
+def burgers_1d_experiment(grid_res):
     exp_dict_list = []
 
-    x_min, x_max = 0, 1
+    x_min, x_max = -1, 1
     t_max = 1
 
-    pde_dim_in, pde_dim_out = 2, 1
+    pde_dim_in = 2
+    pde_dim_out = 1
 
     domain = Domain()
     domain.variable('x', [x_min, x_max], grid_res)
     domain.variable('t', [0, t_max], grid_res)
 
-    x = domain.variable_dict['x']
-    t = domain.variable_dict['t']
-
     boundaries = Conditions()
 
     # Initial conditions ###############################################################################################
 
-    init_func = torch.sin(torch.pi * x) * torch.sin(4 * torch.pi * x) / 2
+    # u(x, 0) = -sin(pi * x)
+    boundaries.dirichlet({'x': [x_min, x_max], 't': 0}, value=lambda grid: -torch.sin(np.pi * grid[:, 0]))
 
-    # u(x, 0) = f_init(x, 0)
-    boundaries.dirichlet({'x': [x_min, x_max], 't': 0}, value=exact_func)
+    # Boundary conditions ##############################################################################################
 
-    # u_t(x, 0) = 0
-    bop = {
-        'du/dt':
+    # u(x_min, t) = 0
+    boundaries.dirichlet({'x': x_min, 't': [0, t_max]}, value=0)
+
+    # u(x_max, t) = 0
+    boundaries.dirichlet({'x': x_max, 't': [0, t_max]}, value=0)
+
+    equation = Equation()
+
+    # Operator: u_t + u * u_x - mu * u_xx = 0
+
+    burgers_eq = {
+        'du/dt**1':
+            {
+                'coeff': 1.,
+                'du/dt': [1],
+                'pow': 1,
+                'var': 0
+            },
+        '+u*du/dx':
             {
                 'coeff': 1,
-                'term': [1],
+                'u*du/dx': [[None], [0]],
+                'pow': [1, 1],
+                'var': [0, 0]
+            },
+        '-mu*d2u/dx2':
+            {
+                'coeff': -mu,
+                'd2u/dx2': [0, 0],
                 'pow': 1,
                 'var': 0
             }
     }
-    boundaries.operator({'x': [x_min, x_max], 't': 0}, operator=bop, value=0)
 
-    # Boundary conditions ##############################################################################################
+    equation.add(burgers_eq)
 
-    bnd_func = torch.sin(torch.pi * x) * torch.cos(2 * torch.pi * t) + \
-               torch.sin(4 * torch.pi * x) / 2 * torch.cos(8 * torch.pi * t)
-
-    # u(0, t) = f_bnd(x, t)
-    boundaries.dirichlet({'x': x_min, 't': [0, t_max]}, value=exact_func)
-
-    # u(1, t) = f_bnd(x, t)
-    boundaries.dirichlet({'x': x_max, 't': [0, t_max]}, value=exact_func)
-
-    equation = Equation()
-
-    # Operator: d2u/dt2 - 4 * d2u/dx2 = 0
-
-    wave_eq = {
-        'd2u/dt2**1':
-            {
-                'coeff': 1,
-                'd2u/dt2': [1, 1],
-                'pow': 1
-            },
-        '-C*d2u/dx2**1':
-            {
-                'coeff': -4,
-                'd2u/dx2': [0, 0],
-                'pow': 1
-            }
-    }
-
-    equation.add(wave_eq)
-
-    neurons = 32
+    neurons = 100
 
     net = torch.nn.Sequential(
         torch.nn.Linear(pde_dim_in, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
@@ -141,31 +100,31 @@ def wave_1d_basic_experiment(grid_res):
             torch.nn.init.xavier_normal_(m.weight)
             torch.nn.init.zeros_(m.bias)
 
-    model_layers = [2, neurons, neurons, 1]
+    model_layers = [2, neurons, neurons, neurons, neurons, 1]
 
     start = time.time()
 
     # net = mat_model(domain, equation)
 
-    grid = domain.build('autograd')
+    grid = domain.build('NN').to('cuda')
     grid_test = torch.cartesian_prod(torch.linspace(0, 1, 100), torch.linspace(0, 1, 100))
-    u_exact_test = exact_func(grid_test).reshape(-1)
+    u_exact_test = exact_solution_data(grid, data_file, pde_dim_in, pde_dim_out).reshape(-1)
 
     equation_params = [u_exact_test, grid_test, grid, domain, equation, boundaries, model_layers]
 
     model = Model(net, *equation_params[3:-1])
 
-    model.compile('autograd', lambda_operator=1, lambda_bound=100)
+    model.compile('autograd', lambda_operator=1, lambda_bound=10)
 
-    img_dir = os.path.join(os.path.dirname(__file__), 'wave_1d_basic_img')
+    cb_cache = cache.Cache(cache_verbose=False, model_randomize_parameter=1e-5)
 
-    cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-6)
+    img_dir = os.path.join(os.path.dirname(__file__), 'burgers_1d_img')
 
     cb_es = early_stopping.EarlyStopping(eps=1e-6,
                                          loss_window=100,
-                                         no_improvement_patience=100,
-                                         patience=20,
-                                         randomize_parameter=1e-2,
+                                         no_improvement_patience=1000,
+                                         patience=100,
+                                         randomize_parameter=1e-4,
                                          info_string_every=10)
 
     cb_plots = plot.Plots(save_every=None,
@@ -208,25 +167,25 @@ def wave_1d_basic_experiment(grid_res):
     #     {
     #         "name": "CSO",
     #         "params": {"lr": 5e-4},
-    #         "epochs": 100
+    #         "epochs": 20
     #     },
     #     {
     #         "name": "Adam",
     #         "params": {"lr": 1e-4},
-    #         "epochs": 1000
+    #         "epochs": 50
     #     },
-    #     {
-    #         "name": "LBFGS",
-    #         "params": {
-    #             "lr": 1,
-    #             "max_iter": 20,
-    #             "max_eval": None,
-    #             "tolerance_grad": 1e-05,
-    #             "tolerance_change": 1e-07,
-    #             "history_size": 50,
-    #             "line_search_fn": "strong_wolfe"
-    #         }, "epochs": 100
-    #     },
+    #     # {
+    #     #     "name": "LBFGS",
+    #     #     "params": {
+    #     #         "lr": 1,
+    #     #         "max_iter": 20,
+    #     #         "max_eval": None,
+    #     #         "tolerance_grad": 1e-05,
+    #     #         "tolerance_change": 1e-07,
+    #     #         "history_size": 50,
+    #     #         "line_search_fn": "strong_wolfe"
+    #     #     }, "epochs": 20
+    #     # },
     #     {
     #         "name": "NNCG",
     #         "params": {
@@ -242,28 +201,60 @@ def wave_1d_basic_experiment(grid_res):
     #     }
     # ]
 
+    # optimizer = Optimizer('Adam', {'lr': 1e-4})
+
+    # optimizer = {
+    #     "type": ['NNCG', 'NNCG', 'NNCG', 'NNCG', 'NNCG', 'NNCG'],
+    #     "params": [1, 1, 1, 1],
+    #     "epochs": [200, 200, 200]
+    # }
+
     optimizer = {
-        'Adam':{
-            'lr':[1e-2, 1e-3, 1e-4],
-            'epochs':[100, 1000]
+        'Adam': {
+            'lr': [1e-4, 1e-4, 1e-4],
+            'epochs': [100, 1000, 1000]
         },
-        'LBFGS':{
-            'lr':[1, 5e-1, 1e-1],
-            'epochs':[100, 500, 1000]
+        'LBFGS': {
+            'lr': [1, 5e-1, 1e-1],
+            'epochs': [100, 500, 1000]
         },
-        'PSO':{
-            'lr':[5e-3, 1e-3, 1e-4],
-            'epochs':[100, 500, 1000]
+        'PSO': {
+            'lr': [5e-3, 1e-3, 1e-4],
+            'epochs': [100, 500, 1000]
         },
-        'NNCG':{
-            'lr':[1, 5e-1, 1e-1],
-            "precond_update_frequency": [5, 10],
-            'epochs':[6, 11, 21]
+
+        # {
+        #     "name": "NNCG",
+        #     "params": {
+        #         "mu": 1e-1,  # mu=1e-4
+        #         "lr": 0.5,
+        #         "rank": 10,
+        #         "line_search_fn": "armijo",
+        #         "precond_update_frequency": 10,
+        #         "eigencdecomp_shift_attepmt_count": 10,  # eigencdecomp_shift_attepmt_count=20
+        #         'cg_max_iters': 1000,
+        #         "verbose": False
+        #
+        #         # params, lr=1.0, rank=10, mu=1e-4, chunk_size=1,
+        #         # cg_tol=1e-16, cg_max_iters=1000, line_search_fn=None,
+        #         # verbose=False, precond_update_frequency=20,
+        #         # eigencdecomp_shift_attepmt_count=20
+        #     },
+        #     "epochs": [21, 21, 21]
+        # }
+
+        # 'NNCG': {
+        #     'lr': [1, 1],
+        #     "precond_update_frequency": [5],
+        #     'epochs': [10]
+        # },
+        'NNCG': {
+            # 'lr':[1, 5e-1, 1e-1, 5e-2, 1e-2],
+            'lr': [1, 5e-1],
+            'epochs': [50, 51, 52],
+            'precond_update_frequency': [10, 15, 20]
         }
     }
-
-
-    # optimizer = Optimizer('Adam', {'lr': 1e-4})
 
     AE_model_params = {
         "mode": "NN",
@@ -286,19 +277,19 @@ def wave_1d_basic_experiment(grid_res):
         "polars_weight": 0.0,
         "wellspacedtrajectory_weight": 0.0,
         "gridscaling_weight": 0.0,
-        "device": "cuda"
+        "device": "cpu"
     }
 
     AE_train_params = {
         "first_RL_epoch_AE_params": {
-            "epochs": 10000,
-            "patience_scheduler": 4000,
-            "cosine_scheduler_patience": 1200,
+            "epochs": 1000,
+            "patience_scheduler": 400,
+            "cosine_scheduler_patience": 120,
         },
         "other_RL_epoch_AE_params": {
-            "epochs": 20000,
-            "patience_scheduler": 4000,
-            "cosine_scheduler_patience": 1200,
+            "epochs": 2000,
+            "patience_scheduler": 400,
+            "cosine_scheduler_patience": 120,
         },
         "batch_size": 32,
         "every_epoch": 100,
@@ -338,14 +329,12 @@ def wave_1d_basic_experiment(grid_res):
     rl_agent_params = {
         "n_save_models": 10,
         "n_trajectories": 1000,
-        "tolerance": 0.85,
+        "tolerance": 1e-1,
         "stuck_threshold": 10,  # Число эпох без значительного изменения прогресса
-        "min_loss_change": 1e-7,
-        "min_grad_norm": 1e-5,
-        "rl_buffer_size": 2000,
-        "rl_batch_size": 16,
+        "rl_buffer_size": 4,
+        "rl_batch_size": 32,
         "rl_reward_method": "absolute",
-        "exact_solution": exact_func,
+        "exact_solution": data_file,
         "reward_operator_coeff": 1,
         "reward_boundary_coeff": 1
     }
@@ -353,27 +342,31 @@ def wave_1d_basic_experiment(grid_res):
     model.train(optimizer,
                 5e5,
                 save_model=True,
-                callbacks=[cb_es, cb_plots],
+                callbacks=[cb_es, cb_cache],
                 rl_agent_params=rl_agent_params,
                 models_concat_flag=False,
                 model_name='rl_optimization_agent',
                 equation_params=equation_params,
                 AE_model_params=AE_model_params,
                 AE_train_params=AE_train_params,
-                loss_surface_params=loss_surface_params)
+                loss_surface_params=loss_surface_params
+                )
 
     end = time.time()
 
     grid = domain.build('NN').to('cuda')
     net = net.to('cuda')
 
-    error_rmse = torch.sqrt(torch.mean((exact_func(grid).reshape(-1, 1) - net(grid)) ** 2))
+    exact = exact_solution_data(grid, data_file, pde_dim_in, pde_dim_out, t_dim_flag=True).reshape(-1, 1)
+    net_predicted = net(grid)
+
+    error_rmse = torch.sqrt(torch.mean((exact - net_predicted) ** 2))
 
     exp_dict_list.append({
         'grid_res': grid_res,
         'time': end - start,
         'RMSE': error_rmse.detach().cpu().numpy(),
-        'type': 'wave_1d_basic',
+        'type': 'burgers_1d',
         'cache': True
     })
 
@@ -389,10 +382,10 @@ exp_dict_list = []
 
 for grid_res in range(50, 501, 50):
     for _ in range(nruns):
-        exp_dict_list.append(wave_1d_basic_experiment(grid_res))
+        exp_dict_list.append(burgers_1d_experiment(grid_res))
 
 import pandas as pd
 
 exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df = pd.DataFrame(exp_dict_list_flatten)
-df.to_csv('examples/benchmarking_data/wave_1d_basic_experiment_physical_50_500_cache={}.csv'.format(str(True)))
+df.to_csv('examples/benchmarking_data/burgers_1d_experiment_50_500_cache={}.csv'.format(str(True)))

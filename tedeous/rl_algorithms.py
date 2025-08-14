@@ -23,7 +23,7 @@ EPS_DECAY = 2000
 TAU = 0.01
 
 Transition = namedtuple('Transition',
-                        ('state', 'next_state', 'action', 'reward', 'done'))
+                        ('state', 'next_state', 'action', 'reward', 'done', 'model_reward', 'grad_i'))
 
 
 class ReplayBuffer:
@@ -175,11 +175,12 @@ class DQNAgent:
         uniq_params = list(set([x for xs in optimizer_dict.values() for x in xs]))
         self.i2params = {k: v for v, k in enumerate(uniq_params)}
         self.huberloss = nn.HuberLoss()
+        self.opt_step = 0
 
         self.device = device
 
-        self.model_optim = DQN_optim(len(self.i2opt)).to(self.device)
-        self.model_params = DQN_params(self.optimizer_dict).to(self.device)
+        self.model_optim = DQN_optim(len(self.i2opt)).to(device)
+        self.model_params = DQN_params(self.optimizer_dict).to(device)
 
         self.reinit_target()
 
@@ -217,7 +218,9 @@ class DQNAgent:
             next_state=detach_item(transition.next_state),
             action=detach_item(transition.action),
             reward=detach_item(transition.reward),
-            done=detach_item(transition.done)
+            done=detach_item(transition.done),
+            model_reward=detach_item(transition.model_reward),
+            grad_i=detach_item(transition.grad_i)
         )
 
     def deepcopy_replay_buffer_without_graph(self, buffer):
@@ -229,6 +232,7 @@ class DQNAgent:
     def optim_(self):
         loss_arr_optim_class = []
         loss_arr_param = []
+        model_reward_i_ar = []
         # self.replay_buffer_copy = deepcopy(self.replay_buffer)
         self.replay_buffer_copy = self.deepcopy_replay_buffer_without_graph(self.replay_buffer)
 
@@ -253,15 +257,20 @@ class DQNAgent:
                 )
             )
 
-            state, next_state, action, reward, done = zip(*buff_test)
+            state, next_state, action, reward, done, model_reward, grad_i = zip(*buff_test)
 
             # state = {'loss_total': tensor([...]), 'loss_oper': tensor([...]), 'loss_bnd': tensor([...])}
-            state = [torch.stack((elem['loss_oper'], elem['loss_bnd']), dim=0) for elem in state]
-            next_state = [torch.stack((elem['loss_oper'], elem['loss_bnd']), dim=0) for elem in next_state]
+            state = [torch.cat((elem['loss_oper'], elem['loss_bnd']), 0) for elem in state]
+            next_state = [torch.cat((elem['loss_oper'], elem['loss_bnd']), 0) for elem in next_state]
             state = torch.stack(state, dim=0).reshape(-1, 2, 26, 26).to(self.device)
             next_state = torch.stack(next_state, dim=0).reshape(-1, 2, 26, 26).to(self.device)
             reward = torch.FloatTensor(reward).to(self.device)
             done = torch.IntTensor(done).to(self.device)
+            model_reward = torch.FloatTensor(model_reward).to(self.device)
+            grad_i = torch.IntTensor(grad_i).to(self.device)
+
+            liner_out_target, target_optim = self.target_model_optim(next_state)
+            liner_out_model, model_optim = self.model_optim(state)
 
             liner_out_target, target_optim = self.target_model_optim(next_state)
             liner_out_model, model_optim = self.model_optim(state)
@@ -414,7 +423,7 @@ class DQNAgent:
     def select_action(self, state):
         with torch.no_grad():
             # state = state['loss_total'].to(self.device)
-            state = torch.stack((state['loss_oper'], state['loss_bnd']), dim=0)
+            state = torch.cat((state['loss_oper'], state['loss_bnd']), 0)
             sample = random.random()
             eps_threshold = EPS_END + (EPS_START - EPS_END) * \
                             math.exp(-1. * self.steps_done / EPS_DECAY)
@@ -424,10 +433,10 @@ class DQNAgent:
                     # t.max(1) will return the largest column value of each row.
                     # second column on max result is index of where max element was
                     # found, so we pick action with the larger expected reward.
-                    state = state.reshape((-1, 26, 26))
+                    state = state.reshape((1, -1, 26, 26))
                     # x_optim, x_loss, x_epochs = self.model(state)
                     # x_optim, x_loss, x_epochs = torch.argmax(x_optim), torch.argmax(x_loss), torch.argmax(x_epochs)
-                    x, liner_out = self.model_optim(state)
+                    liner_out, x = self.model_optim(state)
                     optim_class = int(torch.argmax(x))
                     optim_class_name = self.i2opt[optim_class]
                     param_class = {}
@@ -438,7 +447,7 @@ class DQNAgent:
             else:
                 optim_class, epochs_class, param_class = self.get_random_action()
             action = self.post_proc_model(int(optim_class), epochs_class, param_class)
-            return action, (int(optim_class), epochs_class, param_class)
+            return action, (int(optim_class), epochs_class, param_class), sample > eps_threshold
 
     def push_memory(self, rl_params):
         # self.replay_buffer.memory += (rl_params,)
