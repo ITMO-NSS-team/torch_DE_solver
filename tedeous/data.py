@@ -3,10 +3,13 @@
 from typing import List, Union, Dict
 import torch
 import numpy as np
+import sys
+import os
 
 from tedeous.device import check_device
 from tedeous.input_preprocessing import EquationMixin
-from tedeous.data_CSG import csg_difference, csg_boundary, Circle, Rectangle
+from tedeous.data_CSG import csg_domain_difference, csg_boundary_circle
+
 
 
 def tensor_dtype(dtype: str):
@@ -87,16 +90,19 @@ class Domain():
                 if removed_domains is not None:
                     for domain_dict in removed_domains:
                         figure_type = list(domain_dict.keys())[0]
+                        geom_figure = {}
                         if figure_type == 'rectangle':
                             coords_min = domain_dict[figure_type]['coords_min']
                             coords_max = domain_dict[figure_type]['coords_max']
-                            shape = Rectangle(coords_min,coords_max)
+                            geom_figure['name'] = figure_type
+                            geom_figure['coords'] = (coords_min, coords_max)
                         elif figure_type == 'circle':
                             center = domain_dict[figure_type]['center']
                             radius = domain_dict[figure_type]['radius']
-                            shape = Circle(center, radius)
+                            geom_figure['name'] = figure_type
+                            geom_figure['coords'] = (*center, radius)
 
-                        grid = csg_difference(grid, shape).detach().clone()
+                        grid = csg_domain_difference(grid, geom_figure)
         else:
             grid = np.meshgrid(*var_lst, indexing='ij')
             grid = check_device(grid)
@@ -263,8 +269,7 @@ class Conditions():
             var_lst = []
 
             if list(bnd.keys())[0] == 'circle':
-                shape = Circle(bnd['circle']['center'],bnd['circle']['radius'])
-                result = csg_boundary(grid, shape)
+                result = csg_boundary_circle(grid, bnd['circle'])
                 return result
 
             for var in variable_dict.keys():

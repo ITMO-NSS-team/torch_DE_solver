@@ -319,7 +319,8 @@ class Model():
                                 gamma=rl_agent_params["gamma"],
                                 lr=rl_agent_params["lr"],
                                 device=device_type(),
-                                batch_size=rl_agent_params["rl_batch_size"])
+                                batch_size=rl_agent_params["rl_batch_size"],
+                                 exp = rl_agent_params["exp"],)
 
             # Optimization of the RL algorithm is implemented in the file rl_algorithms
             optimizers = optimizer.copy()
