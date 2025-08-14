@@ -15,7 +15,7 @@ from tedeous.device import solver_device
 from tedeous.utils import exact_solution_data
 
 solver_device('cpu')
-data_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../PINNacle_data/poisson1_cg_data.npy"))
+data_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../PINNacle_data/poisson1_cg_data.npy"))
 
 
 def poisson_2d_classic_experiment(grid_res):
@@ -392,5 +392,3 @@ import pandas as pd
 exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df = pd.DataFrame(exp_dict_list_flatten)
 df.to_csv('examples/benchmarking_data/poisson_2d_classic_experiment_50_500_cache={}.csv'.format(str(True)))
-
-
