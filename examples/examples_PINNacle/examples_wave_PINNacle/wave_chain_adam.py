@@ -25,7 +25,7 @@ def exact_func(grid, beta=5):
     return sln
 
 
-def wave_1d_basic_experiment(x_res, t_res, optimizer, beta=5):
+def wave_1d_basic_experiment(i, x_res, t_res, optimizer, beta=5):
     exp_dict_list = []
 
     x_min, x_max = 0, 1
@@ -42,7 +42,7 @@ def wave_1d_basic_experiment(x_res, t_res, optimizer, beta=5):
 
     # Initial conditions ###############################################################################################
 
-    init_func = torch.sin(torch.pi * x) + (1 / 2) * torch.sin(beta * torch.pi * t)
+    init_func = torch.sin(torch.pi * x) + 0.5 * torch.sin(beta * torch.pi * x)
 
     # u(x, 0) = f_init(x, 0)
     boundaries.dirichlet({'x': [x_min, x_max], 't': 0}, value=init_func)
@@ -162,6 +162,13 @@ def wave_1d_basic_experiment(x_res, t_res, optimizer, beta=5):
     print(f'x_res={x_res}, t_res={t_res}, RMSE={error_rmse}')
     print(f'x_res={x_res}, t_res={t_res}, L2RE={error_l2re}')
 
+    metrics_file = os.path.join(os.path.dirname(__file__), 'wave_chain_adam_metrics.txt')
+
+    with open(metrics_file, 'a') as f:
+        f.write(f'experiment_{i}: x_res={x_res}, t_res={t_res}, time={end - start}\n')
+        f.write(f'experiment_{i}: x_res={x_res}, t_res={t_res}, RMSE={error_rmse}\n')
+        f.write(f'experiment_{i}: x_res={x_res}, t_res={t_res}, L2RE={error_l2re}\n\n')
+
     return exp_dict_list
 
 
@@ -177,12 +184,12 @@ optimizer = [
     }
 ]
 
-nruns = 1
+nruns = 2
 
 exp_dict_list = []
 
-for _ in range(nruns):
-    exp_dict_list.append(wave_1d_basic_experiment(x_res, t_res, optimizer, beta=beta))
+for i in range(nruns):
+    exp_dict_list.append(wave_1d_basic_experiment(i + 1, x_res, t_res, optimizer, beta=beta))
 
 import pandas as pd
 

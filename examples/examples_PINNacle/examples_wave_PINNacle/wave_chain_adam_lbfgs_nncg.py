@@ -25,7 +25,7 @@ def exact_func(grid, beta=5):
     return sln
 
 
-def wave_1d_basic_experiment(x_res, t_res, optimizer, beta=5):
+def wave_1d_basic_experiment(i, x_res, t_res, optimizer, beta=5):
     exp_dict_list = []
 
     x_min, x_max = 0, 1
@@ -147,7 +147,8 @@ def wave_1d_basic_experiment(x_res, t_res, optimizer, beta=5):
     })
 
     error_l2re = torch.sqrt(torch.sum(
-        (exact_func(grid).reshape(-1, 1) - net(grid)) ** 2) / torch.sum(exact_func(grid).reshape(-1, 1) ** 2))
+        (exact_func(grid).reshape(-1, 1) - net(grid)) ** 2) / torch.sum(exact_func(grid).reshape(-1, 1) ** 2)
+    )
 
     exp_dict_list.append({
         'x_res': x_res,
@@ -161,6 +162,13 @@ def wave_1d_basic_experiment(x_res, t_res, optimizer, beta=5):
     print(f'x_res={x_res}, t_res={t_res}, time={end - start}')
     print(f'x_res={x_res}, t_res={t_res}, RMSE={error_rmse}')
     print(f'x_res={x_res}, t_res={t_res}, L2RE={error_l2re}')
+
+    metrics_file = os.path.join(os.path.dirname(__file__), 'wave_chain_adam_metrics.txt')
+
+    with open(metrics_file, 'a') as f:
+        f.write(f'experiment_{i}: x_res={x_res}, t_res={t_res}, time={end - start}\n')
+        f.write(f'experiment_{i}: x_res={x_res}, t_res={t_res}, RMSE={error_rmse}\n')
+        f.write(f'experiment_{i}: x_res={x_res}, t_res={t_res}, L2RE={error_l2re}\n\n')
 
     return exp_dict_list
 
@@ -181,9 +189,9 @@ optimizer = [
             "lr": 1,
             "max_iter": 20,
             "max_eval": None,
-            "tolerance_grad": 1e-05,
-            "tolerance_change": 1e-07,
-            "history_size": 50,
+            "tolerance_grad": 1e-07,
+            "tolerance_change": 1e-09,
+            "history_size": 100,
             "line_search_fn": "strong_wolfe"
         }, "epochs": 2000
     },
@@ -205,13 +213,14 @@ optimizer = [
 
 nruns = 1
 
-exp_dict_list = []
-nncg_mus=(0.00001, 0.0001, 0.001, 0.01, 0.1)
+nncg_mus = (0.00001, 0.0001, 0.001, 0.01, 0.1)
 
-for _ in range(nruns):
+exp_dict_list = []
+
+for i in range(nruns):
     for mu_i in nncg_mus:
         optimizer[-1]["params"]["mu"] = mu_i
-        exp_dict_list.append(wave_1d_basic_experiment(x_res, t_res, optimizer, beta=beta))
+        exp_dict_list.append(wave_1d_basic_experiment(i + 1, x_res, t_res, optimizer, beta=beta))
 
 import pandas as pd
 
