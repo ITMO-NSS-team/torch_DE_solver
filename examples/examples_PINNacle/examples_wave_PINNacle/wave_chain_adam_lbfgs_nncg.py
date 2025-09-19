@@ -42,7 +42,7 @@ def wave_1d_basic_experiment(i, x_res, t_res, optimizer, beta=5):
 
     # Initial conditions ###############################################################################################
 
-    init_func = torch.sin(torch.pi * x) + (1 / 2) * torch.sin(beta * torch.pi * t)
+    init_func = torch.sin(torch.pi * x) + 0.5 * torch.sin(beta * torch.pi * x)
 
     # u(x, 0) = f_init(x, 0)
     boundaries.dirichlet({'x': [x_min, x_max], 't': 0}, value=init_func)
