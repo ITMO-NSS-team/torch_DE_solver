@@ -1,3 +1,5 @@
+import time
+
 import torch
 import numpy as np
 import torch.nn.init as init
@@ -37,6 +39,7 @@ def get_state_shape(loss_surface_params):
 
     return tuple(torch.meshgrid(x_coords, y_coords)[0].shape)
 
+
 def get_tup_actions(optimizers):
     tupe_actions = []
     for opt in range(len(optimizers['type'])):
@@ -44,6 +47,7 @@ def get_tup_actions(optimizers):
             for lr in range(len(optimizers['params'])):
                 tupe_actions.append((opt, epoch, lr))
     return tupe_actions
+
 
 def make_legend(tupe_dqn_class, optimizers):
     with open('legend.txt', 'a') as the_file:
@@ -186,7 +190,9 @@ class Model():
               equation_params: list = None,
               AE_model_params: dict = None,
               AE_train_params: dict = None,
-              loss_surface_params: dict = None):
+              loss_surface_params: dict = None,
+              exp=None,
+              start_time=None):
         """ train model.
 
         Args:
@@ -223,9 +229,11 @@ class Model():
         self.min_loss, _ = self.solution_cls.evaluate()
         self.cur_loss = self.min_loss
 
+        self.grid = self.domain.build('NN').to(device_type())
+
         print('[{}] initial (min) loss is {}'.format(datetime.datetime.now(), self.min_loss.item()))
 
-        def execute_training_phase(epochs, n_save_models=1, stuck_threshold=50):
+        def execute_training_phase(epochs, n_save_models=1, stuck_threshold=50, exact_func=None):
             if not (models_concat_flag and rl_agent_params):
                 self.saved_models = []
 
@@ -249,8 +257,24 @@ class Model():
 
                 loss = float(self.cur_loss.item()) if isinstance(self.cur_loss, torch.Tensor) else float(self.cur_loss)
 
+                if optimizer.optimizer == 'NNCG':
+                    end_time = time.time()
+                    exp.log_metric("time", end_time - start_time, step=self.t)
+
+                    error_rmse = torch.sqrt(
+                        torch.mean((exact_func(self.grid).reshape(-1, 1) - self.net(self.grid)) ** 2)
+                    )
+                    exp.log_metric("RMSE", error_rmse, step=self.t)
+
+                    error_l2re = torch.sqrt(torch.sum(
+                        (exact_func(self.grid).reshape(-1, 1) - self.net(self.grid)) ** 2) /
+                                            torch.sum(exact_func(self.grid).reshape(-1, 1) ** 2)
+                    )
+                    exp.log_metric("L2RE", error_l2re, step=self.t)
+
                 if not np.isfinite(loss) or loss > 1e3:
-                    print(f'[{datetime.datetime.now()}] Step = {self.t}, loss is not finite or too large: {loss}. Breaking early.')
+                    print(
+                        f'[{datetime.datetime.now()}] Step = {self.t}, loss is not finite or too large: {loss}. Breaking early.')
                     self.rl_penalty = -1
                     self.net = copy.deepcopy(prev_model)
                     self.solution_cls._model_change(self.net)
@@ -320,7 +344,7 @@ class Model():
                                 lr=rl_agent_params["lr"],
                                 device=device_type(),
                                 batch_size=rl_agent_params["rl_batch_size"],
-                                 exp = rl_agent_params["exp"],)
+                                exp=rl_agent_params["exp"], )
 
             # Optimization of the RL algorithm is implemented in the file rl_algorithms
             optimizers = optimizer.copy()
@@ -336,8 +360,8 @@ class Model():
             idx_traj = 0
             n_steps = 0
             n_steps_max = 1512
-            bufer_start_i = 128#128
-            n_steps_for_optim = 16 # n steps optimize
+            bufer_start_i = 128  # 128
+            n_steps_for_optim = 16  # n steps optimize
 
             grid = self.domain.build('NN').to(device_type())
             variable_dict = self.domain.variable_dict
@@ -431,7 +455,7 @@ class Model():
                         ))
                         for b in bconds
                     ]))
-                    
+
                     print(f"Operator RMSE: {operator_rmse}, Boundary RMSE: {boundary_rmse}")
 
                     env.solver_models = solver_models
@@ -452,13 +476,13 @@ class Model():
                     # input weights (for generate state) and loss (for calculate reward) to step method
                     # first getting current models and current losses
                     next_state, reward, done, _ = env.step()
-                    
+
                     reward_scalar = reward.item()  # предполагаем, что reward — скаляр
 
                     opt_model_i = -1
                     reward_model_i = -1
                     if prev_reward == -1:
-                        reward_model_i = reward_scalar 
+                        reward_model_i = reward_scalar
                         # opt_model_i = rl_agent.opt_step
                         # pass
                     elif is_model and prev_reward != -1:
@@ -472,7 +496,7 @@ class Model():
                     reward_model_i -= 0.05 * i
 
                     if done == 1:
-                        reward_model_i += 3 # поменяли на меньшую награду
+                        reward_model_i += 3  # поменяли на меньшую награду
                     elif done == 0:
                         # reward -= 0.01 * i
                         pass
@@ -489,8 +513,8 @@ class Model():
                     #     rl_agent.push_memory((state, next_state, dqn_class, reward))
 
                     if rl_agent.replay_buffer.__len__() >= bufer_start_i and \
-                    rl_agent.replay_buffer.__len__() % n_steps_for_optim == 0:
-                    # rl_agent.replay_buffer.__len__() % rl_agent_params["rl_batch_size"] == 0:
+                            rl_agent.replay_buffer.__len__() % n_steps_for_optim == 0:
+                        # rl_agent.replay_buffer.__len__() % rl_agent_params["rl_batch_size"] == 0:
                         print(f'\n[{datetime.datetime.now()}] RL agent optimization step {rl_agent.opt_step + 1}.')
                         rl_agent.optim_()
                         rl_agent.render_Q_function()
