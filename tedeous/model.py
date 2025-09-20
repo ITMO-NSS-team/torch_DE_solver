@@ -556,7 +556,9 @@ class Model():
 
                 self.optimizer = optimizer.optimizer_choice(self.mode, self.net)
                 closure = Closure(mixed_precision, self).get_closure(optimizer.optimizer)
+
                 self.t = 1
+                self.stop_training = False
 
                 print(f'\n[{datetime.datetime.now()}] Using optimizer: {opt_name} for {opt_epochs} epochs.')
                 execute_training_phase(opt_epochs)
