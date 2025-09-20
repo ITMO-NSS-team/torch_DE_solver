@@ -192,7 +192,8 @@ class Model():
               AE_train_params: dict = None,
               loss_surface_params: dict = None,
               exp=None,
-              start_time=None):
+              start_time=None,
+              exact_func=None):
         """ train model.
 
         Args:
@@ -260,17 +261,20 @@ class Model():
                 if optimizer.optimizer == 'NNCG':
                     end_time = time.time()
                     exp.log_metric("time", end_time - start_time, step=self.t)
+                    print(f'time={end_time - start_time}')
 
                     error_rmse = torch.sqrt(
                         torch.mean((exact_func(self.grid).reshape(-1, 1) - self.net(self.grid)) ** 2)
                     )
                     exp.log_metric("RMSE", error_rmse, step=self.t)
+                    print(f'RMSE={error_rmse}')
 
                     error_l2re = torch.sqrt(torch.sum(
                         (exact_func(self.grid).reshape(-1, 1) - self.net(self.grid)) ** 2) /
                                             torch.sum(exact_func(self.grid).reshape(-1, 1) ** 2)
                     )
                     exp.log_metric("L2RE", error_l2re, step=self.t)
+                    print(f'L2RE={error_l2re}')
 
                 if not np.isfinite(loss) or loss > 1e3:
                     print(
@@ -561,7 +565,7 @@ class Model():
                 self.stop_training = False
 
                 print(f'\n[{datetime.datetime.now()}] Using optimizer: {opt_name} for {opt_epochs} epochs.')
-                execute_training_phase(opt_epochs)
+                execute_training_phase(opt_epochs, exact_func=exact_func)
                 print(f'[{datetime.datetime.now()}] Finished optimizer {opt_name}.')
 
         elif isinstance(optimizer, Optimizer):
