@@ -25,7 +25,7 @@ def exact_func(grid, beta=5):
     return sln
 
 
-def wave_1d_basic_experiment(i, x_res, t_res, optimizer, beta=5):
+def wave_1d_basic_experiment(i, x_res, t_res, optimizer, beta=5, exp=None):
     exp_dict_list = []
 
     x_min, x_max = 0, 1
@@ -128,7 +128,12 @@ def wave_1d_basic_experiment(i, x_res, t_res, optimizer, beta=5):
                           scatter_flag=False
                           )
 
-    model.train(optimizer, 5e5, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
+    model.train(optimizer, 5e5,
+                save_model=True,
+                callbacks=[cb_es, cb_plots, cb_cache],
+                exp=exp,
+                start_time=start,
+                exact_func=exact_func)
 
     end = time.time()
 
@@ -173,9 +178,81 @@ def wave_1d_basic_experiment(i, x_res, t_res, optimizer, beta=5):
     return exp_dict_list
 
 
+# x_res = 257
+# t_res = 101
+# beta = 5
+#
+# optimizer = [
+#     {
+#         "name": "Adam",
+#         "params": {"lr": 1e-4},
+#         "epochs": 1000
+#     },
+#     {
+#         "name": "LBFGS",
+#         "params": {
+#             "lr": 1,
+#             "max_iter": 20,
+#             "max_eval": None,
+#             "tolerance_grad": 1e-07,
+#             "tolerance_change": 1e-09,
+#             "history_size": 100,
+#             "line_search_fn": "strong_wolfe"
+#         }, "epochs": 2000
+#     },
+#     {
+#         "name": "NNCG",
+#         "params": {
+#             "mu": 1e-1,
+#             "lr": 1,
+#             "rank": 60,
+#             "line_search_fn": "armijo",
+#             "precond_update_frequency": 20,
+#             "eigencdecomp_shift_attepmt_count": 10,
+#             'cg_max_iters': 1000,
+#             "verbose": False
+#         },
+#         "epochs": 2000
+#     }
+# ]
+#
+# nruns = 1
+#
+# nncg_mus = (0.00001, 0.0001, 0.001, 0.01, 0.1)
+#
+# exp_dict_list = []
+#
+# for i in range(nruns):
+#     for mu_i in nncg_mus:
+#         optimizer[-1]["params"]["mu"] = mu_i
+#         exp_dict_list.append(wave_1d_basic_experiment(i + 1, x_res, t_res, optimizer, beta=beta))
+#
+# import pandas as pd
+#
+# exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
+# df = pd.DataFrame(exp_dict_list_flatten)
+# df.to_csv(
+#     f'examples/benchmarking_data/wave_1d_basic_experiment_physical_{x_res}_{t_res}.csv'
+# )
+
+from comet_ml import start
+
+experiment = start(
+    api_key="aP71fQTYPNqfsYWvudPPmoBl5",
+    project_name='Tedeous_server_wave_adam_lbfgs_nncg_mu5',
+    workspace="saitama32"
+)
+
+
 x_res = 257
 t_res = 101
 beta = 5
+
+mu = 1e-5
+
+experiment.log_parameters({
+    "mu": mu,
+})
 
 optimizer = [
     {
@@ -198,7 +275,7 @@ optimizer = [
     {
         "name": "NNCG",
         "params": {
-            "mu": 1e-1,
+            "mu": mu,
             "lr": 1,
             "rank": 60,
             "line_search_fn": "armijo",
@@ -211,16 +288,14 @@ optimizer = [
     }
 ]
 
-nruns = 1
+print(mu)
 
-nncg_mus = (0.00001, 0.0001, 0.001, 0.01, 0.1)
+nruns = 1
 
 exp_dict_list = []
 
 for i in range(nruns):
-    for mu_i in nncg_mus:
-        optimizer[-1]["params"]["mu"] = mu_i
-        exp_dict_list.append(wave_1d_basic_experiment(i + 1, x_res, t_res, optimizer, beta=beta))
+    exp_dict_list.append(wave_1d_basic_experiment(i + 1, x_res, t_res, optimizer, beta=beta, exp=experiment))
 
 import pandas as pd
 
