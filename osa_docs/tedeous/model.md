@@ -1,0 +1,5 @@
+# Model
+
+
+
+::: tedeous.model

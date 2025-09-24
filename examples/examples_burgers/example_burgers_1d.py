@@ -24,6 +24,25 @@ mu = 0.01 / np.pi
 
 
 def burgers_1d_experiment(grid_res):
+    """
+    Conducts a 1D Burgers' equation experiment.
+    
+    This method sets up and runs a Physics-Informed Neural Network (PINN) experiment
+    to approximate the solution of the 1D Burgers' equation. It defines the domain,
+    boundary conditions, equation, neural network architecture, and training parameters.
+    The method then trains the model and evaluates its performance by calculating the
+    RMSE (Root Mean Squared Error) against an exact solution. This allows for assessing
+    the neural network's ability to learn and represent the underlying physics of the
+    Burgers' equation.
+    
+    Args:
+        grid_res: The resolution of the grid used for the domain.
+    
+    Returns:
+        list: A list containing a dictionary with experiment results, including
+            grid resolution, training time, RMSE, experiment type, and cache status.
+            This provides a summary of the experiment's performance and characteristics.
+    """
     exp_dict_list = []
 
     x_min, x_max = -1, 1

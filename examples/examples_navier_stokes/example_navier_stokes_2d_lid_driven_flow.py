@@ -24,6 +24,26 @@ mu = 0.01
 
 
 def navier_stokes_2d_lid_driven_flow_experiment(grid_res):
+    """
+    Performs a 2D lid-driven flow experiment using the Navier-Stokes equations.
+        
+        This method sets up and runs a simulation of the 2D lid-driven cavity flow problem
+        using a neural network to approximate the solution. It defines the domain, boundary
+        conditions, and the Navier-Stokes equations, then trains a neural network to solve
+        the system. Finally, it evaluates the performance of the trained network by
+        comparing its predictions to exact solutions and returns the RMSE values. This
+        allows for assessing the neural network's ability to accurately capture the fluid
+        dynamics of the lid-driven cavity flow.
+    
+        Args:
+            grid_res: The resolution of the grid used for the simulation domain.
+    
+        Returns:
+            A tuple containing three lists of dictionaries. Each list contains dictionaries
+            with experiment data for u, v, and p respectively. Each dictionary includes
+            the grid resolution, the execution time, the RMSE value, the experiment type,
+            and a boolean indicating whether caching was used.
+    """
     exp_dict_list_u, exp_dict_list_v, exp_dict_list_p = [], [], []
 
     x_min, x_max = 0, 1

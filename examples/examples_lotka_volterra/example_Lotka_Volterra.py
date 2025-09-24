@@ -149,6 +149,24 @@ print('Time taken = {}'.format(end - start))
 # scipy.integrate solution of Lotka_Volterra equations and comparison with NN results
 
 def deriv(X, t, alpha, beta, delta, gamma):
+    """
+    Calculates the derivatives of the Lotka-Volterra equations.
+        
+        This method computes the rate of change of predator and prey populations
+        based on the current population sizes and model parameters. These derivatives are essential for training a neural network to approximate the solution of the system of equations.
+        
+        Args:
+            X: A list or array containing the current prey and predator populations.
+            t: The current time (not used in the calculation, but required by the ODE solver).
+            alpha: The growth rate of the prey population.
+            beta: The predation rate.
+            delta: The death rate of the predator population.
+            gamma: The rate at which predators convert prey into new predators.
+        
+        Returns:
+            np.array: A NumPy array containing the derivatives of the prey and
+                predator populations (dotx, doty). These values represent the target outputs for the neural network during training.
+    """
     x, y = X
     dotx = x * (alpha - beta * y)
     doty = y * (-delta + gamma * x)

@@ -26,6 +26,23 @@ mu = 2 * torch.pi / 100
 
 
 def navier_stokes_2d_classic_experiment(grid_res):
+    """
+    Sets up and runs a 2D Navier-Stokes experiment with classic boundary conditions.
+        
+        This method defines the domain, boundary conditions, equation, and neural network
+        for solving the 2D Navier-Stokes equations. It then trains the model and
+        evaluates the results, returning a list of dictionaries containing the RMSE
+        for u, v, and p. This setup allows for approximating the solution of the Navier-Stokes equations using a neural network,
+        demonstrating the framework's capability to handle fluid dynamics problems.
+        
+        Args:
+            grid_res (int): The resolution of the grid.
+        
+        Returns:
+            tuple: A tuple containing three lists of dictionaries. Each list contains
+                dictionaries with the grid resolution, training time, RMSE, experiment
+                type, and cache status for the u, v, and p components, respectively.
+    """
     exp_dict_list_u, exp_dict_list_v, exp_dict_list_p = [], [], []
 
     x_min, x_max = 0, 4

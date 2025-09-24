@@ -42,6 +42,28 @@ from copy import deepcopy
 
 
 def Lotka_experiment(grid_res, CACHE):
+    """
+    Conducts a Lotka-Volterra experiment using a neural network solver.
+        
+        This method sets up and runs a Lotka-Volterra simulation using a neural
+        network to approximate the solution. It defines the domain, equations,
+        and boundary conditions, trains the network, and then compares the
+        network's solution to a solution obtained using `scipy.integrate.odeint`.
+        Finally, it generates a plot comparing the two solutions and returns a
+        dictionary containing experiment results. This comparison helps assess the
+        neural network's ability to accurately solve differential equations.
+    
+        Args:
+          grid_res (int): The resolution of the time grid.
+          CACHE (bool): A boolean indicating whether to use caching.
+    
+        Returns:
+          list: A list containing a dictionary with the experiment results,
+            including grid resolution, execution time, root mean squared error
+            (RMSE), experiment type, and cache usage. The RMSE value quantifies the
+            accuracy of the neural network solution compared to the established
+            `odeint` method.
+    """
     exp_dict_list = []
     solver_device('gpu')
 

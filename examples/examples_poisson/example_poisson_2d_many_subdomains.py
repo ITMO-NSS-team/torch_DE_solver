@@ -19,6 +19,28 @@ solver_device('gpu')
 data_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../PINNacle_data/poisson_manyarea.npy"))
 
 def poisson_2d_many_subdomains_experiment(grid_res):
+    """
+    Performs a 2D Poisson equation experiment on multiple subdomains.
+    
+        This method sets up and runs a Physics-Informed Neural Network (PINN)
+        experiment to solve the 2D Poisson equation on a domain split into
+        multiple subdomains. It defines the domain, boundary conditions,
+        equation, neural network architecture, and training procedure necessary
+        to approximate the solution of the differential equation using a neural network.
+        The method loads pre-computed coefficients for the equation and boundary
+        conditions from files. It then trains the neural network and evaluates
+        its performance using the Root Mean Squared Error (RMSE) to assess the
+        accuracy of the neural network's solution. This approach leverages neural networks
+        to find approximate solutions where analytical methods might be infeasible.
+    
+        Args:
+            grid_res (int): The resolution of the grid used for the domain.
+    
+        Returns:
+            list: A list containing a dictionary with the experiment results,
+                including grid resolution (int), training time (float), RMSE (float),
+                experiment type (str), and a flag indicating whether caching was used (bool).
+    """
     exp_dict_list = []
 
     x_min, x_max = -10, 10

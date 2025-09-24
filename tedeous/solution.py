@@ -20,6 +20,7 @@ class Solution():
     """
     class for different loss functions calculation.
     """
+
     def __init__(
         self,
         grid: torch.Tensor,
@@ -33,18 +34,24 @@ class Solution():
         derivative_points: int = 2,
         batch_size: int = None):
         """
-        Args:
-            grid (torch.Tensor): discretization of comp-l domain.
-            equal_cls (Union[Equation_NN, Equation_mat, Equation_autograd]): Equation_{NN, mat, autograd} object.
-            model (Union[torch.nn.Sequential, torch.Tensor]): model of *mat or NN or autograd* mode.
-            mode (str): *mat or NN or autograd*
-            weak_form (Union[None, list[callable]]): list with basis functions, if the form is *weak*.
-            lambda_operator (_type_): regularization parameter for operator term in loss.
-            lambda_bound (_type_): regularization parameter for boundary term in loss.
-            tol (float, optional): penalty in *casual loss*. Defaults to 0.
-            derivative_points (int, optional): points number for derivative calculation.
-            batch_size (int): size of batch.
-            For details to Derivative_mat class.. Defaults to 2.
+        Initializes the Solution class, preparing the components needed to solve the differential equation.
+        
+                This involves setting up the computational grid, defining the equation to be solved,
+                constructing the neural network model, and configuring the loss functions. The class
+                also handles the preparation of boundary conditions and the operator, ensuring that
+                all necessary elements are in place for the solution process.
+        
+                Args:
+                    grid (torch.Tensor): Discretization of the computational domain.
+                    equal_cls (Union[Equation_NN, Equation_mat, Equation_autograd]): Equation object defining the differential equation.
+                    model (Union[torch.nn.Sequential, torch.Tensor]): Neural network model used to approximate the solution.
+                    mode (str): Specifies the solution mode (*mat, NN, or autograd*).
+                    weak_form (Union[None, list[callable]]): List of basis functions for weak form solutions, if applicable.
+                    lambda_operator: Regularization parameter for the operator term in the loss function.
+                    lambda_bound: Regularization parameter for the boundary term in the loss function.
+                    tol (float, optional): Penalty value used in the *casual loss* calculation. Defaults to 0.
+                    derivative_points (int, optional): Number of points used for derivative calculation. Defaults to 2.
+                    batch_size (int, optional): Size of the batches used during training. Defaults to None.
         """
 
         self.grid = check_device(grid)
@@ -89,11 +96,15 @@ class Solution():
 
     @staticmethod
     def _operator_coeff(equal_cls: Any, operator: list):
-        """ Coefficient checking in operator.
-
-        Args:
-            equal_cls (Any): Equation_{NN, mat, autograd} object.
-            operator (list): prepared operator (result of operator_prepare())
+        """
+        Checks and transfers the coefficients of the differential equation operator to the appropriate device (CPU or GPU). This ensures that the coefficients are compatible with the device being used for neural network computations, preventing potential errors during the training or evaluation process.
+        
+                Args:
+                    equal_cls (Any): Equation_{NN, mat, autograd} object containing the differential equation definition.
+                    operator (list): Prepared operator (result of operator_prepare()) representing the terms of the equation.
+        
+                Returns:
+                    None
         """
         for i, _ in enumerate(equal_cls.operator):
             eq = equal_cls.operator[i]
@@ -107,11 +118,14 @@ class Solution():
                     eq[key]['coeff'] = eq[key]['coeff'].to(device_type())
 
     def _model_change(self, new_model: torch.nn.Module) -> None:
-        """Change self.model for class and *operator, boundary* object.
-            It should be used in cache_lookup and cache_retrain method.
-
-        Args:
-            new_model (torch.nn.Module): new self model.
+        """
+        Updates the neural network model used for solving the differential equation, ensuring consistency across different components. This method is called during cache updates to propagate the retrained model to the operator and boundary conditions.
+        
+                Args:
+                    new_model (torch.nn.Module): The updated neural network model.
+        
+                Returns:
+                    None
         """
         self.model = new_model
         self.operator.model = new_model
@@ -128,19 +142,18 @@ class Solution():
 
     def evaluate(self,
                  save_graph: bool = True) -> Tuple[torch.Tensor, torch.Tensor]:
-        """ Computes loss.
-
-        Args:
-            second_order_interactions (bool, optional): optimizer iteration
-            (serves only for computing adaptive lambdas). Defaults to True.
-            sampling_N (int, optional): parameter for accumulation of
-            solutions (op, bcs). The more sampling_N, the more accurate the
-            estimation of the variance (only for computing adaptive lambdas). Defaults to 1.
-            lambda_update (bool, optional): update lambda or not. Defaults to False.
-            save_graph (bool, optional): responsible for saving the computational graph. Defaults to True.
-
-        Returns:
-            Tuple[torch.Tensor, torch.Tensor]: loss
+        """
+        Computes the loss function for evaluating the neural network's solution to the differential equation.
+        
+                This method calculates the loss by comparing the network's output against the governing equations and boundary conditions.
+                The computed loss provides a measure of how well the neural network approximates the true solution of the differential equation.
+                It is a crucial step in the training process, guiding the network to refine its parameters and improve its accuracy in solving the equation.
+        
+                Args:
+                    save_graph (bool, optional): Determines whether to save the computational graph for visualization or debugging. Defaults to True.
+        
+                Returns:
+                    Tuple[torch.Tensor, torch.Tensor]: A tuple containing the computed loss and the normalized loss.
         """
         self.op = self.operator.operator_compute()
         self.bval, self.true_bval,\

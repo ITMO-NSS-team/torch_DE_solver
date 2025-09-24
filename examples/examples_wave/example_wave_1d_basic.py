@@ -20,12 +20,44 @@ solver_device('gpu')
 
 
 def exact_func_1(grid):
+    """
+    Computes the exact solution for a given grid.
+    
+    This function provides a ground truth for evaluating the performance of neural network models
+    trained to solve differential equations. By comparing the neural network's approximation
+    against this exact solution, the accuracy and effectiveness of the training process can be assessed.
+    
+    Args:
+        grid (torch.Tensor): A tensor of shape (N, 2) representing the grid points (x, t)
+            at which to evaluate the exact solution. The first column represents the spatial
+            coordinate 'x', and the second column represents the temporal coordinate 't'.
+    
+    Returns:
+        torch.Tensor: A tensor of shape (N,) containing the exact solution values evaluated
+            at the corresponding grid points. This represents the analytical solution to the
+            differential equation at the specified locations in space and time.
+    """
     x, t = grid[:, 0], grid[:, 1]
     sln = torch.cos(2 * np.pi * t) * torch.sin(np.pi * x)
     return sln
 
 
 def exact_func_2(grid, a=4):
+    """
+    Computes the exact solution for a given grid to validate the neural network's approximation.
+    
+        This method calculates the analytical solution based on the provided grid
+        coordinates (x, t) and a parameter 'a'. It uses sine and cosine functions
+        to determine the solution at each grid point, serving as a benchmark for
+        evaluating the neural network solver's accuracy.
+    
+        Args:
+            grid (torch.Tensor): A 2D tensor representing the grid coordinates (x, t).
+    
+        Returns:
+            torch.Tensor: The computed exact solution for the given grid. This is used
+                          to assess how well the neural network approximates the true solution.
+    """
     x, t = grid[:, 0], grid[:, 1]
     sln = torch.sin(np.pi * x) * torch.cos(2 * np.pi * t) + 0.5 * \
           torch.sin(a * np.pi * x) * torch.cos(2 * a * np.pi * t)
@@ -33,6 +65,24 @@ def exact_func_2(grid, a=4):
 
 
 def wave_1d_basic_experiment(grid_res):
+    """
+    Performs a basic 1D wave equation experiment.
+        
+        This method sets up and runs a simulation of the 1D wave equation using
+        a neural network-based solver. It defines the domain, initial and boundary
+        conditions, the equation itself, and the neural network architecture.
+        It then trains the network and evaluates the results, returning a
+        dictionary containing experiment details. This allows for testing the neural network's ability
+        to learn and approximate the solution to the wave equation under specified conditions.
+        
+        Args:
+            grid_res (int): The grid resolution for the spatial and temporal domains.
+        
+        Returns:
+            list: A list containing a dictionary with experiment results,
+                including grid resolution, training time, RMSE, experiment type,
+                and cache status.
+    """
     exp_dict_list = []
 
     x_min, x_max = 0, 1

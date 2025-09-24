@@ -24,6 +24,22 @@ A1, A2 = 20, 100
 
 
 def poisson_3d_complex_geometry_experiment(grid_res):
+    """
+    Performs a 3D Poisson equation experiment with complex geometry.
+        
+        This method sets up and runs a 3D Poisson equation experiment using a neural network,
+        domain definitions, boundary conditions, and a specified equation. The experiment
+        involves solving the Poisson equation within a domain containing complex geometric
+        features (specifically, circular removed domains) and evaluates the performance
+        of the neural network solution. This allows to test neural network-based solvers on more complex problems.
+        
+        Args:
+            grid_res: The resolution of the grid used for the domain.
+        
+        Returns:
+            list: A list containing a dictionary with experiment results, including grid resolution,
+                execution time, root mean squared error (RMSE), experiment type, and cache status.
+    """
     exp_dict_list = []
 
     x_min, x_max = 0, 1

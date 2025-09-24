@@ -48,6 +48,19 @@ x0 = 0.5
 
 
 def SOD_experiment(grid_res, CACHE):
+    """
+    Solves the Sod shock tube problem using a neural network to approximate the solution of the Euler equations.
+        This method sets up the domain, initial conditions, boundary conditions, and the governing Euler equations for the Sod shock tube test.
+        It then trains a neural network to approximate the solution and evaluates the accuracy of the solution using Root Mean Squared Error (RMSE).
+        The method is designed to demonstrate the application of neural networks in solving fluid dynamics problems.
+    
+        Args:
+            grid_res (int): The resolution of the spatial and temporal grid.
+            CACHE (bool): A flag indicating whether to use caching during training.
+    
+        Returns:
+            list: A list containing a dictionary with the experiment's results, including grid resolution, training time, RMSE, problem type, and cache usage.
+    """
     exp_dict_list = []
 
     domain = Domain()

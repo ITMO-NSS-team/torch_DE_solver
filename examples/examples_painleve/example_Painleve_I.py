@@ -18,6 +18,29 @@ solver_device('gpu')
 
 
 def p_I_exp(grid_res, nruns, CACHE):
+    """
+    Defines and solves the Legendre polynomial equation using a neural network.
+    
+        This method sets up the domain, boundary conditions, and the differential
+        equation for the Legendre polynomial. It then trains a neural network to
+        approximate the solution. The method evaluates the trained network against
+        a known solution and returns performance metrics. This process is repeated
+        for a specified number of runs to ensure the robustness of the solution.
+        The neural network is trained to learn the underlying patterns of the
+        differential equation, allowing it to approximate the solution.
+    
+        Args:
+            grid_res (int): The resolution of the grid used for training.
+            nruns (int): The number of training runs to perform.
+            CACHE (bool): A flag indicating whether to use caching.
+    
+        Returns:
+            list: A list of dictionaries, where each dictionary contains the results
+                  of a single training run, including grid resolution, training time,
+                  root mean squared error (RMSE), problem type, and cache usage.
+                  The RMSE is used to quantify how well the neural network solution
+                  approximates the analytical solution.
+    """
     exp_dict_list = []
 
     domain = Domain()

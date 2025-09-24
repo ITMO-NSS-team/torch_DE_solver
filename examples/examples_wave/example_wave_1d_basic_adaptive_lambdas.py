@@ -31,6 +31,25 @@ C = 2
 
 
 def func(grid):
+    """
+    Computes a solution component based on spatial and temporal coordinates using a neural network.
+        
+        It calculates a weighted sum of sine and cosine functions based on the
+        x and t coordinates extracted from the input grid, which represents the spatial and temporal
+        discretization of the differential equation's domain. This is done to approximate the solution
+        of the differential equation at specific points in space and time.
+        
+        Args:
+            grid (torch.Tensor): A 2D array containing the t and x coordinates.
+                Shape: (N, 2), where N is the number of grid points. The first column
+                represents the temporal coordinate (t), and the second column represents
+                the spatial coordinate (x).
+        
+        Returns:
+            torch.Tensor: The computed value based on the grid coordinates. This represents
+                the approximate solution of the differential equation at the given grid points.
+                Shape: (N,), where N is the number of grid points.
+    """
     x, t = grid[:, 1], grid[:, 0]
     return torch.sin(np.pi * x) * torch.cos(C * np.pi * t) + \
            A * torch.sin(2 * C * np.pi * x) * torch.cos(4 * C * np.pi * t)

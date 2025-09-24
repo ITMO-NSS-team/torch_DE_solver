@@ -28,12 +28,37 @@ m1, m2, m3 = 1, 5, 1
 
 
 def func(grid):
+    """
+    Computes the analytical solution of the differential equation at the given grid points.
+    
+        Args:
+            grid (torch.Tensor): A tensor of shape (N, 3) representing the grid points (x, y, t) where the solution is to be evaluated.
+    
+        Returns:
+            torch.Tensor: A tensor of shape (N,) containing the analytical solution values at the corresponding grid points. This provides a baseline for comparison with the neural network's approximation, allowing for evaluation of the network's performance in solving the differential equation.
+    """
     x, y, t = grid[:, 0], grid[:, 1], grid[:, 2]
     sln = A * torch.sin(np.pi * m1 * x) * torch.sin(np.pi * m2 * y) * torch.sin(np.pi * m3 * t)
     return sln
 
 
 def a_coeff(grid):
+    """
+    Calculates the 'a' coefficient based on the spatial grid locations.
+    
+        This method interpolates the 'a' coefficient from a pre-defined
+        dataset (`heat_2d_coef`) onto the given grid using nearest
+        neighbor interpolation. This is done to provide spatially varying coefficients
+        for the differential equation being solved by the neural network.
+    
+        Args:
+            grid (torch.Tensor): The grid data (spatial locations) for interpolation.
+    
+        Returns:
+            torch.Tensor: The interpolated 'a' coefficient values as a
+                torch.Tensor with an added dimension, representing the
+                spatially varying coefficient at each grid point.
+    """
     return -torch.tensor(
         interpolate.griddata(heat_2d_coef[:, :2],
                              heat_2d_coef[:, 2],
@@ -44,6 +69,26 @@ def a_coeff(grid):
 
 
 def heat_2d_varying_coeff_experiment(grid_res):
+    """
+    Performs a heat equation experiment with varying coefficients in 2D.
+        
+        This method sets up and runs a heat equation simulation with spatially
+        varying coefficients. It defines the domain, boundary conditions,
+        equation, neural network architecture, and training procedure. The
+        experiment tracks training time and root mean squared error (RMSE).
+        This experiment showcases the framework's ability to handle complex PDEs
+        by defining all necessary components for a neural network-based solver.
+        
+        Args:
+            grid_res (int): The resolution of the spatial grid.
+        
+        Returns:
+            list: A list containing a dictionary with experiment results,
+                including grid resolution, training time, RMSE, experiment type,
+                and a flag indicating whether caching was used. This information
+                is essential for evaluating the performance of the neural network
+                solver.
+    """
     exp_dict_list = []
 
     x_min, x_max = 0, 1

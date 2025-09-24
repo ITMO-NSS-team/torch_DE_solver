@@ -69,6 +69,23 @@ t0 = 0.
 tmax = 1.
 
 def exact(grid):
+    """
+    Calculates the solution of the Lotka-Volterra equations using `scipy.integrate.odeint`.
+    
+        This method provides a baseline for comparison, solving the equations
+        numerically to generate a reference solution on the given time grid.
+        This allows us to evaluate the accuracy and efficiency of neural network
+        approximations developed within the project.
+    
+        Args:
+            grid (torch.Tensor): The time grid on which to solve the equations.
+    
+        Returns:
+            np.ndarray: A NumPy array containing the x and y values of the
+            solution at each time point in the grid. The array has shape
+            (len(grid), 2), where the first column represents x and the
+            second column represents y.
+    """
     # scipy.integrate solution of Lotka_Volterra equations and comparison with NN results
 
     def deriv(X, t, alpha, beta, delta, gamma):
@@ -85,17 +102,53 @@ def exact(grid):
     return np.hstack((x.reshape(-1,1),y.reshape(-1,1)))
 
 def u(grid):
+    """
+    Solves a given differential equation by finding the exact solution and converting it into a tensor.
+    
+    This function is used to obtain a ground truth solution for comparison and validation of neural network-based solvers.
+    
+    Args:
+        grid: The spatial or temporal grid on which the differential equation is defined.
+    
+    Returns:
+        torch.Tensor: The exact solution of the differential equation, represented as a PyTorch tensor.
+    """
     solution=exact(grid)
     return torch.tensor(solution)
 
 
 def u_net(net, x):
+    """
+    Applies a neural network to an input and detaches the result for CPU-based differential equation solving.
+    
+        This method ensures that the neural network and input are processed on the CPU,
+        applies the network to the input, and detaches the result from the computation graph.
+        This is done to ensure compatibility and efficient computation when solving differential equations,
+        especially when GPU resources are limited or unnecessary.
+    
+        Args:
+            net: The neural network to apply.
+            x: The input to the neural network.
+    
+        Returns:
+            The output of the neural network, detached from the computation graph.
+    """
     net = net.to('cpu')
     x = x.to('cpu')
     return net(x).detach()
 
 
 def l2_norm(net, x):
+    """
+    Calculates the L2 norm to quantify the discrepancy between the neural network's predicted solution and the analytical solution for key physical quantities: pressure, velocity, and density. This provides a measure of the solution accuracy.
+    
+        Args:
+            net (torch.nn.Module): The trained neural network model used to approximate the solution.
+            x (torch.Tensor): The input data representing the spatial or temporal coordinates at which the solution is evaluated.
+    
+        Returns:
+            tuple (np.ndarray, np.ndarray, np.ndarray): A tuple containing the L2 norm for pressure, velocity, and density, respectively. These norms indicate the accuracy of the neural network's approximation for each quantity.
+    """
     x = x.to('cpu')
     net = net.to('cpu')
     predict = net(x).detach().cpu().reshape(-1)
@@ -109,6 +162,16 @@ def l2_norm(net, x):
     return l2_norm_pressure.detach().cpu().numpy(),l2_norm_velocity.detach().cpu().numpy(),l2_norm_density.detach().cpu().numpy()
 
 def l2_norm_mat(net, x):
+    """
+    Calculates the L2 norm between the neural network's prediction and the exact solution of the differential equation. This metric quantifies the accuracy of the neural network's approximation.
+    
+        Args:
+            net (torch.nn.Module): The neural network model used to approximate the solution.
+            x (torch.Tensor): The input tensor representing the spatial or temporal coordinates at which to evaluate the solution.
+    
+        Returns:
+            numpy.ndarray: The L2 norm between the network's prediction and the exact solution, as a NumPy array. It represents the overall error in the approximation.
+    """
     x = x.to('cpu')
     net = net.to('cpu')
     predict = net.detach().cpu().reshape(-1)
@@ -117,6 +180,20 @@ def l2_norm_mat(net, x):
     return l2_norm.detach().cpu().numpy()
 
 def l2_norm_fourier(net, x):
+    """
+    Computes the L2 norm between the network's prediction and the exact solution in Fourier space.
+    
+    This metric quantifies the accuracy of the neural network's solution
+    by comparing it against the true solution in the frequency domain.
+    A lower L2 norm indicates a better approximation of the solution.
+    
+    Args:
+        net (torch.nn.Module): The neural network model.
+        x (torch.Tensor): The input data tensor.
+    
+    Returns:
+        np.ndarray: The L2 norm between the prediction and the exact solution as a NumPy array.
+    """
     x = x.to(torch.device('cuda:0'))
     predict = net(x).detach().cpu().reshape(-1)
     exact = u(x).detach().cpu().reshape(-1)
@@ -127,6 +204,26 @@ def l2_norm_fourier(net, x):
 
 
 def LV_problem_formulation(grid_res):
+    """
+    Sets up the Lotka-Volterra problem for neural network-based solution.
+    
+    This method defines the problem's domain, initial conditions, and governing
+    equations, which are then used to construct the computational grid. This
+    setup is crucial for training a neural network to approximate the solution
+    of the Lotka-Volterra system. By formulating the problem in this way, we
+    prepare the data and structure needed for the neural network to learn the
+    underlying dynamics of the system.
+    
+    Args:
+        grid_res (int): The resolution of the time grid.
+    
+    Returns:
+        tuple: A tuple containing the grid, domain, equation, and boundaries.
+            - grid (torch.Tensor): The computational grid.
+            - domain (Domain): The domain of the problem.
+            - equation (Equation): The equation system.
+            - boundaries (Conditions): The boundary conditions.
+    """
     
     domain = Domain()
     domain.variable('t', [0, tmax], grid_res)
@@ -199,6 +296,20 @@ def LV_problem_formulation(grid_res):
 
 
 def experiment_data_amount_LV_adam_lbfgs_nncg(grid_res,exp_name='LV_adam_lbfgs_nncg'):
+    """
+    Performs an experiment to evaluate the performance of different optimization algorithms when solving the Lotka-Volterra equations with neural networks.
+    
+        This experiment trains a neural network model to approximate the solution of the Lotka-Volterra equations using Adam, LBFGS, and NNCG optimizers.
+        It assesses each optimizer's effectiveness by measuring training time and accuracy (RMSE) on training and test datasets.
+        This helps to understand how different optimization strategies affect the neural network's ability to learn the underlying dynamics of the differential equation.
+    
+        Args:
+            grid_res: The resolution of the grid used for training.
+            exp_name: The name of the experiment. Defaults to 'LV_adam_lbfgs_nncg'.
+    
+        Returns:
+            list: A list containing a dictionary with the results of the experiment, including training and testing errors, losses, and training times for each optimizer.
+    """
     solver_device('cuda')
     exp_dict_list = []
 

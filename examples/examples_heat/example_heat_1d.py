@@ -19,6 +19,20 @@ solver_device('cpu')
 
 
 def func(grid):
+    """
+    Calculates an approximate solution to a differential equation using a neural network.
+    
+        Args:
+          grid: A NumPy array representing the grid. The first column represents 'x' values (spatial domain),
+            and the second column represents 't' values (temporal domain). These values serve as inputs to the neural network.
+        
+        Returns:
+          A NumPy array representing the calculated solution. This is the neural network's approximation of the differential equation's solution at the given grid points.
+    
+        The method approximates the solution of a differential equation by leveraging a neural network.
+        The neural network learns the underlying function that satisfies the equation, and this method evaluates the trained network
+        at specific points in the spatial and temporal domain to provide an approximate solution.
+    """
     x, t = grid[:, 0], grid[:, 1]
     sln = 500 + x
     for i in range(1, 100):
@@ -29,6 +43,27 @@ def func(grid):
 
 
 def heat_experiment(grid_res, CACHE):
+    """
+    Defines and executes a heat equation experiment using a neural network to approximate the solution.
+    
+        This method sets up a heat equation problem with specified boundary and initial conditions,
+        defines a neural network model, trains it to approximate the solution, and evaluates the
+        model's performance. The heat equation is defined using a dictionary-based format that
+        specifies the terms and their corresponding coefficients and derivatives. The method then
+        trains a neural network to minimize the difference between the network's output and the
+        defined equation and boundary conditions. This approach leverages neural networks to find
+        approximate solutions to differential equations, offering a flexible alternative to traditional
+        numerical methods.
+    
+        Args:
+            grid_res (int): The resolution of the grid used for defining the domain and boundary conditions.
+            CACHE (bool): A flag indicating whether to use caching during training.
+    
+        Returns:
+            list: A list containing a dictionary with the results of the experiment, including the grid
+                  resolution, training time, root mean squared error (RMSE), equation type, and cache usage.
+                  This information is useful for comparing the performance of different experiment configurations.
+    """
     exp_dict_list = []
 
     domain = Domain()

@@ -18,6 +18,15 @@ solver_device('gpu')
 
 
 def exact_func(grid):
+    """
+    Calculates the analytical solution of the differential equation at specified points in space and time. This provides a benchmark for evaluating the accuracy of neural network-based solutions.
+    
+        Args:
+            grid (torch.Tensor): A tensor of shape (N, 3) representing the spatial and temporal coordinates (x, y, t) at which to evaluate the solution.
+    
+        Returns:
+            torch.Tensor: A tensor of shape (N,) containing the exact solution values at the corresponding grid points.
+    """
     x, y, t = grid[:, 0], grid[:, 1], grid[:, 2]
 
     sln = torch.sin(20 * np.pi * x) * torch.sin(np.pi * y) * \
@@ -27,6 +36,27 @@ def exact_func(grid):
 
 
 def heat_2d_multi_scale_experiment(grid_res):
+    """
+    Performs a 2D heat equation experiment with multi-scale grid resolution.
+        
+        This method sets up and runs a simulation of the 2D heat equation using
+        a neural network-based solver. It defines the domain, boundary conditions,
+        and equation, then trains a neural network to approximate the solution.
+        Finally, it evaluates the performance of the trained network by calculating
+        the root mean squared error (RMSE). This experiment serves as a benchmark
+        for assessing the neural network's ability to learn and approximate solutions
+        to partial differential equations. The results provide insights into the
+        effectiveness of the neural network architecture and training process for
+        solving the heat equation.
+        
+        Args:
+            grid_res: The grid resolution for the spatial dimensions.
+        
+        Returns:
+            list: A list containing a dictionary with the experimental results,
+                including grid resolution, training time, RMSE, experiment type,
+                and cache usage.
+    """
     exp_dict_list = []
 
     x_min, x_max = 0, 1

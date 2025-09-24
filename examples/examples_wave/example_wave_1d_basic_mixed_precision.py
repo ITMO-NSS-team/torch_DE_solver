@@ -27,6 +27,23 @@ result = {
 
 
 def experiment(device):
+    """
+    Sets up and runs a wave equation experiment to compare the impact of mixed precision training.
+    
+        This method configures the problem by defining the domain, boundary conditions,
+        governing equation, and neural network architecture. It then trains the model
+        with and without mixed precision to assess the performance difference. This
+        allows for evaluating the effectiveness of mixed precision in accelerating
+        the training process while maintaining solution accuracy.
+    
+        Args:
+            device (str): The device to run the experiment on (e.g., 'cuda' or 'cpu').
+    
+        Returns:
+            None: The results of the experiment (grid resolution, speedup, RMSE, and device)
+            are appended to the `result` dictionary. The method focuses on comparing the
+            performance of the neural network solver under different training precisions.
+    """
     solver_device(device)
     grid_res = 50
 

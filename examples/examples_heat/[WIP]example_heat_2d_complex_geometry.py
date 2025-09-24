@@ -20,6 +20,25 @@ solver_device('gpu')
 data_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../PINNacle_data/heat_complex.npy"))
 
 def heat_2d_complex_geometry_experiment(grid_res):
+    """
+    Performs a heat equation experiment on a 2D complex geometry.
+        
+        This method sets up and runs a heat equation simulation on a
+        rectangular domain with several circular obstacles removed. It defines
+        the domain, boundary conditions, PDE, neural network architecture,
+        training procedure, and evaluation metrics. The method leverages neural networks
+        to approximate the solution of the heat equation within the specified complex domain.
+        This approach allows for solving PDEs in complex geometries where traditional numerical
+        methods might be challenging to implement.
+        
+        Args:
+            grid_res: The resolution of the grid used for the simulation.
+    
+        Returns:
+            list: A list containing a dictionary with experiment results,
+                including grid resolution, execution time, RMSE, experiment type,
+                and cache usage.
+    """
     exp_dict_list = []
 
     x_min, x_max = -8, 8

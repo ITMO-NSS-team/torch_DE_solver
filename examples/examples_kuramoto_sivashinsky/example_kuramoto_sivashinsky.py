@@ -27,6 +27,20 @@ gamma = 100 / 16**4
 
 
 def kuramoto_sivashinsky_experiment(grid_res):
+    """
+    Performs a Kuramoto-Sivashinsky experiment using a neural network-based solver.
+        
+        This method sets up and runs a Kuramoto-Sivashinsky simulation, leveraging a neural network to approximate the solution of the PDE.
+        It defines the problem domain, initial conditions, governing equation, and network architecture. The model is then trained and its performance is evaluated
+        by comparing the neural network's solution to the exact solution. This demonstrates the application of neural networks for solving complex PDEs.
+        
+        Args:
+            grid_res (int): The grid resolution for the spatial and temporal domains, influencing the accuracy of the solution.
+        
+        Returns:
+            list: A list containing a dictionary with experiment results, including grid resolution, training time, RMSE, experiment type, and cache status.
+                 The RMSE value indicates the accuracy of the neural network's approximation compared to the exact solution.
+    """
     exp_dict_list = []
 
     x_min, x_max = 0, 2 * np.pi

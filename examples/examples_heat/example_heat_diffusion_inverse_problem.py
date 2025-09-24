@@ -21,6 +21,17 @@ data_file = os.path.abspath(os.path.join(os.path.dirname(__file__), '../PINNacle
 
 # Function u(x, y, t)
 def u_func(grid):
+    """
+    Calculates the analytical solution of the differential equation.
+    
+        This function provides a ground truth for evaluating the neural network's ability to approximate the solution.
+        
+        Args:
+            grid (torch.Tensor): A tensor of shape (N, 3) containing the spatial (x, y) and temporal (t) coordinates where the solution is to be evaluated.
+        
+        Returns:
+            torch.Tensor: A tensor of shape (N,) containing the analytical solution values at the corresponding coordinates.
+    """
     x, y, t = grid[:, 0], grid[:, 1], grid[:, 2]
     sln = torch.sin(np.pi * x) * torch.sin(np.pi * y) * torch.exp(-t)
     return sln
@@ -28,6 +39,28 @@ def u_func(grid):
 
 # Function a(x, y)
 def a_diffusion_coeff(grid):
+    """
+    Calculates a spatially varying diffusion coefficient.
+    
+        This method computes the diffusion coefficient 'a' based on spatial coordinates
+        (x, y) from the input grid. The coefficient is calculated using a formula
+        involving sine functions, allowing the diffusion to vary across the domain.
+        This is useful for modeling systems where diffusion properties are not uniform.
+    
+        Args:
+            grid (torch.Tensor): A 2D tensor where each row represents a spatial
+                coordinate (x, y).
+    
+        Returns:
+            torch.Tensor: The calculated diffusion coefficient 'a' as a tensor,
+                with values corresponding to each spatial location in the grid.
+                The negative of the diffusion coefficient is returned.
+    
+        WHY: The diffusion coefficient is calculated based on spatial coordinates to
+        model systems where diffusion properties vary across the domain, enabling
+        the neural network to learn and approximate solutions to differential
+        equations with spatially dependent parameters.
+    """
     x, y = grid[:, 0], grid[:, 1]
     a = 2 + torch.sin(np.pi * x) * torch.sin(np.pi * y)
     return -a
@@ -35,6 +68,20 @@ def a_diffusion_coeff(grid):
 
 # Source function f(x, y, t)
 def f_right_hand(grid):
+    """
+    Calculates the right-hand side of the differential equation.
+    
+        This function computes the value of the right-hand side of the differential
+        equation at a given point in space and time. This value is used to train the neural network
+        to approximate the solution of the differential equation. It leverages trigonometric functions
+        and exponential decay to define the equation's behavior.
+    
+        Args:
+            grid (torch.Tensor): A tensor of shape (N, 3) representing the spatial and temporal coordinates (x, y, t).
+    
+        Returns:
+            torch.Tensor: A tensor of shape (N,) representing the value of the right-hand side of the differential equation at each point.
+    """
     x, y, t = grid[:, 0], grid[:, 1], grid[:, 2]
     sin, cos, pi = torch.sin, torch.cos, np.pi
 

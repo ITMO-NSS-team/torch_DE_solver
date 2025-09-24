@@ -40,6 +40,17 @@ boundaries.operator({'t': 0}, bop2, value=2.17628)
 grid = domain.variable_dict['t'].reshape(-1,1)
 
 def t_func(grid):
+    """
+    Returns the input grid.
+    
+    This function serves as a basic placeholder or identity function within the differential equation solving process. It might be used as a default transformation or to pass the initial grid configuration without modification to subsequent steps in the neural network-based solver.
+    
+    Args:
+        grid (torch.Tensor): The input grid representing the domain of the differential equation.
+    
+    Returns:
+        torch.Tensor: The input grid, returned without any modifications.
+    """
     return grid
 
 # y_tt - 10*y_t + 9*y - 5*t = 0
@@ -111,6 +122,17 @@ optimizer = Optimizer('Adam', {'lr': 1e-4})
 model.train(optimizer, 1e5, save_model=True, callbacks=[cb_cache, cb_es, cb_plots, cb_lambda])
 
 def sln(t):
+    """
+    Calculates the analytical solution of the differential equation.
+    
+    This function provides a closed-form solution, enabling comparison with the neural network's approximation.
+    
+    Args:
+        t (torch.Tensor): The time point(s) at which to evaluate the solution.
+    
+    Returns:
+        torch.Tensor: The value(s) of the analytical solution at the given time point(s).
+    """
     return 50/81 + (5/9) * t + (31/81) * torch.exp(9*t) - 2 * torch.exp(t)
 
 plt.plot(grid.detach().cpu().numpy(), sln(grid).detach().cpu().numpy(), label='Exact')

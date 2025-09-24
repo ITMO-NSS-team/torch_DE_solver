@@ -23,7 +23,10 @@ from landscape_visualization._aux.utils import get_files, get_gridpoint_and_traj
 
 
 class VisualizationModel:
-    """Class for preprocessing"""
+    """
+    Class for preprocessing
+    """
+
 
     def __init__(self,
                  mode: str,
@@ -49,25 +52,33 @@ class VisualizationModel:
                  ):
 
         """
-        Args:
-            mode (str): The training mode for the model. Defaults to None.
-            num_of_layers (int): Number of layers in the autoencoder. Defaults to 3.
-            layers_AE (list): List specifying the structure of layers in the autoencoder. Defaults to None.
-            path_to_plot_model (str): Path where the plot model is saved. Defaults to an empty string.
-            path_to_trajectories (str, optional): Path to the directory containing trajectory data. Defaults to an empty string.
-            num_models (int, optional): Number of models to consider during training. Defaults to None.
-            from_last (bool, optional): Whether to use models starting from the last in the directory. Defaults to False.
-            prefix (str, optional): Prefix for identifying models in the directory. Defaults to 'model-'.
-            every_nth (int, optional): Consider every nth trajectory model. Defaults to 1.
-            grid_step (float, optional): Step size for grid generation in latent space. Defaults to 0.1.
-            d_max_latent (float, optional): Maximum distance in latent space for grid scaling. Defaults to 2.0.
-            anchor_mode (str, optional): Mode for anchor loss calculation. Defaults to 'circle'.
-            rec_weight (float, optional): Weight for reconstruction loss. Defaults to 1.0.
-            anchor_weight (float, optional): Weight for anchor loss. Defaults to 0.0.
-            lastzero_weight (float, optional): Weight for last-zero loss. Defaults to 0.0.
-            polars_weight (float, optional): Weight for polars loss. Defaults to 0.0.
-            wellspacedtrajectory_weight (float, optional): Weight for well-spaced trajectory loss. Defaults to 0.0.
-            gridscaling_weight (float, optional): Weight for grid-scaling loss. Defaults to 0.0.
+        Initializes the VisualizationModel for analyzing autoencoder performance in the context of differential equation solving.
+        
+                This class sets up the necessary components for visualizing and evaluating the learned latent space and reconstruction capabilities of an autoencoder, which is used to approximate solutions to differential equations. It configures data loading, model parameters, and visualization settings, allowing for detailed analysis of the autoencoder's behavior.
+        
+                Args:
+                    mode (str): The training mode for the model.
+                    num_of_layers (int): Number of layers in the autoencoder.
+                    layers_AE (list): List specifying the structure of layers in the autoencoder.
+                    path_to_plot_model (str): Path where the plot model is saved.
+                    path_to_trajectories (str, optional): Path to the directory containing trajectory data.
+                    num_models (int, optional): Number of models to consider during training.
+                    from_last (bool, optional): Whether to use models starting from the last in the directory.
+                    prefix (str, optional): Prefix for identifying models in the directory. Defaults to 'model-'.
+                    every_nth (int, optional): Consider every nth trajectory model. Defaults to 1.
+                    grid_step (float, optional): Step size for grid generation in latent space. Defaults to 0.1.
+                    d_max_latent (float, optional): Maximum distance in latent space for grid scaling. Defaults to 2.0.
+                    anchor_mode (str, optional): Mode for anchor loss calculation. Defaults to 'circle'.
+                    rec_weight (float, optional): Weight for reconstruction loss. Defaults to 1.0.
+                    anchor_weight (float, optional): Weight for anchor loss. Defaults to 0.0.
+                    lastzero_weight (float, optional): Weight for last-zero loss. Defaults to 0.0.
+                    polars_weight (float, optional): Weight for polars loss. Defaults to 0.0.
+                    wellspacedtrajectory_weight (float, optional): Weight for well-spaced trajectory loss. Defaults to 0.0.
+                    gridscaling_weight (float, optional): Weight for grid-scaling loss. Defaults to 0.0.
+                    device (str, optional): Device to run the model on (e.g., 'cuda' or 'cpu'). Defaults to None.
+        
+                Returns:
+                    None
         """
 
         self.mode = mode
@@ -124,10 +135,25 @@ class VisualizationModel:
     def get_files_and_compile_train_mode(self,
                                          batch_size: int = 32,
                                          solver_models: List[torch.nn.Module] = None):
-        """Get models files anf complile for training process.
-
-        Args:
-            batch_size (int, optional): Batch size for dataloader. Defaults to 32"""
+        """
+        Prepares the data loaders and compiles necessary information for training a neural network to solve differential equations.
+        
+                This method sets up the data loaders required for training the neural network model.
+                It handles loading trajectory data, and prepares additional data loaders based on enabled loss functions
+                such as anchor loss, last zero loss, polar loss, grid scaling loss, and well-spaced trajectory loss.
+                The method also determines the input dimension of the data, which is crucial for defining the network architecture.
+        
+                Args:
+                    batch_size (int, optional): Batch size for the data loader. Defaults to 32.
+                    solver_models (List[torch.nn.Module], optional): A list of pre-trained solver models.
+                        If provided, their state dictionaries are used to create the data loader. Defaults to None.
+        
+                Returns:
+                    int: The input dimension of the trajectory data, which is the size of each element in the dataset.
+        
+                WHY: This method is essential for setting up the training environment by preparing the data in a format suitable for the neural network.
+                It ensures that the data is loaded efficiently and that all necessary pre-processing steps are performed before training begins.
+        """
 
         if solver_models is None:
             pt_files = get_files(self.path_to_trajectories, self.num_models, prefix=self.prefix,
@@ -193,15 +219,21 @@ class VisualizationModel:
               callbacks: Union[List, None] = None,
               solver_models: List[torch.nn.Module] = None):
 
-        """Train model.
-
-        Args:
-        optimizer (Optimizer): The optimizer object.
-        epochs (int): The number of training epochs.
-        every_epoch (int): The frequency (in epochs) at which callbacks are triggered and logs are saved.
-        batch_size (int): The batch size for training.
-        resume (bool): A flag indicating whether to resume training from an existing model. If a model exists but `resume=False`, an error is raised.
-        callbacks (Union[List, None], optional): A list of callback objects used to manage the training process. Defaults to None.
+        """
+        Trains the autoencoder model to learn the underlying patterns in the data, which is crucial for representing the solutions of differential equations in a lower-dimensional space. This process involves feeding data through the autoencoder, calculating the loss between the input and its reconstruction, and updating the model's weights using the provided optimizer. The training loop iterates over the dataset, applying various loss functions and callbacks to monitor and adjust the training process.
+        
+                Args:
+                    optimizer (Optimizer): The optimizer object used for updating the model's weights.
+                    epochs (int): The number of training epochs to perform.
+                    every_epoch (int): The frequency (in epochs) at which callbacks are triggered and logs are saved.
+                    batch_size (int): The batch size for training.
+                    resume (bool): A flag indicating whether to resume training from an existing model. If a model exists but `resume=False`, an error is raised.
+                    finetune_AE_model (bool): A flag indicating whether to fine-tune the existing autoencoder model. Defaults to False.
+                    callbacks (Union[List, None], optional): A list of callback objects used to manage the training process. Defaults to None.
+                    solver_models (List[torch.nn.Module], optional): A list of solver models. Defaults to None.
+        
+                Returns:
+                    torch.nn.Module: The best autoencoder model if solver_models are provided, otherwise None.
         """
 
         input_dim = self.get_files_and_compile_train_mode(batch_size, solver_models=solver_models)

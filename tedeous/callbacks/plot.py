@@ -12,7 +12,10 @@ from tedeous.callbacks.callback import Callback
 
 
 class Plots(Callback):
-    """Class for plotting solutions."""
+    """
+    Class for plotting solutions.
+    """
+
 
     def __init__(self,
                  print_every: Union[int, None] = 500,
@@ -29,20 +32,25 @@ class Plots(Callback):
                  var_transpose: bool = False,
                  figsize: tuple = (15, 8)):
         """
-        Args:
-            print_every (Union[int, None], optional): print plots after every *print_every* steps. Defaults to 500.
-            save_every (Union[int, None], optional): save plots after every *print_every* steps. Defaults to 500.
-            title (str, optional): plots title. Defaults to None.
-            img_dir (str, optional): directory title where plots are being saved. Defaults to None.
-            img_dim (str, optional): image dimensionality ('2d', '3d', '4d'). Defaults to None.
-            scatter_flag (bool): whether to use scatter plot for plots. Defaults to False.
-            plot_axes (List[int], optional): the axes used to plot the graph. Defaults to None.
-            fixed_axes (List[int], optional): axes with fixed values. Defaults to None.
-            n_samples (int): number of fixed value samples. Defaults to 1.
-            img_rows (int, optional): the number of rows in the displays with plots. Defaults to None.
-            img_cols (int, optional): the number of cols in the displays with plots. Defaults to None.
-            var_transpose (bool): whether to transpose the axes of the variables. Defaults to False.
-            figsize (tuple): figure size. Defaults to (15, 8).
+        Initializes the Plots class with parameters for controlling plot generation and display during the training process. These parameters allow for customization of the plots, such as frequency of display and saving, titles, and directory locations. This customization is essential for monitoring the training progress of neural networks used to solve differential equations, providing insights into the model's behavior and solution accuracy.
+        
+                Args:
+                    print_every (Union[int, None], optional): Frequency (in steps) to display plots. Defaults to 500.
+                    save_every (Union[int, None], optional): Frequency (in steps) to save plots. Defaults to 500.
+                    title (str, optional): Title for the plots. Defaults to None.
+                    img_dir (str, optional): Directory to save the plots. Defaults to None.
+                    img_dim (str, optional): Dimensionality of the image data ('2d', '3d', '4d'). Defaults to None.
+                    scatter_flag (bool): Whether to use scatter plots. Defaults to False.
+                    plot_axes (List[int], optional): Axes to plot. Defaults to None.
+                    fixed_axes (List[int], optional): Axes with fixed values. Defaults to None.
+                    n_samples (int): Number of samples for fixed values. Defaults to 1.
+                    img_rows (int, optional): Number of rows in the plot grid. Defaults to None.
+                    img_cols (int, optional): Number of columns in the plot grid. Defaults to None.
+                    var_transpose (bool): Whether to transpose variable axes. Defaults to False.
+                    figsize (tuple): Figure size for the plots. Defaults to (15, 8).
+        
+                Returns:
+                    None
         """
         super().__init__()
         self.print_every = print_every if print_every is not None else 0.1
@@ -63,10 +71,17 @@ class Plots(Callback):
                            'layers': ['out_features', 'output_dim', 'width_out']}
 
     def _init_nvars_model(self) -> int:
-        """ Defines the number of model variables (neural network outputs).
-
+        """
+        Determines the number of output variables of the neural network model used to approximate the solution of the differential equation.
+        
+        This function attempts to infer the number of output variables based on the model's architecture and attributes.
+        It is crucial for correctly interpreting the model's output as a solution to the differential equation.
+        
+        Args:
+            self: The Plots class instance.
+        
         Returns:
-            int: number of output variables of the model.
+            int: The number of output variables of the model, which corresponds to the dimensionality of the solution space.
         """
         nvars_model = None
 
@@ -90,13 +105,20 @@ class Plots(Callback):
         return nvars_model 
 
     def filter_grid(self, fixed_values: List[float]) -> np.ndarray:
-        """ Filters a grid of points on fixed axes.
-
+        """
+        Filters the solution grid to extract points corresponding to specific values on the fixed axes.
+        
+        This is useful for analyzing the solution at particular states or conditions
+        defined by the fixed axes, allowing for a focused examination of the system's behavior.
+        
         Args:
-            fixed_values (List[float]): values of the fixed axes.
-
+            fixed_values (List[float]): A list of values, one for each fixed axis,
+                                        specifying the desired state.
+        
         Returns:
-            np.ndarray: filtered grid.
+            np.ndarray: A subset of the solution grid containing only the points
+                        where the fixed axes match the provided values. If no fixed
+                        axes are defined, the original grid is returned.
         """
         if self.fixed_axes is not None:
             for axis, value in zip(self.fixed_axes, fixed_values):
@@ -107,16 +129,23 @@ class Plots(Callback):
 
     def generate_plot_data(self, subgrid: np.ndarray, nparams: int, i_ax: int, j_ax: int
                            ) -> Tuple[np.ndarray, List[np.ndarray]]:
-        """ Generates data for plotting the graph.
-
-        Args:
-            subgrid (np.ndarray): a subset of the point grid.
-            nparams (int): the number of parameters in the model.
-            i_ax (int): index of the first axis.
-            j_ax (int): index of the second axis.
-
-        Returns:
-            Tuple[np.ndarray, List[np.ndarray]]: function values and list of grid coordinates.
+        """
+        Generates the data required for visualizing the neural network's solution to the differential equation on a specified subgrid.
+        
+                This function extracts the predicted values and corresponding grid coordinates from the trained neural network,
+                formatting them for plotting. It adapts to different model configurations, including single and multi-variable
+                scenarios, to ensure accurate representation of the solution surface. This is a crucial step in understanding
+                and validating how well the neural network approximates the true solution of the differential equation.
+        
+                Args:
+                    subgrid (np.ndarray): A subset of the point grid where the solution is evaluated.
+                    nparams (int): The number of parameters in the model, influencing how the output is processed.
+                    i_ax (int): Index of the first axis, used for selecting the appropriate network output in multi-variable cases.
+                    j_ax (int): Index of the second axis, also used for network output selection based on `var_transpose`.
+        
+                Returns:
+                    Tuple[np.ndarray, List[np.ndarray]]: A tuple containing the function values (solution approximations)
+                    and a list of grid coordinates corresponding to the plot axes.
         """
         lst_grid_axes = []
         n_plot_axes = nparams if len(self.plot_axes) is None else len(self.plot_axes)
@@ -140,14 +169,23 @@ class Plots(Callback):
         return u_values, lst_grid_axes
 
     def set_labels(self, i_ax: int, j_ax: int, ax: matplotlib.axes.Axes, nparams: int, fixed_values: list = None):
-        """ Sets the axis captions and chart header.
-
+        """
+        Configures the plot by setting axis labels and a title, which contextualize the visualization of the neural network's solution to the differential equation.
+        
         Args:
             i_ax (int): the row index of the subgraph.
             j_ax (int): the column index of the subgraph.
             ax (matplotlib.axes.Axes): the axis on which the graph is plotted.
             nparams (int): the number of grid parameters (dimensionality of the problem).
             fixed_values (list, optional): values of fixed parameters, if any. Defaults to None.
+        
+        Returns:
+            None: This method modifies the matplotlib axes object in place.
+        
+        Why:
+            This method ensures that each subplot within the visualization is properly labeled and titled,
+            providing clear context about the variables being plotted and any fixed parameter values.
+            This is crucial for interpreting the neural network's solution to the differential equation.
         """
         if nparams > 2 and fixed_values is not None:
             title = f"fixed at {'; '.join([f'x{key + 1} = {value} ' for key, value in dict(zip(self.fixed_axes, fixed_values)).items()])}"
@@ -167,15 +205,24 @@ class Plots(Callback):
 
     def _plot_img(self, i_ax: int, j_ax: int, fig: matplotlib.figure.Figure, ax: matplotlib.axes.Axes, nparams: int,
                   fixed_values: list = None):
-        """ Solution plot.
-
-        Args:
-            i_ax (int): the row index in the subgraph grid.
-            j_ax (int): the index of the column in the subgraph grid.
-            fig (matplotlib.figure.Figure): the matplotlib figure.
-            ax (matplotlib.axes.Axes): the axis on which the graph is plotted.
-            nparams (int): the number of input grid parameters.
-            fixed_values (list, optional): fixed values for axes, if any. Defaults to None.
+        """
+        Generates and displays a solution plot on a subplot within a larger figure.
+        
+                This method takes preprocessed data and the trained model to visualize the solution
+                of the differential equation. It supports 2D, 3D, and 4D plots, using scatter plots,
+                imshow, or trisurf plots depending on the dimensionality and user preferences.
+                Colorbars are added for higher-dimensional plots to represent the solution values.
+        
+                Args:
+                    i_ax (int): The row index of the subplot in the figure's grid.
+                    j_ax (int): The column index of the subplot in the figure's grid.
+                    fig (matplotlib.figure.Figure): The matplotlib figure object.
+                    ax (matplotlib.axes.Axes): The axes object for the current subplot.
+                    nparams (int): The number of parameters in the input grid.
+                    fixed_values (list, optional): A list of fixed values for certain parameters, used to create lower-dimensional slices of the solution space. Defaults to None.
+        
+                Returns:
+                    None: The method modifies the axes object in place to display the solution plot.
         """
         subgrid = self.filter_grid(fixed_values)
         u_values, grid = self.generate_plot_data(subgrid, nparams, i_ax, j_ax)
@@ -207,14 +254,25 @@ class Plots(Callback):
         self.set_labels(i_ax, j_ax, ax, nparams, fixed_values)
 
     def _dir_path(self, save_dir: str, suffix: str = "") -> str:
-        """ Path for save figures.
-
+        """
+        Generates a file path for saving a plot, ensuring the directory exists.
+        
+        This method determines the appropriate directory for saving a generated plot.
+        If a `save_dir` is provided, it uses that directory. Otherwise, it defaults
+        to a project-specific 'img' directory, creating it if it doesn't exist.
+        The file name includes a timestamp and optional suffix to ensure uniqueness,
+        facilitating the storage and organization of plots generated during the
+        differential equation solving process. This ensures that each generated
+        visualization can be saved and retrieved for analysis and comparison of
+        different solution approaches.
+        
         Args:
-            save_dir (str): directory where saves in
-            suffix (str): suffix for file name
-
+            save_dir (str, optional): The directory where the plot should be saved.
+                If None, a default directory within the project is used.
+            suffix (str, optional): A suffix to add to the filename. Defaults to "".
+        
         Returns:
-            str: directory where saves in
+            str: The absolute path to the file where the plot will be saved.
         """
         if save_dir is None:
             try:
@@ -235,7 +293,18 @@ class Plots(Callback):
         return directory
 
     def solution_print(self):
-        """ Printing or saving figures.
+        """
+        Generates and displays or saves visualizations of the neural network's solution at specified intervals.
+        
+                This method creates plots of the solution obtained by the neural network, allowing for visual inspection of the solution's behavior over time or space. The plots can be either displayed on the screen or saved to a file, depending on the configuration. The method adapts the plot dimensions and axes based on the dimensionality of the problem and the number of variables being visualized.
+        
+                Args:
+                    self: The object instance containing the model, grid, and plotting configurations.
+        
+                Returns:
+                    None. The method generates plots as a side effect.
+        
+                WHY: This method is essential for understanding and validating the neural network's solution. By visualizing the solution, users can assess its accuracy, identify potential issues, and gain insights into the underlying dynamics of the differential equation.
         """
 
         print_flag = self.model.t % self.print_every == 0
@@ -300,4 +369,18 @@ class Plots(Callback):
             plt.close()
 
     def on_epoch_end(self, logs=None):
+        """
+        Logs the state of the solution at the end of each epoch.
+        
+        This is done to track the progress of the neural network's approximation
+        of the differential equation's solution during training. By printing
+        the solution, we can observe how the network's output evolves over time
+        and assess its convergence towards the true solution.
+        
+        Args:
+            logs (dict, optional): The logs returned by the Keras model. Defaults to None.
+        
+        Returns:
+            None
+        """
         self.solution_print()

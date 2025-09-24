@@ -1,0 +1,5 @@
+# Ngd
+
+
+
+::: tedeous.optimizers.ngd

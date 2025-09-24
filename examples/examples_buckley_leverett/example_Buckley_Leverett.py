@@ -54,22 +54,99 @@ net = torch.nn.Sequential(
 )
 
 def k_oil(x):
+    """
+    Calculates the squared difference between the neural network's output and the ideal value of 1.
+    
+        This function penalizes deviations of the network's output from 1, encouraging the network to learn solutions that approach this target value. This is useful in the context of solving differential equations, where the network's output might represent an approximation of the solution, and we want to guide it towards a specific behavior.
+    
+        Args:
+            x (torch.Tensor): The input tensor to the neural network.
+    
+        Returns:
+            torch.Tensor: The squared difference between 1 and the neural network's output.
+    """
     return (1-net(x))**2
 
 def k_water(x):
+    """
+    Computes the squared output of the neural network for a given input.
+    
+    This function is used to calculate a component of the loss function, specifically focusing on the squared difference between the neural network's prediction and the desired behavior derived from the differential equation. Squaring the network's output can emphasize larger deviations from zero, potentially guiding the training process to find solutions that more closely satisfy the equation.
+    
+    Args:
+        x (torch.Tensor): The input value, representing the independent variable of the differential equation, to be passed through the neural network.
+    
+    Returns:
+        torch.Tensor: The square of the neural network's output for the given input 'x'. This represents a component of the loss, penalizing deviations from zero.
+    """
     return (net(x))**2
 
 def dk_water(x):
+    """
+    Calculates a scaled representation of the differential equation's solution.
+    
+    This function scales the output of the neural network, which approximates the solution
+    to a differential equation. The scaling factor of 2 is applied to refine the solution
+    obtained from the network.
+    
+    Args:
+        x: The input value, representing the independent variable of the differential equation.
+    
+    Returns:
+        The scaled output of the neural network (2 * net(x)), representing a refined
+        approximation of the differential equation's solution at the given input.
+    """
     return 2*net(x)
 
 def dk_oil(x):
+    """
+    Calculates a value based on the input 'x' and a neural network.
+    
+        This method computes a value by applying a neural network 'net' to the input 'x',
+        subtracting the result from 1, multiplying by -2, and returning the final value.
+        This transformation is applied to scale and shift the output of the neural network,
+        preparing it for use in solving differential equations. The scaling ensures that the
+        network's output contributes appropriately to the overall solution.
+    
+        Args:
+            x (torch.Tensor): The input value, typically representing a point in the domain of the differential equation, to be processed by the neural network.
+    
+        Returns:
+            torch.Tensor: The calculated value, representing a modified output of the neural network, ready for use in the differential equation solver.
+    """
     return -2*(1-net(x))
 
 def df(x):
+    """
+    Calculates the derivative of the fractional flow function with respect to the saturation.
+    
+        This derivative is a key component in determining the stability and behavior
+        of solutions when solving differential equations that model two-phase flow
+        using neural networks. It leverages derivatives and values of permeability
+        functions for water and oil, along with the viscosity ratio of water to oil,
+        to provide insights into the flow characteristics.
+    
+        Args:
+            x (float): The water saturation at which to evaluate the derivative.
+    
+        Returns:
+            float: The value of the derivative of the fractional flow function at the given saturation x.
+    """
     return (dk_water(x)*(k_water(x)+mu_water/mu_o*k_oil(x))-
             k_water(x)*(dk_water(x)+mu_water/mu_o*dk_oil(x)))/(k_water(x)+mu_water/mu_o*k_oil(x))**2
 
 def coef_model(x):
+    """
+    Calculates the coefficient based on the derivative of the function `f` at a given point.
+    
+    This coefficient is used to adjust the optimization process, guiding the neural network towards a solution that satisfies the differential equation.
+    
+    Args:
+        x (float): The input value at which the derivative is evaluated.
+    
+    Returns:
+        float: The calculated coefficient value. It represents the scaled derivative of `f` at `x`.
+    """
     return -Q/Sq*df(x)
 
 equation = Equation()

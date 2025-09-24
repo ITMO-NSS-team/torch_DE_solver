@@ -24,6 +24,17 @@ c1, c2 = 1, 1
 
 
 def exact_func(grid):
+    """
+    Computes the exact analytical solution of the differential equation on the given grid.
+    
+        This provides a benchmark for evaluating the accuracy of neural network-based solutions.
+    
+        Args:
+            grid (torch.Tensor): A tensor representing the spatial (x, y) and temporal (t) coordinates where the solution is to be evaluated. The shape is expected to be (N, 3), where N is the number of points.
+    
+        Returns:
+            torch.Tensor: A tensor containing the exact solution values at each point in the input grid. The shape is (N,).
+    """
     x, y, t = grid[:, 0], grid[:, 1], grid[:, 2]
     sln = c1 * torch.sin(m1 * torch.pi * x) * torch.sinh(n1 * torch.pi * y) * torch.cos(p1 * torch.pi * t) + \
           c2 * torch.sinh(m2 * torch.pi * x) * torch.sin(n2 * torch.pi * y) * torch.cos(p2 * torch.pi * t)
@@ -31,6 +42,23 @@ def exact_func(grid):
 
 
 def wave2d_multi_scale_long_time_experiment(grid_res):
+    """
+    Performs a 2D wave equation experiment with multi-scale and long-time simulation.
+        
+        This method sets up and runs a simulation of the 2D wave equation
+        over a specified domain and time period. It defines the domain,
+        boundary conditions, and the wave equation itself. A neural network
+        is then trained to approximate the solution, and the results are
+        evaluated based on the Root Mean Squared Error (RMSE). This allows to find a neural network-based approximation of the wave equation's solution.
+    
+        Args:
+            grid_res: The resolution of the grid used for the simulation domain.
+    
+        Returns:
+            list: A list containing a dictionary with experiment results,
+                including grid resolution, computation time, RMSE, experiment type,
+                and cache status.
+    """
     exp_dict_list = []
 
     x_min, x_max = 0, 1

@@ -19,10 +19,34 @@ a = 4
 
 
 def u(x, a):
+    """
+    Computes the sine of a scaled input, a crucial step in many neural network-based differential equation solvers for introducing non-linearity.
+    
+        Args:
+            x (torch.Tensor): The input tensor, representing the independent variable.
+            a (float): The scaling factor applied to the input.
+    
+        Returns:
+            torch.Tensor: The sine of (pi * a * x), which serves as a basis function in the neural network's approximation of the differential equation's solution.
+    """
     return torch.sin(torch.pi * a * x)
 
 
 def u_xx(x, a):
+    """
+    Computes the second-order derivative of a sine function.
+    
+    This function calculates the second-order derivative, which is crucial
+    for evaluating the Laplacian term in differential equations.
+    
+    Args:
+        x (torch.Tensor): The input value.
+        a (float): A scaling factor.
+    
+    Returns:
+        torch.Tensor: The second-order derivative of the sine function
+        evaluated at x.
+    """
     return (torch.pi * a) ** 2 * torch.sin(torch.pi * a * x)
 
 

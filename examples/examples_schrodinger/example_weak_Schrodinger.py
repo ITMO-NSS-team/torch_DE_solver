@@ -158,6 +158,22 @@ net = torch.nn.Sequential(
 
 # torch.ones_like(grid[:,0]) + torch.cos(grid[:,0] + grid[:,1])  # for more accurate in more time
 def v(grid):
+    """
+    Computes the cosine of the sum of the first two columns of a grid.
+    
+    This operation is useful as a simple transformation within the neural network-based differential equation solver.
+    Specifically, it can serve as a component within a larger model designed to learn and approximate solutions
+    to differential equations by transforming input data.
+    
+    Args:
+        grid (torch.Tensor): A tensor representing the grid, where each row corresponds to a point in the domain
+            and each column represents a different variable or coordinate.
+    
+    Returns:
+        torch.Tensor: A tensor containing the cosine of the sum of the first two columns of the input grid.
+            This represents a transformed feature that can be used by subsequent layers in a neural network
+            to approximate the solution of a differential equation.
+    """
     return torch.cos(grid[:, 0] + grid[:, 1])
 
 

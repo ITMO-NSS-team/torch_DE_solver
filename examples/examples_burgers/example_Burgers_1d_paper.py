@@ -21,6 +21,28 @@ from tedeous.optimizers.optimizer import Optimizer
 
 
 def solver_burgers(grid_res, cache_flag, optimizer, iterations):
+    """
+    Solves the Burgers' equation using a neural network.
+    
+        This method employs a neural network to approximate the solution of the Burgers' equation,
+        leveraging the capabilities of PyTorch for defining, training, and evaluating the model.
+        It configures the problem domain, applies boundary conditions, defines the equation, and
+        constructs a neural network model. The model is then trained using a specified optimizer
+        and a set number of iterations. The root mean squared error (RMSE) between the network's
+        prediction and the exact solution is calculated to evaluate the accuracy of the approximation.
+        This approach allows for flexible and efficient solving of differential equations by
+        training neural networks to learn the solution behavior.
+    
+        Args:
+            grid_res (int): The resolution of the spatial and temporal grid.
+            cache_flag (bool): A boolean indicating whether to use caching during training.
+            optimizer (str or list): The optimizer to use for training (e.g., 'Adam', 'LBFGS'). Can also be a list of optimizers.
+            iterations (int): The number of training iterations.
+    
+        Returns:
+            list: A list containing a dictionary with the grid resolution, training time,
+                  RMSE, type of solver, and cache flag.
+    """
     exp_dict_list = []
     start = time.time()
     mu = 0.01 / np.pi
@@ -121,6 +143,30 @@ def solver_burgers(grid_res, cache_flag, optimizer, iterations):
 
 
 def deepxde_burgers(grid_res, optimizer, iterations):
+    """
+    Solves the Burgers' equation using the DeepXDE library.
+    
+        This method leverages neural networks to approximate the solution of the Burgers' equation,
+        demonstrating the application of neural network-based solvers for differential equations.
+        It configures and trains a neural network using DeepXDE, defining the problem's PDE,
+        geometry, boundary, and initial conditions. The model is trained with a specified optimizer
+        and number of iterations, and the accuracy of the solution is evaluated using the root mean
+        squared error (RMSE) against the exact solution. This process showcases how neural networks
+        can be trained and evaluated for solving differential equations.
+    
+        Args:
+            grid_res (int): The resolution of the spatial and temporal grid, influencing the granularity
+                of the solution space.
+            optimizer (str or list): The optimizer to use for training. If a list is provided, Adam is used first,
+                followed by L-BFGS, allowing for a combination of optimization strategies.
+            iterations (int): The number of iterations to train the model for, determining the extent of the
+                model's learning process.
+    
+        Returns:
+            list: A list containing a dictionary with the results of the experiment, including the grid resolution,
+                training time, RMSE, model type, and optimizer. This provides a comprehensive summary of the
+                experiment's performance and configuration.
+    """
     exp_dict_list = []
     start = time.time()
     domain = (grid_res + 1) ** 2 - (grid_res + 1) * 4
@@ -179,6 +225,23 @@ def deepxde_burgers(grid_res, optimizer, iterations):
 
 
 def exact(grid):
+    """
+    Computes the exact solution of a partial differential equation on a given grid.
+    
+        This method serves as a ground truth by calculating the exact solution
+        using numerical integration with predefined functions. This allows for comparison
+        with the neural network's approximate solution, enabling evaluation of the
+        network's performance in solving the differential equation.
+    
+        Args:
+            grid: A list of tuples representing the grid points where the solution
+                is to be evaluated. Each tuple contains the x and t coordinates
+                of a point.
+    
+        Returns:
+            torch.tensor: A tensor containing the exact solution values at the
+                specified grid points.
+    """
     mu = 0.01 / np.pi
 
     def f(y):

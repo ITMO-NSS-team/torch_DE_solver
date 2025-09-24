@@ -20,7 +20,10 @@ from tedeous.device import device_type
 
 
 class Model():
-    """class for preprocessing"""
+    """
+    class for preprocessing
+    """
+
 
     def __init__(
             self,
@@ -31,12 +34,20 @@ class Model():
             batch_size: int = None
     ):
         """
-        Args:
-            net (Union[torch.nn.Module, torch.Tensor]): neural network or torch.Tensor for mode *mat*
-            grid (Domain): object of class Domain
-            equation (Equation): object of class Equation
-            conditions (Conditions): object of class Conditions
-            batch_size (int): size of batch
+        Initializes the Model class, preparing it for solving differential equations using a neural network. This involves setting up the network, problem domain, equation, and boundary conditions. The initialization also configures a temporary directory for caching intermediate results during the solution process.
+        
+                Args:
+                    net (Union[torch.nn.Module, torch.Tensor]): The neural network to be trained, or a torch.Tensor for matrix-based approaches.
+                    domain (Domain): The spatial or temporal domain over which the differential equation is defined.
+                    equation (Equation): The differential equation to be solved.
+                    conditions (Conditions): The boundary and initial conditions associated with the differential equation.
+                    batch_size (int, optional): The size of the batch used during training. Defaults to None.
+        
+                Returns:
+                    None
+                
+                Why:
+                This initialization sets up all necessary components for solving the differential equation with a neural network, including the network architecture, problem definition, and training configurations.
         """
         self.net = net
         self.domain = domain
@@ -66,25 +77,24 @@ class Model():
             weak_form: List[callable] = None,
             tol: float = 0,
             removed_domains: list = None):
-        """ Compile model for training process.
-
-        Args:
-            mode (str): *mat, NN, autograd*
-            lambda_operator (Union[List[float], float]): weight for operator term.
-            It can be float for single equation or list of float for system.
-            lambda_bound (Union[List[float], float]): weight for boundary term.
-            It can be float for all types of boundary cond-ns or list of float for every condition type.
-            normalized_loss_stop (bool, optional): loss with lambdas=1. Defaults to False.
-            h (float, optional): increment for finite-difference scheme only for *NN*. Defaults to 0.001.
-            inner_order (str, optional): order of finite-difference scheme *'1', '2'* for inner points.
-            Only for *NN*. Defaults to '1'.
-            boundary_order (str, optional): order of finite-difference scheme *'1', '2'* for boundary points.
-            Only for *NN*. Defaults to '2'.
-            derivative_points (int, optional): number of points for finite-difference scheme in *mat* mode.
-            if derivative_points=2 the central scheme are used. Defaults to 2.
-            weak_form (List[callable], optional): basis function for weak loss. Defaults to None.
-            tol (float, optional): tolerance for causual loss. Defaults to 0.
-            removed_domains (list): domains to be removed from the grid. Defaults to None.
+        """
+        Compiles the model by preparing the computational domain, defining the equation and boundary conditions, and initializing the appropriate solver. This process sets up the model for the training loop, enabling the approximation of differential equation solutions using neural networks.
+        
+                Args:
+                    mode (str): Specifies the computational mode (*mat*, *NN*, or *autograd*) to determine the method for solving the differential equation.
+                    lambda_operator (Union[List[float], float]): Weight(s) for the operator term in the loss function, controlling the regularization of the equation. Can be a single float for a single equation or a list of floats for a system of equations.
+                    lambda_bound (Union[List[float], float]): Weight(s) for the boundary term in the loss function, controlling the enforcement of boundary conditions. Can be a single float for all boundary condition types or a list of floats for each condition type.
+                    normalized_loss_stop (bool, optional): If True, the loss is normalized with lambdas set to 1. Defaults to False.
+                    h (float, optional): Increment for the finite-difference scheme, used only in *NN* mode. Defaults to 0.001.
+                    inner_order (str, optional): Order of the finite-difference scheme (*'1'* or *'2'*) for inner points, used only in *NN* mode. Defaults to '1'.
+                    boundary_order (str, optional): Order of the finite-difference scheme (*'1'* or *'2'*) for boundary points, used only in *NN* mode. Defaults to '2'.
+                    derivative_points (int, optional): Number of points for the finite-difference scheme in *mat* mode. If set to 2, the central scheme is used. Defaults to 2.
+                    weak_form (List[callable], optional): List of basis functions for the weak formulation of the loss. Defaults to None.
+                    tol (float, optional): Tolerance for the penalty in the *casual loss*. Defaults to 0.
+                    removed_domains (list): List of domains to be removed from the grid. Defaults to None.
+        
+                Returns:
+                    None
         """
         self.mode = mode
         self.lambda_bound = lambda_bound
@@ -116,11 +126,21 @@ class Model():
             self,
             save_model: bool,
             model_name: str):
-        """ Model saving.
-
+        """
+        Saves the trained neural network model.
+        
+        This method persists the learned parameters of the neural network,
+        allowing for later use without retraining. The saving mechanism
+        depends on the configured mode (e.g., 'mat' for MATLAB-compatible format
+        or a PyTorch-native format). This ensures that the trained solution
+        to the differential equation can be easily reused or deployed.
+        
         Args:
-            save_model (bool): save model or not.
-            model_name (str): model name.
+            save_model (bool): A flag indicating whether to save the model.
+            model_name (str): The desired name for the saved model file.
+        
+        Returns:
+            None
         """
         if save_model:
             if self.mode == 'mat':
@@ -139,16 +159,24 @@ class Model():
               save_model: bool = False,
               model_name: Union[str, None] = None,
               callbacks: Union[List, None] = None):
-        """ train model.
-
-        Args:
-            optimizer (Optimizer): the object of Optimizer class
-            epochs (int): number of epoch for training.
-            info_string_every (Union[int, None], optional): print loss state after *info_string_every* epoch. Defaults to None.
-            mixed_precision (bool, optional): apply mixed precision for calculation. Defaults to False.
-            save_model (bool, optional): save resulting model in cache. Defaults to False.
-            model_name (Union[str, None], optional): model name. Defaults to None.
-            callbacks (Union[List, None], optional): callbacks for training process. Defaults to None.
+        """
+        Trains the neural network to approximate the solution of a differential equation.
+        
+                The training process involves iteratively refining the network's parameters using the provided optimizer and closure function.
+                Callbacks are used to monitor and control the training process, allowing for actions such as early stopping or logging.
+                The method evaluates the loss and updates the model's weights to minimize the difference between the predicted and actual solutions.
+        
+                Args:
+                    optimizer (Optimizer): The optimizer instance used to update the network's weights.
+                    epochs (int): The number of training epochs to perform.
+                    info_string_every (Union[int, None], optional):  (Deprecated) Print loss state after *info_string_every* epoch. Defaults to None.
+                    mixed_precision (bool, optional): Whether to use mixed precision training for faster computation. Defaults to False.
+                    save_model (bool, optional): Whether to save the trained model to the cache. Defaults to False.
+                    model_name (Union[str, None], optional): The name to use when saving the model. Defaults to None.
+                    callbacks (Union[List, None], optional): A list of callbacks to execute during training. Defaults to None.
+        
+                Returns:
+                    None
         """
 
         self.t = 1

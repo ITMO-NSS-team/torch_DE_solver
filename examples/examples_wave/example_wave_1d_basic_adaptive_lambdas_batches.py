@@ -31,6 +31,30 @@ C = 2
 
 
 def func(grid):
+    """
+    Computes the solution to a differential equation at specific points using a neural network.
+    
+        This method leverages trigonometric functions to represent a component
+        of the neural network's approximation of the solution, using the input grid
+        as coordinates in the problem domain.
+    
+        Args:
+            grid (torch.Tensor): A 2D array where each row represents a point
+                `(t, x)` in the domain. `t` and `x` are coordinates.
+    
+        Returns:
+            torch.Tensor: The computed value, representing the neural network's
+                approximation of the solution at the given grid points. This value
+                is calculated as a weighted sum of sine and cosine functions
+                evaluated at the `x` and `t` coordinates.
+    
+        Why:
+        This function contributes to the neural network's ability to approximate
+        solutions to differential equations by mapping coordinates to solution values
+        through a combination of trigonometric functions. The grid represents the
+        points at which the solution is being evaluated, and the output is the
+        neural network's estimate of the solution at those points.
+    """
     x, t = grid[:, 1], grid[:, 0]
     return torch.sin(np.pi * x) * torch.cos(C * np.pi * t) + \
            A * torch.sin(2 * C * np.pi * x) * torch.cos(4 * C * np.pi * t)

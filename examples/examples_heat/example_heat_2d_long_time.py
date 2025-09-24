@@ -25,6 +25,23 @@ m1, m2, k = 4, 2, 1
 
 
 def heat_2d_long_time_experiment(grid_res):
+    """
+    Performs a 2D heat equation experiment over a long time period.
+    
+        This method sets up and runs a simulation of the 2D heat equation with
+        specified boundary and initial conditions. It leverages a neural network
+        to approximate the solution, assessing the approximation quality using RMSE.
+        This approach allows for solving the heat equation without relying on traditional
+        numerical methods, offering a potentially more efficient alternative for complex scenarios.
+    
+        Args:
+            grid_res: The resolution of the grid used for the simulation.
+    
+        Returns:
+            list: A list containing a dictionary with experiment results,
+                including grid resolution, computation time, RMSE, experiment type,
+                and cache usage.
+    """
     exp_dict_list = []
 
     x_min, x_max = 0, 1

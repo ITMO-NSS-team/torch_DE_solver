@@ -88,6 +88,15 @@ net = torch.nn.Sequential(
 
 
 def v(grid):
+    """
+    Computes a solution component based on the input grid, leveraging a cosine transformation of the first column and a direct addition of the second. This operation is a fundamental step in constructing a neural network-based approximation of a differential equation's solution, where each column might represent different variables or parameters of the equation.
+    
+        Args:
+            grid (torch.Tensor): A 2D tensor where each column represents a variable or parameter of the differential equation.
+    
+        Returns:
+            torch.Tensor: A tensor containing the computed values, representing a component of the approximated solution.
+    """
     return torch.cos(grid[:, 0]) + grid[:, 1]
 
 

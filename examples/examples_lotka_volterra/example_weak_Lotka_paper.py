@@ -41,6 +41,24 @@ tmax = 1.
 
 
 def Lotka_experiment(grid_res, CACHE):
+    """
+    Performs a Lotka-Volterra experiment using a neural network to approximate the solution of differential equations.
+        
+        This method sets up and runs a Lotka-Volterra experiment, comparing the neural network solution
+        to the solution obtained using scipy.integrate.odeint. It defines the domain, equations,
+        and boundary conditions, then trains a neural network to approximate the solution. Finally,
+        it calculates the RMSE between the NN solution and the exact solution and generates a plot
+        comparing the two. This process demonstrates the use of neural networks to find approximate solutions
+        for differential equations, offering an alternative to traditional numerical methods.
+    
+        Args:
+            grid_res: The resolution of the time grid.
+            CACHE: A boolean indicating whether to use caching during training.
+        
+        Returns:
+            list: A list containing a dictionary with experiment results, including grid resolution,
+                training time, RMSE, experiment type, and cache usage.
+    """
     exp_dict_list = []
 
     domain = Domain()

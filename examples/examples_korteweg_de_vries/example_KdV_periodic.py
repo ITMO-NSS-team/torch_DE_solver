@@ -20,6 +20,18 @@ exp_dict_list = []
 
 
 def soliton(x,t):
+    """
+    Calculates the solution of a soliton equation at a given spatial position and time.
+    This function leverages a predefined mathematical formulation to estimate the state
+    of the system, providing a numerical approximation of the soliton's behavior.
+    
+    Args:
+        x (torch.Tensor): The spatial position at which to evaluate the soliton.
+        t (torch.Tensor): The time at which to evaluate the soliton.
+    
+    Returns:
+        torch.Tensor: The calculated value of the soliton at the given position and time.
+    """
     E=np.exp(1)
     s=((18*torch.exp((1/125)*(t + 25*x))*(16*torch.exp(2*t) +
        1000*torch.exp((126*t)/125 + (4*x)/5) + 9*torch.exp(2*x) + 576*torch.exp(t + x) +
@@ -28,6 +40,16 @@ def soliton(x,t):
     return s
 
 def soliton_x(x,t):
+    """
+    Calculates the value of a soliton solution at a given point in space and time using a neural network-based approximation. This function is used to evaluate the trained model's prediction of the solution.
+    
+        Args:
+            x (float): The spatial coordinate.
+            t (float): The time coordinate.
+    
+        Returns:
+            float: The value of the soliton solution at the given (x, t) as predicted by the neural network.
+    """
     E=np.exp(1)
     s1=-(18*E**((1/125)*(t + 25*x))*(-640*E**((376*t)/125) +
      288*E**(3*t + x/5) - 200000*E**((252*t)/125 + (4*x)/5) +

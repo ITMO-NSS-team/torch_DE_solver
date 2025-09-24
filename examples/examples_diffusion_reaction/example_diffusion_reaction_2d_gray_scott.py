@@ -25,6 +25,31 @@ epsilon_2 = 5e-6
 
 
 def DR_2d_gray_scott_experiment(grid_res):
+    """
+    Sets up and runs a 2D Gray-Scott diffusion-reaction experiment using a neural network to approximate the solution.
+        
+        This method defines the domain, initial conditions, equations, and neural
+        network architecture for solving the Gray-Scott equations in 2D. It then
+        trains the model and evaluates its performance by calculating the RMSE
+        between the predicted and exact solutions for u and v. This approach leverages neural networks to learn the underlying solution manifold of the differential equation.
+    
+        Args:
+            grid_res (int): The resolution of the grid for the domain.
+    
+        Returns:
+            tuple[list[dict], list[dict]]: A tuple containing two lists of dictionaries. The first list contains
+            dictionaries with experiment data for 'u', and the second list contains
+            dictionaries with experiment data for 'v'. Each dictionary includes the
+            grid resolution, training time, RMSE, experiment type, and a flag
+            indicating whether caching was used.
+    
+        Why:
+            This method approximates the solution to the Gray-Scott equations using a neural network.
+            By training a neural network to satisfy the differential equation and boundary conditions,
+            we can obtain a continuous representation of the solution over the domain. This is particularly
+            useful for complex equations where analytical solutions are not available or computationally expensive.
+            The RMSE is calculated to quantify the accuracy of the neural network's approximation.
+    """
     exp_dict_list_u, exp_dict_list_v = [], []
 
     x_min, x_max = -1, 1

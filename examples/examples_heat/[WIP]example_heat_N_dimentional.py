@@ -16,14 +16,62 @@ solver_device('gpu')
 
 
 def x_norm(grid):
+    """
+    Computes the squared Euclidean norms of the input vectors, excluding the last component.
+    
+        This function calculates the squared Euclidean norm for each vector in the input grid,
+        excluding the last element of each vector. This is useful for computing distance-related
+        features or scaling factors in the context of solving differential equations, where
+        the last component might represent a time variable or another independent parameter.
+    
+        Args:
+            grid (torch.Tensor): A tensor of shape (N, M) representing a set of N vectors, each with M components.
+    
+        Returns:
+            torch.Tensor: A tensor of shape (N, 1) containing the squared Euclidean norms of the input vectors,
+                          excluding the last component.
+    """
     return (grid[:, :-1] ** 2).sum(axis=1).reshape(-1, 1)
 
 
 def g_x(grid):
+    """
+    Calculates a Gaussian function based on the normalized input grid, which is then used as a component in the neural network's solution of a differential equation.
+    
+        The method normalizes the input grid, applies an exponential function,
+        and incorporates the last column of the grid. This Gaussian function contributes to the overall approximation
+        of the differential equation's solution by the neural network.
+    
+        Args:
+            grid (torch.Tensor): The input grid representing the domain of the differential equation.
+    
+        Returns:
+            torch.Tensor: The result of applying the Gaussian function to the grid, contributing to the neural network's solution.
+    """
     return torch.exp(x_norm(grid) / 2 + grid[:, -1:])
 
 
 def bop_generation(coeff_x, i_dim):
+    """
+    Generates a dictionary representing a Bilinear Operator (BOP) for the neural network-based differential equation solver.
+    
+    This method constructs a dictionary that defines a bilinear operator,
+    specifically for terms involving 'alpha * u' and 'beta * nx_i * du/dx_i'.
+    It sets the coefficients, terms, and powers associated with each part
+    of the operator. This operator is used to define the structure of the
+    differential equation within the neural network solver.
+    
+    Args:
+        coeff_x (float): Coefficient for the 'beta * nx_i * du/dx_i' term.
+        i_dim (int): The dimension index 'i' for the 'beta * nx_i * du/dx_i' term,
+                 representing the spatial dimension in the differential equation.
+    
+    Returns:
+        dict: A dictionary representing the Bilinear Operator (BOP) with
+        the 'alpha * u' and 'beta * nx_i * du/dx_i' terms defined. This
+        dictionary is used to specify the differential equation's structure
+        to the neural network solver.
+    """
     bop = {
         'alpha * u':
             {
@@ -89,6 +137,19 @@ equation = Equation()
 
 
 def forcing_term(grid):
+    """
+    Calculates the forcing term for a given grid.
+    
+        The forcing term is computed as the negative product of a constant `k`,
+        the L2 norm of the grid coordinates, and the function `g_x` evaluated at the grid.
+        This term is crucial for shaping the solution learned by the neural network, guiding it towards satisfying the differential equation.
+    
+        Args:
+            grid (torch.Tensor): The grid on which to calculate the forcing term.
+    
+        Returns:
+            torch.Tensor: The calculated forcing term.
+    """
     return -k * x_norm(grid) * g_x(grid)
 
 
