@@ -23,6 +23,25 @@ mu = 0.01
 
 
 def navier_stokes_2d_back_step_flow_experiment(grid_res):
+    """
+    Performs a 2D Navier-Stokes back step flow experiment.
+        
+        This method sets up and runs a simulation of 2D Navier-Stokes
+        equations for a back step flow scenario using a neural network. 
+        It defines the domain, boundary conditions, equations, and neural 
+        network model, then trains the model and evaluates its performance
+        by comparing the predicted solution to the exact solution. This 
+        allows for assessing the neural network's ability to approximate 
+        the solution of the differential equation.
+        
+        Args:
+            grid_res: The grid resolution for the simulation domain.
+        
+        Returns:
+            tuple: A tuple containing three lists of dictionaries. Each list
+                contains experiment data for u, v, and p respectively, including
+                grid resolution, training time, RMSE, type, and cache flag.
+    """
     exp_dict_list_u, exp_dict_list_v, exp_dict_list_p = [], [], []
 
     x_min, x_max = 0, 4

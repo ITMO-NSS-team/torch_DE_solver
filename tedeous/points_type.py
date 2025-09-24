@@ -10,26 +10,37 @@ class Points_type():
     """
     Discretizing the grid and allocating subsets for Finite Difference method.
     """
+
     def __init__(self, grid: torch.Tensor):
         """
-        Args:
-            grid (torch.Tensor): discretization points of comp-l domain.
+        Initializes the `Points_type` object with a grid of discretization points. These points represent the domain over which the differential equation is approximated using a neural network.
+        
+                Args:
+                    grid (torch.Tensor): Discretization points of the domain where the differential equation is approximated.
+        
+                Returns:
+                    None
         """
 
         self.grid = grid
 
     @staticmethod
     def shift_points(grid: torch.Tensor, axis: int, shift: float) -> torch.Tensor:
-        """ Shifts all values of an array 'grid' on a value 'shift' in a direction of
-        axis 'axis', somewhat is equivalent to a np.roll.
-
+        """
+        Adjusts the discretization grid by shifting points along a specified axis.
+        
+        This function modifies the grid by adding a 'shift' value to all points along the given 'axis'.
+        This is useful for exploring the solution space of differential equations by slightly perturbing
+        the discretization and observing the impact on the neural network's learned solution.
+        
         Args:
-            grid (torch.Tensor): discretization of comp-l domain.
-            axis (int): axis to which the shift is applied.
-            shift (float): shift value.
-
+            grid (torch.Tensor): Discretization of the domain. Each row represents a point, and each column
+                                 represents a dimension.
+            axis (int): The axis (dimension) along which to apply the shift.
+            shift (float): The value by which to shift the points along the specified axis.
+        
         Returns:
-            torch.Tensor: shifted array of a n-D points.
+            torch.Tensor: A new tensor representing the shifted grid.
         """
 
         grid_shift = grid.clone()
@@ -38,17 +49,24 @@ class Points_type():
 
     @staticmethod
     def _in_hull(p: torch.Tensor, hull: torch.Tensor) -> np.ndarray:
-        """ Test if points in `p` are in `hull`
-        `p` should be a `NxK` coordinates of `N` points in `K` dimensions
-        `hull` is either a scipy.spatial.Delaunay object or the `MxK` array of the
-        coordinates of `M` points in `K`dimensions for which Delaunay triangulation
-        will be computed.
+        """
+        Checks if points `p` lie within the convex hull defined by `hull`.
+        
+        This function determines whether a set of points lies within a defined boundary,
+        which is crucial for evaluating the accuracy and stability of neural network solutions
+        to differential equations. By verifying that the solution points remain within a valid
+        region, we can assess the reliability of the neural network's approximation.
+        
         Args:
-            p (torch.Tensor): shifted array of a n-D points.
-            hull (torch.Tensor): initial array of a n-D points.
+            p (torch.Tensor): A tensor of shape (N, K) representing N points in K dimensions.
+            hull (torch.Tensor): A tensor of shape (M, K) representing the coordinates of M points
+                in K dimensions, which define the convex hull. It can also be a
+                scipy.spatial.Delaunay object.
+        
         Returns:
-            np.ndarray: array of a n-D boolean type points.
-            True - if 'p' in 'hull', False - otherwise.
+            np.ndarray: A boolean array of shape (N,) indicating whether each point in `p`
+                lies within the convex hull defined by `hull`. True indicates that the point
+                is inside the hull, and False indicates that it is outside.
         """
 
         if p.shape[1] > 1:
@@ -64,13 +82,24 @@ class Points_type():
             return np.array(((p.cpu() <= upbound) & (p.cpu() >= lowbound)).reshape(-1))
 
     def point_typization(self) -> dict:
-        """ Allocating subsets for FD (i.e., 'f', 'b', 'central').
-
-        Returns:
-            dict: type with a points in a 'grid' above. Type may be 'central' - inner point
-            and string of 'f' and 'b', where the length of the string is a dimension n. 'f' means that if we add
-            small number to a position of corresponding coordinate we stay in the 'hull'. 'b' means that if we
-            subtract small number from o a position of corresponding coordinate we stay in the 'hull'.
+        """
+        Identifies the type of each point in the grid based on its proximity to the solution boundary.
+        
+                This method determines whether a point is an interior point ('central') or a boundary point.
+                For boundary points, it identifies the directions ('f' for forward, 'b' for backward) in which
+                small perturbations would keep the point within the solution space. This classification aids in
+                understanding the behavior of the neural network solution near the boundaries and in refining the
+                solution accuracy.
+        
+                Args:
+                    self: The instance of the Points_type class containing the grid of points.
+        
+                Returns:
+                    dict: A dictionary where keys are the points in the grid (NumPy arrays) and values are their types.
+                          The type can be 'central' for interior points or a string of 'f' and 'b' characters for
+                          boundary points. The length of the string corresponds to the dimension of the grid, where
+                          'f' indicates that a small positive change in the corresponding coordinate keeps the point
+                          within the solution space, and 'b' indicates that a small negative change does.
         """
 
         direction_list = []
@@ -106,10 +135,16 @@ class Points_type():
         return point_type
 
     def grid_sort(self) -> dict:
-        """ Sorting grid points for each subset from result Points_type.point_typization.
-
-        Returns:
-            dict: sorted grid in each subset (see Points_type.point_typization).
+        """
+        Sorts the grid points based on their classification, grouping them into subsets.
+        
+                This method is crucial for organizing the solution space, enabling targeted analysis and refinement of the neural network's approximation within specific regions of the problem domain. By segregating points based on their characteristics, the solver can better understand and address local variations in the differential equation's solution.
+        
+                Args:
+                    self: An instance of the `Points_type` class containing the grid points and their properties.
+        
+                Returns:
+                    dict: A dictionary where keys are the point types and values are tensors containing the corresponding grid points. This structured organization facilitates subsequent processing and analysis of the solution.
         """
 
         point_type = self.point_typization()
@@ -125,16 +160,24 @@ class Points_type():
         return grid_dict
 
     def bnd_sort(self, grid_dict: dict, b_coord: Union[torch.Tensor, list]) -> list:
-        """ Sorting boundary points
-
-        Args:
-            grid_dict (dict): _description_
-            b_coord (Union[torch.Tensor, list]): boundary points of grid.
-            It will be list if periodic condition is.
+        """
+        Sorts boundary points into a dictionary based on their correspondence to grid points.
         
-        Returns:
-            list: bnd_dict is similar to grid_dict but with b_coord values. It
-            will be list of 'bnd_dict's if 'b_coord' is list too.
+                This function organizes boundary points by associating them with specific grid locations.
+                This is useful for applying boundary conditions when solving differential equations using neural networks.
+        
+                Args:
+                    grid_dict (dict): A dictionary where keys represent grid identifiers and values are tensors
+                                     representing the coordinates of grid points.
+                    b_coord (Union[torch.Tensor, list]): Boundary points. If the problem has periodic boundary
+                                                          conditions, this will be a list of tensors, each
+                                                          representing a boundary.
+        
+                Returns:
+                    list: A list of dictionaries (or a single dictionary if 'b_coord' is a tensor). Each dictionary
+                          maps grid identifiers to the corresponding boundary points located at those grid
+                          locations. Returns a list of such dictionaries when dealing with periodic boundary
+                          conditions (i.e., when 'b_coord' is a list).
         """
 
         def bnd_to_dict(grid_dict, b_coord):

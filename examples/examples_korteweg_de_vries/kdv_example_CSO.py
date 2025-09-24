@@ -28,6 +28,18 @@ mu = 0.01 / np.pi
 
 
 def soliton(x,t):
+    """
+    Calculates the solution of a soliton equation at a given spatial position and time.
+    This function leverages a predefined mathematical formulation to estimate the state
+    of the system, providing a numerical approximation of the soliton's behavior.
+    
+    Args:
+        x (torch.Tensor): The spatial position at which to evaluate the soliton.
+        t (torch.Tensor): The time at which to evaluate the soliton.
+    
+    Returns:
+        torch.Tensor: The calculated value of the soliton at the given position and time.
+    """
     E=np.exp(1)
     s=((18*torch.exp((1/125)*(t + 25*x))*(16*torch.exp(2*t) +
        1000*torch.exp((126*t)/125 + (4*x)/5) + 9*torch.exp(2*x) + 576*torch.exp(t + x) +
@@ -37,6 +49,22 @@ def soliton(x,t):
 
 
 def u(grid):
+    """
+    Calculates the soliton solution at given points to evaluate the neural network's approximation.
+    
+        This method iterates through a grid of (x, t) points, computes the soliton
+        value at each point using the analytical `soliton` function, and returns a
+        tensor of these solutions. This provides a ground truth for comparison
+        against the neural network's predicted solution.
+    
+        Args:
+            grid: A list of points, where each point is a tuple (x, t) representing
+                the spatial and temporal coordinates.
+    
+        Returns:
+            torch.Tensor: A tensor containing the soliton solutions for each point in the grid.
+                These values serve as the analytical solution for evaluating the neural network.
+    """
     solution = []
     for point in grid:
         x = point[0]
@@ -47,12 +75,38 @@ def u(grid):
 
 
 def u_net(net, x):
+    """
+    Applies a neural network to an input and detaches the result for CPU-based differential equation solving.
+    
+        This method ensures that both the network and the input are processed on the CPU,
+        applies the network to the input, and then detaches the result
+        from the computation graph. This is done to ensure compatibility and
+        efficiency when solving differential equations, as it avoids potential
+        GPU memory issues and ensures consistent performance across different systems.
+    
+        Args:
+            net: The neural network to apply.
+            x: The input to the neural network.
+    
+        Returns:
+            The output of the neural network, detached from the computation graph.
+    """
     net = net.to('cpu')
     x = x.to('cpu')
     return net(x).detach()
 
 
 def l2_norm(net, x):
+    """
+    Calculates the L2 norm between the neural network's approximation and the analytical solution. This metric quantifies the accuracy of the neural network in solving the differential equation by measuring the difference between the predicted solution and the true solution.
+    
+        Args:
+            net: The neural network model used to approximate the solution.
+            x: The input tensor representing the domain over which the solution is approximated.
+    
+        Returns:
+            numpy.ndarray: The L2 norm, a scalar value representing the overall error in the approximation, returned as a NumPy array.
+    """
     x = x.to('cpu')
     net = net.to('cpu')
     predict = net(x).detach().cpu().reshape(-1)
@@ -62,6 +116,20 @@ def l2_norm(net, x):
 
 
 def l2_norm_mat(net, x):
+    """
+    Calculates the L2 norm between the neural network's prediction and the exact solution of the differential equation.
+    
+        This metric quantifies the accuracy of the neural network's approximation
+        by measuring the difference between the predicted solution and the true solution.
+        It helps assess how well the network has learned to solve the differential equation.
+        
+        Args:
+            net (torch.nn.Module): The neural network model used to approximate the solution.
+            x (torch.Tensor): The input tensor representing the spatial or temporal domain of the differential equation.
+        
+        Returns:
+            numpy.ndarray: The L2 norm between the network's prediction and the exact solution, as a NumPy array.
+    """
     x = x.to('cpu')
     net = net.to('cpu')
     predict = net.detach().cpu().reshape(-1)
@@ -71,6 +139,19 @@ def l2_norm_mat(net, x):
 
 
 def l2_norm_fourier(net, x):
+    """
+    Computes the L2 norm in Fourier space to evaluate the accuracy of the neural network's solution compared to the exact solution.
+    
+        This metric quantifies the difference between the predicted and actual solutions in the frequency domain,
+        providing insights into how well the network captures the underlying dynamics of the differential equation.
+    
+        Args:
+            net: The neural network model used to approximate the solution.
+            x: The input tensor representing the spatial or temporal domain of the differential equation.
+    
+        Returns:
+            np.ndarray: The L2 norm between the prediction and the exact solution in Fourier space as a NumPy array.
+    """
     x = x.to(torch.device('cuda:0'))
     predict = net(x).detach().cpu().reshape(-1)
     exact = u(x).detach().cpu().reshape(-1)
@@ -79,6 +160,17 @@ def l2_norm_fourier(net, x):
 
 
 def kdv_problem_formulation(grid_res):
+    """
+    Applies initial conditions to the KdV equation at t=0. This step is crucial for defining the starting state of the system,
+    allowing the neural network to learn the solution's evolution over time. By setting the initial state using a known soliton solution,
+    we provide a well-defined starting point for the solver to approximate the solution of the KdV equation.
+    
+    Args:
+        grid_res (int): Resolution of the grid.
+    
+    Returns:
+        tuple: A tuple containing the grid, domain, equation, and boundaries.
+    """
     domain = Domain()
     domain.variable('x', [-10, 10], grid_res)
     domain.variable('t', [0, 1], grid_res)
@@ -131,6 +223,23 @@ def kdv_problem_formulation(grid_res):
 
 
 def experiment_data_amount_kdv_PSO(grid_res, exp_name='kdv_PSO', save_plot=True):
+    """
+    Compares the performance of Adam and PSO optimizers in solving the KdV equation using a neural network.
+    
+    This method sets up the KdV problem, trains a neural network model using both Adam and PSO, and then evaluates
+    their effectiveness based on training time, loss values, and error metrics. The goal is to assess how well each
+    optimizer can minimize the error between the neural network's solution and the analytical solution of the KdV equation.
+    
+    Args:
+        grid_res (int): The resolution of the grid used for solving the KdV equation.
+        exp_name (str, optional): The name of the experiment. Defaults to 'kdv_PSO'.
+        save_plot (bool, optional): A boolean indicating whether to save plots. Defaults to True.
+    
+    Returns:
+        list: A list containing a dictionary with the experimental results. The dictionary includes training time,
+            loss, and error metrics for both Adam and PSO optimizers, allowing for a direct comparison of their performance
+            in solving the KdV equation.
+    """
     solver_device('cuda')
     exp_dict_list = []
 
@@ -243,6 +352,26 @@ def experiment_data_amount_kdv_PSO(grid_res, exp_name='kdv_PSO', save_plot=True)
 
 
 def experiment_data_amount_kdv_CSO(grid_res, exp_name='kdv_CSO', save_plot=True):
+    """
+    Performs an experiment comparing Adam and CSO optimizers for solving the KdV equation.
+        
+        This method trains a neural network model to approximate the solution of the KdV equation
+        using both Adam and CSO optimizers. By comparing these optimizers, the experiment aims
+        to evaluate their effectiveness in training neural networks to solve differential equations.
+        The evaluation is based on training and testing errors, loss values, computational time,
+        and an integrated operator value. This helps to understand the performance characteristics
+        of different optimization strategies within the neural differential equation solving framework.
+        
+        Args:
+            grid_res: The grid resolution for the spatial domain.
+            exp_name: The name of the experiment (default: 'kdv_CSO').
+            save_plot: A boolean indicating whether to save plots (default: True).
+        
+        Returns:
+            list: A list containing a dictionary with the experiment results, including
+            training and testing errors for both Adam and CSO, loss values,
+            computational times, and integrated operator values.
+    """
     solver_device('cuda')
     exp_dict_list = []
 

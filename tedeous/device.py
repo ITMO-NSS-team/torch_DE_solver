@@ -5,12 +5,18 @@ import torch
 
 
 def solver_device(device: str):
-    """ Corresponding to chosen device, all futher
-        created tensors will be with the same device
-
+    """
+    Sets the default device (CPU or CUDA) for subsequent PyTorch tensor operations.
+    
+    This ensures that all tensors created after calling this function will reside on the specified device, 
+    streamlining the process of utilizing available hardware resources for solving differential equations.
+    
     Args:
-        device (str): device mode, **cuda, gpu, cpu*.
-
+        device (str):  Desired device mode ('cuda', 'gpu', or 'cpu').  If 'cuda' or 'gpu' are specified and CUDA is available, 
+                       the device is set to CUDA; otherwise, it defaults to CPU.
+    
+    Returns:
+        None: This function does not return any value, but sets the default device for PyTorch.
     """
     if device in ['cuda', 'gpu'] and torch.cuda.is_available():
         print('CUDA is available and used.')
@@ -24,14 +30,22 @@ def solver_device(device: str):
 
 
 def check_device(data: Any):
-    """ checking the device of the data.
-        If the data.device is not same with torch.set_default_device,
-        change one.
+    """
+    Ensures that the input data (either a tensor or something convertible to a tensor) resides on the expected device.
+    
+        This is crucial for maintaining consistency in computations within the neural network solver,
+        preventing device-related errors during training and evaluation. By ensuring all data is on the
+        same device, we guarantee compatibility during tensor operations.
+    
     Args:
-        data (Any): it could be model or torch.Tensors
-
+        data (Any): The input data, which can be a PyTorch tensor or a data structure that can be converted into a tensor.
+    
     Returns:
-        data (Any): data with correct device
+        Any: The input data, converted to a PyTorch tensor and moved to the correct device if necessary.
+             If the input is already a tensor on the correct device, it is returned unchanged.
+    
+    Raises:
+        TypeError: If the input data cannot be converted to a PyTorch tensor.
     """
     device = torch.tensor([0.]).device
     if isinstance(data, torch.Tensor):
@@ -47,7 +61,18 @@ def check_device(data: Any):
 
 
 def device_type():
-    """ Return the default device.
+    """
+    Return the default device type used for computations.
+    
+    This is important for ensuring that the neural network models and data
+    are on the same device, enabling efficient training and inference
+    when approximating solutions to differential equations.
+    
+    Args:
+        None
+    
+    Returns:
+        str: The type of the default device (e.g., 'cpu' or 'cuda').
     """
     return torch.tensor([0.]).device.type
 

@@ -16,6 +16,19 @@ from tedeous.device import solver_device, check_device
 
 
 def exact_solution(grid):
+    """
+    Computes the reference solution on the given grid by interpolating precomputed data.
+    
+        This method leverages a precomputed, high-fidelity solution stored in a `.mat` file.
+        It then uses nearest neighbor interpolation to map this solution onto the user-provided grid.
+        This provides a benchmark for evaluating the accuracy of neural network-based solvers.
+        
+        Args:
+            grid: The grid on which to evaluate the exact solution. This grid represents the points in the domain where the solution is desired.
+        
+        Returns:
+            torch.Tensor: The exact solution evaluated on the given grid. This serves as a reference for comparison with the neural network's approximation.
+    """
     grid = grid.to('cpu').detach()
     test_data = scipy.io.loadmat(os.path.abspath(
         os.path.join(os.path.dirname( __file__ ), '../wolfram_sln/buckley_exact.mat')))
@@ -46,6 +59,22 @@ t_end = 1.
 
 
 def experiment(grid_res, mode):
+    """
+    Sets up and executes a PINN-based experiment to solve the Buckley-Leverett equation.
+    
+        This method configures the problem domain, boundary conditions, network architecture,
+        and training procedure required to approximate the solution of the Buckley-Leverett equation.
+        It trains the neural network using Adam and PSO optimizers and evaluates the accuracy
+        of the obtained solution. This process leverages neural networks to learn the underlying
+        physics of the equation, providing an alternative to traditional numerical methods.
+    
+        Args:
+            grid_res: Resolution of the spatial and temporal grid.
+            mode: The mode for building the domain (e.g., 'NN' or 'FEM').
+    
+        Returns:
+            torch.nn.Sequential: The trained neural network.
+    """
     
     domain = Domain()
 

@@ -133,6 +133,24 @@ end = time.time()
 
 
 def exact():
+    """
+    Calculates the exact solution of the Lotka-Volterra equations using scipy.integrate.odeint.
+    
+        This method serves as a benchmark by providing the analytical solution to the Lotka-Volterra equations,
+        obtained using `scipy.integrate.odeint`. This solution is crucial for evaluating the accuracy and
+        performance of neural network-based solvers implemented within this project. By comparing the neural
+        network solutions to this exact solution, we can assess the effectiveness of different network architectures
+        and training methodologies.
+    
+        Args:
+            None: The method uses predefined global variables (x0, y0, alpha, beta, delta, gamma, tmax, Nt)
+                  to define the Lotka-Volterra system and the time span for integration.
+    
+        Returns:
+            np.ndarray: A 2D NumPy array containing the solutions for the prey (x) and predator (y) populations
+                over time. The first row represents the prey population, and the second row represents the
+                predator population.
+    """
     # scipy.integrate solution of Lotka_Volterra equations and comparison with NN results
 
     def deriv(X, t, alpha, beta, delta, gamma):

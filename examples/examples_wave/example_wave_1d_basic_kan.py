@@ -32,12 +32,49 @@ solver_device('gpu')
 
 
 def func(grid):
+    """
+    Computes the solution to a differential equation on a given grid.
+    
+    This function calculates the analytical solution of the differential equation
+    at specific grid points. This is useful for validating the neural network's
+    approximation by comparing it against the known exact solution.
+    
+    Args:
+        grid (torch.Tensor): A tensor of shape (N, 2) representing the grid points
+            (x, t) at which to evaluate the solution. The first column represents
+            the spatial coordinate 'x', and the second column represents the time
+            coordinate 't'.
+    
+    Returns:
+        torch.Tensor: A tensor of shape (N,) containing the solution values
+            evaluated at the corresponding grid points.
+    """
     x, t = grid[:, 0], grid[:, 1]
     sln = torch.cos(2 * np.pi * t) * torch.sin(np.pi * x)
     return sln
 
 
 def wave_experiment(grid_res):
+    """
+    Defines and executes a wave equation experiment using a neural network-based solver.
+    
+        This method sets up the domain, boundary conditions, and the wave equation itself,
+        then trains a neural network to approximate the solution. The experiment's performance
+        is evaluated based on the RMSE between the network's output and the analytical solution.
+        This process demonstrates how neural networks can be used to find solutions to differential
+        equations by learning from the problem's constraints and structure.
+    
+        Args:
+            grid_res (int): The resolution of the grid used for defining the domain.
+    
+        Returns:
+            list: A list containing a dictionary with the experiment's results,
+                  including grid resolution, training time, RMSE, experiment type, and cache status.
+    
+        WHY: This method automates the process of setting up and solving a wave equation using a neural network.
+        It encapsulates the steps of defining the problem, training the model, and evaluating the results,
+        allowing for easy experimentation with different grid resolutions and model configurations.
+    """
     exp_dict_list = []
 
     domain = Domain()

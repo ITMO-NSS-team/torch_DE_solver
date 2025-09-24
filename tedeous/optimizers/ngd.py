@@ -6,16 +6,26 @@ from tedeous.device import check_device
 
 
 class NGD(torch.optim.Optimizer):
+    """
+    NGD implementation (https://arxiv.org/abs/2302.13163).
+    """
 
     """NGD implementation (https://arxiv.org/abs/2302.13163).
     """
 
     def __init__(self, params,
                  grid_steps_number: int = 30):
-        """The Natural Gradient Descent class.
-
-        Args:
-            grid_steps_number (int, optional): Grid steps number. Defaults to 30.
+        """
+        Initializes the Natural Gradient Descent optimizer.
+        
+                This optimizer is designed to refine the optimization process when training neural networks to solve differential equations. It sets up the optimization landscape by defining a grid of steps, which influences how the model parameters are updated during training. This approach helps in navigating the complex loss surfaces often encountered when solving differential equations with neural networks.
+        
+                Args:
+                    params (iterable): Iterable of parameters to optimize or dicts defining parameter groups.
+                    grid_steps_number (int, optional):  Determines the granularity of the search space for optimization. A higher number allows for finer adjustments to the parameters. Defaults to 30.
+        
+                Returns:
+                    None
         """
         defaults = {'grid_steps_number': grid_steps_number}
         super(NGD, self).__init__(params, defaults)
@@ -27,13 +37,15 @@ class NGD(torch.optim.Optimizer):
         self.cuda_empty_once_for_test=True
 
     def grid_line_search_update(self, loss_function: callable, f_nat_grad: torch.Tensor) -> None:
-        """ Update models paramters by natural gradient.
-
-        Args:
-            loss (callable): function to calculate loss.
-
-        Returns:
-            None.
+        """
+        Update model parameters using a grid line search along the natural gradient direction to minimize the loss function. This method explores different step sizes to find the optimal update that best approximates the solution to the differential equation.
+        
+                Args:
+                    loss_function (callable): A callable that computes the loss value. It should return a tuple of (loss, aux_variables).
+                    f_nat_grad (torch.Tensor): The natural gradient to update the parameters with.
+        
+                Returns:
+                    None. The model parameters are updated in place.
         """
         # function to update models paramters at each step
         def loss_at_step(step, loss_function: callable, f_nat_grad: torch.Tensor) -> torch.Tensor:
@@ -55,13 +67,18 @@ class NGD(torch.optim.Optimizer):
         vector_to_parameters(new_params, self.params)
     
     def gram_factory(self, residuals: torch.Tensor) -> torch.Tensor:
-        """ Make Gram matrice.
-
+        """
+        Computes the Gram matrix of the Jacobian of the PDE residuals with respect to the model parameters.
+        
+        This matrix is a key component in various optimization strategies for training neural networks to solve differential equations.
+        It provides information about the sensitivity of the residuals to changes in the parameters,
+        which is then used to improve convergence and stability during training.
+        
         Args:
-            residuals (callable): PDE residual.
-
+            residuals (torch.Tensor): The PDE residual values evaluated at different points.
+        
         Returns:
-            torch.Tensor: Gram matrice.
+            torch.Tensor: The Gram matrix, a measure of the correlation between the gradients of the residuals with respect to the parameters.
         """
         # Make Gram matrice.
         def jacobian() -> torch.Tensor:
@@ -78,13 +95,17 @@ class NGD(torch.optim.Optimizer):
 
 
     def gram_factory_cpu(self, residuals: torch.Tensor) -> torch.Tensor:
-        """ Make Gram matrice.
-
+        """
+        Computes the Gram matrix of the PDE residuals' Jacobian with respect to the model parameters.
+        
+        This matrix is used to analyze the sensitivity of the residuals to changes in the network's parameters.
+        It provides insights into the optimization landscape and can be used to improve the training process.
+        
         Args:
-            residuals (callable): PDE residual.
-
+            residuals (torch.Tensor): The PDE residual values evaluated at different points.
+        
         Returns:
-            torch.Tensor: Gram matrice.
+            torch.Tensor: The Gram matrix, a measure of the correlation between the gradients of the residuals.
         """
         # Make Gram matrice.
         def jacobian() -> torch.Tensor:
@@ -102,15 +123,16 @@ class NGD(torch.optim.Optimizer):
 
     
     def torch_cuda_lstsq(self, A: torch.Tensor, B: torch.Tensor, tol: float = None) -> torch.Tensor:
-        """ Find lstsq (least-squares solution) for torch.tensor cuda.
-
-        Args:
-            A (torch.Tensor): lhs tensor of shape (*, m, n) where * is zero or more batch dimensions.
-            B (torch.Tensor): rhs tensor of shape (*, m, k) where * is zero or more batch dimensions.
-            tol (float):  used to determine the effective rank of A. By default set to the machine precision of the dtype of A.
-
-        Returns:
-            torch.Tensor: solution for A and B.
+        """
+        Find the least-squares solution for a system of linear equations represented by torch.Tensor on a CUDA device. This method is used to optimize the neural network's approximation of the differential equation's solution by minimizing the residual error.
+        
+                Args:
+                    A (torch.Tensor): The left-hand side tensor of shape (*, m, n), where * represents zero or more batch dimensions. Represents the coefficients in the linear system.
+                    B (torch.Tensor): The right-hand side tensor of shape (*, m, k), where * represents zero or more batch dimensions. Represents the constants in the linear system.
+                    tol (float, optional): Tolerance value used to determine the effective rank of A. Defaults to the machine precision of the dtype of A if not provided.
+        
+                Returns:
+                    torch.Tensor: The least-squares solution for A and B, obtained via Singular Value Decomposition (SVD). This solution minimizes the error in satisfying the linear system, contributing to a more accurate neural network approximation of the differential equation's solution.
         """
         tol = torch.finfo(A.dtype).eps if tol is None else tol
         U, S, Vh = torch.linalg.svd(A, full_matrices=False)
@@ -125,6 +147,29 @@ class NGD(torch.optim.Optimizer):
 
 
     def numpy_lstsq(self, A: torch.Tensor, B: torch.Tensor, rcond: float = None) -> torch.Tensor:
+        """
+        Computes the least squares solution to a linear matrix equation using NumPy to approximate solutions of differential equations.
+        
+                This method takes two PyTorch tensors, converts them to NumPy arrays,
+                uses NumPy's `linalg.lstsq` to solve the least squares problem, and
+                then converts the result back to a PyTorch tensor. The resulting tensor
+                is then placed on the correct device. This is a crucial step in ensuring
+                compatibility with the broader neural differential equation solving framework,
+                allowing for seamless integration of the computed solution within the
+                PyTorch-based training and evaluation pipelines.
+        
+                Args:
+                    A: The "coefficient" matrix (left-hand side of the equation) as a PyTorch tensor.
+                    B: The "dependent variable" values (right-hand side of the equation) as a PyTorch tensor.
+                    rcond:  Cutoff ratio for small singular values of a.
+                        For the purposes of rank determination, singular values are treated
+                        as zero if they are smaller than rcond times the largest singular
+                        value of a.
+        
+                Returns:
+                    torch.Tensor: The least squares solution, converted back to a PyTorch tensor
+                    and placed on the correct device using the `check_device` function.
+        """
 
         A = A.detach().cpu().numpy()
         B = B.detach().cpu().numpy()
@@ -139,10 +184,21 @@ class NGD(torch.optim.Optimizer):
 
 
     def step(self, closure=None) -> torch.Tensor:
-        """ It runs ONE step on the natural gradient descent.
-
-        Returns:
-            torch.Tensor: loss value for NGD step.
+        """
+        Runs one step of the Natural Gradient Descent (NGD) optimization.
+        
+                This method computes the natural gradient and updates the model parameters
+                to minimize the loss function, effectively solving the differential equation
+                by optimizing the neural network's parameters.
+        
+                Args:
+                    closure (callable, optional): A closure that reevaluates the model and
+                        returns the loss. It should return a tuple containing intermediate
+                        results, boundary values, true boundary values, the loss tensor,
+                        and the loss function itself.
+        
+                Returns:
+                    torch.Tensor: The loss value after the NGD step.
         """
 
         int_res, bval, true_bval, loss, loss_function = closure()

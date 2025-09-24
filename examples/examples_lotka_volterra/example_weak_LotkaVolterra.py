@@ -111,6 +111,20 @@ net = torch.nn.Sequential(
 
 
 def v(grid):
+    """
+    Calculates a scaling factor based on the input grid, used to normalize the solution space.
+    
+        This method computes a scaling factor based on the sine of the first column of the input grid,
+        scales it, and normalizes it by a factor related to 'h'. This scaling ensures that the neural network's output
+        is appropriately mapped to the solution space of the differential equation.
+    
+        Args:
+            grid (torch.Tensor): The input grid representing the domain of the differential equation.
+    
+        Returns:
+            torch.Tensor: The calculated scaling factor based on the grid. This factor is used to normalize the neural network's output,
+                          allowing it to accurately represent the solution to the differential equation.
+    """
     return (0.5 + 0.5 * torch.sin(grid[:, 0])) * (2 / h) ** (0.5) / 10
 
 

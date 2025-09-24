@@ -24,12 +24,39 @@ t_max = 1
 
 
 def exact_func_1(grid):
+    """
+    Computes the exact solution of the differential equation at specified grid points.
+    
+    This function provides a ground truth for evaluating the neural network's approximation.
+    By comparing the neural network's output to this exact solution, we can assess the accuracy
+    and effectiveness of the neural network in solving the differential equation.
+    
+    Args:
+        grid (torch.Tensor): A tensor containing the grid points (x, t) at which to evaluate the solution. The shape is expected to be (N, 2), where N is the number of grid points.
+    
+    Returns:
+        torch.Tensor: The exact solution evaluated at the given grid points. The shape is (N,).
+    """
     x, t = grid[:, 0], grid[:, 1]
     sln = torch.cos(2 * np.pi * t) * torch.sin(np.pi * x)
     return sln
 
 
 def exact_func_2(grid, a=4):
+    """
+    Computes the exact solution on a given grid to validate the neural network's approximation.
+    
+        This method provides a ground truth by calculating the exact solution
+        based on the provided grid coordinates (x, t) using a trigonometric function.
+        This allows for comparison against the neural network's solution,
+        enabling assessment of the network's accuracy in solving the differential equation.
+    
+        Args:
+            grid (torch.Tensor): A 2D tensor representing the grid coordinates (x, t).
+    
+        Returns:
+            torch.Tensor: The computed exact solution for the given grid.
+    """
     x, t = grid[:, 0], grid[:, 1]
     sln = torch.sin(np.pi * x) * torch.cos(2 * np.pi * t) + 0.5 * \
           torch.sin(a * np.pi * x) * torch.cos(2 * a * np.pi * t)
@@ -37,6 +64,27 @@ def exact_func_2(grid, a=4):
 
 
 def wave_1d_basic_problem_formulation(grid_res):
+    """
+    Formulates the 1D wave equation problem for neural network-based solution.
+        
+        This method sets up the spatial-temporal domain, boundary conditions, and the wave equation itself,
+        preparing the problem to be solved using a neural network. It leverages an exact solution to define
+        initial and boundary conditions, ensuring accurate training data for the network. The formulation
+        includes defining the wave equation operator, which the neural network will learn to approximate.
+        This setup is crucial for training a neural network to accurately represent the solution of the 1D wave equation.
+        
+        Args:
+            grid_res: The resolution of the grid for both spatial and temporal domains, influencing the density
+                      of training points for the neural network.
+        
+        Returns:
+            tuple: A tuple containing the grid, domain, equation, and boundaries, all essential components
+                   for training a neural network to solve the 1D wave equation.
+                - grid: The computational grid, representing the spatial and temporal discretization.
+                - domain: The domain definition, specifying the ranges of the independent variables.
+                - equation: The equation to be solved, defining the governing physics.
+                - boundaries: The boundary conditions, providing constraints on the solution at the domain boundaries.
+    """
     domain = Domain()
     domain.variable('x', [x_min, x_max], grid_res)
     domain.variable('t', [0, t_max], grid_res)
@@ -103,6 +151,24 @@ def wave_1d_basic_problem_formulation(grid_res):
 
 
 def experiment_data_amount_wave_1d_pso_adam_lbfgs_nncg(grid_res, exp_name='wave_1d_pso_adam_lbfgs_nncg'):
+    """
+    Performs a 1D wave equation experiment to compare the performance of different optimization algorithms in training a neural network.
+    
+        This method trains a neural network model to solve the 1D wave equation using
+        various optimization algorithms, including PSO, Adam, LBFGS, and NNCG. It evaluates
+        and compares their performance based on training and testing errors, losses, and
+        execution times. This comparison helps assess the suitability of each optimizer
+        for solving differential equations with neural networks.
+    
+        Args:
+            grid_res (int): The resolution of the grid used for training the neural network.
+            exp_name (str, optional): The name of the experiment. Defaults to 'wave_1d_pso_adam_lbfgs_nncg'.
+    
+        Returns:
+            list: A list containing a dictionary with the experiment results. The dictionary
+                includes training and testing errors, losses, and execution times for each
+                optimizer, allowing for a comparative analysis of their performance.
+    """
     exp_dict_list = []
 
     neurons = 100

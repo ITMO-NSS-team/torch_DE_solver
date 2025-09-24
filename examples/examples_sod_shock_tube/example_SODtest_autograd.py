@@ -40,6 +40,20 @@ domain.variable('t', [0, 0.2], 20, dtype='float64')
 # p:0, v:1, Ro:2
 
 def u0(x, x0):
+    """
+    Chooses between two sets of pre-calculated values based on a threshold comparison to define initial conditions for solving a differential equation.
+    
+        This function selects the appropriate initial state based on whether the input `x` exceeds the threshold `x0`. This selection is crucial for defining the starting point of the differential equation's solution trajectory.
+    
+        Args:
+            x: The current value to compare against the threshold.
+            x0: The threshold value that determines which initial state to use.
+    
+        Returns:
+            A list containing three initial values: pressure (p), velocity (v), and density (Ro).
+            Returns `[p_r, v_r, Ro_r]` if `x > x0`, representing the initial state for the right side of the domain.
+            Otherwise, returns `[p_l, v_l, Ro_l]`, representing the initial state for the left side of the domain.
+    """
     if x > x0:
         return [p_r, v_r, Ro_r]
     else:
@@ -204,6 +218,22 @@ grid = grid.to(device)
 
 
 def exact(point):
+    """
+    Calculates the exact solution for a given point in space and time.
+    
+        This method computes the pressure, velocity, and density at a specific
+        point (x, t) based on the initial conditions and gas dynamics equations.
+        It uses an iterative method to determine the pressure and velocity at the
+        contact discontinuity. This provides a baseline for comparison with neural network-based solutions,
+        allowing us to evaluate the accuracy and efficiency of the learned approximations.
+    
+        Args:
+            point: A list or tuple containing the x-coordinate and time (t).
+    
+        Returns:
+            tuple: A tuple containing the pressure (p), velocity (v), and density (Ro)
+                at the given point.
+    """
     N = 100
     Pl = 1
     Pr = 0.1
@@ -290,6 +320,21 @@ torch.from_numpy(u_exact)
 
 
 def exact_solution_print(grid, u_exact):
+    """
+    Plots the exact solution alongside the neural network's approximation as 3D surfaces, visualizing the learned solution.
+    
+        This function generates three separate 3D plots, each comparing the exact solution
+        component-wise with the corresponding output from the neural network. This allows
+        for a visual assessment of how well the network has learned to approximate the true
+        solution across the domain.
+    
+        Args:
+            grid (torch.Tensor): The grid points (x, t) where the solution is evaluated. Expected shape is (N, 2).
+            u_exact (torch.Tensor): The exact solution values at the grid points. Expected shape is (N, 3).
+    
+        Returns:
+            None. The function displays the plots using matplotlib.
+    """
     fig1 = plt.figure()
     ax1 = fig1.add_subplot(projection='3d')
     fig2 = plt.figure()

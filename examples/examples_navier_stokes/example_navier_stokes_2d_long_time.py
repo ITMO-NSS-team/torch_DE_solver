@@ -24,6 +24,23 @@ A1, A2, A3 = 1, 1, 1
 
 
 def navier_stokes_2d_long_time_experiment(grid_res):
+    """
+    Performs a 2D Navier-Stokes experiment over a long time period.
+        
+        This method sets up and runs a 2D Navier-Stokes simulation using a neural network to approximate the solution of the PDE.
+        It defines the domain, boundary conditions, and the governing equations. The method then trains a neural network
+        to solve the PDE and evaluates the results by comparing the predicted solution to the exact solution. This approach leverages
+        neural networks to learn the underlying patterns in the fluid dynamics, offering a way to efficiently approximate solutions
+        for complex systems where traditional numerical methods might be computationally expensive.
+    
+        Args:
+            grid_res (int): The resolution of the grid used for the simulation domain.
+    
+        Returns:
+            tuple: A tuple containing three lists of dictionaries. Each list contains experiment data for u, v, and p respectively.
+                   Each dictionary contains the grid resolution, the execution time, the RMSE value, the experiment type, and a boolean
+                   indicating whether caching was used.
+    """
     exp_dict_list_u, exp_dict_list_v, exp_dict_list_p = [], [], []
 
     x_min, x_max = 0, 2

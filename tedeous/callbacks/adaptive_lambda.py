@@ -10,14 +10,24 @@ class AdaptiveLambda(Callback):
     """
     Serves for computing adaptive lambdas.
     """
+
     def __init__(self,
                  sampling_N: int = 1,
                  second_order_interactions = True):
         """
-
+        Initializes the AdaptiveLambda module.
+        
+        This module dynamically adjusts the weighting of different loss components during training
+        to improve the convergence and accuracy of the neural network solution.
+        
         Args:
-            sampling_N (int, optional): essentially determines how often the lambda will be re-evaluated. Defaults to 1.
-            second_order_interactions (bool, optional): Calculate second-order sensitivities. Defaults to True.
+            sampling_N (int, optional): Determines how frequently the weighting factor (lambda) is re-evaluated during training.
+                Higher values lead to more frequent updates. Defaults to 1.
+            second_order_interactions (bool, optional): Specifies whether to calculate second-order sensitivities
+                to refine the weighting factor updates. Defaults to True.
+        
+        Returns:
+            None
         """
         super().__init__()
         self.second_order_interactions = second_order_interactions
@@ -25,15 +35,20 @@ class AdaptiveLambda(Callback):
 
     @staticmethod
     def lambda_compute(pointer: int, length_list: list, ST: np.ndarray) -> torch.Tensor:
-        """ Computes lambdas.
-
+        """
+        Computes adaptive weighting factors (lambdas) for each sub-network.
+        
+        This method calculates weights based on the sensitivity indices (ST) obtained from global sensitivity analysis.
+        These weights are used to adjust the contribution of each sub-network to the overall solution,
+        allowing the model to focus on the most influential parameters and improve the accuracy of the solution.
+        
         Args:
-            pointer (int): the label to calculate the lambda for the corresponding parameter.
-            length_list (list): dict where values are lengths.
-            ST (np.ndarray): result of SALib.ProblemSpec().
-
+            pointer (int): Starting index in the sensitivity indices array for the current sub-network.
+            length_list (list): List containing the number of parameters associated with each sub-network.
+            ST (np.ndarray): Array of sensitivity indices obtained from global sensitivity analysis.
+        
         Returns:
-            torch.Tensor: calculated lambdas written as vector
+            torch.Tensor: A tensor containing the calculated lambda values for each sub-network.
         """
 
         lambdas = []
@@ -46,16 +61,23 @@ class AdaptiveLambda(Callback):
                op_length: List,
                bval_length: List,
                sampling_D: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        """ Updates all lambdas (operator and boundary).
-
+        """
+        Updates the lambda values for the operator and boundary conditions based on sensitivity analysis.
+        
+        This method uses sensitivity analysis to determine the influence of each input parameter
+        (related to the operator and boundary conditions) on the loss function. Based on this
+        sensitivity, the lambda values are updated to prioritize the most influential parameters
+        during the differential equation solving process. This helps to improve the efficiency
+        and accuracy of the neural network-based solver by focusing on the key aspects of the problem.
+        
         Args:
-            op_length (list): list with lengths of operator solution.
-            bval_length (list): list with lengths of boundary solution.
-            sampling_D (int): sum of op_length and bval_length.
-
+            op_length (list): List containing the lengths of the operator solution components.
+            bval_length (list): List containing the lengths of the boundary solution components.
+            sampling_D (int): The total number of parameters being sampled, which is the sum of op_length and bval_length.
+        
         Returns:
-            lambda_op (torch.Tensor): values of lambdas for operator.
-            lambda_bound (torch.Tensor): values of lambdas for boundary.
+            lambda_op (torch.Tensor): Updated lambda values for the operator.
+            lambda_bound (torch.Tensor): Updated lambda values for the boundary conditions.
         """
 
         op_array = np.array(self.op_list)
@@ -85,7 +107,14 @@ class AdaptiveLambda(Callback):
         return lambda_op, lambda_bnd
 
     def lambda_update(self):
-        """ Method for lambdas calculation.
+        """
+        Updates the adaptive weights (lambdas) for the loss terms based on the current state of the solution and boundary conditions. This ensures that the neural network solution adheres to the differential equation and boundary conditions by dynamically adjusting the importance of each term in the loss function.
+        
+                Args:
+                    self: Instance of the AdaptiveLambda class, containing the model, current solution, and hyperparameters.
+        
+                Returns:
+                    None. Updates the `lambda_operator` and `lambda_bound` attributes of the solution class (`sln_cls`) with the new adaptive weights.
         """
         sln_cls = self.model.solution_cls
         bval = sln_cls.bval
@@ -122,4 +151,15 @@ class AdaptiveLambda(Callback):
             lambda_print(sln_cls.lambda_bound, bval_keys)
 
     def on_epoch_end(self, logs=None):
+        """
+        Updates the weighting factor at the end of each epoch to refine the approximation of the differential equation's solution.
+        
+                Args:
+                    logs: Contains information about the training epoch, potentially including loss values or other metrics.
+        
+                Returns:
+                    None. The method updates the internal state of the `AdaptiveLambda` object.
+        
+                The lambda value is updated to dynamically adjust the influence of different components of the loss function, guiding the neural network towards a more accurate solution of the differential equation.
+        """
         self.lambda_update()

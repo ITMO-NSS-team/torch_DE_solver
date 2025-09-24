@@ -16,6 +16,20 @@ solver_device('gpu')
 
 
 def exact_solution(grid):
+    """
+    Computes the analytical solution of the differential equation on the given grid.
+    
+    This function calculates the exact solution by summing the sine of each
+    coordinate in the grid. This provides a ground truth for evaluating the neural network's approximation.
+    
+    Args:
+        grid (torch.Tensor): The input grid of points where the solution is evaluated.
+            Shape: (num_points, n_dim), where num_points is the number of points in the grid and n_dim is the number of dimensions.
+    
+    Returns:
+        torch.Tensor: The exact solution at each point in the grid.
+            Shape: (num_points,). This represents the analytical solution of the differential equation at each grid point.
+    """
     u_exact = 0
     for i in range(n_dim):
         u_exact += torch.sin(grid[:, i])
@@ -24,6 +38,18 @@ def exact_solution(grid):
 
 
 def forcing_term(grid):
+    """
+    Computes the forcing term for the Poisson equation.
+    
+    This term is crucial as it dictates the behavior of the solution
+    obtained by the neural network, guiding it towards the true solution.
+    
+    Args:
+        grid (torch.Tensor): The spatial grid on which to evaluate the forcing term.
+    
+    Returns:
+        torch.Tensor: The forcing term evaluated on the grid.
+    """
     return torch.pi ** 2 / 4 * exact_solution(grid)
 
 

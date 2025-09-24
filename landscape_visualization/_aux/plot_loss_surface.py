@@ -21,7 +21,10 @@ from tedeous.data import Domain, Conditions, Equation
 
 
 class PlotLossSurface:
-    """Class for preprocessing plot loss surface"""
+    """
+    Class for preprocessing plot loss surface
+    """
+
 
     def __init__(self,
                  path_to_plot_model: str = None,
@@ -53,6 +56,14 @@ class PlotLossSurface:
                  ):
 
         """
+        Initializes the PlotLossSurface class.
+        
+        This class is designed to visualize the loss landscape and trajectory of neural network models
+        trained to solve differential equations. It sets up the necessary parameters and configurations
+        for plotting, including loading model trajectories, defining the grid for loss surface evaluation,
+        and preparing for visualization. The initialization process involves setting up paths, loading models,
+        and defining the range and resolution of the plot.
+        
         Args:
             path_to_plot_model (str): Path to the saved model file used for plotting.
             path_to_trajectories (str): Path to the directory containing models trajectory.
@@ -67,6 +78,7 @@ class PlotLossSurface:
             vmin (float, optional): Minimum value for the loss surface plot. Defaults to -1.
             vmax (float, optional): Maximum value for the loss surface plot. Defaults to 1.
             x_range (list, optional): Range of x-coordinates for the loss surface grid in the format [min_x, max_x, num_points]. Defaults to [-1.2, 1.2, 25].
+            loss_types (list, optional): List of loss types to evaluate, may be "loss_total", "loss_oper", "loss_bnd". Defaults to ["loss_total", "loss_oper", "loss_bnd"].
             loss_type (str, optional): Type of loss to evaluate, may be "loss_total", "loss_oper", "loss_bnd". Defaults to "loss_total".
             loss_name (str, optional): Name of the loss to be plotted. Defaults to "train_loss".
             layers_AE (list, optional): Structure of the layers in the autoencoder model. Defaults to [991, 125, 15].
@@ -79,6 +91,9 @@ class PlotLossSurface:
             density_vmin (float, optional): Minimum density value for visualization. Defaults to -1.
             colorFromGridOnly (bool, optional): Whether to derive color limits only from the grid data. Defaults to True.
             img_dir (str, optional): directory title where plots are being saved. Defaults to None.
+        
+        Returns:
+            None
         """
 
         self.path_to_plot_model = path_to_plot_model
@@ -129,18 +144,20 @@ class PlotLossSurface:
         self.get_trajectories_and_load_model()
 
     def get_errors(self, model: torch.nn.Module, error_type: str, loss_dict: dict):
-        """Define error.
-
-        Args:
-            model (torch.nn.Module): The model whose errors are being evaluated.
-            error_type (str): Specifies the type of error to compute. Options include:
-                - "u": Mean squared error between the exact solution (`u_exact_test`) and the model's prediction on the test grid.
-                - "loss_oper": The operational loss component extracted from the loss dictionary.
-                - "loss_bnd": The boundary loss component extracted from the loss dictionary.
-                - "loss_total": The total loss extracted from the loss dictionary.
-            loss_dict (dict): A dictionary containing loss components such as "loss_oper", "loss_bnd", and "loss".
-        Returns:
-                torch.Tensor: The computed error value based on the specified `error_type`.
+        """
+        Computes a specified error metric to evaluate the model's performance in solving the differential equation. This function is used to quantify the difference between the model's approximation and the true solution or loss components.
+        
+                Args:
+                    model (torch.nn.Module): The neural network model used to approximate the solution of the differential equation.
+                    error_type (str): Specifies the type of error to compute. Options include:
+                        - "u": Root mean squared error between the exact solution (`u_exact_test`) and the model's prediction on the test grid.  This evaluates the model's accuracy in approximating the solution.
+                        - "loss_oper": The operational loss component extracted from the loss dictionary. This reflects how well the model satisfies the differential equation within the domain.
+                        - "loss_bnd": The boundary loss component extracted from the loss dictionary. This reflects how well the model satisfies the boundary conditions.
+                        - "loss_total": The total loss extracted from the loss dictionary. This represents the overall error in the model's approximation.
+                    loss_dict (dict): A dictionary containing loss components such as "loss_oper", "loss_bnd", and "loss". These losses are computed during the training process.
+        
+                Returns:
+                    torch.Tensor: The computed error value based on the specified `error_type`.  This value provides a quantitative measure of the model's performance.
         """
         if error_type == "u":
             error = torch.sqrt(torch.mean((self.u_exact_test - model(self.grid_test).reshape(-1)) ** 2))
@@ -153,7 +170,20 @@ class PlotLossSurface:
         return error
 
     def get_trajectories_and_load_model(self):
-        """Get trajectories files, load model and make dataset."""
+        """
+        Loads trajectory data and a pre-trained autoencoder model.
+        
+        This method prepares the necessary components for visualizing the loss surface. It either loads trajectory data from `.pt` files or uses provided solver models to create a dataset. It also loads a pre-trained autoencoder model, which is later used to map the high-dimensional trajectory data into a lower-dimensional latent space for visualization. This is a crucial step in understanding the optimization landscape and the behavior of the trained models.
+        
+        Args:
+            self: The PlotLossSurface instance.
+        
+        Returns:
+            None. Sets the following attributes:
+                - best_model: The loaded autoencoder model.
+                - transform: The data transformation used for the trajectory data.
+                - trajectory_dataset: The loaded trajectory dataset.
+        """
         if self.solver_models:
             solver_models_state_dicts = [solver_model.state_dict() for solver_model in self.solver_models]
             trajectory_data_loader, transform = get_trajectory_dataloader(
@@ -183,7 +213,19 @@ class PlotLossSurface:
         self.trajectory_dataset = trajectory_dataset
 
     def compute_losses(self, models, domain, equation, boundaries, PINN_layers):
-        """Get losses for list of models"""
+        """
+        Computes the loss values for a set of neural network models, enabling the analysis of their performance in solving the differential equation. This is crucial for understanding how different model configurations affect the accuracy and stability of the solution.
+        
+                Args:
+                    models (torch.Tensor): A tensor containing flattened model parameters. Each row represents a different model.
+                    domain (Domain): The domain over which the differential equation is defined.
+                    equation (Equation): The differential equation to be solved.
+                    boundaries (Boundaries): The boundary conditions for the differential equation.
+                    PINN_layers (list): A list defining the architecture of the Physics-Informed Neural Network (PINN) layers.
+        
+                Returns:
+                    dict: A dictionary where keys are loss types (e.g., 'equation', 'boundary') and values are tensors containing the corresponding loss values for each model.
+        """
         losses_dict = {}
         for loss_type in self.loss_types:
             losses_dict[loss_type] = []
@@ -206,21 +248,30 @@ class PlotLossSurface:
         return losses_dict 
 
     def get_coordinates_and_losses_of_trajectories(self, grid, domain, equation, boundaries, PINN_layers):
-        """Get coordinates and losses of trajectories.
-
+        """
+        Evaluates trajectory models and original samples to quantify their equation-solving performance.
+        
+        This method leverages a trained autoencoder to map high-dimensional model parameters
+        into a lower-dimensional latent space, and then assesses the equation-solving
+        accuracy of both the encoded (trajectory) models and the original samples. This helps
+        to understand how well the autoencoder preserves the equation-solving properties
+        of the original models in the reduced latent space.
+        
         Args:
-            grid (torch.Tensor): discretization of comp-l domain.
-            domain (Domain): object of class Domain.
-            equation (Equation): object of class Equation
-            conditions (Conditions): object of class Conditions
-            PINN_layers (list): list of layers used for repopulating models.
-
+            grid (torch.Tensor): Discretization of the computational domain.
+            domain (Domain): Object representing the problem domain.
+            equation (Equation): Object representing the differential equation.
+            boundaries (Conditions): Object representing the boundary conditions.
+            PINN_layers (list): List of layers used for repopulating models.
+        
         Returns:
             tuple: A tuple containing:
-                - trajectory_losses (torch.Tensor): A tensor of losses computed for each trajectory autoencoder model.
-                - original_trajectory_losses (torch.Tensor): A tensor of losses for the original trajectory models.
-                - trajectory_coordinates (torch.Tensor): A tensor of latent-space coordinates for the trajectory models.
-
+                - trajectory_losses (torch.Tensor): Losses computed for each trajectory autoencoder model,
+                  indicating how well the encoded models satisfy the equation.
+                - original_trajectory_losses (torch.Tensor): Losses for the original trajectory models,
+                  serving as a baseline for comparison.
+                - trajectory_coordinates (torch.Tensor): Latent-space coordinates for the trajectory models,
+                  representing the encoded model parameters.
         """
 
         print("Get coordinates and losses of trajectories")
@@ -252,18 +303,23 @@ class PlotLossSurface:
         return trajectory_losses, original_trajectory_losses, trajectory_coordinates
 
     def get_coordinates_and_losses_of_surface(self, grid, domain, equation, boundaries, PINN_layers):
-        """Get coordinates and losses of surface.
-
+        """
+        Generates coordinates and evaluates losses on the loss surface.
+        
+        This method samples points on a predefined grid, reconstructs corresponding model parameters using the decoder,
+        and then calculates the loss values for these reconstructed models. This process allows for visualization
+        and analysis of the loss landscape around the optimal solution.
+        
         Args:
-            grid (torch.Tensor): discretization of comp-l domain.
-            domain (Domain): object of class Domain.
-            equation (Equation): object of class Equation
-            conditions (Conditions): object of class Conditions
-            PINN_layers (list): list of layers used for repopulating models.
-
+            grid (torch.Tensor): Discretization of the latent space domain.
+            domain (Domain): Object representing the computational domain.
+            equation (Equation): Object representing the differential equation.
+            boundaries (Conditions): Object representing the boundary conditions.
+            PINN_layers (list): List of layers used for repopulating models.
+        
         Returns:
             tuple: A tuple containing:
-                - grid_losses (torch.Tensor): A tensor of computed losses for each point in the loss surface grid.
+                - grid_losses (dict): A dictionary of computed losses for each point in the loss surface grid.
                 - grid_xx (torch.Tensor): A 2D tensor representing the x-coordinates of the grid.
                 - grid_yy (torch.Tensor): A 2D tensor representing the y-coordinates of the grid.
                 - rec_grid_models (torch.Tensor): A tensor of reconstructed models obtained by decoding the grid points.
@@ -295,16 +351,26 @@ class PlotLossSurface:
     def plotting(self, trajectory_losses: torch.Tensor, original_trajectory_losses: torch.Tensor,
                  trajectory_coordinates: torch.Tensor, grid_losses: torch.Tensor,
                  grid_xx: torch.Tensor, grid_yy: torch.Tensor, rec_grid_models: torch.Tensor):
-        """Plot surface.
-
-        Args:
-            trajectory_losses (torch.Tensor):  A tensor of losses computed for each trajectory autoencoder model.
-            original_trajectory_losses (torch.Tensor): Tensor of the original losses.
-            trajectory_coordinates (torch.Tensor): Tensor of latent-space coordinates for the trajectory models.
-            grid_losses (torch.Tensor): Tensor of losses for the loss surface grid.
-            grid_xx (torch.Tensor): 2D tensor representing the x-coordinates of the grid for the loss surface.
-            grid_yy (torch.Tensor): 2D tensor representing the y-coordinates of the grid for the loss surface.
-            rec_grid_models (torch.Tensor): Tensor containing the reconstructed models obtained by decoding grid points in the latent space.
+        """
+        Plots the loss surface and trajectory of solutions in the latent space.
+        
+                This method visualizes the loss landscape by plotting the loss values over a grid
+                of points in the latent space, along with the trajectory of the autoencoder models.
+                It helps to understand the behavior of the models during training and the characteristics
+                of the loss surface. The method also generates a density map of the reconstructed models
+                on the grid.
+        
+                Args:
+                    trajectory_losses (torch.Tensor):  A tensor of losses computed for each trajectory autoencoder model.
+                    original_trajectory_losses (torch.Tensor): Tensor of the original losses.
+                    trajectory_coordinates (torch.Tensor): Tensor of latent-space coordinates for the trajectory models.
+                    grid_losses (torch.Tensor): Tensor of losses for the loss surface grid.
+                    grid_xx (torch.Tensor): 2D tensor representing the x-coordinates of the grid for the loss surface.
+                    grid_yy (torch.Tensor): 2D tensor representing the y-coordinates of the grid for the loss surface.
+                    rec_grid_models (torch.Tensor): Tensor containing the reconstructed models obtained by decoding grid points in the latent space.
+        
+                Returns:
+                    None
         """
         vmax = self.vmax
         vmin = self.vmin
@@ -515,16 +581,20 @@ class PlotLossSurface:
     def plotting_equation_loss_surface(self, u_exact_test: torch.Tensor, grid_test: torch.Tensor, grid: torch.Tensor,
                                        domain: Domain, equation: Equation, boundaries: Conditions, PINN_layers: list):
 
-        """Preprocessing for plotting.
-
-        Args:
-            u_exact_test (torch.Tensor): The exact solution of the equation used for computing test errors.
-            grid_test (torch.Tensor): The test grid on which the exact solution and predictions are compared.
-            grid (torch.Tensor): discretization of comp-l domain.
-            domain (Domain): object of class Domain.
-            equation (Equation): object of class Equation
-            conditions (Conditions): object of class Conditions
-            PINN_layers (list): list of layers used for repopulating models.
+        """
+        Preprocesses and orchestrates the plotting of loss surfaces and training trajectories for neural network-based differential equation solvers. It prepares the data by computing losses over parameter space and along optimization paths, then visualizes these losses to analyze the training process and solution landscape. This allows for insights into how network parameters affect solution accuracy and training stability.
+        
+                Args:
+                    u_exact_test (torch.Tensor): The exact solution of the equation used for computing test errors.
+                    grid_test (torch.Tensor): The test grid on which the exact solution and predictions are compared.
+                    grid (torch.Tensor): Discretization of the computational domain.
+                    domain (Domain): Object of class Domain, defining the problem domain.
+                    equation (Equation): Object of class Equation, defining the differential equation.
+                    boundaries (Conditions): Object of class Conditions, specifying boundary conditions.
+                    PINN_layers (list): List of layers used for repopulating models.
+        
+                Returns:
+                    None: This method orchestrates plotting and does not return any value. The plotting is done internally using the processed data.
         """
         self.grid_test = grid_test
         self.u_exact_test = u_exact_test
@@ -542,13 +612,24 @@ class PlotLossSurface:
 
     def save_equation_loss_surface(self, u_exact_test: torch.Tensor, grid_test: torch.Tensor, grid: torch.Tensor,
                                    domain: Domain, equation: Equation, boundaries: Conditions, PINN_layers: list):
-        """save_low_dimensional_loss_surface.
+        """
+        Generates and saves data for visualizing the loss surface of the equation component of the PINN.
+        
+        This method computes the loss landscape and trajectory data, storing it for later visualization.
+        This allows to analyze the optimization process and the characteristics of the loss function.
+        
         Args:
-            grid (torch.Tensor): discretization of comp-l domain.
-            domain (Domain): object of class Domain.
-            equation (Equation): object of class Equation
-            conditions (Conditions): object of class Conditions
-            PINN_layers (list): list of layers used for repopulating models.
+            u_exact_test (torch.Tensor): Exact solution on the test grid.
+            grid_test (torch.Tensor): Test grid for evaluating the exact solution.
+            grid (torch.Tensor): Discretization of the computational domain.
+            domain (Domain): Object representing the domain of the equation.
+            equation (Equation): Object representing the differential equation.
+            boundaries (Conditions): Object representing the boundary conditions.
+            PINN_layers (list): List of layers used for repopulating models.
+        
+        Returns:
+            dict: A dictionary containing the loss values on the grid for each loss type.
+                  This data is essential for plotting the loss surface.
         """
         raw_states_dict = {}
         self.grid_test = grid_test

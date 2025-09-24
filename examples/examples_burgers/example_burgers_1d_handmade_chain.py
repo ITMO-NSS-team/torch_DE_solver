@@ -28,6 +28,25 @@ t_max = 1
 
 
 def burgers_1d_problem_formulation(grid_res):
+    """
+    Formulates the 1D Burgers' equation problem for neural network-based solving.
+    
+        This method sets up the domain, initial/boundary conditions, and the Burgers' equation
+        itself, preparing the problem for approximation using a neural network. The configurations
+        returned are essential for training a neural network to learn the solution of the differential
+        equation. This setup is a crucial initial step in leveraging neural networks to solve
+        the Burgers' equation.
+    
+        Args:
+            grid_res: The resolution of the grid used for discretizing the domain.
+    
+        Returns:
+            tuple: A tuple containing the grid, domain, equation, and boundaries.
+                - grid: The discretized grid.
+                - domain: The domain object.
+                - equation: The equation object representing the Burgers' equation.
+                - boundaries: The boundary conditions object.
+    """
     domain = Domain()
     domain.variable('x', [x_min, x_max], grid_res)
     domain.variable('t', [0, t_max], grid_res)
@@ -83,6 +102,41 @@ def burgers_1d_problem_formulation(grid_res):
 
 
 def experiment_data_amount_burgers_1d_pso_adam_lbfgs_nncg(grid_res, exp_name='burgers_1d_pso_adam_lbfgs_nncg'):
+    """
+    Conducts an experiment to evaluate the performance of different optimization algorithms in solving the 1D Burgers equation using a neural network.
+    
+        This method trains a neural network to approximate the solution of the 1D Burgers equation,
+        comparing the effectiveness of Particle Swarm Optimization (PSO), Adam, LBFGS, and NNCG optimizers.
+        By varying the grid resolution, the method assesses how each optimizer performs in terms of training
+        and testing error, loss, and runtime, providing insights into their suitability for solving
+        differential equations with neural networks. The goal is to identify the most efficient and accurate
+        optimizer for this specific problem.
+    
+        Args:
+            grid_res (int): The resolution of the spatial grid used for training.
+            exp_name (str, optional): The name of the experiment. Defaults to 'burgers_1d_pso_adam_lbfgs_nncg'.
+    
+        Returns:
+            list: A list containing a dictionary with the results of the experiment. The dictionary includes:
+                - grid_res (int): The grid resolution used.
+                - error_train_pso (float): Training error for PSO.
+                - error_test_pso (float): Testing error for PSO.
+                - error_train_adam (float): Training error for Adam.
+                - error_test_adam (float): Testing error for Adam.
+                - error_train_LBFGS (float): Training error for LBFGS.
+                - error_test_LBFGS (float): Testing error for LBFGS.
+                - error_train_NNCG (float): Training error for NNCG.
+                - error_test_NNCG (float): Testing error for NNCG.
+                - loss_pso (float): Loss value for PSO.
+                - loss_adam (float): Loss value for Adam.
+                - loss_LBFGS (float): Loss value for LBFGS.
+                - loss_NNCG (float): Loss value for NNCG.
+                - time_pso (float): Runtime for PSO.
+                - time_adam (float): Runtime for Adam.
+                - time_LBFGS (float): Runtime for LBFGS.
+                - time_NNCG (float): Runtime for NNCG.
+                - type (str): The experiment name.
+    """
     exp_dict_list = []
 
     pde_dim_in = 2

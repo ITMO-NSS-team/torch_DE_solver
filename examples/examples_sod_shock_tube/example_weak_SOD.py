@@ -40,6 +40,24 @@ h = x[1] - x[0]
 # p:0, v:1, Ro:2
 
 def u0(x, x0):
+    """
+    Chooses between two sets of pre-defined parameters based on a condition.
+    
+        This function selects parameters relevant to the state of the differential equation being solved.
+        If the input `x` exceeds a threshold `x0`, it indicates a state where the 'right' set of parameters
+        (`p_r`, `v_r`, `Ro_r`) is more appropriate; otherwise, the 'left' set (`p_l`, `v_l`, `Ro_l`) is chosen.
+        This selection is crucial for adapting the model's behavior to different regions of the solution space
+        of the differential equation.
+    
+        Args:
+            x (float): The current state value to compare against the threshold.
+            x0 (float): The threshold value that determines which parameter set to use.
+    
+        Returns:
+            list: A list containing three parameters. Returns `[p_r, v_r, Ro_r]` if `x > x0`,
+                  otherwise returns `[p_l, v_l, Ro_l]`. These parameters are used to define
+                  the neural network's approximation of the differential equation's solution.
+    """
     if x > x0:
         return [p_r, v_r, Ro_r]
     else:
@@ -170,6 +188,19 @@ net = torch.nn.Sequential(
 
 
 def v(grid):
+    """
+    Computes a value based on a grid of input coordinates to approximate the solution of a differential equation.
+    
+        This method combines sine functions of the first coordinate with the second coordinate,
+        serving as a simple basis function within the neural network's approximation of the solution.
+        It leverages coordinate-based information to generate a value that contributes to the overall solution landscape.
+    
+        Args:
+            grid (torch.Tensor): A grid of coordinates representing the input domain of the differential equation.
+    
+        Returns:
+            torch.Tensor: A tensor containing the computed values, representing a component of the approximated solution at each coordinate point.
+    """
     return torch.sin(grid[:, 0]) + torch.sin(2 * grid[:, 0]) + grid[:, 1]
 
 

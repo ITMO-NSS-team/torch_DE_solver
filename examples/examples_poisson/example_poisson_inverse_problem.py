@@ -17,16 +17,57 @@ solver_device('gpu')
 
 
 def a_ref(grid):
+    """
+    Calculates a reference solution for a given grid of coordinates.
+    
+        This function provides a baseline or analytical solution for comparison
+        with neural network approximations, aiding in the evaluation of the
+        network's accuracy in solving differential equations. It computes a
+        reference value for each coordinate pair in the grid.
+    
+        Args:
+            grid (numpy.ndarray): A 2D array representing the grid coordinates.
+                The first column contains x-coordinates, and the second column
+                contains y-coordinates.
+    
+        Returns:
+            numpy.ndarray: A numpy array of reference values calculated for each
+                coordinate pair in the grid. The reference value is computed as
+                1 / (1 + x**2 + y**2 + (x - 1)**2 + (y - 1)**2).
+    """
     x, y = grid[:, 0], grid[:, 1]
     return 1 / (1 + x ** 2 + y ** 2 + (x - 1) ** 2 + (y - 1) ** 2)
 
 
 def u_func(grid):
+    """
+    Computes the analytical solution u(x, y) = sin(pi * x) * sin(pi * y) on a given grid. This function provides a ground truth for evaluating the accuracy of neural network-based differential equation solvers.
+    
+        Args:
+            grid (torch.Tensor): A tensor representing the grid of points (x, y) at which to evaluate the function. The shape is expected to be (N, 2), where N is the number of points.
+    
+        Returns:
+            torch.Tensor: A tensor containing the function values at each point in the grid. The shape is (N,).
+    """
     x, y = grid[:, 0], grid[:, 1]
     return torch.sin(torch.pi * x) * torch.sin(torch.pi * y)
 
 
 def forcing_term(grid):
+    """
+    Computes the forcing term for a given grid.
+    
+        This method calculates the forcing term based on the provided grid coordinates,
+        which is essential for training the neural network to approximate the solution
+        of the differential equation. The forcing term ensures that the neural network
+        learns the specific characteristics of the equation being solved.
+    
+        Args:
+            grid (torch.Tensor): The grid coordinates (x, y) at which to compute the forcing term.
+    
+        Returns:
+            torch.Tensor: The computed forcing term, which is a tensor of the same shape as the input grid.
+    """
     x, y = grid[:, 0], grid[:, 1]
 
     term_1 = 2 * torch.pi ** 2 * torch.sin(torch.pi * x) * torch.sin(torch.pi * y) * a_ref(grid)

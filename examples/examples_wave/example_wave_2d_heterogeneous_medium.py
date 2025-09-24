@@ -28,6 +28,29 @@ sigma = 0.3
 
 
 def coef(grid):
+    """
+    Interpolates Darcy flow coefficient values onto a spatial grid.
+    
+        This method leverages a pre-defined dataset of Darcy flow coefficients
+        to estimate values at arbitrary points within the spatial domain. It uses
+        `scipy.interpolate.griddata` to perform the interpolation. The input grid
+        is preprocessed by detaching it from the computation graph, moving it to the CPU,
+        and scaling it to match the coordinate system of the coefficient data. The
+        interpolated values are then converted back to a PyTorch tensor, reshaped,
+        and moved to the original device to ensure compatibility with the neural
+        network-based differential equation solver. This is a crucial step in providing
+        the spatially varying coefficients required to solve the Darcy flow equation.
+    
+        Args:
+            grid (torch.Tensor): A tensor of shape (N, 2) representing the spatial
+                coordinates at which to interpolate the Darcy flow coefficient. The
+                values should be within the domain [-1, 1].
+    
+        Returns:
+            torch.Tensor: A tensor of shape (N, 1) containing the interpolated
+                Darcy flow coefficient values at the given grid points. The tensor
+                is located on the same device as the input grid.
+    """
     device_origin = grid.device
     grid = grid.detach().cpu()
     return torch.Tensor(
@@ -37,6 +60,21 @@ def coef(grid):
 
 
 def wave2d_heterogeneous_experiment(grid_res):
+    """
+    Performs a 2D wave experiment in a heterogeneous medium.
+    
+        This method simulates the 2D wave equation in a heterogeneous medium by training a neural network to approximate the solution.
+        It sets up the problem domain, defines boundary conditions, and specifies the wave equation. The neural network learns to satisfy these conditions,
+        providing an approximate solution to the wave equation. The accuracy of the solution is then evaluated using the root mean squared error (RMSE).
+        This experiment helps to validate the neural network's ability to capture the dynamics of wave propagation in complex environments.
+    
+        Args:
+            grid_res: The resolution of the grid used for the simulation, influencing the granularity of the solution space.
+    
+        Returns:
+            list: A list containing a dictionary with experiment results, including grid resolution, execution time, RMSE, experiment type,
+                and a flag indicating whether caching was used. This provides a comprehensive summary of the experiment's performance and setup.
+    """
     exp_dict_list = []
 
     x_min, x_max = -1, 1

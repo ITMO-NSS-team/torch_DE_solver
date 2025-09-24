@@ -25,6 +25,25 @@ A = 10
 
 
 def poisson_2d_irregular_geometry_experiment(grid_res):
+    """
+    Performs a Poisson equation experiment on a 2D irregular geometry.
+    
+        This experiment showcases the framework's ability to handle complex geometries
+        when solving differential equations. It sets up the domain with circular holes,
+        defines the boundary conditions and the Poisson equation, configures a neural
+        network model, and executes the training loop. The root mean squared error (RMSE)
+        between the predicted and exact solutions is then calculated to evaluate the
+        accuracy of the neural network solution. This demonstrates the framework's
+        capability to solve PDEs on non-trivial domains.
+    
+        Args:
+            grid_res: The resolution of the grid used for the domain.
+    
+        Returns:
+            list: A list containing a dictionary with experiment results,
+                including grid resolution, training time, RMSE, experiment type,
+                and cache usage.
+    """
     exp_dict_list = []
 
     x_min, x_max = -1, 1

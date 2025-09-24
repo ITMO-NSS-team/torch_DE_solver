@@ -20,6 +20,19 @@ current_file_folder = os.path.abspath(os.path.dirname(__file__))
 # Burgers equation problem describtion
 
 def u(grid):
+    """
+    Computes the solution to a partial differential equation on a given grid using a neural network-based solver.
+    
+        This method leverages numerical integration with quadrature to approximate the solution at each grid point. By using a neural network, it aims to efficiently solve differential equations, providing a flexible alternative to traditional numerical methods. The solution is returned as a tensor, suitable for further analysis or visualization within the PyTorch framework.
+    
+        Args:
+            grid: A list of tuples representing the grid points where the solution
+                should be evaluated. Each tuple contains the x and t coordinates of a
+                point.
+    
+        Returns:
+            A tensor containing the solution values at each grid point, as approximated by the neural network.
+    """
     def f(y):
         return np.exp(-np.cos(np.pi * y) / (2 * np.pi * mu))
 
@@ -44,12 +57,38 @@ def u(grid):
 
 
 def u_net(net, x):
+    """
+    Applies a neural network to an input and detaches the result for CPU-based differential equation solving.
+    
+        This method ensures that the neural network and input are processed on the CPU,
+        making it suitable for environments where GPU acceleration is not available or desired.
+        It applies the network to the input and detaches the result from the computation graph
+        to prevent unnecessary gradient calculations during the solving process. This is crucial
+        for managing memory and computational resources when dealing with complex differential equations.
+        
+        Args:
+            net: The neural network to apply.
+            x: The input to the neural network.
+        
+        Returns:
+            The output of the neural network, detached from the computation graph.
+    """
     net = net.to('cpu')
     x = x.to('cpu')
     return net(x).detach()
 
 
 def l2_norm(net, x):
+    """
+    Calculates the L2 norm between the neural network's approximation and the analytical solution. This metric quantifies the accuracy of the neural network in solving the differential equation by measuring the difference between the predicted solution and the true solution.
+    
+        Args:
+            net: The neural network model used to approximate the solution.
+            x: The input tensor representing the spatial or temporal domain of the differential equation.
+    
+        Returns:
+            numpy.ndarray: The L2 norm, a scalar value representing the overall error, as a NumPy array.
+    """
     x = x.to('cpu')
     net = net.to('cpu')
     predict = net(x).detach().cpu().reshape(-1)
@@ -59,6 +98,26 @@ def l2_norm(net, x):
 
 
 def burgers1d_problem_formulation(grid_res):
+    """
+    Sets up the 1D Burgers' equation problem for neural network-based solving.
+    
+    This method defines the domain, boundary conditions, and the Burgers' equation itself,
+    preparing them for approximation using a neural network. It is a crucial step in
+    formulating the problem in a way that the neural network can learn the solution.
+    
+    Args:
+        grid_res (int): The resolution of the grid, determining the density of points
+                          at which the solution will be approximated.
+    
+    Returns:
+        tuple: A tuple containing the grid, domain, equation, and boundary conditions.
+               These components are essential for training the neural network to solve
+               the Burgers' equation.
+            - grid (torch.Tensor): The computational grid representing the problem domain.
+            - domain (Domain): The problem domain, defining the spatial and temporal extents.
+            - equation (Equation): The equation to be solved, in this case, the 1D Burgers' equation.
+            - boundaries (Conditions): The boundary conditions that constrain the solution space.
+    """
     domain = Domain()
     domain.variable('x', [-1, 1], grid_res)
     domain.variable('t', [0, 1], grid_res)
@@ -106,15 +165,17 @@ def burgers1d_problem_formulation(grid_res):
 
 def generate_key_lists(base_folder):
     """
-    Generate key_models and key_modelnames lists based on .pt files in subfolders.
+    Generates lists of keys representing the available trained models, which are stored as '.pt' files within subfolders of a given directory. These keys are used to identify and load specific trained models for solving differential equations.
     
-    Args:
-        base_folder (str): Path to the folder containing subfolders with .pt files.
+        Args:
+            base_folder (str): Path to the directory containing subfolders, each representing a different trained model stored as '.pt' files.
     
-    Returns:
-        tuple: Two lists:
-            - key_models: Indices of model files across all subfolders.
-            - key_modelnames: Sequential names starting from 0.
+        Returns:
+            tuple: Two lists:
+                - key_models (list): A list of strings, where each string is an index representing a specific model file across all subfolders.
+                - key_modelnames (list): A list of strings, where each string is a sequential identifier (starting from "0") assigned to each model.
+    
+        WHY: This function creates an index of available pre-trained models, allowing the solver to load and utilize specific models for approximating solutions to differential equations. The keys generated here are essential for selecting the appropriate trained network.
     """
     key_models = []
     key_modelnames = []

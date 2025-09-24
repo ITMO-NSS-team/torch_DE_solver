@@ -28,6 +28,25 @@ mu = 0.001
 
 
 def init_w(x, y, size, L):
+    """
+    Initializes a tensor based on spatial coordinates to represent a component of the differential equation's solution space.
+    
+        This method calculates a tensor by summing sinusoidal and cosinusoidal
+        components, each weighted by random values. The components are determined
+        by the input coordinates x and y, and the summation is performed over a
+        range defined by L. This process effectively creates a feature map that captures spatial dependencies,
+        allowing the neural network to learn the underlying solution surface of the differential equation.
+    
+        Args:
+          x (float): The x-coordinate.
+          y (float): The y-coordinate.
+          size (int): The size of the random tensors used for weighting.
+          L (int): The range for the summation.
+    
+        Returns:
+          torch.Tensor: A tensor resulting from the summation of the sinusoidal
+            and cosinusoidal components, representing a localized feature at the given coordinates.
+    """
     a = torch.randn(size, size)
     b = torch.randn(size, size)
 
@@ -42,6 +61,25 @@ def init_w(x, y, size, L):
 
 
 def init_u(grid):
+    """
+    Initializes the 'u' variable, representing one of the components of the differential equation's solution.
+    
+        This method computes an initial state for 'u' based on spatial coordinates,
+        serving as a starting point for the neural network's approximation of the
+        differential equation's solution. The initial state is constructed using a
+        deterministic function `init_w` combined with a random component to introduce
+        diversity in the initial conditions, aiding in exploration of the solution space.
+    
+        Args:
+            grid (torch.Tensor): A tensor containing the grid coordinates (x, y) at which
+                the solution is to be approximated.
+    
+        Returns:
+            torch.Tensor: The initialized 'u' variable, calculated as
+                2 * init_w(x, y, size, L) + c_u, where init_w provides a base initial
+                condition derived from the grid, and c_u is a tensor of random numbers
+                added to diversify the initial state.
+    """
     x, y = grid[:, 0], grid[:, 1]
     size = int(len(x) ** 1)
     L = int(torch.max(x))
@@ -50,6 +88,25 @@ def init_u(grid):
 
 
 def init_v(grid):
+    """
+    Initializes the velocity field for solving differential equations.
+    
+        This method leverages a grid to initialize the velocity field, a crucial step
+        in setting up the neural network-based differential equation solver. The
+        initialization combines a random component with a scaled result from another
+        initialization function to provide a suitable starting point for the solver's
+        optimization process. This approach helps the solver to explore the solution
+        space more effectively.
+    
+        Args:
+            grid (torch.Tensor): The input grid containing x and y coordinates,
+                                 representing the spatial domain of the differential
+                                 equation.
+    
+        Returns:
+            torch.Tensor: The initialized velocity field, ready for use in the
+                          differential equation solver.
+    """
     x, y = grid[:, 0], grid[:, 1]
     size = int(len(x) ** 1)
     L = int(torch.max(x))
@@ -58,6 +115,27 @@ def init_v(grid):
 
 
 def burgers_2d_coupled_experiment(grid_res):
+    """
+    Performs a 2D coupled Burgers' equation experiment.
+        
+        This method sets up and runs a simulation of the 2D coupled Burgers'
+        equation using a neural network-based solver. It defines the domain,
+        boundary conditions, equation, and network architecture, then trains
+        the model and evaluates its performance by comparing the neural network
+        solution to the exact solution. This allows for assessing the accuracy
+        and efficiency of the neural network approach for solving this PDE.
+        
+        Args:
+            grid_res: The grid resolution for the spatial and temporal domains.
+        
+        Returns:
+            tuple[list[dict], list[dict]]: A tuple containing two lists of dictionaries.
+                The first list contains a dictionary with the results for u,
+                and the second list contains a dictionary with the results for v.
+                Each dictionary includes the grid resolution, training time,
+                root mean squared error (RMSE), experiment type, and a flag
+                indicating whether caching was used.
+    """
     exp_dict_list_u, exp_dict_list_v = [], []
 
     x_min, L = 0, 4

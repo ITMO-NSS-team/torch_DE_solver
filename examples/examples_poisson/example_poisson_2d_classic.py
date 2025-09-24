@@ -18,6 +18,25 @@ solver_device('cuda')
 data_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../PINNacle_data/poisson1_cg_data.npy"))
 
 def poisson_2d_classic_experiment(grid_res):
+    """
+    Performs a 2D Poisson equation experiment using a classic PINN approach.
+        
+        This method sets up and runs a PINN experiment to solve the 2D Poisson equation
+        on a square domain with circular holes. It defines the domain, boundary conditions,
+        equation, neural network architecture, and training parameters. The method then
+        trains the model and evaluates its performance by calculating the RMSE. This experiment
+        demonstrates the application of neural networks to approximate solutions for differential
+        equations, showcasing the framework's ability to handle complex geometries and boundary
+        conditions.
+    
+        Args:
+            grid_res: The resolution of the grid used to discretize the domain.
+    
+        Returns:
+            list: A list containing a dictionary with the experiment results,
+                including grid resolution, training time, RMSE, experiment type, and
+                cache usage.
+    """
     exp_dict_list = []
 
     x_min, x_max = -0.5, 0.5

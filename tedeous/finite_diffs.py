@@ -7,20 +7,26 @@ flatten_list = lambda t: [item for sublist in t for item in sublist]
 
 
 class First_order_scheme():
-    """Class for numerical scheme construction. Central o(h^2) difference scheme
-    is used for 'central' points, forward ('f') and backward ('b') o(h) schemes
-    are used for boundary points. 'central', and combination 'f','b' are
-    corresponding to points_type.
-
     """
+    Class for constructing a numerical scheme for solving differential equations. It employs a central difference scheme for interior points and forward or backward difference schemes for boundary points, depending on the specified point type.
+    """
+
 
     def __init__(self, term: list, nvars: int, axes_scheme_type: str):
         """
-        Args:
-            term (list): differentiation direction. Example: [0,0]->d2u/dx2
-            if x is first direction in the grid.
-            nvars (int): task parameters. Example: if grid(x,t) -> nvars = 2.
-            axes_scheme_type (str): scheme type: 'central' or combination of 'f' and 'b'
+        Initializes the first-order finite difference scheme.
+        
+                This scheme approximates the derivatives in a differential equation using finite differences.
+                The initialization sets up the differentiation directions and the scheme type for each axis.
+                This setup is crucial for accurately representing the differential equation within the neural network solver.
+        
+                Args:
+                    term (list): Differentiation direction for each variable. For example, [0, 0] represents d^2u/dx^2 if x is the first direction in the grid.
+                    nvars (int): The number of independent variables in the differential equation. For example, if the grid is (x, t), then nvars = 2.
+                    axes_scheme_type (str): The type of finite difference scheme to use along each axis. Can be 'central' for a central difference scheme, or a combination of 'f' (forward) and 'b' (backward) for each axis.
+        
+                Returns:
+                    None
         """
 
         self.term = term
@@ -34,15 +40,26 @@ class First_order_scheme():
     # [0]->([1]-[-1])/(2h) (in terms of grid nodes position)
     @staticmethod
     def _finite_diff_shift(diff: list, axis: int, mode: str) ->  list:
-        """ 1st order points shift for the corresponding finite difference mode.
-
+        """
+        Adjusts a point in the computational grid based on the finite difference scheme.
+        
+        This function shifts a specified coordinate within a grid point representation
+        to calculate derivatives using finite difference approximations. The shift
+        direction depends on the chosen finite difference mode (forward, backward, or central).
+        This is essential for accurately estimating derivatives at different points in the domain
+        when solving differential equations.
+        
         Args:
-            diff (list): values of finite differences.
-            axis (int): axis.
-            mode (str): the finite difference mode (i.e., forward, backward, central).
-
+            diff (list): A list representing the coordinates of a point in the grid.
+            axis (int): The axis along which the shift is applied.
+            mode (str): The finite difference mode ('forward', 'backward', or 'central').
+        
         Returns:
-            list: list with shifted points.
+            list: A list containing two shifted point representations. The first element
+                corresponds to the point shifted in the positive direction (diff_p), and
+                the second element corresponds to the point shifted in the negative
+                direction (diff_m). If the mode is 'forward' only diff_p is shifted.
+                If the mode is 'backward' only diff_m is shifted.
         """
  
         diff_p = copy(diff)
@@ -57,13 +74,20 @@ class First_order_scheme():
         return [diff_p, diff_m]
 
     def scheme_build(self) -> list:
-        """ Building first order (in terms of accuracy) finite-difference scheme.
-        Start from list of zeros where them numbers equal nvars. After that we
-        move value in that axis which corresponding to term. [0,0]->[[1,0],[-1,0]]
-        it means that term was [0] (d/dx) and mode (scheme_type) is 'central'.
-
-        Returns:
-            list: numerical scheme.
+        """
+        Builds a finite-difference scheme to represent derivatives for the neural network-based differential equation solver.
+        
+                This method constructs a numerical scheme that approximates the derivatives in the differential equation.
+                It starts with a list of zeros, where the number of zeros corresponds to the number of variables.
+                Then, it modifies the values along the axes corresponding to each term in the differential equation.
+                For example, [0,0] -> [[1,0], [-1,0]] indicates that the term was [0] (d/dx) and the scheme type is 'central'.
+                This scheme is used to compute the derivatives required by the neural network during the solution process.
+        
+                Args:
+                    self (First_order_scheme): Instance of the First_order_scheme class, containing information about the differential equation and desired scheme.
+        
+                Returns:
+                    list: A list of lists representing the numerical scheme. Each inner list corresponds to a finite difference approximation of a derivative.
         """
 
         order = len(self.term)
@@ -87,21 +111,20 @@ class First_order_scheme():
         return finite_diff
 
     def sign_order(self, h: float = 1 / 2) -> list :
-        """ Determines the sign of the derivative for the corresponding transformation
-        from Finite_diffs.scheme_build().
-
-        From transformations above, we always start from +1 (1)
-        Every +1 changes to ->[+1,-1] when order of differential rises
-        [0,0] (+1) ->([1,0]-[-1,0]) ([+1,-1])
-        Every -1 changes to [-1,+1]
-        [[1,0],[-1,0]] ([+1,-1])->[[1,1],[1,-1],[-1,1],[-1,-1]] ([+1,-1,-1,+1])
-
+        """
+        Determines the sign of the derivative for each term in the finite difference scheme,
+        which is crucial for constructing the overall approximation of the differential equation's solution.
+        
+        The method starts with a positive sign (+1) and iteratively refines it based on the order of the differential.
+        Each +1 transforms into [+1, -1] when the order increases, and each -1 transforms into [-1, +1].
+        This process ensures that the signs alternate correctly to capture the derivative's behavior.
+        
         Args:
-            h (float, optional): discretizing parameter in finite-
-            difference method. Defaults to 1/2.
-
+            h (float, optional): Discretization parameter used in the finite difference method. Defaults to 1/2.
+        
         Returns:
-            list: list, with signs for corresponding points.
+            list: A list containing the signs (+1 or -1) corresponding to each point in the finite difference scheme.
+                  These signs are essential for correctly weighting the contributions of each point when approximating the derivative.
         """
 
         sign_list = [1]
@@ -121,16 +144,20 @@ class Second_order_scheme():
     """
     Crank–Nicolson method. This realization only for boundary points.
     """
+
     def __init__(self, term: list, nvars: int, axes_scheme_type: str):
         """
-        Args:
-            term (list): differentiation direction. Example: [0,0]->d2u/dx2 if x is first
-                    direction in the grid.
-            nvars (int): task parameters. Example: if grid(x,t) -> nvars = 2.
-            axes_scheme_type (str): scheme type: 'central' or combination of 'f' and 'b'
-
-        Raises:
-            ValueError: _description_
+        Initializes a second-order finite difference scheme for approximating derivatives in a neural network-based differential equation solver.
+        
+                This scheme is used to calculate the derivatives required for the loss function, enabling the neural network to learn the solution of the differential equation.
+        
+                Args:
+                    term (list): Specifies the differentiation direction as a list of integers. For example, [0, 0] corresponds to d²u/dx², assuming 'x' is the first direction in the grid.
+                    nvars (int): Indicates the number of independent variables in the problem. For instance, if the grid is defined by grid(x, t), then nvars = 2.
+                    axes_scheme_type (str): Defines the type of finite difference scheme to use along each axis. It can be 'central' for a central difference scheme or a combination of 'f' (forward) and 'b' (backward) for one-sided schemes.
+        
+                Raises:
+                    ValueError: If an unsupported scheme type is provided.
         """
         
         self.term = term
@@ -144,15 +171,16 @@ class Second_order_scheme():
 
     @staticmethod
     def _second_order_shift(diff, axis, mode) -> list:
-        """ 2st order points shift for the corresponding finite difference mode.
-
-        Args:
-            diff (list): values of finite differences.
-            axis (int): axis.
-            mode (str): the finite difference mode (i.e., forward, backward).
-
-        Returns:
-            list: list with shifted points.
+        """
+        Shifts points based on the finite difference mode for second-order schemes. This adjustment is crucial for accurately calculating derivatives using finite difference approximations within the neural network-based differential equation solver. By shifting the points, we ensure that the finite difference calculations align correctly with the network's internal representation, leading to more precise solutions.
+        
+                Args:
+                    diff (list): Values of finite differences.
+                    axis (int): Axis along which the shift is applied.
+                    mode (str): Finite difference mode ('f' for forward, 'b' for backward).
+        
+                Returns:
+                    list: A list containing three shifted point sets, corresponding to the second-order finite difference scheme.
         """
         diff_1 = copy(diff)
         diff_2 = copy(diff)
@@ -168,12 +196,14 @@ class Second_order_scheme():
         return [diff_3, diff_2, diff_1]
 
     def scheme_build(self) -> list:
-        """Scheme building for Crank-Nicolson variant, it's identical to
-        'scheme_build' in first order method, but value is shifted by
-        'second_order_shift'.
-
-        Returns:
-            list: numerical scheme list.
+        """
+        Builds the numerical scheme for the Crank-Nicolson variant, crucial for discretizing the differential equation within the neural network solver. This scheme mirrors the first-order method's approach but incorporates a shift determined by 'second_order_shift' to enhance accuracy.
+        
+                Args:
+                    self (Second_order_scheme): An instance of the Second_order_scheme class containing the terms, directions, and number of variables for building the scheme.
+        
+                Returns:
+                    list: A list of numerical schemes, each representing a discrete approximation of the differential equation, ready for use in the neural network solver.
         """
 
         order = len(self.term)
@@ -197,14 +227,16 @@ class Second_order_scheme():
         return finite_diff
 
     def sign_order(self, h: float = 1/2) -> list:
-        """ Signs definition for second order schemes.
-
+        """
+        Generates the coefficients for a second-order finite difference scheme used to approximate derivatives within a neural network-based differential equation solver.
+        
+        This method constructs the coefficients based on the specified forward or backward differences and discretization parameter. These coefficients are essential for accurately representing the derivatives in the neural network's loss function, enabling it to learn the solution to the differential equation.
+        
         Args:
-            h (float, optional): discretizing parameter in finite-
-            difference method (i.e., grid resolution for scheme). Defaults to 1/2.
-
+            h (float, optional): The step size or grid resolution used in the finite difference approximation. Smaller values generally lead to more accurate approximations but may increase computational cost. Defaults to 1/2.
+        
         Returns:
-            list: list, with signs for corresponding points.
+            list: A list of coefficients representing the finite difference approximation of the derivative at different points. These coefficients are used in the loss function to enforce the differential equation constraint.
         """
 
         sign_list = [1]
@@ -228,13 +260,18 @@ class Finite_diffs():
     Class for numerical scheme choosing.
     """
 
+
     def __init__(self, term: list, nvars: int, axes_scheme_type: str):
         """
-        Args:
-            term (list): differentiation direction. Example: [0,0]->d2u/dx2 if x is first
-                    direction in the grid.
-            nvars (int): task parameters. Example: if grid(x,t) -> nvars = 2.
-            axes_scheme_type (str): scheme type: 'central' or combination of 'f' and 'b'
+        Initializes a finite difference scheme for approximating derivatives in a neural network-based differential equation solver. This setup is crucial for translating derivative information into a format usable by the neural network.
+        
+                Args:
+                    term (list): Specifies the order and direction of differentiation. For instance, [0,0] represents d2u/dx2 if x is the first variable in the grid.
+                    nvars (int):  Indicates the number of independent variables in the differential equation. For example, if the grid is defined by grid(x,t), then nvars = 2.
+                    axes_scheme_type (str):  Defines the finite difference scheme to be used along each axis ('central', 'forward' ('f'), or 'backward' ('b')).
+        
+                Returns:
+                    None
         """
 
         self.term = term
@@ -242,16 +279,22 @@ class Finite_diffs():
         self.axes_scheme_type = axes_scheme_type
 
     def scheme_choose(self, scheme_label: str, h:float = 1 / 2) -> list:
-        """ Method for numerical scheme choosing via realized above.
-
+        """
+        Selects a numerical scheme based on the specified order to approximate solutions of differential equations using neural networks.
+        
+        This method chooses between first-order and second-order finite difference schemes.
+        The selection influences how the solution space is discretized and, consequently,
+        how the neural network learns to approximate the solution.
+        
         Args:
-            scheme_label (str): '2'- for second order scheme (only boundaries points),
-                '1' - for first order scheme.
-            h (float, optional): discretizing parameter in finite-
-            difference method (i.e., grid resolution for scheme). Defaults to 1/2.
-
+            scheme_label (str): '2' for the second-order scheme (applied at boundary points),
+                '1' for the first-order scheme.
+            h (float, optional): Discretization parameter (grid resolution). Defaults to 1/2.
+        
         Returns:
-            list: list where list[0] is numerical scheme and list[1] is signs.
+            list: A list containing the numerical scheme and associated sign information.
+                  The scheme is used to discretize the differential equation,
+                  and the sign is relevant for the numerical stability and accuracy of the solution.
         """
 
         if self.term == [None]:

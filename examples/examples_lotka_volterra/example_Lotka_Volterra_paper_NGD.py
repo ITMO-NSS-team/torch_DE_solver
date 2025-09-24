@@ -42,6 +42,24 @@ from copy import deepcopy
 
 
 def train_net(net, grid, exact):
+    """
+    Trains a neural network to approximate the solution of a differential equation.
+    
+        This method trains a given neural network by minimizing the mean squared error
+        between the network's output and the exact solution on a given grid. It also
+        incorporates a penalty term to enforce initial conditions, ensuring the solution
+        adheres to the problem's starting state. By minimizing the error and satisfying
+        initial conditions, the network learns to accurately represent the differential
+        equation's solution.
+    
+        Args:
+          net: The neural network to train.
+          grid: The grid points at which to evaluate the network and the exact solution.
+          exact: The exact solution at the grid points.
+    
+        Returns:
+          The trained neural network.
+    """
     exact = torch.Tensor(exact).float()
 
     optimizer = torch.optim.Adam(net.parameters(), lr=0.001)
@@ -74,7 +92,43 @@ def train_net(net, grid, exact):
 
 # Define the model
 class MultiOutputModel(torch.nn.Module):
+    """
+    A multi-output model with shared layers and separate output heads.
+    
+        This model consists of a shared base network followed by separate output
+        heads for each process.
+    
+        Attributes:
+          width_out (list): A list containing the output widths for each process.
+          shared_fc1 (torch.nn.Linear): The first shared fully connected layer.
+          shared_fc2 (torch.nn.Linear): The second shared fully connected layer.
+          process1_fc (torch.nn.Linear): The output head for Process 1.
+          process2_fc (torch.nn.Linear): The output head for Process 2.
+    """
+
     def __init__(self):
+        """
+        Initializes the MultiOutputModel for solving differential equations.
+        
+                This method sets up the neural network architecture with shared layers
+                and separate output heads, enabling the model to learn and approximate
+                solutions for multiple processes within a differential equation system.
+                The shared layers extract common features, while the output heads
+                specialize in predicting the solution for each individual process.
+        
+                Args:
+                    self: The object instance.
+        
+                Returns:
+                    None.
+        
+                Class Fields:
+                    width_out (list): A list containing the output widths for each process. Initialized to [2].
+                    shared_fc1 (torch.nn.Linear): The first shared fully connected layer. Takes an input of size 1 and outputs a tensor of size 64.
+                    shared_fc2 (torch.nn.Linear): The second shared fully connected layer. Takes an input of size 64 and outputs a tensor of size 32.
+                    process1_fc (torch.nn.Linear): The output head for Process 1. Takes an input of size 32 and outputs a tensor of size 1.
+                    process2_fc (torch.nn.Linear): The output head for Process 2. Takes an input of size 32 and outputs a tensor of size 1.
+        """
         super(MultiOutputModel, self).__init__()
 
         self.width_out = [2]
@@ -89,6 +143,20 @@ class MultiOutputModel(torch.nn.Module):
         self.process2_fc = torch.nn.Linear(32, 1)
 
     def forward(self, t):
+        """
+        Performs a forward pass through the neural network to approximate the solution of a differential equation.
+                
+                The input tensor `t` is passed through a series of shared layers, and then processed by two distinct output heads.
+                The outputs of these heads are concatenated to provide a comprehensive approximation of the solution.
+                This approach allows the network to capture different aspects of the solution within each head,
+                improving the overall accuracy and stability of the differential equation solving process.
+                
+                Args:
+                    t (torch.Tensor): The input tensor, representing the independent variable(s) of the differential equation.
+                
+                Returns:
+                    torch.Tensor: The concatenated output tensor from the two processing heads, representing the approximated solution.
+        """
         # Shared layers forward pass
         x = torch.tanh(self.shared_fc1(t))
         x = torch.tanh(self.shared_fc2(x))
@@ -108,6 +176,29 @@ class MultiOutputModel(torch.nn.Module):
 
 
 def Lotka_experiment(grid_res, CACHE):
+    """
+    Performs a Lotka-Volterra experiment using a neural network solver.
+    
+        This method sets up and executes a Lotka-Volterra experiment, assessing the
+        neural network's ability to approximate the solution of a differential equation
+        by comparing it to a reference solution obtained via scipy.integrate.
+        It involves defining the problem domain, the Lotka-Volterra equations, and
+        boundary conditions. A neural network is trained to approximate the solution,
+        and its performance is evaluated against the reference solution. The method
+        generates plots for visual comparison and calculates the Root Mean Squared Error (RMSE)
+        to quantify the approximation accuracy. This allows for evaluating the effectiveness
+        of the neural network as a solver for differential equations.
+    
+        Args:
+            grid_res (int): The resolution of the grid used for the experiment.
+            CACHE (bool): A flag indicating whether caching is enabled.
+    
+        Returns:
+            list: A list containing a dictionary with experiment results,
+                  including grid resolution, execution time, RMSE, experiment type,
+                  and cache status. This provides a structured summary of the
+                  experiment's outcome, facilitating performance analysis.
+    """
     exp_dict_list = []
     solver_device('gpu')
 

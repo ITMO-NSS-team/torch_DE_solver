@@ -14,18 +14,26 @@ def integration(func: torch.Tensor,
                 grid: torch.Tensor,
                 power: int = 2) \
                 -> Union[Tuple[float, float], Tuple[list, torch.Tensor]]:
-    """ Function realize 1-space integrands,
-    where func=(L(u)-f)*weak_form subintegrands function and
-    definite integral parameter is grid.
-
+    """
+    Performs numerical integration of subintegrands along one axis of the grid.
+    
+    This function integrates the product of the differential equation's residual and a test function
+    over a single spatial dimension. It iteratively computes the integral using the trapezoidal rule,
+    accumulating the result until a boundary condition is encountered along the integration axis.
+    This process effectively reduces the dimensionality of the integration domain, facilitating the
+    solution of the differential equation using neural network approximations.
+    
     Args:
-        func (torch.Tensor): operator multiplied on test function
-        grid (torch.Tensor): array of a n-D points.
-        power (int, optional): power of func points. Defults to 2.
-
+        func (torch.Tensor): The differential equation's residual evaluated at each grid point,
+                             representing (L(u)-f) * weak_form.
+        grid (torch.Tensor): A tensor representing the spatial grid points where the residual is evaluated.
+        power (int, optional): The power to which the residual is raised before integration. Defaults to 2.
+    
     Returns:
-        'result' is integration result through one grid axis
-        'grid' is initial grid without last column or zero (if grid.shape[N,1])
+        Tuple[Union[float, list], torch.Tensor]: A tuple containing the integration result and the updated grid.
+            - If the grid has only one column, returns a float representing the final integral and 0.
+            - Otherwise, returns a list of floats representing the integral over each segment
+              and a tensor representing the grid with the last column removed.
     """
     if grid.shape[-1] == 1:
         column = -1
@@ -54,21 +62,30 @@ def integration(func: torch.Tensor,
 
 def dict_to_matrix(bval: dict, true_bval: dict)\
     -> Tuple[torch.Tensor, torch.Tensor, List, List]:
-    """ Function for bounaries values matrix creation from dictionary.
-
+    """
+    Transforms dictionaries of boundary values into matrix representations for neural network training.
+    
+    This function prepares boundary data for use in neural network-based differential equation solvers.
+    It converts dictionaries of predicted and true boundary values into matrices, padding shorter
+    sequences to ensure consistent dimensions for efficient processing by neural networks. This
+    is crucial for training models to accurately approximate solutions to differential equations
+    by learning from the provided boundary conditions.
+    
     Args:
-        bval (dict): dictionary with predicted boundaries values,
-              where keys are boundaries types.
-        true_bval (dict): dictionary with true boundaries values,
-                   where keys are boundaries types.
-
+        bval (dict): Dictionary containing predicted boundary values for different boundary types.
+                     Keys represent boundary types, and values are tensors of predicted values.
+        true_bval (dict): Dictionary containing true boundary values for different boundary types.
+                          Keys represent boundary types, and values are tensors of true values.
+    
     Returns:
-        matrix_bval (torch.Tensor): matrix, where each column is predicted
-                      boundary values of one boundary type.
-        matrix_true_bval (torch.Tensor):matrix, where each column is true
-                           boundary values of one boundary type.
-        keys (list): boundary types list corresponding matrix_bval columns.
-        len_list (list): list of length of each boundary type column.
+        matrix_bval (torch.Tensor): Matrix where each column contains padded predicted boundary values
+                                     for a specific boundary type.
+        matrix_true_bval (torch.Tensor): Matrix where each column contains padded true boundary values
+                                          for a specific boundary type.
+        keys (list): List of boundary types corresponding to the columns in `matrix_bval` and
+                     `matrix_true_bval`.
+        len_list (list): List of original lengths of the boundary value tensors for each boundary
+                         type before padding.
     """
 
     keys = list(bval.keys())
@@ -91,6 +108,7 @@ class Operator():
     """
     Class for differential equation calculation.
     """
+
     def __init__(self,
                  grid: torch.Tensor,
                  prepared_operator: Union[list,dict],
@@ -100,15 +118,25 @@ class Operator():
                  derivative_points: int,
                  batch_size: int = None):
         """
-        Args:
-            grid (torch.Tensor): grid (domain discretization).
-            prepared_operator (Union[list,dict]): prepared (after Equation class) operator.
-            model (Union[torch.nn.Sequential, torch.Tensor]): *mat or NN or autograd* model.
-            mode (str): *mat or NN or autograd*
-            weak_form (list[callable]): list with basis functions (if the form is *weak*).
-            derivative_points (int): points number for derivative calculation.
-                                     For details to Derivative_mat class.
-            batch_size (int): size of batch.
+        Initializes the Operator instance, preparing it for the differential equation solving process.
+        
+                This involves setting up the computational grid, defining the operator (differential equation),
+                specifying the neural network model, and configuring the mode of operation (e.g., 'NN', 'autograd', 'mat').
+                The initialization also handles the creation of mini-batches for efficient processing, if a batch size is provided.
+                This setup is crucial for efficiently approximating solutions to differential equations using neural networks.
+        
+                Args:
+                    grid (torch.Tensor): grid (domain discretization).
+                    prepared_operator (Union[list,dict]): prepared (after Equation class) operator.
+                    model (Union[torch.nn.Sequential, torch.Tensor]): *mat or NN or autograd* model.
+                    mode (str): *mat or NN or autograd*
+                    weak_form (list[callable]): list with basis functions (if the form is *weak*).
+                    derivative_points (int): points number for derivative calculation.
+                                             For details to Derivative_mat class.
+                    batch_size (int): size of batch.
+        
+                Returns:
+                    None
         """
         self.grid = check_device(grid)
         self.prepared_operator = prepared_operator
@@ -134,8 +162,16 @@ class Operator():
                                 self.derivative_points).set_strategy(self.mode).take_derivative
 
     def init_mini_batches(self):
-        """ Initialization of batch iterator.
-
+        """
+        Initializes the mini-batch iterator for training. This prepares the data loader to provide batches of data points sampled across the problem domain, which are used to iteratively refine the neural network's approximation of the differential equation's solution.
+        
+                Args:
+                    self: The Operator instance.
+        
+                Returns:
+                    None. The method initializes the `grid_iter` and `grid_batch` attributes of the Operator instance.
+        
+                Why: To prepare batches of data points sampled across the problem domain, which are used to iteratively refine the neural network's approximation of the differential equation's solution.
         """
         self.grid_iter = iter(self.grid_loader)
         self.grid_batch = next(self.grid_iter)
@@ -143,16 +179,26 @@ class Operator():
     def apply_operator(self,
                        operator: list,
                        grid_points: Union[torch.Tensor, None]) -> torch.Tensor:
-        """ Deciphers equation in a single grid subset to a field.
-
+        """
+        Applies a preprocessed differential operator to a grid subset to approximate the solution field.
+        
+        This method iterates through the terms of a differential operator, calculates the
+        derivative of each term, and accumulates the results to approximate the overall
+        effect of the operator on the solution field within a specific grid subset. This
+        process is crucial for evaluating how well the neural network's output satisfies
+        the differential equation within that region.
+        
         Args:
-            operator (list): prepared (after Equation class) operator. See
-            input_preprocessing.operator_prepare()
-            grid_points (Union[torch.Tensor, None]): Points, where numerical
-            derivative is calculated. **Uses only in 'autograd' and 'mat' modes.**
-
+            operator (list): A list of preprocessed terms representing the differential operator.
+                             See `input_preprocessing.operator_prepare()` for details on the expected format.
+            grid_points (torch.Tensor, optional): The coordinates within the grid subset where the
+                                                   derivatives are evaluated. Required for 'autograd' and 'mat' modes.
+                                                   Defaults to None.
+        
         Returns:
-            total (torch.Tensor): Decoded operator on a single grid subset.
+            torch.Tensor: The approximated result of applying the differential operator to the
+                          solution field within the grid subset. This represents the residual
+                          or error of the neural network's solution at these points.
         """
 
         for term in operator:
@@ -165,10 +211,14 @@ class Operator():
         return total
 
     def _pde_compute(self) -> torch.Tensor:
-        """ Computes PDE residual.
-
-        Returns:
-            torch.Tensor: P/O DE residual.
+        """
+        Computes the residual of the differential equation. This involves applying the defined differential operator(s) to the input grid points. The method handles both single and multiple equation systems by iterating through the prepared operators and concatenating the results. Mini-batching is used when a batch size is specified, allowing for efficient processing of large datasets.
+        
+                Args:
+                    None
+        
+                Returns:
+                    torch.Tensor: The computed residual of the differential equation(s) on the given grid. This represents how well the neural network's output satisfies the equation(s).
         """
 
         if self.batch_size is not None:
@@ -193,10 +243,14 @@ class Operator():
         return op
 
     def _weak_pde_compute(self) -> torch.Tensor:
-        """ Computes PDE residual in weak form.
-
-        Returns:
-            torch.Tensor: weak PDE residual.
+        """
+        Computes the weak form of the PDE residual by integrating the product of the PDE operator and test functions over the domain. This process transforms the differential equation into an integral equation, suitable for numerical solution using neural network approximations. The weak form allows for solutions that are not necessarily differentiable in the classical sense, expanding the range of solvable problems.
+        
+                Args:
+                    None
+        
+                Returns:
+                    torch.Tensor: weak PDE residual.
         """
 
         device = device_type()
@@ -221,10 +275,17 @@ class Operator():
             return torch.cat(sol_list).reshape(1,-1)
 
     def operator_compute(self):
-        """ Corresponding to form (weak or strong) calculate residual of operator.
-
+        """
+        Calculates the residual of the differential operator, serving as a measure of how well the neural network satisfies the equation.
+        
+        This computation is central to training the neural network to approximate the solution of the differential equation.
+        The residual is calculated based on either a strong or weak formulation of the equation.
+        
+        Args:
+            None
+        
         Returns:
-            torch.Tensor: operator residual.
+            torch.Tensor: The operator residual, a tensor representing the error in satisfying the differential equation.
         """
         if self.weak_form is None or self.weak_form == []:
             return self._pde_compute()
@@ -236,6 +297,7 @@ class Bounds():
     """
     Class for boundary and initial conditions calculation.
     """
+
     def __init__(self,
                  grid: torch.Tensor,
                  prepared_bconds: Union[list, dict],
@@ -243,16 +305,22 @@ class Bounds():
                  mode: str,
                  weak_form: list[callable],
                  derivative_points: int):
-        """_summary_
-
+        """
+        Initializes the Bounds object.
+        
+        This class manages the boundary conditions and the operator associated with the differential equation.
+        It prepares the necessary components for solving the equation within the specified domain.
+        
         Args:
-            grid (torch.Tensor): grid (domain discretization).
-            prepared_bconds (Union[list,dict]): prepared (after Equation class) baund-y con-s.
-            model (Union[torch.nn.Sequential, torch.Tensor]): *mat or NN or autograd* model.
-            mode (str): *mat or NN or autograd*
-            weak_form (list[callable]): list with basis functions (if the form is *weak*).
-            derivative_points (int): points number for derivative calculation.
-                                     For details to Derivative_mat class.
+            grid (torch.Tensor): The computational grid representing the domain discretization.
+            prepared_bconds (Union[list, dict]): Boundary conditions, preprocessed by the Equation class.
+            model (Union[torch.nn.Sequential, torch.Tensor]): The neural network or matrix model used to approximate the solution.
+            mode (str): Specifies the solution approach ('mat', 'NN', or 'autograd').
+            weak_form (list[callable]): Basis functions for the weak formulation of the equation (if applicable).
+            derivative_points (int): Number of points used for derivative calculations in the matrix approach.
+        
+        Returns:
+            None
         """
         self.grid = check_device(grid)
         self.prepared_bconds = prepared_bconds
@@ -263,15 +331,21 @@ class Bounds():
                                        derivative_points)
 
     def _apply_bconds_set(self, operator_set: list) -> torch.Tensor:
-        """ Method only for *NN* mode. Calculate boundary conditions with derivatives
-            to use them in _apply_neumann method.
-
+        """
+        Applies a set of boundary conditions to the solution field.
+        
+        This method iterates through a list of boundary operators, applies each operator to the solution field,
+        and concatenates the results. This effectively enforces the specified boundary conditions on the neural network's
+        solution, guiding it towards satisfying the constraints of the differential equation.
+        
         Args:
-            operator_set (list): list with prepared (after Equation_NN class) boundary operators.
-            For details to Equation_NN.operator_prepare method.
-
+            operator_set (list): A list of prepared boundary operators, typically generated by the Equation_NN.operator_prepare method.
+                                 Each operator represents a specific boundary condition to be applied.
+        
         Returns:
-            torch.Tensor: Decoded boundary operator on the whole grid.
+            torch.Tensor: A tensor representing the combined effect of all boundary operators on the solution field.
+                          This tensor is used to penalize deviations from the specified boundary conditions during training,
+                          ensuring that the neural network solution adheres to the problem's constraints.
         """
 
         field_part = []
@@ -281,16 +355,17 @@ class Bounds():
         return field_part
 
     def _apply_dirichlet(self, bnd: torch.Tensor, var: int) -> torch.Tensor:
-        """ Applies Dirichlet boundary conditions.
-
-        Args:
-            bnd (torch.Tensor): terms (boundary points) of prepared boundary conditions.
-            For more deatails to input_preprocessing (bnd_prepare maethos).
-            var (int): indicates for which dependent variable it is necessary to apply
-            the boundary condition. For single equation is 0.
-
-        Returns:
-            torch.Tensor: calculated boundary condition.
+        """
+        Applies Dirichlet boundary conditions by evaluating the neural network model at the boundary points. This ensures that the solution adheres to the specified values at the domain boundaries, a crucial step in accurately solving the differential equation.
+        
+                Args:
+                    bnd (torch.Tensor): Terms (boundary points) of prepared boundary conditions.
+                        For more details, refer to input_preprocessing (bnd_prepare method).
+                    var (int): Indicates the dependent variable for which to apply the boundary condition.
+                        For a single equation, this is typically 0.
+        
+                Returns:
+                    torch.Tensor: The calculated boundary condition values, obtained by evaluating the neural network at the boundary points.
         """
 
         if self.mode == 'NN' or self.mode == 'autograd':
@@ -303,14 +378,20 @@ class Bounds():
         return b_op_val
 
     def _apply_neumann(self, bnd: torch.Tensor, bop: list) -> torch.Tensor:
-        """ Applies boundary conditions with derivative operators.
-
-        Args:
-            bnd (torch.Tensor): terms (boundary points) of prepared boundary conditions.
-            bop (list): terms of prepared boundary derivative operator.
-
-        Returns:
-            torch.Tensor: calculated boundary condition.
+        """
+        Applies derivative operators to the boundary conditions based on the chosen mode.
+        
+                This method calculates the boundary condition value by applying the derivative operator.
+                The specific calculation depends on the selected mode ('NN', 'autograd', or 'mat'),
+                allowing for different approaches to enforce boundary conditions when solving
+                differential equations with neural networks.
+        
+                Args:
+                    bnd (torch.Tensor): Terms (boundary points) of the prepared boundary conditions.
+                    bop (list): Terms of the prepared boundary derivative operator.
+        
+                Returns:
+                    torch.Tensor: Calculated boundary condition.
         """
 
         if self.mode == 'NN':
@@ -327,16 +408,26 @@ class Bounds():
         return b_op_val
 
     def _apply_periodic(self, bnd: torch.Tensor, bop: list, var: int) -> torch.Tensor:
-        """ Applies periodic boundary conditions.
-
-        Args:
-            bnd (torch.Tensor): terms (boundary points) of prepared boundary conditions.
-            bop (list): terms of prepared boundary derivative operator.
-            var (int): indicates for which dependent variable it is necessary to apply
-            the boundary condition. For single equation is 0.
-
-        Returns:
-            torch.Tensor: calculated boundary condition
+        """
+        Applies periodic boundary conditions by evaluating the difference between boundary points,
+                ensuring continuity of the solution across the domain boundaries.
+        
+                Args:
+                    bnd (torch.Tensor): Terms (boundary points) of prepared boundary conditions.
+                    bop (list): Terms of prepared boundary derivative operator.
+                    var (int): Indicates for which dependent variable it is necessary to apply
+                        the boundary condition. For single equation is 0.
+        
+                Returns:
+                    torch.Tensor: Calculated boundary condition, representing the difference
+                        enforcing periodicity.
+        
+                Why:
+                This method enforces periodicity by calculating the difference between the solution
+                or its derivatives at opposing boundaries. This difference is driven towards zero
+                during training, ensuring a smooth, continuous solution across the periodic domain,
+                which is crucial for accurately solving differential equations with periodic constraints
+                using neural networks.
         """
 
         if bop is None:
@@ -355,16 +446,16 @@ class Bounds():
         return b_op_val
 
     def _apply_robin(self, bnd: torch.Tensor, bop: Union[list, dict], var: int) -> torch.Tensor:
-        """ Applies Robin boundary conditions.
-
-        Args:
-            bnd (torch.Tensor): boundary points of prepared boundary conditions.
-            bop (list): prepared boundary derivative operator.
-            alpha (float): coefficient for the boundary function value.
-            beta (float): coefficient for the derivative term.
-
-        Returns:
-            torch.Tensor: calculated Robin boundary condition.
+        """
+        Applies Robin boundary conditions by combining the function value and its derivative at the boundary. This is done to enforce a mixed-type boundary constraint, where the solution is related to its derivative on the boundary.
+        
+                Args:
+                    bnd (torch.Tensor): Boundary points where the condition is applied.
+                    bop (Union[list, dict]): Dictionary containing the coefficients for the boundary condition, including alpha (coefficient for the function value) and betas (coefficients for the derivative terms).
+                    var (int): Index of the variable to which the boundary condition applies.
+        
+                Returns:
+                    torch.Tensor: The calculated Robin boundary condition value at the specified boundary points.
         """
 
         alpha, *betas = [bop[list(bop.keys())[i]]['coeff'] for i in range(len(bop))]
@@ -388,16 +479,26 @@ class Bounds():
         return b_op_val
 
     def _apply_data(self, bnd: torch.Tensor, bop: list, var: int) -> torch.Tensor:
-        """ Method for applying known data about solution.
-
+        """
+        Applies boundary conditions to enforce known solution behavior.
+        
+        This method determines how to apply the provided boundary conditions,
+        choosing between Dirichlet (value-based) and Neumann (derivative-based)
+        conditions based on the provided operator. This ensures that the neural
+        network solution adheres to the specified constraints at the boundaries
+        of the problem domain, guiding the training process towards a physically
+        accurate solution.
+        
         Args:
-            bnd (torch.Tensor): terms (data points) of prepared boundary conditions.
-            bop (list): terms of prepared data derivative operator.
-            var (int): indicates for which dependent variable it is necessary to apply
-            the data condition. For single equation is 0.
-
+            bnd (torch.Tensor): Terms (data points) of prepared boundary conditions.
+            bop (list): Terms of prepared data derivative operator. If None, Dirichlet
+                boundary conditions are applied; otherwise, Neumann conditions are used.
+            var (int): Indicates for which dependent variable to apply the data condition.
+                For a single equation, this is 0.
+        
         Returns:
-            torch.Tensor: calculated data condition.
+            torch.Tensor: Calculated data condition, representing the enforced
+                boundary values or derivative constraints.
         """
         if bop is None:
             b_op_val = self._apply_dirichlet(bnd, var).reshape(-1, 1)
@@ -406,14 +507,25 @@ class Bounds():
         return b_op_val
 
     def b_op_val_calc(self, bcond: dict) -> torch.Tensor:
-        """ Auxiliary function. Serves only to choose *type* of the condition and evaluate one.
-
+        """
+        Calculates the boundary operator value based on the specified boundary condition type.
+        
+        This function acts as a dispatcher, selecting the appropriate method to compute the boundary operator value
+        based on the 'type' key within the provided boundary condition dictionary. This allows the framework
+        to handle various types of boundary conditions, such as Dirichlet, Neumann, Periodic, Robin, and Data-driven
+        conditions, enabling the neural network to learn the solution that satisfies the given constraints.
+        
         Args:
-            bcond (dict): terms of prepared boundary conditions
-            (see input_preprocessing module -> bnd_prepare method).
-
+            bcond (dict): A dictionary containing the terms of the prepared boundary conditions,
+                          as generated by the `bnd_prepare` method in the `input_preprocessing` module.
+                          This dictionary must include a 'type' key specifying the boundary condition type
+                          (e.g., 'dirichlet', 'neumann', 'periodic', 'robin', 'data') and other keys
+                          relevant to that type.
+        
         Returns:
-            torch.Tensor: calculated operator on the boundary.
+            torch.Tensor: The calculated value of the boundary operator, represented as a PyTorch tensor.
+                          The specific meaning and shape of this tensor depend on the boundary condition type
+                          and the underlying method used for its calculation.
         """
 
         b_op_val = None
@@ -431,15 +543,20 @@ class Bounds():
         return b_op_val
 
     def apply_bcs(self) -> Tuple[torch.Tensor, torch.Tensor, list, list]:
-        """ Applies boundary and data conditions for each *type* in prepared_bconds.
-
-        Returns:
-            bval (torch.Tensor): matrix, where each column is predicted
-                      boundary values of one boundary type.
-            true_bval (torch.Tensor):matrix, where each column is true
-                            boundary values of one boundary type.
-            keys (list): boundary types list corresponding matrix_bval columns.
-            bval_length (list): list of length of each boundary type column.
+        """
+        Applies boundary and data conditions to prepare data for training the neural network to solve differential equations.
+        
+                The method iterates through the prepared boundary conditions, calculates the predicted boundary values using the specified operators, and organizes them along with the true boundary values. This prepares the data in a suitable format for training the neural network to approximate the solution of the differential equation subject to these conditions.
+        
+                Args:
+                    self (Bounds): An instance of the Bounds class containing the prepared boundary conditions.
+        
+                Returns:
+                    Tuple[torch.Tensor, torch.Tensor, list, list]: A tuple containing:
+                        - bval (torch.Tensor): A matrix where each column represents the predicted boundary values for a specific boundary type.
+                        - true_bval (torch.Tensor): A matrix where each column represents the true boundary values for a specific boundary type.
+                        - keys (list): A list of boundary types corresponding to the columns in the `bval` and `true_bval` matrices.
+                        - bval_length (list): A list containing the length of each boundary type column.
         """
 
         bval_dict = {}
