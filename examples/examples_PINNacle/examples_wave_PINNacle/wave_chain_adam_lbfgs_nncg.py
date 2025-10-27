@@ -175,6 +175,15 @@ def wave_1d_basic_experiment(i, x_res, t_res, optimizer, beta=5, exp=None):
         f.write(f'experiment_{i}: x_res={x_res}, t_res={t_res}, RMSE={error_rmse}\n')
         f.write(f'experiment_{i}: x_res={x_res}, t_res={t_res}, L2RE={error_l2re}\n\n')
 
+    exp.log_metric("time", end - start, step=i)
+    print(f'time={end - start}')
+
+    exp.log_metric("RMSE", error_rmse, step=i)
+    print(f'RMSE={error_rmse}')
+
+    exp.log_metric("L2RE", error_l2re, step=i)
+    print(f'L2RE={error_l2re}')
+
     return exp_dict_list
 
 
