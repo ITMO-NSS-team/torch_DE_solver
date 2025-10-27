@@ -105,7 +105,7 @@ def DR_2d_gray_scott_experiment(grid_res):
                 'var': [0, 1]
             }
     }
-
+    # Operator 1:  ut = ε1 * ∆u + b * (1 − u) − u * v**2
     # Operator 2:  ut = ε2 * ∆v - d * u + u * v**2
 
     diffusion_reaction_v = {
