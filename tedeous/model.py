@@ -455,7 +455,9 @@ class Model():
 
                     boundary_rmse = torch.sum(torch.stack([
                         torch.sqrt(torch.mean(
-                            (b["bval"].reshape_as(net(b["bnd"])) - net(b["bnd"])) ** 2, dtype=torch.float32
+                            ((b["bval"].reshape_as(net(b["bnd"])) if len(b["bval"].shape) > 0 else
+                              torch.full(net(b["bnd"]).shape, b["bval"].item())) - net(b["bnd"])) ** 2,
+                            dtype=torch.float32
                         ))
                         for b in bconds
                     ]))
