@@ -41,7 +41,7 @@ def heat_2d_long_time_experiment(grid_res):
 
     domain.variable('x', [x_min, x_max], grid_res)
     domain.variable('y', [y_min, y_max], grid_res)
-    domain.variable('t', [0, t_max], grid_res)
+    domain.variable('t', [0, t_max], 10)
 
     boundaries = Conditions()
 
@@ -169,7 +169,7 @@ nruns = 10
 
 exp_dict_list = []
 
-for grid_res in range(20, 201, 20):
+for grid_res in range(100, 1001, 100):
     for _ in range(nruns):
         exp_dict_list.append(heat_2d_long_time_experiment(grid_res))
 
