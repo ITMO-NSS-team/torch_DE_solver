@@ -453,14 +453,19 @@ class Model():
                         net_predicted = net(grid)
                         operator_rmse = torch.sqrt(torch.mean((exact.reshape(-1, 1) - net_predicted) ** 2))
 
-                    boundary_rmse = torch.sum(torch.stack([
-                        torch.sqrt(torch.mean(
-                            ((b["bval"].reshape_as(net(b["bnd"])) if len(b["bval"].shape) > 0 else
-                              torch.full(net(b["bnd"]).shape, b["bval"].item())) - net(b["bnd"])) ** 2,
-                            dtype=torch.float32
-                        ))
-                        for b in bconds
-                    ]))
+                    boundary_rmse_lst = []
+                    for b in bconds:
+                        if isinstance(b["bnd"], torch.Tensor):
+                            bnd_lst = [b["bnd"]]
+                        for bnd in bnd_lst:
+                            net_bnd = net(bnd)
+                            try:
+                                result = (b["bval"].reshape_as(net_bnd) - net_bnd) ** 2
+                            except:
+                                result = (torch.full(net_bnd.shape, b["bval"].item()) - net_bnd) ** 2
+                            boundary_rmse_lst.append(torch.sqrt(torch.mean(result)))
+
+                    boundary_rmse = torch.sum(torch.stack([boundary_rmse_lst]))
 
                     print(f"Operator RMSE: {operator_rmse}, Boundary RMSE: {boundary_rmse}")
 
