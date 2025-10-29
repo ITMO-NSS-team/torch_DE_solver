@@ -465,7 +465,7 @@ class Model():
                                 result = (torch.full(net_bnd.shape, b["bval"].item()) - net_bnd) ** 2
                             boundary_rmse_lst.append(torch.sqrt(torch.mean(result)))
 
-                    boundary_rmse = torch.sum(torch.stack([boundary_rmse_lst]))
+                    boundary_rmse = torch.sum(torch.stack(boundary_rmse_lst))
 
                     print(f"Operator RMSE: {operator_rmse}, Boundary RMSE: {boundary_rmse}")
 
