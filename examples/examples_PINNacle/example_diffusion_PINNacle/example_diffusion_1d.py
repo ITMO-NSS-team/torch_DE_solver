@@ -144,21 +144,20 @@ def diffusion_1d_experiment(grid_res):
     print('Time taken {}= {}'.format(grid_res, end - start))
     print('RMSE_u_func {}= {}'.format(grid_res, error_rmse_u))
 
-    return exp_dict_list_u, exp_dict_list_v
+    return exp_dict_list
 
 
 nruns = 10
 
-exp_dict_list_u, exp_dict_list_v = [], []
+exp_dict_list = []
 
 for grid_res in range(100, 1001, 100):
     for _ in range(nruns):
-        list_u, list_v = diffusion_1d_experiment(grid_res)
-        exp_dict_list_u.append(list_u)
+        exp_dict_list.append(diffusion_1d_experiment(grid_res))
 
 import pandas as pd
 
-exp_dict_list_u_flatten = [item for sublist in exp_dict_list_u for item in sublist]
+exp_dict_list_u_flatten = [item for sublist in exp_dict_list for item in sublist]
 
 df_u = pd.DataFrame(exp_dict_list_u_flatten)
 
