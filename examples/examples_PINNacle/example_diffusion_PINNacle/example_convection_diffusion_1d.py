@@ -45,7 +45,7 @@ def convection_diffusion_1d_experiment(grid_res):
 
     # Initial condition: ###############################################################################################
 
-    # u(x, y, 0)
+    # u(x, 0)
     boundaries.dirichlet({'x': [x_min, x_max], 't': 0},
                          value=lambda grid: torch.sum(torch.sin(k * grid[:, 0][:, None])))
 
@@ -67,9 +67,9 @@ def convection_diffusion_1d_experiment(grid_res):
                 'pow': 1,
                 'var': 0
             },
-        '-a * du/dx**1':
+        'a * du/dx**1':
             {
-                'coeff': -a,
+                'coeff': a,
                 'term': [0],
                 'pow': 1,
                 'var': 0
