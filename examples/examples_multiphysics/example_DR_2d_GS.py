@@ -23,7 +23,7 @@ from tedeous.utils import exact_solution_data
 solver_device('cuda')
 
 data_file = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..examples/PINNacle_data/grayscott.npy")
+    os.path.join(os.path.dirname(__file__), "../PINNacle_data/grayscott.npy")
 )
 
 
