@@ -17,6 +17,7 @@ solver_device('gpu')
 eps = 1.0
 
 C_ring = torch.tensor([0.123456, 0.654321, 0.345612, 0.216543, 0.561234, 0.432165], dtype=torch.float32)
+factor_ring = 10 ** 4
 
 
 def make_gaussian_init(Kmax=6, seed=None, device="cpu"):
@@ -40,38 +41,47 @@ def make_gaussian_init(Kmax=6, seed=None, device="cpu"):
     imag = torch.randn(len(kx), device=device)
     h = torch.complex(real, imag)
 
-    # h(-k) = conj(h(k))
-    k_to_idx = {}
-    for idx in range(len(kx)):
-        k_to_idx[(int(kx[idx].item()), int(ky[idx].item()))] = idx
+    k_to_idx = {(int(kx[idx]), int(ky[idx])): idx for idx in range(len(kx))}
 
     for idx in range(len(kx)):
         kx_val = int(kx[idx].item())
         ky_val = int(ky[idx].item())
-
         neg_idx = k_to_idx.get((-kx_val, -ky_val), None)
-
-        if neg_idx is not None and idx < neg_idx:
+        if neg_idx is None:
+            continue
+        if neg_idx == idx:
+            h[idx] = torch.complex(torch.real(h[idx]), torch.tensor(0.0, device=h.device))
+            continue
+        if idx < neg_idx:
             avg = 0.5 * (h[idx] + torch.conj(h[neg_idx]))
             h[idx] = avg
             h[neg_idx] = torch.conj(avg)
 
     g_hat = torch.zeros_like(h)
 
+    eps_small = 1e-12
+
     for n in range(1, 7):
-        # mask n: n-0.5 ≤ |k| < n+0.5
-        lower_bound = n - 0.5
-        upper_bound = n + 0.5
-        mask = (abs_k >= lower_bound) & (abs_k < upper_bound)
+        mask = (abs_k >= n - 0.5) & (abs_k < n + 0.5)
+        if mask.sum() == 0:
+            continue
 
         if mask.sum() > 0:
-            # H(n) = sum |h(k)|**2
             H_n = torch.sum(torch.abs(h[mask]) ** 2)
-            scale = 1 * torch.sqrt(C_ring[n - 1] / H_n)
+
+            if H_n < eps_small:
+                H_n = eps_small
+
+            scale = factor_ring * torch.sqrt(C_ring[n - 1] / H_n)
             g_hat[mask] = scale * h[mask]
 
     g_hat[abs_k >= 6.5] = torch.complex(torch.tensor(0.0, device=device),
                                         torch.tensor(0.0, device=device))
+
+    E_spec = torch.sum(torch.abs(g_hat) ** 2)
+    E0 = 1.0
+    if E_spec > 0:
+        g_hat = g_hat * torch.sqrt(E0 / E_spec)
 
     def value_fn(grid):
         x = grid[:, 0]
@@ -104,7 +114,6 @@ def make_gaussian_init(Kmax=6, seed=None, device="cpu"):
         phase = (x.unsqueeze(1) * kx_local.unsqueeze(0) +
                  y.unsqueeze(1) * ky_local.unsqueeze(0))
 
-        # exp(-epsilon * |k|**2 * t)
         decay = torch.exp(-eps * t.unsqueeze(1) * k_sq_local.unsqueeze(0))
         u_complex = torch.matmul(torch.exp(1j * phase) * decay, g_hat_local)
         return torch.real(u_complex)
@@ -186,10 +195,9 @@ def heat_2d_gaussian_init_experiment(grid_res, seed=None):
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
-        # torch.nn.Linear(neurons, neurons),
-        # torch.nn.Tanh(),
         torch.nn.Linear(neurons, pde_dim_out)
     )
+
     for m in net.modules():
         if isinstance(m, torch.nn.Linear):
             torch.nn.init.xavier_normal_(m.weight)
@@ -198,6 +206,7 @@ def heat_2d_gaussian_init_experiment(grid_res, seed=None):
     start = time.time()
 
     model = Model(net, domain, equation, boundaries)
+
     model.compile('autograd', lambda_operator=1, lambda_bound=100)
 
     img_dir = os.path.join(os.path.dirname(__file__), 'heat_2d_gaussian_init_img')
@@ -223,6 +232,7 @@ def heat_2d_gaussian_init_experiment(grid_res, seed=None):
                           img_cols=2)
 
     optimizer = Optimizer('Adam', {'lr': 5e-4})
+
     callbacks = [cb_cache, cb_es, cb_plots]
 
     model.train(optimizer, 1e5, save_model=False, callbacks=callbacks)
