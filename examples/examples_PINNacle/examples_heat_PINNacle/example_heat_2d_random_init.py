@@ -20,14 +20,44 @@ C_ring = torch.tensor([0.123456, 0.654321, 0.345612, 0.216543, 0.561234, 0.43216
 factor_ring = 10 ** 4
 
 
+def enforce_hermitian(kx, ky, h):
+    k_to_idx = {(int(kx[i].item()), int(ky[i].item())): i for i in range(len(kx))}
+
+    visited = set()
+
+    for i in range(len(kx)):
+        k = (kx[i].item(), ky[i].item())
+        if k in visited:
+            continue
+
+        k_neg = (-k[0], -k[1])
+        j = k_to_idx.get(k_neg, None)
+
+        if j is None:
+            continue
+
+        visited.add(k)
+        visited.add(k_neg)
+
+        if i == j:
+            h[i] = torch.real(h[i].clone())
+            continue
+
+        avg = 0.5 * (h[i] + torch.conj(h[j]))
+        h[i] = avg
+        h[j] = torch.conj(avg)
+
+    return h, k_to_idx
+
+
 def make_gaussian_init(Kmax=6, seed=None, device="cpu"):
     if seed is not None:
         torch.manual_seed(seed)
         if device == 'cuda':
             torch.cuda.manual_seed(seed)
 
-    kx_range = torch.arange(-Kmax, Kmax + 1, device=device)
-    ky_range = torch.arange(-Kmax, Kmax + 1, device=device)
+    kx_range = torch.arange(-Kmax, Kmax + 1, device=device, dtype=torch.float32)
+    ky_range = torch.arange(-Kmax, Kmax + 1, device=device, dtype=torch.float32)
 
     kx_grid, ky_grid = torch.meshgrid(kx_range, ky_range, indexing='ij')
 
@@ -41,24 +71,9 @@ def make_gaussian_init(Kmax=6, seed=None, device="cpu"):
     imag = torch.randn(len(kx), device=device)
     h = torch.complex(real, imag)
 
-    k_to_idx = {(int(kx[idx]), int(ky[idx])): idx for idx in range(len(kx))}
-
-    for idx in range(len(kx)):
-        kx_val = int(kx[idx].item())
-        ky_val = int(ky[idx].item())
-        neg_idx = k_to_idx.get((-kx_val, -ky_val), None)
-        if neg_idx is None:
-            continue
-        if neg_idx == idx:
-            h[idx] = torch.complex(torch.real(h[idx]), torch.tensor(0.0, device=h.device))
-            continue
-        if idx < neg_idx:
-            avg = 0.5 * (h[idx] + torch.conj(h[neg_idx]))
-            h[idx] = avg
-            h[neg_idx] = torch.conj(avg)
+    h, k_to_idx = enforce_hermitian(kx, ky, h)
 
     g_hat = torch.zeros_like(h)
-
     eps_small = 1e-12
 
     for n in range(1, 7):
@@ -75,50 +90,67 @@ def make_gaussian_init(Kmax=6, seed=None, device="cpu"):
             scale = factor_ring * torch.sqrt(C_ring[n - 1] / H_n)
             g_hat[mask] = scale * h[mask]
 
-    g_hat[abs_k >= 6.5] = torch.complex(torch.tensor(0.0, device=device),
-                                        torch.tensor(0.0, device=device))
+    g_hat[abs_k >= 6.5] = 0
 
+    max_symm = 0.0
+    for i in range(len(kx)):
+        k = (int(kx[i].item()), int(ky[i].item()))
+        j = k_to_idx.get((-k[0], -k[1]))
+        if j is not None:
+            diff = torch.max(torch.abs(g_hat[i] - torch.conj(g_hat[j])))
+            if diff.item() > max_symm:
+                max_symm = diff.item()
+    print("max hermitian symmetry deviation:", max_symm)
+
+    eps_energy = 1e-12
     E_spec = torch.sum(torch.abs(g_hat) ** 2)
+    E_spec = E_spec.clamp_min(eps_energy)
+
     E0 = 1.0
-    if E_spec > 0:
-        g_hat = g_hat * torch.sqrt(E0 / E_spec)
+    g_hat = g_hat * torch.sqrt(E0 / E_spec)
+    g_hat = g_hat.to(dtype=torch.complex64, device=device)
 
-    def value_fn(grid):
-        x = grid[:, 0]
-        y = grid[:, 1]
-
-        device_grid = grid.device
-
-        kx_local = kx.to(device_grid)
-        ky_local = ky.to(device_grid)
-        g_hat_local = g_hat.to(device_grid)
-
-        phase = (x.unsqueeze(1) * kx_local.unsqueeze(0) +
-                 y.unsqueeze(1) * ky_local.unsqueeze(0))
-
-        u_complex = torch.matmul(torch.exp(1j * phase), g_hat_local)
-        return torch.real(u_complex)
-
-    def exact_fn(grid):
-        x = grid[:, 0]
-        y = grid[:, 1]
-        t = grid[:, 2]
+    def init_func(grid):
+        x = grid[:, 0:1]
+        y = grid[:, 1:2]
 
         device_grid = grid.device
+        kx_local = kx.to(device_grid).unsqueeze(0)
+        ky_local = ky.to(device_grid).unsqueeze(0)
+        g_local = g_hat.to(device_grid)
 
-        kx_local = kx.to(device_grid)
-        ky_local = ky.to(device_grid)
-        k_sq_local = k_sq.to(device_grid)
-        g_hat_local = g_hat.to(device_grid)
+        phase = x @ kx_local + y @ ky_local
 
-        phase = (x.unsqueeze(1) * kx_local.unsqueeze(0) +
-                 y.unsqueeze(1) * ky_local.unsqueeze(0))
+        g_r = torch.real(g_local)
+        g_i = torch.imag(g_local)
 
-        decay = torch.exp(-eps * t.unsqueeze(1) * k_sq_local.unsqueeze(0))
-        u_complex = torch.matmul(torch.exp(1j * phase) * decay, g_hat_local)
-        return torch.real(u_complex)
+        u = phase.cos().matmul(g_r) - phase.sin().matmul(g_i)
+        return u
 
-    return value_fn, exact_fn
+    def exact_func(grid):
+        x = grid[:, 0:1]
+        y = grid[:, 1:2]
+        t = grid[:, 2:3]
+
+        device_grid = grid.device
+        kx_local = kx.to(device_grid).unsqueeze(0)
+        ky_local = ky.to(device_grid).unsqueeze(0)
+        k_sq_local = k_sq.to(device_grid).unsqueeze(0)
+        g_local = g_hat.to(device_grid)
+
+        phase = x @ kx_local + y @ ky_local
+        decay = torch.exp(-eps * t @ k_sq_local)
+
+        g_r = torch.real(g_local)
+        g_i = torch.imag(g_local)
+
+        cos_part = phase.cos() * decay
+        sin_part = phase.sin() * decay
+
+        u = cos_part.matmul(g_r) - sin_part.matmul(g_i)
+        return u
+
+    return init_func, exact_func
 
 
 def heat_2d_gaussian_init_experiment(grid_res, seed=None):
@@ -138,13 +170,13 @@ def heat_2d_gaussian_init_experiment(grid_res, seed=None):
 
     boundaries = Conditions()
 
-    value_fn, exact_fn = make_gaussian_init(Kmax=6, seed=seed, device='cuda')
+    init_func, exact_func = make_gaussian_init(Kmax=6, seed=seed, device='cuda')
 
     # Initial condition ################################################################################################
 
     # u(x, y, 0)
     boundaries.dirichlet({'x': [x_min, x_max], 'y': [y_min, y_max], 't': 0},
-                         value=lambda grid: value_fn(grid).to(grid.device))
+                         value=lambda grid: init_func(grid).to(grid.device))
 
     # Boundary conditions ###################################################################################
 
@@ -242,8 +274,7 @@ def heat_2d_gaussian_init_experiment(grid_res, seed=None):
     grid = domain.build('NN').to('cuda')
     net = net.to('cuda')
 
-    # exact_on_grid = exact_fn(grid.cpu()).to('cuda')
-    exact_on_grid = exact_fn(grid)
+    exact_on_grid = exact_func(grid)
     pred = net(grid)
     error_rmse = torch.sqrt(torch.mean((exact_on_grid - pred) ** 2))
 
@@ -264,7 +295,7 @@ def heat_2d_gaussian_init_experiment(grid_res, seed=None):
 nruns = 1
 
 exp_dict_list = []
-for grid_res in range(10, 101, 10):
+for grid_res in range(100, 1001, 100):
     for r in range(nruns):
         exp_dict_list.append(heat_2d_gaussian_init_experiment(grid_res, seed=r))
 
