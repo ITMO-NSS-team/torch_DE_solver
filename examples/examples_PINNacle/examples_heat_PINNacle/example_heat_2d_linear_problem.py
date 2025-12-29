@@ -1,5 +1,4 @@
 import torch
-import numpy as np
 import os
 import sys
 import time
@@ -12,7 +11,6 @@ from tedeous.model import Model
 from tedeous.callbacks import cache, early_stopping, plot
 from tedeous.optimizers.optimizer import Optimizer
 from tedeous.device import solver_device
-from tedeous.utils import exact_solution_data
 
 solver_device('gpu')
 
@@ -27,7 +25,7 @@ def exact_func(grid):
     return sln
 
 
-def heat_2d_long_time_experiment(grid_res):
+def heat_2d_linear_problem_experiment(grid_res):
     exp_dict_list = []
 
     x_min, x_max = 0, 2 * torch.pi
@@ -116,7 +114,7 @@ def heat_2d_long_time_experiment(grid_res):
 
     model.compile('autograd', lambda_operator=1, lambda_bound=100)
 
-    img_dir = os.path.join(os.path.dirname(__file__), 'heat_2d_long_time_img')
+    img_dir = os.path.join(os.path.dirname(__file__), 'heat_2d_linear_problem_img')
 
     cb_cache = cache.Cache(cache_verbose=True, model_randomize_parameter=1e-6)
 
@@ -127,7 +125,7 @@ def heat_2d_long_time_experiment(grid_res):
                                          randomize_parameter=1e-6,
                                          info_string_every=10)
 
-    cb_plots = plot.Plots(save_every=100,
+    cb_plots = plot.Plots(save_every=500,
                           print_every=None,
                           img_dir=img_dir,
                           img_dim='2d',
@@ -171,7 +169,7 @@ exp_dict_list = []
 
 for grid_res in range(100, 1001, 100):
     for _ in range(nruns):
-        exp_dict_list.append(heat_2d_long_time_experiment(grid_res))
+        exp_dict_list.append(heat_2d_linear_problem_experiment(grid_res))
 
 import pandas as pd
 
