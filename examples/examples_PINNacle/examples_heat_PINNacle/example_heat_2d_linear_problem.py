@@ -21,7 +21,8 @@ k = torch.arange(N)
 
 def exact_func(grid):
     x, y, t = grid[:, 0], grid[:, 1], grid[:, 2]
-    sln = torch.sum((torch.sin(k * x[:, None]) + torch.sin(k * y[:, None])) * torch.exp(-k ** 2 * t[:, None]))
+    sln = torch.sum((torch.sin(k * x[:, None]) + torch.sin(k * y[:, None])) * torch.exp(-k ** 2 * t[:, None]),
+                    dim=1)
     return sln
 
 
@@ -47,7 +48,7 @@ def heat_2d_linear_problem_experiment(grid_res):
 
     # u(x, y, 0)
     boundaries.dirichlet({'x': [x_min, x_max], 'y': [y_min, y_max], 't': 0}, value=lambda grid: torch.sum(
-        torch.sin(k * grid[:, 0][:, None]) + torch.sin(k * grid[:, 1][:, None])))
+        torch.sin(k * grid[:, 0][:, None]) + torch.sin(k * grid[:, 1][:, None]), dim=1))
 
     # Boundary conditions (periodic): ##################################################################################
 

@@ -24,7 +24,7 @@ k = torch.arange(N)
 def exact_func(grid):
     x, t = grid[:, 0], grid[:, 1]
     sln = torch.sum(torch.sin(k * x[:, None] - k * a * t[:, None]) *
-                    torch.exp(-epsilon * k ** 2 * t[:, None]))
+                    torch.exp(-epsilon * k ** 2 * t[:, None]), dim=1)
     return sln
 
 
@@ -47,7 +47,7 @@ def convection_diffusion_1d_experiment(grid_res):
 
     # u(x, 0)
     boundaries.dirichlet({'x': [x_min, x_max], 't': 0},
-                         value=lambda grid: torch.sum(torch.sin(k * grid[:, 0][:, None])))
+                         value=lambda grid: torch.sum(torch.sin(k * grid[:, 0][:, None]), dim=1))
 
     # Boundary conditions (periodic): ##################################################################################
 
