@@ -116,11 +116,7 @@ def diffusion_1d_experiment(grid_res):
                           print_every=None,
                           img_dir=img_dir,
                           img_dim='2d',
-                          scatter_flag=False,
-                          plot_axes=[0, 1],
-                          fixed_axes=[2],
-                          n_samples=4,
-                          var_transpose=False)
+                          scatter_flag=False)
 
     optimizer = Optimizer('Adam', {'lr': 1e-4})
 
