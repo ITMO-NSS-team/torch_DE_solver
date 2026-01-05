@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon May 31 12:33:44 2021
-
-@author: user
-"""
 import torch
 import numpy as np
 import os
@@ -51,15 +45,27 @@ def heat_2d_long_time_experiment(grid_res):
     boundaries.dirichlet({'x': [x_min, x_max], 'y': [y_min, y_max], 't': 0},
                          value=lambda grid: torch.sin(4 * np.pi * grid[:, 0]) * torch.sin(3 * np.pi * grid[:, 1]))
 
-    # Boundary conditions: #############################################################################################
+    # u_t(x, 0) = 0
+    bop = {
+        'du/dt':
+            {
+                'coeff': 1,
+                'term': [2],
+                'pow': 1,
+                'var': 0
+            }
+    }
+    boundaries.operator({'x': [x_min, x_max], 'y': [y_min, y_max], 't': 0}, operator=bop, value=0)
 
-    # u(0, y, t)
+    # Boundary conditions ##############################################################################################
+
+    # u(x_min, y, t)
     boundaries.dirichlet({'x': x_min, 'y': [y_min, y_max], 't': [0, t_max]}, value=0)
-    # u(x, 0, t)
-    boundaries.dirichlet({'x': [x_min, x_max], 'y': y_min, 't': [0, t_max]}, value=0)
-    # u(1, y, t)
+    # u(x_max, y, t)
     boundaries.dirichlet({'x': x_max, 'y': [y_min, y_max], 't': [0, t_max]}, value=0)
-    # u(x, 1, t)
+    # u(x, y_min, t)
+    boundaries.dirichlet({'x': [x_min, x_max], 'y': y_min, 't': [0, t_max]}, value=0)
+    # u(x, y_max, t)
     boundaries.dirichlet({'x': [x_min, x_max], 'y': y_max, 't': [0, t_max]}, value=0)
 
     equation = Equation()
@@ -115,10 +121,6 @@ def heat_2d_long_time_experiment(grid_res):
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
-        torch.nn.Linear(neurons, neurons),
-        torch.nn.Tanh(),
-        torch.nn.Linear(neurons, neurons),
-        torch.nn.Tanh(),
         torch.nn.Linear(neurons, pde_dim_out)
     )
 
@@ -144,7 +146,7 @@ def heat_2d_long_time_experiment(grid_res):
                                          randomize_parameter=1e-6,
                                          info_string_every=10)
 
-    cb_plots = plot.Plots(save_every=100,
+    cb_plots = plot.Plots(save_every=10,
                           print_every=None,
                           img_dir=img_dir,
                           img_dim='2d',
@@ -155,7 +157,7 @@ def heat_2d_long_time_experiment(grid_res):
                           img_rows=2,
                           img_cols=2)
 
-    optimizer = Optimizer('Adam', {'lr': 1e-3})
+    optimizer = Optimizer('Adam', {'lr': 5e-4})
 
     callbacks = [cb_cache, cb_es, cb_plots]
 
@@ -189,7 +191,7 @@ nruns = 10
 
 exp_dict_list = []
 
-for grid_res in range(20, 201, 20):
+for grid_res in range(32, 321, 32):
     for _ in range(nruns):
         exp_dict_list.append(heat_2d_long_time_experiment(grid_res))
 
@@ -197,4 +199,4 @@ import pandas as pd
 
 exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df = pd.DataFrame(exp_dict_list_flatten)
-df.to_csv('examples/benchmarking_data/heat_2d_long_time_experiment_20_200_cache={}.csv'.format(str(True)))
+df.to_csv('examples/benchmarking_data/heat_2d_long_time_experiment_32_320_cache={}.csv'.format(str(True)))

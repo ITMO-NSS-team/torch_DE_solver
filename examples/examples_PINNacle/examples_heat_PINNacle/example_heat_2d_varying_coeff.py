@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon May 31 12:33:44 2021
-
-@author: user
-"""
 import torch
 import numpy as np
 import os
@@ -32,7 +26,7 @@ m1, m2, m3 = 1, 5, 1
 
 def func(grid):
     x, y, t = grid[:, 0], grid[:, 1], grid[:, 2]
-    sln = A * torch.sin(np.pi * m1 * x) * torch.sin(np.pi * m2 * y) * torch.exp(np.pi * m3 * t)
+    sln = A * torch.sin(np.pi * m1 * x) * torch.sin(np.pi * m2 * y) * torch.sin(np.pi * m3 * t)
     return sln
 
 
@@ -66,18 +60,29 @@ def heat_2d_varying_coeff_experiment(grid_res):
 
     # Initial condition: ###############################################################################################
 
-    # u(x, y, 0)
+    # u(x, y, 0) = 0
     boundaries.dirichlet({'x': [x_min, x_max], 'y': [y_min, y_max], 't': 0}, value=0)
+
+    # u_t(x, y, 0) = 0
+    bop = {
+        'du/dt':
+            {
+                'coeff': 1,
+                'term': [2],
+                'pow': 1
+            }
+    }
+    boundaries.operator({'x': [x_min, x_max], 'y': [y_min, y_max], 't': 0}, operator=bop, value=0)
 
     # Boundary conditions: #############################################################################################
 
-    # u(x_min, y, t)
+    # u(x_min, y, t) = 0
     boundaries.dirichlet({'x': x_min, 'y': [y_min, y_max], 't': [0, t_max]}, value=0)
-    # u(x, y_min, t)
-    boundaries.dirichlet({'x': [x_min, x_max], 'y': y_min, 't': [0, t_max]}, value=0)
-    # u(x_max, y, t)
+    # u(x_max, y, t) = 0
     boundaries.dirichlet({'x': x_max, 'y': [y_min, y_max], 't': [0, t_max]}, value=0)
-    # u(x, x_min, t)
+    # u(x, y_min, t) = 0
+    boundaries.dirichlet({'x': [x_min, x_max], 'y': y_min, 't': [0, t_max]}, value=0)
+    # u(x, x_max, t) = 0
     boundaries.dirichlet({'x': [x_min, x_max], 'y': y_max, 't': [0, t_max]}, value=0)
 
     equation = Equation()
@@ -162,13 +167,14 @@ def heat_2d_varying_coeff_experiment(grid_res):
                           fixed_axes=[2],
                           n_samples=4,
                           img_rows=2,
-                          img_cols=2)
+                          img_cols=2
+                          )
 
-    optimizer = Optimizer('Adam', {'lr': 1e-3})
+    optimizer = Optimizer('Adam', {'lr': 5e-4})
 
     callbacks = [cb_cache, cb_es, cb_plots]
 
-    model.train(optimizer, 5e5, save_model=True, callbacks=callbacks)
+    model.train(optimizer, 5e5, save_model=False, callbacks=callbacks)
 
     end = time.time()
 
@@ -198,7 +204,7 @@ nruns = 10
 
 exp_dict_list = []
 
-for grid_res in range(20, 201, 20):
+for grid_res in range(32, 321, 32):
     for _ in range(nruns):
         exp_dict_list.append(heat_2d_varying_coeff_experiment(grid_res))
 
@@ -206,4 +212,4 @@ import pandas as pd
 
 exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df = pd.DataFrame(exp_dict_list_flatten)
-df.to_csv('examples/benchmarking_data/heat_2d_varying_coeff_experiment_20_200_cache={}.csv'.format(str(True)))
+df.to_csv('examples/benchmarking_data/heat_2d_varying_coeff_experiment_32_320_cache={}.csv'.format(str(True)))
