@@ -92,6 +92,10 @@ def burgers_1d_experiment(grid_res):
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
         torch.nn.Linear(neurons, pde_dim_out)
     )
 
@@ -117,7 +121,7 @@ def burgers_1d_experiment(grid_res):
 
     optimizer = Optimizer('Adam', {'lr': 1e-4})
 
-    model.train(optimizer, 5e5, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
+    model.train(optimizer, 2e4, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
 
     end = time.time()
 
@@ -147,7 +151,7 @@ nruns = 10
 
 exp_dict_list = []
 
-for grid_res in range(50, 501, 50):
+for grid_res in range(100, 201, 100):
     for _ in range(nruns):
         exp_dict_list.append(burgers_1d_experiment(grid_res))
 
