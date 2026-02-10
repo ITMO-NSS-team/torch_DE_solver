@@ -157,6 +157,8 @@ def DR_2d_gray_scott_experiment(grid_res):
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
         torch.nn.Linear(neurons, pde_dim_out)
     )
 
@@ -192,9 +194,9 @@ def DR_2d_gray_scott_experiment(grid_res):
                           n_samples=4,
                           var_transpose=False)
 
-    optimizer = Optimizer('Adam', {'lr': 1e-4})
+    optimizer = Optimizer('Adam', {'lr': 1e-3, 'betas': (0.9, 0.999)})
 
-    model.train(optimizer, 5e5, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
+    model.train(optimizer, 2e4, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
 
     end = time.time()
 
@@ -234,7 +236,7 @@ nruns = 10
 
 exp_dict_list_u, exp_dict_list_v = [], []
 
-for grid_res in range(20, 201, 20):
+for grid_res in range(32, 65, 32):
     for _ in range(nruns):
         list_u, list_v = DR_2d_gray_scott_experiment(grid_res)
         exp_dict_list_u.append(list_u)
