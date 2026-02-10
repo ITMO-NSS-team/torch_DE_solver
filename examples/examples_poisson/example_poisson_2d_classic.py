@@ -126,7 +126,7 @@ def poisson_2d_classic_experiment(grid_res):
                           img_dim='2d',
                           scatter_flag=True)
 
-    optimizer = Optimizer('Adam', {'lr': 1e-3})
+    optimizer = Optimizer('Adam', {'lr': 1e-3, 'betas': (0.9, 0.999)})
 
     model.train(optimizer, 2e4, save_model=True, callbacks=[cb_cache, cb_es, cb_plots])
 
