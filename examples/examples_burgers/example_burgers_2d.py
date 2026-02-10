@@ -21,7 +21,6 @@ solver_device('gpu')
 data_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../PINNacle_data/burgers2d_0.npy"))
 
 data_init_u_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../PINNacle_data/burgers2d_init_u_0.npy"))
-
 data_init_v_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../PINNacle_data/burgers2d_init_v_0.npy"))
 
 mu = 0.001
@@ -63,7 +62,6 @@ def burgers_2d_coupled_experiment(grid_res):
     x_min, L = 0, 4
     y_min, L = 0, 4
     T = 1
-    # grid_res = 20
 
     pde_dim_in = 3
     pde_dim_out = 2
@@ -77,7 +75,7 @@ def burgers_2d_coupled_experiment(grid_res):
 
     # Initial conditions ###############################################################################################
 
-    # # With use custom functions for IC
+    # # Using custom functions for IC
     #
     # # u(x, y, 0)
     # boundaries.dirichlet({'x': [0, L], 'y': [0, L], 't': 0}, value=init_u, var=0)
@@ -85,7 +83,7 @@ def burgers_2d_coupled_experiment(grid_res):
     # # v(x, y, 0)
     # boundaries.dirichlet({'x': [0, L], 'y': [0, L], 't': 0}, value=init_v, var=1)
 
-    # With use IC data
+    # Using IC data
 
     init_u_data = lambda grid: init_data(grid[:, :2], data_init_u_file)
     init_v_data = lambda grid: init_data(grid[:, :2], data_init_v_file)
@@ -196,8 +194,11 @@ def burgers_2d_coupled_experiment(grid_res):
     equation.add(burgers_v)
 
     neurons = 100
+
     net = torch.nn.Sequential(
         torch.nn.Linear(pde_dim_in, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
@@ -235,9 +236,9 @@ def burgers_2d_coupled_experiment(grid_res):
                           fixed_axes=[2],
                           var_transpose=False)
 
-    optimizer = Optimizer('Adam', {'lr': 5e-3})
+    optimizer = Optimizer('Adam', {'lr': 1e-3})
 
-    model.train(optimizer, 5e5, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
+    model.train(optimizer, 2e4, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
 
     end = time.time()
 
@@ -277,7 +278,7 @@ nruns = 10
 
 exp_dict_list_u, exp_dict_list_v = [], []
 
-for grid_res in range(20, 201, 20):
+for grid_res in range(32, 65, 32):
     for _ in range(nruns):
         list_u, list_v = burgers_2d_coupled_experiment(grid_res)
         exp_dict_list_u.append(list_u)
@@ -291,5 +292,5 @@ exp_dict_list_v_flatten = [item for sublist in exp_dict_list_v for item in subli
 df_u = pd.DataFrame(exp_dict_list_u_flatten)
 df_v = pd.DataFrame(exp_dict_list_v_flatten)
 
-df_u.to_csv('examples/benchmarking_data/burgers_2d_coupled_experiment_20_200_cache_u_func={}.csv'.format(str(True)))
-df_v.to_csv('examples/benchmarking_data/burgers_2d_coupled_experiment_20_200_cache_v_func={}.csv'.format(str(True)))
+df_u.to_csv('examples/benchmarking_data/burgers_2d_coupled_experiment_32_65_cache_u_func={}.csv'.format(str(True)))
+df_v.to_csv('examples/benchmarking_data/burgers_2d_coupled_experiment_32_65_cache_v_func={}.csv'.format(str(True)))
