@@ -151,8 +151,6 @@ def poisson_2d_many_subdomains_experiment(grid_res):
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
-        torch.nn.Linear(neurons, neurons),
-        torch.nn.Tanh(),
         torch.nn.Linear(neurons, pde_dim_out)
     )
 

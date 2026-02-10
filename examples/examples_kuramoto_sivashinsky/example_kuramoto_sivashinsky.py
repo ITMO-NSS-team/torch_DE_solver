@@ -94,8 +94,6 @@ def kuramoto_sivashinsky_experiment(grid_res):
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
-        torch.nn.Linear(neurons, neurons),
-        torch.nn.Tanh(),
         torch.nn.Linear(neurons, pde_dim_out)
     )
 

@@ -125,8 +125,6 @@ net = torch.nn.Sequential(
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
-        torch.nn.Linear(neurons, neurons),
-        torch.nn.Tanh(),
         torch.nn.Linear(neurons, 2)
     )
 

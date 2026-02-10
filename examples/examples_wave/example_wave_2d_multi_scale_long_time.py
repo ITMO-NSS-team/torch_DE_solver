@@ -121,8 +121,6 @@ def wave2d_multi_scale_long_time_experiment(grid_res):
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
-        torch.nn.Linear(neurons, neurons),
-        torch.nn.Tanh(),
         torch.nn.Linear(neurons, pde_dim_out)
     )
 

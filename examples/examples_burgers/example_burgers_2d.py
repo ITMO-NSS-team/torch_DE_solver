@@ -206,10 +206,13 @@ def burgers_2d_coupled_experiment(grid_res):
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
-        torch.nn.Linear(neurons, neurons),
-        torch.nn.Tanh(),
         torch.nn.Linear(neurons, pde_dim_out)
     )
+
+    for m in net.modules():
+        if isinstance(m, torch.nn.Linear):
+            torch.nn.init.xavier_normal_(m.weight)
+            torch.nn.init.zeros_(m.bias)
 
     start = time.time()
 
