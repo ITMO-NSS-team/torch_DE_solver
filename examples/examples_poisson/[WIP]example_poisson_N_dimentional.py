@@ -17,7 +17,7 @@ solver_device('gpu')
 
 def exact_solution(grid):
     u_exact = 0
-    for i in range(n_dim):
+    for i in range(pde_dim_in):
         u_exact += torch.sin(grid[:, i])
 
     return u_exact
@@ -27,26 +27,26 @@ def forcing_term(grid):
     return torch.pi ** 2 / 4 * exact_solution(grid)
 
 
-n_dim = 4
+pde_dim_in = 4
 coeff_laplacian = -1
 pow_laplacian = 1
 
 x_min, x_max = 0, 1
-domains_lst = [[x_min, x_max]] * n_dim
+domains_lst = [[x_min, x_max]] * pde_dim_in
 grid_res = 10
 
 domain = Domain()
 
-for i in range(n_dim):
+for i in range(pde_dim_in):
     domain.variable(f'x_{i + 1}', domains_lst[i], grid_res)
 
 boundaries = Conditions()
 
 variable_names_lst = list(domain.variable_dict.keys())
-for i in range(n_dim):
+for i in range(pde_dim_in):
     d_min = {variable_names_lst[i]: x_min}
     d_max = {variable_names_lst[i]: x_max}
-    for j in range(n_dim):
+    for j in range(pde_dim_in):
         if i != j:
             d_min[variable_names_lst[j]] = [x_min, x_max]
             d_max[variable_names_lst[j]] = [x_min, x_max]
@@ -59,7 +59,7 @@ equation = Equation()
 # Operator: −∆u = pi ** 2 / 4 * sum(sin(pi / 2 * x_i))
 
 poisson = {}
-for i in range(n_dim):
+for i in range(pde_dim_in):
     poisson[f'd2u/dx{i}2'] = {
         'coeff': coeff_laplacian,
         'term': [i, i],
@@ -77,16 +77,20 @@ equation.add(poisson)
 neurons = 100
 
 net = torch.nn.Sequential(
-    torch.nn.Linear(n_dim, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, 1)
-)
+        torch.nn.Linear(pde_dim_in, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, 1)
+    )
 
 for m in net.modules():
     if isinstance(m, torch.nn.Linear):
@@ -118,6 +122,6 @@ cb_plots = plot.Plots(save_every=100,
                       img_rows=2,
                       img_cols=2)
 
-optimizer = Optimizer('Adam', {'lr': 5e-3})
+optimizer = Optimizer('Adam', {'lr': 1e-3, 'betas': (0.9, 0.999)})
 
-model.train(optimizer, 1e5, save_model=True, callbacks=[cb_cache, cb_es, cb_plots])
+model.train(optimizer, 2e4, save_model=True, callbacks=[cb_cache, cb_es, cb_plots])

@@ -39,7 +39,7 @@ def forcing_term(grid):
 
 x_min, x_max = 0, 1
 y_min, y_max = 0, 1
-grid_res = 50
+grid_res = 100
 N_samples = 2500
 
 domain = Domain()
@@ -115,18 +115,20 @@ equation.add(poisson_inverse)
 neurons = 100
 
 net = torch.nn.Sequential(
-    torch.nn.Linear(2, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, 2)
-)
+        torch.nn.Linear(2, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, 2)
+    )
 
 for m in net.modules():
     if isinstance(m, torch.nn.Linear):
@@ -154,6 +156,6 @@ cb_plots = plot.Plots(save_every=100,
                       img_dim='2d',
                       scatter_flag=False)
 
-optimizer = Optimizer('Adam', {'lr': 1e-3})
+optimizer = Optimizer('Adam', {'lr': 1e-3, 'betas': (0.9, 0.999)})
 
-model.train(optimizer, 1e5, save_model=True, callbacks=[cb_cache, cb_es, cb_plots])
+model.train(optimizer, 2e4, save_model=True, callbacks=[cb_cache, cb_es, cb_plots])
