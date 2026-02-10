@@ -119,7 +119,7 @@ def burgers_1d_experiment(grid_res):
                           img_dim='3d',
                           scatter_flag=False)
 
-    optimizer = Optimizer('Adam', {'lr': 1e-4})
+    optimizer = Optimizer('Adam', {'lr': 1e-3, 'betas': (0.9, 0.999)})
 
     model.train(optimizer, 2e4, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
 

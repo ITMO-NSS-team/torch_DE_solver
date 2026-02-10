@@ -236,7 +236,7 @@ def burgers_2d_coupled_experiment(grid_res):
                           fixed_axes=[2],
                           var_transpose=False)
 
-    optimizer = Optimizer('Adam', {'lr': 1e-3})
+    optimizer = Optimizer('Adam', {'lr': 1e-3, 'betas': (0.9, 0.999)})
 
     model.train(optimizer, 2e4, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
 
