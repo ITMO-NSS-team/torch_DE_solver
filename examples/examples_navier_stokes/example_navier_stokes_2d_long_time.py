@@ -251,9 +251,9 @@ def navier_stokes_2d_long_time_experiment(grid_res):
                           n_samples=4,
                           var_transpose=False)
 
-    optimizer = Optimizer('Adam', {'lr': 1e-3})
+    optimizer = Optimizer('Adam', {'lr': 1e-3, 'betas': (0.9, 0.999)})
 
-    model.train(optimizer, 5e5, save_model=True, callbacks=[cb_cache, cb_es, cb_plots])
+    model.train(optimizer, 2e4, save_model=True, callbacks=[cb_cache, cb_es, cb_plots])
 
     end = time.time()
 
@@ -302,7 +302,7 @@ nruns = 10
 
 exp_dict_list_u, exp_dict_list_v, exp_dict_list_p = [], [], []
 
-for grid_res in range(20, 201, 20):
+for grid_res in range(32, 65, 32):
     for _ in range(nruns):
         list_u, list_v, list_p = navier_stokes_2d_long_time_experiment(grid_res)
         exp_dict_list_u.append(list_u)
@@ -319,9 +319,9 @@ df_u = pd.DataFrame(exp_dict_list_u_flatten)
 df_v = pd.DataFrame(exp_dict_list_v_flatten)
 df_p = pd.DataFrame(exp_dict_list_p_flatten)
 
-df_u.to_csv('examples/benchmarking_data/navier_stokes_2d_long_time_experiment_20_200_cache_u_func={}.csv'
+df_u.to_csv('examples/benchmarking_data/navier_stokes_2d_long_time_experiment_32_65_cache_u_func={}.csv'
             .format(str(True)))
-df_v.to_csv('examples/benchmarking_data/navier_stokes_2d_long_time_experiment_20_200_cache_v_func={}.csv'
+df_v.to_csv('examples/benchmarking_data/navier_stokes_2d_long_time_experiment_32_65_cache_v_func={}.csv'
             .format(str(True)))
-df_p.to_csv('examples/benchmarking_data/navier_stokes_2d_long_time_experiment_20_200_cache_p_func={}.csv'
+df_p.to_csv('examples/benchmarking_data/navier_stokes_2d_long_time_experiment_32_65_cache_p_func={}.csv'
             .format(str(True)))
