@@ -121,6 +121,8 @@ def wave2d_multi_scale_long_time_experiment(grid_res):
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
         torch.nn.Linear(neurons, pde_dim_out)
     )
 
@@ -157,9 +159,9 @@ def wave2d_multi_scale_long_time_experiment(grid_res):
                           img_rows=2,
                           img_cols=2)
 
-    optimizer = Optimizer('Adam', {'lr': 1e-4})
+    optimizer = Optimizer('Adam', {'lr': 1e-3, 'betas': (0.9, 0.999)})
 
-    model.train(optimizer, 5e5, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
+    model.train(optimizer, 2e4, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
 
     end = time.time()
 
@@ -189,7 +191,7 @@ nruns = 10
 
 exp_dict_list = []
 
-for grid_res in range(20, 201, 20):
+for grid_res in range(32, 65, 32):
     for _ in range(nruns):
         exp_dict_list.append(wave2d_multi_scale_long_time_experiment(grid_res))
 
@@ -197,5 +199,5 @@ import pandas as pd
 
 exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df = pd.DataFrame(exp_dict_list_flatten)
-df.to_csv('examples/benchmarking_data/wave2d_multi_scale_long_time_experiment_physical_50_500_cache={}.csv'
+df.to_csv('examples/benchmarking_data/wave2d_multi_scale_long_time_experiment_physical_32_65_cache={}.csv'
           .format(str(True)))

@@ -35,6 +35,9 @@ def exact_func_2(grid, a=4):
 def wave_1d_basic_experiment(grid_res):
     exp_dict_list = []
 
+    pde_dim_in = 2
+    pde_dim_out = 1
+
     x_min, x_max = 0, 1
     t_max = 1
 
@@ -101,7 +104,7 @@ def wave_1d_basic_experiment(grid_res):
     neurons = 100
 
     net = torch.nn.Sequential(
-        torch.nn.Linear(2, neurons),
+        torch.nn.Linear(pde_dim_in, neurons),
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
@@ -109,7 +112,11 @@ def wave_1d_basic_experiment(grid_res):
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
-        torch.nn.Linear(neurons, 1)
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, pde_dim_out)
     )
 
     for m in net.modules():
@@ -140,9 +147,9 @@ def wave_1d_basic_experiment(grid_res):
                           scatter_flag=False
                           )
 
-    optimizer = Optimizer('Adam', {'lr': 1e-4})
+    optimizer = Optimizer('Adam', {'lr': 1e-3, 'betas': (0.9, 0.999)})
 
-    model.train(optimizer, 5e5, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
+    model.train(optimizer, 2e4, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
 
     end = time.time()
 
@@ -169,7 +176,7 @@ nruns = 10
 
 exp_dict_list = []
 
-for grid_res in range(50, 501, 50):
+for grid_res in range(100, 201, 100):
     for _ in range(nruns):
         exp_dict_list.append(wave_1d_basic_experiment(grid_res))
 
@@ -177,7 +184,7 @@ import pandas as pd
 
 exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df = pd.DataFrame(exp_dict_list_flatten)
-df.to_csv('examples/benchmarking_data/wave_1d_basic_experiment_physical_50_500_cache={}.csv'.format(str(True)))
+df.to_csv('examples/benchmarking_data/wave_1d_basic_experiment_physical_100_200_cache={}.csv'.format(str(True)))
 
 
 

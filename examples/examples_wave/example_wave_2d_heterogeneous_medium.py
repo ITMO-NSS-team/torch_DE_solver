@@ -138,6 +138,8 @@ def wave2d_heterogeneous_experiment(grid_res):
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
         torch.nn.Linear(neurons, pde_dim_out)
     )
 
@@ -166,7 +168,7 @@ def wave2d_heterogeneous_experiment(grid_res):
     cb_plots = plot.Plots(save_every=50,
                           print_every=None,
                           img_dir=img_dir,
-                          img_dim='3d',
+                          img_dim='2d',
                           img_rows=2,
                           img_cols=2,
                           scatter_flag=False,
@@ -174,9 +176,9 @@ def wave2d_heterogeneous_experiment(grid_res):
                           plot_axes=[0, 1],
                           fixed_axes=[2])
 
-    optimizer = Optimizer('Adam', {'lr': 1e-4})
+    optimizer = Optimizer('Adam', {'lr': 1e-3, 'betas': (0.9, 0.999)})
 
-    model.train(optimizer, 5e3, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
+    model.train(optimizer, 2e4, save_model=True, callbacks=[cb_es, cb_plots, cb_cache])
 
     end = time.time()
 
@@ -205,7 +207,7 @@ nruns = 10
 
 exp_dict_list = []
 
-for grid_res in range(10, 101, 10):
+for grid_res in range(32, 65, 32):
     for _ in range(nruns):
         exp_dict_list.append(wave2d_heterogeneous_experiment(grid_res))
 
@@ -213,4 +215,4 @@ import pandas as pd
 
 exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df = pd.DataFrame(exp_dict_list_flatten)
-df.to_csv('examples/benchmarking_data/wave2d_heterogeneous_experiment_physical_10_100_cache={}.csv'.format(str(True)))
+df.to_csv('examples/benchmarking_data/wave2d_heterogeneous_experiment_physical_32_65_cache={}.csv'.format(str(True)))
