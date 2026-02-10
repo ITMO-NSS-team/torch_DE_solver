@@ -114,6 +114,10 @@ def poisson_2d_irregular_geometry_experiment(grid_res):
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
         torch.nn.Linear(neurons, pde_dim_out)
     )
 
@@ -145,9 +149,9 @@ def poisson_2d_irregular_geometry_experiment(grid_res):
                           img_dim='2d',
                           scatter_flag=True)
 
-    optimizer = Optimizer('Adam', {'lr': 1e-4})
+    optimizer = Optimizer('Adam', {'lr': 1e-3, 'betas': (0.9, 0.999)})
 
-    model.train(optimizer, 5e5, save_model=True, callbacks=[cb_cache, cb_es, cb_plots])
+    model.train(optimizer, 2e4, save_model=True, callbacks=[cb_cache, cb_es, cb_plots])
 
     end = time.time()
 
@@ -177,7 +181,7 @@ nruns = 10
 
 exp_dict_list = []
 
-for grid_res in range(100, 1001, 100):
+for grid_res in range(100, 201, 100):
     for _ in range(nruns):
         exp_dict_list.append(poisson_2d_irregular_geometry_experiment(grid_res))
 
@@ -185,7 +189,7 @@ import pandas as pd
 
 exp_dict_list_flatten = [item for sublist in exp_dict_list for item in sublist]
 df = pd.DataFrame(exp_dict_list_flatten)
-df.to_csv('examples/benchmarking_data/poisson_2d_irregular_geometry_100_1000_cache={}.csv'.format(str(True)))
+df.to_csv('examples/benchmarking_data/poisson_2d_irregular_geometry_100_200_cache={}.csv'.format(str(True)))
 
 
 
