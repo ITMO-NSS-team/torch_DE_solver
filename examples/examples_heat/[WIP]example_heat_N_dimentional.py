@@ -41,17 +41,17 @@ def bop_generation(coeff_x, i_dim):
     return bop
 
 
-n_dim = 5
-k = 1 / n_dim
+pde_dim_in = 5
+k = 1 / pde_dim_in
 
 x_min, x_max = -1, 1
 t_max = 1
-domains_lst = [[x_min, x_max]] * n_dim
+domains_lst = [[x_min, x_max]] * pde_dim_in
 grid_res = 10
 
 domain = Domain()
 
-for i in range(n_dim):
+for i in range(pde_dim_in):
     domain.variable(f'x_{i + 1}', domains_lst[i], grid_res)
 
 domain.variable('t', [0, t_max], grid_res)
@@ -68,10 +68,10 @@ boundaries.dirichlet(bnd, value=g_x)
 
 # Boundary conditions ##################################################################################################
 
-for i in range(n_dim):
+for i in range(pde_dim_in):
     d_min = {variable_names_lst[i]: x_min}
     d_max = {variable_names_lst[i]: x_max}
-    for j in range(n_dim):
+    for j in range(pde_dim_in):
         if i != j:
             d_min[variable_names_lst[j]] = [x_min, x_max]
             d_max[variable_names_lst[j]] = [x_min, x_max]
@@ -102,7 +102,7 @@ heat_N_dim = {
             'pow': 1
         }
 }
-for i in range(n_dim):
+for i in range(pde_dim_in):
     heat_N_dim[f'd2u/dx{i}2'] = {
         'coeff': -k,
         'term': [i, i],
@@ -120,16 +120,20 @@ equation.add(heat_N_dim)
 neurons = 100
 
 net = torch.nn.Sequential(
-    torch.nn.Linear(n_dim + 1, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, 1)
-)
+        torch.nn.Linear(pde_dim_in + 1, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, 1)
+    )
 
 for m in net.modules():
     if isinstance(m, torch.nn.Linear):
@@ -162,6 +166,6 @@ cb_es = early_stopping.EarlyStopping(eps=1e-9,
 #                       img_rows=2,
 #                       img_cols=2)
 
-optimizer = Optimizer('Adam', {'lr': 5e-3})
+optimizer = Optimizer('Adam', {'lr': 1e-3, 'betas': (0.9, 0.999)})
 
-model.train(optimizer, 1e5, save_model=True, callbacks=[cb_cache, cb_es])
+model.train(optimizer, 2e4, save_model=True, callbacks=[cb_cache, cb_es])

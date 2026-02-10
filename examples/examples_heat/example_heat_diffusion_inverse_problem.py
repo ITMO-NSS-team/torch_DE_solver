@@ -137,20 +137,20 @@ equation.add(heat_inverse)
 neurons = 100
 
 net = torch.nn.Sequential(
-    torch.nn.Linear(3, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, neurons),
-    torch.nn.Tanh(),
-    torch.nn.Linear(neurons, 2)
-)
+        torch.nn.Linear(3, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
+        torch.nn.Linear(neurons, 2)
+    )
 
 for m in net.modules():
     if isinstance(m, torch.nn.Linear):

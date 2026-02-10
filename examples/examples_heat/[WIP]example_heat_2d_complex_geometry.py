@@ -187,6 +187,8 @@ def heat_2d_complex_geometry_experiment(grid_res):
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
         torch.nn.Linear(neurons, pde_dim_out)
     )
 
@@ -223,11 +225,11 @@ def heat_2d_complex_geometry_experiment(grid_res):
                           img_rows=2,
                           img_cols=2)
 
-    optimizer = Optimizer('Adam', {'lr': 1e-3})
+    optimizer = Optimizer('Adam', {'lr': 1e-3, 'betas': (0.9, 0.999)})
 
     callbacks = [cb_cache, cb_es, cb_plots]
 
-    model.train(optimizer, 5e5, save_model=True, callbacks=callbacks)
+    model.train(optimizer, 2e4, save_model=True, callbacks=callbacks)
 
     end = time.time()
 
