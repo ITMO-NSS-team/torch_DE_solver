@@ -93,6 +93,8 @@ def poisson_2d_classic_experiment(grid_res):
         torch.nn.Tanh(),
         torch.nn.Linear(neurons, neurons),
         torch.nn.Tanh(),
+        torch.nn.Linear(neurons, neurons),
+        torch.nn.Tanh(),
         torch.nn.Linear(neurons, pde_dim_out)
     )
 
@@ -118,15 +120,15 @@ def poisson_2d_classic_experiment(grid_res):
                                          info_string_every=10,
                                          randomize_parameter=1e-5)
 
-    cb_plots = plot.Plots(save_every=100,
+    cb_plots = plot.Plots(save_every=500,
                           print_every=None,
                           img_dir=img_dir,
-                          img_dim='3d',
+                          img_dim='2d',
                           scatter_flag=True)
 
     optimizer = Optimizer('Adam', {'lr': 1e-3})
 
-    model.train(optimizer, 5e5, save_model=True, callbacks=[cb_cache, cb_es, cb_plots])
+    model.train(optimizer, 2e4, save_model=True, callbacks=[cb_cache, cb_es, cb_plots])
 
     end = time.time()
 
@@ -156,7 +158,7 @@ nruns = 10
 
 exp_dict_list = []
 
-for grid_res in range(50, 501, 50):
+for grid_res in range(100, 201, 100):
     for _ in range(nruns):
         exp_dict_list.append(poisson_2d_classic_experiment(grid_res))
 
