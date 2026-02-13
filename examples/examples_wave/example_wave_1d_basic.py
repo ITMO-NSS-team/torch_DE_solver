@@ -19,13 +19,7 @@ from tedeous.models import mat_model
 solver_device('gpu')
 
 
-def exact_func_1(grid):
-    x, t = grid[:, 0], grid[:, 1]
-    sln = torch.cos(2 * np.pi * t) * torch.sin(np.pi * x)
-    return sln
-
-
-def exact_func_2(grid, a=4):
+def exact_func(grid, a=4):
     x, t = grid[:, 0], grid[:, 1]
     sln = torch.sin(np.pi * x) * torch.cos(2 * np.pi * t) + 0.5 * \
           torch.sin(a * np.pi * x) * torch.cos(2 * a * np.pi * t)
@@ -52,10 +46,10 @@ def wave_1d_basic_experiment(grid_res):
 
     # Initial conditions ###############################################################################################
 
-    init_func = torch.sin(torch.pi * x) * torch.sin(4 * torch.pi * x) / 2
+    init_func = torch.sin(torch.pi * x) + torch.sin(4 * torch.pi * x) / 2
 
     # u(x, 0) = f_init(x, 0)
-    boundaries.dirichlet({'x': [x_min, x_max], 't': 0}, value=exact_func_1)
+    boundaries.dirichlet({'x': [x_min, x_max], 't': 0}, value=init_func)
 
     # u_t(x, 0) = 0
     bop = {
@@ -71,14 +65,11 @@ def wave_1d_basic_experiment(grid_res):
 
     # Boundary conditions ##############################################################################################
 
-    bnd_func = torch.sin(torch.pi * x) * torch.cos(2 * torch.pi * t) + \
-               torch.sin(4 * torch.pi * x) / 2 * torch.cos(8 * torch.pi * t)
-
     # u(0, t) = f_bnd(x, t)
-    boundaries.dirichlet({'x': x_min, 't': [0, t_max]}, value=exact_func_1)
+    boundaries.dirichlet({'x': x_min, 't': [0, t_max]}, value=0)
 
     # u(1, t) = f_bnd(x, t)
-    boundaries.dirichlet({'x': x_max, 't': [0, t_max]}, value=exact_func_1)
+    boundaries.dirichlet({'x': x_max, 't': [0, t_max]}, value=0)
 
     equation = Equation()
 
@@ -154,7 +145,7 @@ def wave_1d_basic_experiment(grid_res):
     grid = domain.build('NN').to('cuda')
     net = net.to('cuda')
 
-    error_rmse = torch.sqrt(torch.mean((exact_func_1(grid).reshape(-1, 1) - net(grid)) ** 2))
+    error_rmse = torch.sqrt(torch.mean((exact_func(grid).reshape(-1, 1) - net(grid)) ** 2))
 
     exp_dict_list.append({
         'grid_res': grid_res,
